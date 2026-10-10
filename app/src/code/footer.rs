@@ -1043,7 +1043,7 @@ impl CodeFooterView {
             .path()
             .file_name()
             .and_then(|n| n.to_str())
-            .unwrap_or("unknown workspace")
+            .unwrap_or(warpui::localization::text("unknown workspace"))
             .to_string();
 
         let background = appearance.theme().surface_2();
@@ -1545,7 +1545,7 @@ impl CodeFooterView {
             let root_name = root_path
                 .file_name()
                 .and_then(|s| s.to_str())
-                .unwrap_or("this workspace");
+                .unwrap_or(warpui::localization::text("this workspace"));
             Some((
                 Some(warpui::localization::format_text("Language support is not currently enabled for {root_name}", &[("root_name", format!("{root_name}").as_str())])),
                 true,
@@ -1676,7 +1676,7 @@ impl CodeFooterView {
                 let root_name = root_path
                     .file_name()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("this workspace");
+                    .unwrap_or(warpui::localization::text("this workspace"));
 
                 // Check if any server has a CTA-worthy status
                 if let Some(cta) = self.workspace_cta_message() {

@@ -83,7 +83,7 @@ impl UpdateModalBody {
 
     fn render_title(&self, appearance: &Appearance) -> Box<dyn Element> {
         let theme = appearance.theme();
-        let name = self.server_name.as_deref().unwrap_or("Server");
+        let name = self.server_name.as_deref().unwrap_or(warpui::localization::text("Server"));
 
         // Renders MCP avatar icon
         let avatar_content = if let Some(icon) = ExternalProductIcon::from_string(name) {

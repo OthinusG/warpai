@@ -522,11 +522,11 @@ impl PlatformPageWidget {
         let last_used = key
             .last_used_at
             .map(format_approx_duration_from_now_utc)
-            .unwrap_or_else(|| "Never".to_owned());
+            .unwrap_or_else(|| warpui::localization::text("Never").to_owned());
         let expires_at = key
             .expires_at
             .map(|dt| format!("{}", dt.format("%b %-d, %Y")))
-            .unwrap_or_else(|| "Never".to_owned());
+            .unwrap_or_else(|| warpui::localization::text("Never").to_owned());
 
         // Truncate long names to keep columns aligned
         let name_display = truncate_from_end(&key.name, 21);

@@ -442,11 +442,11 @@ impl CollaborationPanel {
             for candidate in &snapshot.candidates {
                 if selected == Some(&candidate.agent.id) { selected_index = items.len(); }
                 items.push(super::DropdownItem::new(format!("{} · {} · {}", candidate.agent.name,
-                    candidate.branch.as_deref().unwrap_or("detached"), candidate.agent.id.chars().take(8).collect::<String>()),
+                    candidate.branch.as_deref().unwrap_or(warpui::localization::text("detached")), candidate.agent.id.chars().take(8).collect::<String>()),
                     Action::ChooseCoordinator { project: snapshot.project.clone(), agent: candidate.agent.id.clone(), run: candidate.run.clone() })
                     .with_icon(crate::agent_usage::agent_icon(&candidate.agent.program))
                     .with_tooltip(format!("{}\n{}\n{}\n{}", candidate.agent.name,
-                        candidate.branch.as_deref().unwrap_or("detached"), candidate.agent.id, candidate.root)));
+                        candidate.branch.as_deref().unwrap_or(warpui::localization::text("detached")), candidate.agent.id, candidate.root)));
             }
             dropdown.set_items(items, ctx);
             dropdown.set_selected_by_index(selected_index, ctx);
@@ -475,7 +475,7 @@ impl CollaborationPanel {
         }
         body.add_child(heading(appearance, warpui::localization::text("Worktrees")));
         for checkout in &snapshot.worktrees {
-            let branch = checkout.branch.as_deref().unwrap_or("detached HEAD");
+            let branch = checkout.branch.as_deref().unwrap_or(warpui::localization::text("detached HEAD"));
             let mut summary: String = branch.chars().take(48).collect();
             if branch.chars().count() > 48 { summary.push('…'); }
             let root = checkout.root.clone();
@@ -663,7 +663,7 @@ impl CollaborationPanel {
     fn build_form_selectors(&mut self, ctx: &mut ViewContext<Self>) {
         let (Some(form), Some(snapshot)) = (&mut self.form, &self.snapshot) else { return; };
         let peers: Vec<_> = if self.worktree_mode {
-            snapshot.candidates.iter().map(|candidate| (candidate.agent.id.clone(), format!("{} · {}", candidate.agent.name, candidate.branch.as_deref().unwrap_or("detached")))).collect()
+            snapshot.candidates.iter().map(|candidate| (candidate.agent.id.clone(), format!("{} · {}", candidate.agent.name, candidate.branch.as_deref().unwrap_or(warpui::localization::text("detached"))))).collect()
         } else {
             snapshot.agents.iter().filter(|row| row.online).map(|row| (row.agent.id.clone(), row.agent.name.clone())).collect()
         };
@@ -1008,7 +1008,7 @@ impl CollaborationPanel {
                             let __warpai_locale_argument_1 = &(reservation.path);
                             let __warpai_locale_argument_2 = &(reservation.owner);
                             let __warpai_locale_argument_3 = &(reservation.expires_at);
-                            let __warpai_locale_argument_4 = &(reservation.attempt_id.as_deref().unwrap_or("unlinked"));
+                            let __warpai_locale_argument_4 = &(reservation.attempt_id.as_deref().unwrap_or(warpui::localization::text("unlinked")));
                             warpui::localization::format_text(
                                 "Original checkout {} · path {} · owner {} · expiry {} · attempt {}",
                                 &[
@@ -1062,7 +1062,7 @@ impl CollaborationPanel {
                     let id = candidate.agent.id.clone();
                     let button = builder.button(if selected { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.candidate_buttons[&id].clone())
                         .with_custom_label(builder.span(format!("{} · {}", candidate.agent.name,
-                            candidate.branch.as_deref().unwrap_or("detached"))).with_soft_wrap().build().finish());
+                            candidate.branch.as_deref().unwrap_or(warpui::localization::text("detached")))).with_soft_wrap().build().finish());
                     let button = if form.submitting || form.submitted_fields.is_some() { button.disabled() } else { button };
                     body.add_child(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::SelectParticipant(id.clone()))).finish());
                     if selected { body.add_child(note(appearance, candidate.root.clone())); }

@@ -691,6 +691,10 @@
     "通过 GitHub 认证",
     "透過 GitHub 驗證"
   ],
+  "Auto": [
+    "自动",
+    "自動"
+  ],
   "Auto open code review panel": [
     "自动打开代码审阅面板",
     "自動開啟程式碼審閱面板"
@@ -6043,6 +6047,10 @@
     "还原为服务器版本",
     "還原為伺服器版本"
   ],
+  "Review Comment": [
+    "审查评论",
+    "審查評論"
+  ],
   "Review changes": [
     "审阅变更",
     "審閱變更"
@@ -6558,6 +6566,10 @@
   "Separator": [
     "分隔符",
     "分隔符號"
+  ],
+  "Server": [
+    "服务器",
+    "伺服器"
   ],
   "Session": [
     "会话",
@@ -7218,6 +7230,10 @@
   "Take over": [
     "接管",
     "接管"
+  ],
+  "Task": [
+    "任务",
+    "任務"
   ],
   "Task {} · original revision {} · version {}": [
     "任务 {} · 原始修订 {} · 版本 {}",
@@ -8547,6 +8563,10 @@
     "账号 注册",
     "帳號 註冊"
   ],
+  "active": [
+    "活动中",
+    "活動中"
+  ],
   "active ai a.i. next command prompt suggestions code diffs suggested banners passive unit tests commit pull request pr git code review autogen generate": [
     "AI 命令 提示 建议 代码差异 横幅 单元测试 提交 合并请求 Git 审查 自动生成",
     "AI 命令 提示 建議 程式碼差異 橫幅 單元測試 提交 合併請求 Git 審查 自動產生"
@@ -8750,6 +8770,14 @@
   "desktop notifications": [
     "桌面通知",
     "桌面通知"
+  ],
+  "detached": [
+    "游离状态",
+    "游離狀態"
+  ],
+  "detached HEAD": [
+    "游离 HEAD",
+    "游離 HEAD"
   ],
   "device {value}; remote metadata, content not fetched": [
     "设备 {value}；远程元数据，内容尚未获取",
@@ -9095,6 +9123,10 @@
     "隐私 政策 条款",
     "隱私 政策 條款"
   ],
+  "private": [
+    "私有",
+    "私有"
+  ],
   "project explorer file tree left panel tools": [
     "项目浏览器 文件树 左侧工具面板",
     "專案瀏覽器 檔案樹 左側工具面板"
@@ -9295,6 +9327,10 @@
     "此对话",
     "此對話"
   ],
+  "this workspace": [
+    "此工作区",
+    "此工作區"
+  ],
   "to cycle parameters": [
     "切换参数",
     "切換參數"
@@ -9311,9 +9347,21 @@
     "不可用",
     "無法使用"
   ],
+  "unknown": [
+    "未知",
+    "未知"
+  ],
   "unknown activity": [
     "活动状态未知",
     "活動狀態未知"
+  ],
+  "unknown workspace": [
+    "未知工作区",
+    "未知工作區"
+  ],
+  "unlinked": [
+    "未关联",
+    "未關聯"
   ],
   "unread": [
     "未读",
@@ -9451,6 +9499,10 @@
     "按 {} 打开补全菜单。",
     "按 {} 開啟補全選單。"
   ],
+  "{} · owner {} · outcome {}": [
+    "{} · 所有者 {} · 结果 {}",
+    "{} · 擁有者 {} · 結果 {}"
+  ],
   "{} · repository {} · {}": [
     "{} · 仓库 {} · {}",
     "{} · 儲存庫 {} · {}"
@@ -9458,6 +9510,10 @@
   "{} · {:.0}% used": [
     "{} · 已用 {:.0}%",
     "{} · 已用 {:.0}%"
+  ],
+  "{} · {} · {} · owner {} · expires {} · {}{} · task {} · attempt {}": [
+    "{} · {} · {} · 所有者 {} · 到期 {} · {}{} · 任务 {} · 尝试 {}",
+    "{} · {} · {} · 擁有者 {} · 到期 {} · {}{} · 任務 {} · 嘗試 {}"
   ],
   "{}: error": [
     "{}：错误",

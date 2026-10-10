@@ -161,3 +161,8 @@ redaction modes, Git commands and CLI agent program names are unchanged.
 Accessibility announcements without a separate help argument are included in
 the display inventory and localized, including selection, clipboard, find/replace,
 scrolling and menu actions. Shortcut names keep their key identities.
+
+Indirect display fallbacks (untitled files, unnamed messages, workspaces and
+servers), detached-branch labels and reservation/attempt summaries translate at
+their display producers. Real names, branch names, message bodies and protocol
+values remain unchanged; history task-state labels use the existing catalog.

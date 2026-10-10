@@ -876,8 +876,8 @@ impl CollaborationPanel {
                     rows: history.records.iter().filter_map(|record| {
                         let data = &record["data"];
                         match record["type"].as_str()? {
-                            "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or("Task"),
-                                data["state"].as_str().unwrap_or("unknown"))),
+                            "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or(warpui::localization::text("Task")),
+                                warpui::localization::text(data["state"].as_str().unwrap_or("unknown")))),
                             "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
                                 snapshot.participant_label(data["to"].as_str().unwrap_or("")), data["body"].as_str().unwrap_or(""))),
                             _ => None,
@@ -896,7 +896,7 @@ impl CollaborationPanel {
                 title: if self.query.selected_thread.is_some() { "Conversation".into() } else { "Messages".into() },
                 rows: if snapshot.messages.is_empty() { vec![warpui::localization::text("No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.").into()] }
                     else { snapshot.messages.iter().flat_map(|message| [
-                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or("Message"), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
+                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or(warpui::localization::text("Message")), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
                         message.body.clone(),
                     ]).collect() },
             });
@@ -946,7 +946,7 @@ impl CollaborationPanel {
                     title: format!(
                         "{} · {}",
                         space.name,
-                        space.id.as_deref().unwrap_or("private")
+                        space.id.as_deref().unwrap_or(warpui::localization::text("private"))
                     ),
                     rows: vec![if space.private {
                         warpui::localization::text("Ordinary new panes remain isolated by canonical project root.").into()
@@ -1058,11 +1058,11 @@ impl CollaborationPanel {
                         .attempts
                         .iter()
                         .map(|attempt| {
-                            format!(
+                            warpui::localization::format_text(
                                 "{} · owner {} · outcome {}",
-                                attempt.certainty,
-                                snapshot.participant_label(&attempt.owner),
-                                attempt.outcome.as_deref().unwrap_or("unknown")
+                                &[("0", warpui::localization::text(&attempt.certainty)),
+                                  ("1", &snapshot.participant_label(&attempt.owner)),
+                                  ("2", attempt.outcome.as_deref().unwrap_or(warpui::localization::text("unknown")))],
                             )
                         })
                         .chain(
@@ -1216,9 +1216,12 @@ impl CollaborationPanel {
                     let expiry = i64::try_from(lease.expires_at).ok()
                         .and_then(chrono::DateTime::<chrono::Utc>::from_timestamp_millis)
                         .map(|time| time.format("%Y-%m-%d %H:%M:%S UTC").to_string()).unwrap_or_else(|| warpui::localization::text("unavailable").into());
-                    format!("{} · {} · {} · owner {} · expires {} · {}{} · task {} · attempt {}", lease.id, lease.path, lease.mode, lease.owner, expiry,
-                        if lease.expired { "expired" } else { "active" }, if lease.abandoned { "; abandoned owner, execution effects unknown" } else { "" },
-                        lease.task_id.as_deref().unwrap_or("unlinked"), lease.attempt_id.as_deref().unwrap_or("unlinked"))
+                    warpui::localization::format_text("{} · {} · {} · owner {} · expires {} · {}{} · task {} · attempt {}",
+                        &[("0", &lease.id), ("1", &lease.path), ("2", &lease.mode), ("3", &lease.owner), ("4", &expiry),
+                          ("5", warpui::localization::text(if lease.expired { "expired" } else { "active" })),
+                          ("6", if lease.abandoned { warpui::localization::text("; abandoned owner, execution effects unknown") } else { "" }),
+                          ("7", lease.task_id.as_deref().unwrap_or(warpui::localization::text("unlinked"))),
+                          ("8", lease.attempt_id.as_deref().unwrap_or(warpui::localization::text("unlinked")))])
                 })).collect(),
         });
         fixture.sections.push(Section {

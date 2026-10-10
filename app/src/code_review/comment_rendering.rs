@@ -475,7 +475,7 @@ impl CommentViewCard {
             _ => source
                 .head()
                 .map(|head| head.title())
-                .unwrap_or_else(|| "Review Comment".to_string()),
+                .unwrap_or_else(|| warpui::localization::text("Review Comment").to_string()),
         }
     }
 }
