@@ -130,7 +130,7 @@ pub fn render_lsp_selector_block(
     );
 
     let title_element = Span::new(
-        "Would you like to enable available language support for this codebase? This will give you smarter code navigation and inline error checking.",
+        warpui::localization::text("Would you like to enable available language support for this codebase? This will give you smarter code navigation and inline error checking."),
         UiComponentStyles {
             font_family_id: Some(appearance.ui_font_family()),
             font_color: Some(blended_colors::text_main(appearance.theme(), header_background)),

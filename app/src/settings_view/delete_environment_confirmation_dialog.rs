@@ -90,7 +90,7 @@ impl View for DeleteEnvironmentConfirmationDialog {
         );
 
         let dialog = Dialog::new(
-            "Delete environment?".to_string(),
+            warpui::localization::text("Delete environment?").to_string(),
             Some(description),
             dialog_styles(appearance),
         )

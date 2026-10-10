@@ -177,7 +177,7 @@ impl<T: 'static> View for ToggleableItemsView<T> {
                     .finish();
 
                 let hint_text = Span::new(
-                    "to toggle selection",
+                    warpui::localization::text("to toggle selection"),
                     UiComponentStyles {
                         margin: Some(Coords::default().left(6.)),
                         ..hint_styles

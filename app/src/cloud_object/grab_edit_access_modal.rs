@@ -68,7 +68,7 @@ impl GrabEditAccessModal {
             .finish();
 
         Dialog::new(
-            CURRENTLY_EDITED_LABEL.to_string(),
+            warpui::localization::text(CURRENTLY_EDITED_LABEL).to_string(),
             None,
             dialog_styles(appearance),
         )

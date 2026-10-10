@@ -583,6 +583,14 @@
     "你还在吗？",
     "你還在嗎？"
   ],
+  "Are you sure you want to empty the trash?": [
+    "确定要清空废纸篓吗？",
+    "確定要清空垃圾桶嗎？"
+  ],
+  "Are you sure you want to rewind? This will restore your code and conversation to before this point, and cancel any commands the agent is currently running. A copy of the original conversation will be saved in your conversation history.": [
+    "确定要回退吗？这将把代码和对话恢复到此时间点之前，并取消 Agent 当前运行的命令。原始对话的副本将保存在对话历史中。",
+    "確定要回溯嗎？這將把程式碼與對話還原至此時間點之前，並取消 Agent 目前執行的命令。原始對話的副本將儲存在對話歷史中。"
+  ],
   "Are you sure you want to skip login?": [
     "确定跳过登录吗？",
     "確定略過登入嗎？"
@@ -919,6 +927,10 @@
     "取消摘要",
     "取消摘要"
   ],
+  "Cancel summarization?": [
+    "取消摘要生成？",
+    "取消摘要產生？"
+  ],
   "Cannot add multiple MCP servers while editing a single server.": [
     "编辑单个 MCP 服务器时无法添加多个服务器。",
     "編輯單一 MCP 伺服器時無法新增多個伺服器。"
@@ -1190,6 +1202,10 @@
   "Close session": [
     "关闭会话",
     "關閉工作階段"
+  ],
+  "Close session?": [
+    "关闭会话？",
+    "關閉工作階段？"
   ],
   "Close tab": [
     "关闭标签页",
@@ -1991,6 +2007,10 @@
     "删除 MCP",
     "刪除 MCP"
   ],
+  "Delete MCP server?": [
+    "删除 MCP 服务器？",
+    "刪除 MCP 伺服器？"
+  ],
   "Delete all left": [
     "删除左侧全部内容",
     "刪除左側全部內容"
@@ -2002,6 +2022,10 @@
   "Delete environment": [
     "删除环境",
     "刪除環境"
+  ],
+  "Delete environment?": [
+    "删除环境？",
+    "刪除環境？"
   ],
   "Delete forever": [
     "永久删除",
@@ -2022,6 +2046,10 @@
   "Delete rule": [
     "删除规则",
     "刪除規則"
+  ],
+  "Delete shared MCP server?": [
+    "删除共享的 MCP 服务器？",
+    "刪除共享的 MCP 伺服器？"
   ],
   "Delete theme": [
     "删除主题",
@@ -2647,6 +2675,10 @@
     "不再显示",
     "不要再顯示"
   ],
+  "Don't show again.": [
+    "不再显示。",
+    "不再顯示。"
+  ],
   "Don't show me suggested code banners again": [
     "不再显示代码建议横幅",
     "不再顯示程式碼建議橫幅"
@@ -2670,6 +2702,10 @@
   "Download": [
     "下载",
     "下載"
+  ],
+  "Download Warpai Desktop?": [
+    "下载 Warpai 桌面版？",
+    "下載 Warpai 桌面版？"
   ],
   "Drive": [
     "云盘",
@@ -5275,6 +5311,10 @@
     "在 Warpai 中打开",
     "在 Warpai 中開啟"
   ],
+  "Open in Warpai Desktop?": [
+    "在 Warpai 桌面版中打开？",
+    "在 Warpai 桌面版中開啟？"
+  ],
   "Open in code review": [
     "在代码审阅中打开",
     "在程式碼審閱中開啟"
@@ -5558,6 +5598,10 @@
   "PowerShell subshells not supported": [
     "不支持 PowerShell 子 Shell",
     "不支援 PowerShell 子 Shell"
+  ],
+  "Powerlevel10k now supports Warpai!  ": [
+    "Powerlevel10k 现已支持 Warpai！  ",
+    "Powerlevel10k 現已支援 Warpai！  "
   ],
   "Prefer rendering new windows with integrated GPU (low power)": [
     "优先使用集成 GPU 渲染新窗口（低功耗）",
@@ -5932,7 +5976,7 @@
     "從群組中移除"
   ],
   "Remove from team": [
-    "从团队中移除",
+    "从团队移除",
     "從團隊移除"
   ],
   "Remove link": [
@@ -5942,6 +5986,10 @@
   "Remove queued prompt": [
     "移除排队中的提示",
     "移除佇列中的提示"
+  ],
+  "Remove shared MCP server from team?": [
+    "从团队移除共享的 MCP 服务器？",
+    "從團隊移除共享的 MCP 伺服器？"
   ],
   "Remove the previous character": [
     "删除前一个字符",
@@ -6221,7 +6269,7 @@
   ],
   "Rewind": [
     "回退",
-    "回復"
+    "回溯"
   ],
   "Rewind to before here": [
     "回退到此处之前",
@@ -6614,6 +6662,10 @@
   "Select previous command": [
     "选择上一条命令",
     "選取上一條命令"
+  ],
+  "Select repos for your environment": [
+    "为此环境选择仓库",
+    "為此環境選取儲存庫"
   ],
   "Select shell command at cursor": [
     "选择光标处的 Shell 命令",
@@ -7219,6 +7271,10 @@
     "建议：",
     "建議："
   ],
+  "Summarization is already running. If you cancel now, the request may still incur cost, any progress so far will be lost, and restarting will take longer.\n\nAre you sure you want to cancel?": [
+    "摘要生成已开始。现在取消仍可能产生费用，已完成的进度将丢失，重新开始需要更长时间。\n\n确定要取消吗？",
+    "摘要產生已開始。現在取消仍可能產生費用，已完成的進度將遺失，重新開始需要更長時間。\n\n確定要取消嗎？"
+  ],
   "Supervised": [
     "监督模式",
     "監督模式"
@@ -7527,6 +7583,10 @@
     "此 Windows 电脑",
     "此 Windows 電腦"
   ],
+  "This action cannot be undone.": [
+    "此操作无法撤销。",
+    "此操作無法復原。"
+  ],
   "This cannot be undone.": [
     "此操作无法撤销。",
     "此操作無法復原。"
@@ -7558,6 +7618,10 @@
   "This notebook cannot be saved because its title contains secrets": [
     "此笔记本标题包含敏感信息，无法保存",
     "此筆記本標題包含敏感資訊，無法儲存"
+  ],
+  "This notebook is currently being edited": [
+    "此笔记本正在被编辑",
+    "此筆記本正在被編輯"
   ],
   "This option is enforced by your organization's settings and cannot be customized.": [
     "此选项由组织设置强制执行，无法自定义。",
@@ -7591,6 +7655,10 @@
     "此标签页配置将被永久删除。此操作无法撤销。",
     "此分頁設定將被永久刪除。此操作無法復原。"
   ],
+  "This will not only delete this MCP server for yourself, but also uninstall and remove this MCP server from Warpai and across all of your teammates' devices.": [
+    "这将为你删除此 MCP 服务器，并从 Warpai 和所有团队成员的设备卸载并移除它。",
+    "這將為你刪除此 MCP 伺服器，並從 Warpai 與所有團隊成員的裝置解除安裝並移除它。"
+  ],
   "This will permanently delete the theme.": [
     "这将永久删除此主题。",
     "這將永久刪除此佈景主題。"
@@ -7606,6 +7674,14 @@
   "This will restore this file to the main branch version and discard all committed and uncommitted edits.": [
     "这将把此文件恢复为主分支版本，并丢弃所有已提交和未提交的编辑。",
     "這將把此檔案還原為主分支版本，並捨棄所有已提交和未提交的編輯。"
+  ],
+  "This will uninstall and remove this MCP server from Warpai and across all of your teammates' devices.": [
+    "这将从 Warpai 和所有团队成员的设备卸载并移除此 MCP 服务器。",
+    "這將從 Warpai 與所有團隊成員的裝置解除安裝並移除此 MCP 伺服器。"
+  ],
+  "This will uninstall and remove this MCP server from all your devices.": [
+    "这将从你的所有设备卸载并移除此 MCP 服务器。",
+    "這將從你的所有裝置解除安裝並移除此 MCP 伺服器。"
   ],
   "This workflow is no longer available.": [
     "此工作流已不可用。",
@@ -8527,6 +8603,10 @@
     "工作树",
     "工作樹"
   ],
+  "Would you like to enable available language support for this codebase? This will give you smarter code navigation and inline error checking.": [
+    "是否为此代码库启用可用的语言支持？这将提供更智能的代码导航和行内错误检查。",
+    "是否為此程式碼庫啟用可用的語言支援？這將提供更智慧的程式碼導覽及行內錯誤檢查。"
+  ],
   "Write current codebase index snapshot": [
     "写入当前代码库索引快照",
     "寫入目前程式碼庫索引快照"
@@ -8546,6 +8626,10 @@
   "You (default reviewer)": [
     "你（默认审查者）",
     "你（預設審查者）"
+  ],
+  "You are about to close a session that is currently being shared. Closing it will end sharing for everyone.": [
+    "即将关闭正在共享的会话。关闭后，所有人的共享都会结束。",
+    "即將關閉正在共享的工作階段。關閉後，所有人的共享都會結束。"
   ],
   "You are offline.": [
     "你已离线。",
@@ -8574,6 +8658,10 @@
   "You have reached the maximum number of codebase indices for your plan. Delete existing indices to auto-index new codebases.": [
     "代码库索引数量已达方案上限。删除现有索引后可自动索引新的代码库。",
     "程式碼庫索引數量已達方案上限。刪除現有索引後可自動索引新的程式碼庫。"
+  ],
+  "You have unsaved changes.": [
+    "有未保存的更改。",
+    "有未儲存的變更。"
   ],
   "You haven't added any MCP servers yet. Once you do, you'll be able to control how much autonomy the Warpai Agent has when interacting with them. ": [
     "你尚未添加任何 MCP 服务器。添加后，即可控制 Warpai Agent 与服务器交互时的自主权限。 ",
@@ -8814,6 +8902,10 @@
   "auto save autosave automatically save editor files on type focus": [
     "自动保存 编辑器 文件 输入 焦点",
     "自動儲存 編輯器 檔案 輸入 焦點"
+  ],
+  "auto-reload": [
+    "自动重新加载",
+    "自動重新載入"
   ],
   "autocomplete autoclose symbol bracket quote parentheses braces": [
     "自动补全 自动闭合 符号 括号 引号 圆括号 花括号",
@@ -9626,6 +9718,10 @@
   "to cycle parameters": [
     "切换参数",
     "切換參數"
+  ],
+  "to toggle selection": [
+    "切换选择",
+    "切換選取"
   ],
   "troubleshooting docs": [
     "故障排查文档",

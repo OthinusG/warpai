@@ -20481,7 +20481,7 @@ impl TerminalView {
         let show_banner = if honor_ps1 {
             let banner_content = if shell_plugins.contains("p10k_unsupported") {
                 Some(BannerTextContent::formatted_text(vec![
-                    FormattedTextFragment::bold("Powerlevel10k now supports Warpai!  "),
+                    FormattedTextFragment::bold(warpui::localization::text("Powerlevel10k now supports Warpai!  ")),
                     FormattedTextFragment::plain_text(
                         warpui::localization::text("You seem to be running an older (unsupported) version, please follow "),
                     ),

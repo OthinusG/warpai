@@ -93,8 +93,8 @@ impl View for EmptyTrashConfirmationDialog {
             .finish();
 
         Dialog::new(
-            EMPTY_TRASH_TITLE_TEXT.into(),
-            Some(EMPTY_TRASH_BODY_TEXT.into()),
+            warpui::localization::text(EMPTY_TRASH_TITLE_TEXT).into(),
+            Some(warpui::localization::text(EMPTY_TRASH_BODY_TEXT).into()),
             UiComponentStyles {
                 width: Some(460.),
                 padding: Some(Coords::uniform(24.)),

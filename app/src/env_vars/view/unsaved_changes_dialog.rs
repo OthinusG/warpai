@@ -63,7 +63,7 @@ impl EnvVarCollectionView {
 
         Container::new(
             Dialog::new(
-                UNSAVED_CHANGES_TEXT.to_string(),
+                warpui::localization::text(UNSAVED_CHANGES_TEXT).to_string(),
                 None,
                 dialog_styles(appearance),
             )

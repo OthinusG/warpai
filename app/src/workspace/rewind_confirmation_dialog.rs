@@ -199,9 +199,9 @@ impl View for RewindConfirmationDialog {
 
         let dialog = Container::new(
             Dialog::new(
-                "Rewind".into(),
+                warpui::localization::text("Rewind").into(),
                 Some(
-                    "Are you sure you want to rewind? This will restore your code and conversation to before this point, and cancel any commands the agent is currently running. A copy of the original conversation will be saved in your conversation history."
+                    warpui::localization::text("Are you sure you want to rewind? This will restore your code and conversation to before this point, and cancel any commands the agent is currently running. A copy of the original conversation will be saved in your conversation history.")
                         .into(),
                 ),
                 UiComponentStyles {

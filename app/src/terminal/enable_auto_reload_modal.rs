@@ -190,7 +190,7 @@ impl EnableAutoReloadModalBody {
         let theme = appearance.theme();
         let explanation_fragments = vec![
             FormattedTextFragment::plain_text(warpui::localization::text("When enabled, ")),
-            FormattedTextFragment::bold("auto-reload"),
+            FormattedTextFragment::bold(warpui::localization::text("auto-reload")),
             FormattedTextFragment::plain_text(
                 warpui::localization::text(" will automatically purchase your selected package when you run out. "),
             ),

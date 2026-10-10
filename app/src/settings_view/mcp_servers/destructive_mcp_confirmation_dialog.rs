@@ -59,22 +59,22 @@ impl From<&DestructiveMCPConfirmationDialogVariant>
     fn from(variant: &DestructiveMCPConfirmationDialogVariant) -> Self {
         match *variant {
             DestructiveMCPConfirmationDialogVariant::DeleteLocal => DestructiveMCPConfirmationDialogDisplayOptions::new(
-                "Delete MCP server?".to_string(),
-                "This will uninstall and remove this MCP server from all your devices.".to_string(),
-                "Delete MCP".to_string(),
-                "Cancel".to_string(),
+                warpui::localization::text("Delete MCP server?").to_string(),
+                warpui::localization::text("This will uninstall and remove this MCP server from all your devices.").to_string(),
+                warpui::localization::text("Delete MCP").to_string(),
+                warpui::localization::text("Cancel").to_string(),
             ),
             DestructiveMCPConfirmationDialogVariant::DeleteShared => DestructiveMCPConfirmationDialogDisplayOptions::new(
-                "Delete shared MCP server?".to_string(),
-                "This will not only delete this MCP server for yourself, but also uninstall and remove this MCP server from Warpai and across all of your teammates' devices.".to_string(),
-                "Delete MCP".to_string(),
-                "Cancel".to_string(),
+                warpui::localization::text("Delete shared MCP server?").to_string(),
+                warpui::localization::text("This will not only delete this MCP server for yourself, but also uninstall and remove this MCP server from Warpai and across all of your teammates' devices.").to_string(),
+                warpui::localization::text("Delete MCP").to_string(),
+                warpui::localization::text("Cancel").to_string(),
             ),
             DestructiveMCPConfirmationDialogVariant::Unshare => DestructiveMCPConfirmationDialogDisplayOptions::new(
-                "Remove shared MCP server from team?".to_string(),
-                "This will uninstall and remove this MCP server from Warpai and across all of your teammates' devices.".to_string(),
-                "Remove from team".to_string(),
-                "Cancel".to_string(),
+                warpui::localization::text("Remove shared MCP server from team?").to_string(),
+                warpui::localization::text("This will uninstall and remove this MCP server from Warpai and across all of your teammates' devices.").to_string(),
+                warpui::localization::text("Remove from team").to_string(),
+                warpui::localization::text("Cancel").to_string(),
             ),
         }
     }

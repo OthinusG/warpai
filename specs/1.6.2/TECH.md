@@ -181,3 +181,8 @@ Global-search counts retain the existing singular/plural branch and translate
 its display noun. Markdown editor accessibility announces links, paste, inserted
 blocks, conversions and language changes through catalog templates; file-open
 banners and notebook movement labels preserve their user-supplied arguments.
+
+Display inventory includes Dialog titles, Span labels and bold/italic text.
+Native confirmation producers localize shared-session close, rewind, MCP removal
+variants and unsaved-change dialogs while preserving each operation's scope
+and warning text. Diagnostic logs and generic user-provided dialogs stay raw.

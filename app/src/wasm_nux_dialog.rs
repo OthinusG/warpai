@@ -154,7 +154,7 @@ impl View for WasmNUXDialog {
 
         let dialog = if self.requested_download {
             Dialog::new(
-                "Open in Warpai Desktop?".to_string(),
+                warpui::localization::text("Open in Warpai Desktop?").to_string(),
                 Some("Future links will automatically open on desktop.".to_string()),
                 dialog_styles,
             )
@@ -165,7 +165,7 @@ impl View for WasmNUXDialog {
                 appearance,
             ))
         } else if app_install_detected == &UserAppInstallStatus::NotDetected {
-            Dialog::new("Download Warpai Desktop?".to_string(), None, dialog_styles)
+            Dialog::new(warpui::localization::text("Download Warpai Desktop?").to_string(), None, dialog_styles)
                 .with_child(
                     Flex::column()
                         .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
