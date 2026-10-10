@@ -123,7 +123,7 @@ def main():
                                 env["WARP_TEST_SSH_SOCKET"] = str(socket)
                             for language in args.languages:
                                 env["WARPAI_CAPTURE_LANGUAGE"] = language
-                                subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
+                                subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=450)
                         finally:
                             if master is not None:
                                 master.terminate()

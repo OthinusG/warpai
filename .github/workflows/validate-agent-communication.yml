@@ -200,7 +200,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Bundled WSL installation acceptance failed' }
       - name: Capture Windows static collaboration UI
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
-        timeout-minutes: 25
+        timeout-minutes: 30
         shell: pwsh
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-windows
@@ -216,14 +216,11 @@ jobs:
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
           $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe", "--languages", "en", "zh-Hans", "zh-Hant") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
           if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
-          # Keep only panic source locations, never the raw application log or payload.
-          $locations = @(Select-String -Path "$env:RUNNER_TEMP/collaboration-capture.stderr.log" -Pattern '([A-Za-z0-9_./\\-]+\.rs:[0-9]+:[0-9]+)' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -Unique)
           New-Item -ItemType Directory -Path $env:WARP_COLLABORATION_CAPTURE -Force | Out-Null
           python script/test-native-capture-diagnostic.py
           python script/native-capture-diagnostic.py --log "$env:RUNNER_TEMP/collaboration-capture.stdout.log" --log "$env:RUNNER_TEMP/collaboration-capture.stderr.log" --output "$env:WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code $captureProcess.ExitCode
           if ($LASTEXITCODE -ne 0) { throw "Capture diagnostics failed" }
           if ($captureProcess.ExitCode -ne 0) {
-            Write-Host "Native panic source locations: $($locations -join ', ')"
             throw "Native capture failed: $($captureProcess.ExitCode)"
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
@@ -348,7 +345,7 @@ jobs:
           retention-days: 7
       - name: Capture macOS static collaboration UI
         if: ${{ inputs.capture_ui }}
-        timeout-minutes: 25
+        timeout-minutes: 30
         env:
           WARP_COLLABORATION_CAPTURE: ${{ runner.temp }}/collaboration-ui-macos
           WARP_TEST_COMPANION: ${{ github.workspace }}/target/debug/warpai-companion

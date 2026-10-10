@@ -29,10 +29,11 @@ def main() -> None:
     log = "\n".join(log.read_text(errors="replace") for log in args.log)
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
+    panic_records = "\n".join(checkpoint.read_text(errors="replace") for checkpoint in args.output.parent.rglob("checkpoint-panic.txt"))
     for name in ["checkpoint-panic.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
         for checkpoint in args.output.parent.rglob(name):
             log += "\n" + checkpoint.read_text(errors="replace")
-    locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", log.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
+    locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", panic_records.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
@@ -45,6 +46,7 @@ def main() -> None:
         "private_git_errors": sorted(set(int(value) for value in re.findall(r"Native private Git error: code=(\d{1,3})\b", log))),
         "private_git_runner": [dict(stage=int(stage), exit=int(exit_code)) for stage, exit_code in re.findall(r"Native private Git runner: stage=([123]), exit=(-?\d{1,3})\b", log)],
         "panic_locations": locations,
+        "deadline_exceeded": bool(re.search(r"Native collaboration capture exceeded its \d+-second deadline", log)),
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

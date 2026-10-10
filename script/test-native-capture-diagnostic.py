@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as directory:
     (root / "capture/checkpoint-worktree-error.txt").write_text("Native Worktree read error: category=3\nunrelated runtime payload")
     (root / "capture/checkpoint-private-git.txt").write_text("Native private Git error: code=7\nunrelated runtime payload")
     (root / "capture/checkpoint-private-git-runner.txt").write_text("Native private Git runner: stage=2, exit=128\nunrelated runtime payload")
-    (root / "log").write_text("Native SSH file failure: ConnectionLost\nNative SSH file failure: runtime payload\n")
+    (root / "log").write_text("Native SSH file failure: ConnectionLost\nNative SSH file failure: runtime payload\nwarning: crates/agent_bus/src/companion_tasks.rs:637:37\nNative collaboration capture exceeded its 420-second deadline\n")
     subprocess.run([sys.executable, str(Path(__file__).with_name("native-capture-diagnostic.py")), "--log", str(root / "log"), "--output", str(root / "diagnostic.json"), "--exit-code", "1"], check=True, stdout=subprocess.DEVNULL)
     diagnostic = json.loads((root / "diagnostic.json").read_text())
     assert diagnostic["failed_assertions"] == ["owned remote tree populated"]
@@ -44,5 +44,6 @@ with tempfile.TemporaryDirectory() as directory:
     assert diagnostic["worktree_read_errors"] == [3]
     assert diagnostic["private_git_errors"] == [7]
     assert diagnostic["private_git_runner"] == [dict(stage=2, exit=128)]
+    assert diagnostic["deadline_exceeded"] is True
     assert "runtime payload" not in json.dumps(diagnostic)
 print("Native capture diagnostic redaction passed")

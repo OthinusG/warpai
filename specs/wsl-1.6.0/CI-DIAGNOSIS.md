@@ -149,3 +149,16 @@ Give only the six asynchronous WSL capture steps a sixty-second wait budget,
 as with existing remote capture steps. Preserve transport timeouts, assertions,
 zero retries and the process watchdog. This run did not reach collaboration,
 so the earlier override correction still requires cloud verification.
+
+## Aggregate native capture deadline
+
+Run https://github.com/OthinusG/warpai/actions/runs/38088551842 produces
+276 screenshots: Explorer and editor both reach the real WSL guest. ZIP creation
+times place the editor at 22:29:54 UTC; the process exits at 22:30:17, exactly
+300 seconds after launch. The WSL collaboration step therefore gets only about
+23 of its declared 60 seconds before the global watchdog exits. No step assertion
+failed. Raise the whole-process ceiling to 420 seconds, the parent subprocess
+ceiling to 450, and the outer single-locale CI step to 15 minutes to include three
+120-second SSH/SFTP checks. Keep RPC bounds, assertions and zero retries.
+Diagnostic panic locations must come from actual panic records rather than
+compiler warnings; report the watchdog separately. Cloud verification pending.

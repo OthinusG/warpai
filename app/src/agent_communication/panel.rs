@@ -2535,8 +2535,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     ))?;
     // Cover startup stalls too; the driver's watchdog starts only after initialization.
     std::thread::spawn(|| {
-        std::thread::sleep(std::time::Duration::from_secs(300));
-        eprintln!("Native collaboration capture exceeded its 300-second deadline");
+        std::thread::sleep(std::time::Duration::from_secs(420));
+        eprintln!("Native collaboration capture exceeded its 420-second deadline");
         std::process::exit(1);
     });
     let output = directory.clone();
