@@ -212,3 +212,8 @@ selected interface language. Generic component setters remain unchanged.
 SSH/subshell Warpify footer updates and hidden environment-form submit labels
 use explicit localized display values. Native file-type filters translate Image
 while retaining Markdown/Yaml names and file-extension matching.
+
+Localized concept names use consistent translations for Agent, Worktree,
+Coordinator, Workspace and Spaces. Source keys, placeholder names, protocol
+identifiers and user-provided values stay unchanged; Agent SDK and HTTP
+User-Agent names retain their technical spelling.

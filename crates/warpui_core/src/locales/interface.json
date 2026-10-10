@@ -72,8 +72,8 @@
     "以取得更多額度。"
   ],
   " for more powerful cloud agents.": [
-    " 以使用更强大的云端 Agent。",
-    " 以使用更強大的雲端 Agent。"
+    " 以使用更强大的云端 智能体。",
+    " 以使用更強大的雲端 智慧體。"
   ],
   " for security features like SSO and automatically applied zero data retention.": [
     " 以获得 SSO 和自动零数据保留等安全功能。",
@@ -252,8 +252,8 @@
     "Warpai 外掛程式有新版本可用"
   ],
   "A registered Git worktree is required": [
-    "需要已注册的 Git Worktree",
-    "需要已註冊的 Git Worktree"
+    "需要已注册的 Git 工作树",
+    "需要已註冊的 Git 工作樹"
   ],
   "AI Features must be enabled to use codebase indexing.": [
     "启用 AI 功能后才能使用代码库索引。",
@@ -356,12 +356,12 @@
     "新增"
   ],
   "Add MCP servers to extend the Warpai Agent's capabilities. MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. ": [
-    "添加 MCP 服务器以扩展 Warpai Agent 的能力。MCP 服务器通过标准化接口向 Agent 提供数据源或工具，作用类似插件。 ",
-    "新增 MCP 伺服器以擴充 Warpai Agent 的能力。MCP 伺服器透過標準化介面向 Agent 提供資料來源或工具，作用類似外掛程式。 "
+    "添加 MCP 服务器以扩展 Warpai 智能体的能力。MCP 服务器通过标准化接口向 智能体提供数据源或工具，作用类似插件。 ",
+    "新增 MCP 伺服器以擴充 Warpai 智慧體的能力。MCP 伺服器透過標準化介面向 智慧體提供資料來源或工具，作用類似外掛程式。 "
   ],
   "Add MCP servers to extend the Warpai Agent's capabilities. MCP servers expose data sources or tools to agents through a standardized interface, essentially acting like plugins. Add a custom server, or use the presets to get started with popular servers. You can also find team servers that have been shared with you here. ": [
-    "添加 MCP 服务器以扩展 Warpai Agent 的能力。MCP 服务器通过标准化接口向 Agent 提供数据源或工具，作用类似插件。你可以添加自定义服务器，或使用预设快速配置常见服务器。与您共享的团队服务器也会显示在这里。 ",
-    "新增 MCP 伺服器以擴充 Warpai Agent 的能力。MCP 伺服器透過標準化介面向 Agent 提供資料來源或工具，作用類似外掛程式。你可以新增自訂伺服器，或使用預設快速設定常見伺服器。與你共享的團隊伺服器也會顯示在這裡。 "
+    "添加 MCP 服务器以扩展 Warpai 智能体的能力。MCP 服务器通过标准化接口向 智能体提供数据源或工具，作用类似插件。你可以添加自定义服务器，或使用预设快速配置常见服务器。与您共享的团队服务器也会显示在这里。 ",
+    "新增 MCP 伺服器以擴充 Warpai 智慧體的能力。MCP 伺服器透過標準化介面向 智慧體提供資料來源或工具，作用類似外掛程式。你可以新增自訂伺服器，或使用預設快速設定常見伺服器。與你共享的團隊伺服器也會顯示在這裡。 "
   ],
   "Add Profile": [
     "添加配置方案",
@@ -460,8 +460,8 @@
     "目前分頁之後"
   ],
   "Agent": [
-    "Agent",
-    "Agent"
+    "智能体",
+    "智慧體"
   ],
   "Agent collaboration, sample data. {}. {}": [
     "智能体协作，示例数据。{}。{}",
@@ -480,16 +480,16 @@
     "由智慧體決定"
   ],
   "Agent font": [
-    "Agent 字体",
-    "Agent 字型"
+    "智能体字体",
+    "智慧體字型"
   ],
   "Agent harness": [
-    "Agent 运行工具",
-    "Agent 執行工具"
+    "智能体运行工具",
+    "智慧體執行工具"
   ],
   "Agent name to remove": [
-    "要移除的 Agent 名称",
-    "要移除的 Agent 名稱"
+    "要移除的 智能体名称",
+    "要移除的 智慧體名稱"
   ],
   "Agent scan complete for this WSL account.": [
     "此 WSL 账户的智能体扫描已完成。",
@@ -532,8 +532,8 @@
     "允許自動建立索引"
   ],
   "Allow the Warpai Agent to generate an outline of your codebase that can be used for context. No code is ever stored on our servers. ": [
-    "允许 Warpai Agent 生成代码库概览，用于提供上下文。代码不会存储在我们的服务器上。 ",
-    "允許 Warpai Agent 產生程式碼庫概覽，用於提供上下文。程式碼不會儲存在我們的伺服器上。 "
+    "允许 Warpai 智能体生成代码库概览，用于提供上下文。代码不会存储在我们的服务器上。 ",
+    "允許 Warpai 智慧體產生程式碼庫概覽，用於提供上下文。程式碼不會儲存在我們的伺服器上。 "
   ],
   "Allowed Values: 1-20": [
     "允许值：1–20",
@@ -616,8 +616,8 @@
     "確定要清空垃圾桶嗎？"
   ],
   "Are you sure you want to rewind? This will restore your code and conversation to before this point, and cancel any commands the agent is currently running. A copy of the original conversation will be saved in your conversation history.": [
-    "确定要回退吗？这将把代码和对话恢复到此时间点之前，并取消 Agent 当前运行的命令。原始对话的副本将保存在对话历史中。",
-    "確定要回溯嗎？這將把程式碼與對話還原至此時間點之前，並取消 Agent 目前執行的命令。原始對話的副本將儲存在對話歷史中。"
+    "确定要回退吗？这将把代码和对话恢复到此时间点之前，并取消 智能体当前运行的命令。原始对话的副本将保存在对话历史中。",
+    "確定要回溯嗎？這將把程式碼與對話還原至此時間點之前，並取消 智慧體目前執行的命令。原始對話的副本將儲存在對話歷史中。"
   ],
   "Are you sure you want to skip login?": [
     "确定跳过登录吗？",
@@ -664,8 +664,8 @@
     "請求 Warpai 智慧體繼續"
   ],
   "Ask the agent to check this command now, skipping its timer.": [
-    "让 Agent 立即检查此命令，跳过定时等待。",
-    "讓 Agent 立即檢查此命令，跳過計時等待。"
+    "让 智能体立即检查此命令，跳过定时等待。",
+    "讓 智慧體立即檢查此命令，跳過計時等待。"
   ],
   "Ask unless auto-approve": [
     "除自动批准外均询问",
@@ -696,12 +696,12 @@
     "你可以隨時永久刪除 Warpai 帳號。刪除後將無法繼續使用 Warpai。"
   ],
   "Attach Selected Block as Agent Context": [
-    "将所选命令块附加为 Agent 上下文",
-    "將所選命令區塊附加為 Agent 上下文"
+    "将所选命令块附加为 智能体上下文",
+    "將所選命令區塊附加為 智慧體上下文"
   ],
   "Attach Selected Text as Agent Context": [
-    "将所选文本附加为 Agent 上下文",
-    "將所選文字附加為 Agent 上下文"
+    "将所选文本附加为 智能体上下文",
+    "將所選文字附加為 智慧體上下文"
   ],
   "Attach as context": [
     "附加为上下文",
@@ -764,8 +764,8 @@
     "自動核准"
   ],
   "Auto-approve all agent actions for this task": [
-    "自动批准 Agent 对此任务的所有操作",
-    "自動核准 Agent 對此任務的所有操作"
+    "自动批准 智能体对此任务的所有操作",
+    "自動核准 智慧體對此任務的所有操作"
   ],
   "Auto-generate worktree branch name": [
     "自动生成工作树分支名称",
@@ -808,12 +808,12 @@
     "開啟新分頁時自動建立工作樹"
   ],
   "Automatically detect and spawn MCP servers from globally-scoped third-party AI agent configuration files (e.g. in your home directory). Servers detected inside a repository are never spawned automatically and must be enabled individually from the MCP settings page. ": [
-    "自动检测并启动来自第三方 AI Agent 全局配置文件（例如主目录中的配置）的 MCP 服务器。仓库中检测到的服务器不会自动启动，必须在 MCP 设置页面单独启用。 ",
-    "自動偵測並啟動來自第三方 AI Agent 全域設定檔（例如家目錄中的設定）的 MCP 伺服器。儲存庫中偵測到的伺服器不會自動啟動，必須在 MCP 設定頁面個別啟用。 "
+    "自动检测并启动来自第三方 AI 智能体全局配置文件（例如主目录中的配置）的 MCP 服务器。仓库中检测到的服务器不会自动启动，必须在 MCP 设置页面单独启用。 ",
+    "自動偵測並啟動來自第三方 AI 智慧體全域設定檔（例如家目錄中的設定）的 MCP 伺服器。儲存庫中偵測到的伺服器不會自動啟動，必須在 MCP 設定頁面個別啟用。 "
   ],
   "Automatically detect and spawn MCP servers from globally-scoped third-party AI agent configuration files (e.g. in your home directory). Servers detected inside a repository are never spawned automatically and must be enabled individually in the \"Detected from\" sections below. ": [
-    "自动检测并启动来自第三方 AI Agent 全局配置文件（例如主目录中的配置）的 MCP 服务器。仓库中检测到的服务器不会自动启动，必须在下方“检测来源”区域单独启用。 ",
-    "自動偵測並啟動來自第三方 AI Agent 全域設定檔（例如家目錄中的設定）的 MCP 伺服器。儲存庫中偵測到的伺服器不會自動啟動，必須在下方「偵測來源」區域個別啟用。 "
+    "自动检测并启动来自第三方 AI 智能体全局配置文件（例如主目录中的配置）的 MCP 服务器。仓库中检测到的服务器不会自动启动，必须在下方“检测来源”区域单独启用。 ",
+    "自動偵測並啟動來自第三方 AI 智慧體全域設定檔（例如家目錄中的設定）的 MCP 伺服器。儲存庫中偵測到的伺服器不會自動啟動，必須在下方「偵測來源」區域個別啟用。 "
   ],
   "Automatically generate a theme based on extracted colors from an image (.png, .jpg).": [
     "根据图片（.png、.jpg）中提取的颜色自动生成主题。",
@@ -984,12 +984,12 @@
     "唯讀檢視者無法傳送查詢。"
   ],
   "Cannot start a new conversation while agent is monitoring a command.": [
-    "Agent 监控命令时无法开始新对话。",
-    "Agent 監控命令時無法開始新對話。"
+    "智能体监控命令时无法开始新对话。",
+    "智慧體監控命令時無法開始新對話。"
   ],
   "Cannot switch conversations while agent is monitoring a command.": [
-    "Agent 监控命令时无法切换对话。",
-    "Agent 監控命令時無法切換對話。"
+    "智能体监控命令时无法切换对话。",
+    "智慧體監控命令時無法切換對話。"
   ],
   "Canonical checkout root": [
     "规范检出目录根路径",
@@ -1064,8 +1064,8 @@
     "檢視最新版本後重試。"
   ],
   "Checking agents in the selected WSL distribution…": [
-    "正在检查所选 WSL 发行版中的 Agent…",
-    "正在檢查所選 WSL 發行版中的 Agent…"
+    "正在检查所选 WSL 发行版中的 智能体…",
+    "正在檢查所選 WSL 發行版中的 智慧體…"
   ],
   "Checking for updates…": [
     "正在检查更新…",
@@ -1080,8 +1080,8 @@
     "選擇在 Warpai 中開啟檔案的版面配置"
   ],
   "Choose agent model": [
-    "选择 Agent 模型",
-    "選取 Agent 模型"
+    "选择 智能体模型",
+    "選取 智慧體模型"
   ],
   "Choose an AI execution profile": [
     "选择 AI 执行配置",
@@ -1276,12 +1276,12 @@
     "雲端 Oz"
   ],
   "Cloud agent run": [
-    "云端 Agent 运行",
-    "雲端 Agent 執行"
+    "云端 智能体运行",
+    "雲端 智慧體執行"
   ],
   "Cloud agent trial": [
-    "云端 Agent 试用",
-    "雲端 Agent 試用"
+    "云端 智能体试用",
+    "雲端 智慧體試用"
   ],
   "Cloud agents require an environment that they'll run in to get their task done. Create your first environment below. You'll be able to edit the environment later, or add new environments when you need them.": [
     "云端智能体需要运行环境来完成任务。请在下方创建第一个环境，之后可随时编辑或添加环境。",
@@ -1372,8 +1372,8 @@
     "從 GitHub 匯入的留言"
   ],
   "Comments sent to agent": [
-    "评论已发送给 Agent",
-    "評論已傳送給 Agent"
+    "评论已发送给 智能体",
+    "評論已傳送給 智慧體"
   ],
   "Commit": [
     "提交",
@@ -1392,8 +1392,8 @@
     "在遠端終端機中提交、推送及捨棄變更"
   ],
   "Communication is off. Enable it in Settings > Features > Agent communication.": [
-    "通信已关闭。请在“设置 > 功能 > Agent 通信”中启用。",
-    "通訊已關閉。請在「設定 > 功能 > Agent 通訊」中啟用。"
+    "通信已关闭。请在“设置 > 功能 > 智能体通信”中启用。",
+    "通訊已關閉。請在「設定 > 功能 > 智慧體通訊」中啟用。"
   ],
   "Compact Mode": [
     "紧凑模式",
@@ -1492,8 +1492,8 @@
     "在設定中連結帳號"
   ],
   "Connected to the remote project. Agent presence is observed remotely.": [
-    "已连接远程项目。Agent 在线状态由远程环境提供。",
-    "已連線遠端專案。Agent 在線狀態由遠端環境提供。"
+    "已连接远程项目。智能体在线状态由远程环境提供。",
+    "已連線遠端專案。智慧體在線狀態由遠端環境提供。"
   ],
   "Connected.": [
     "已连接。",
@@ -1576,8 +1576,8 @@
     "協調者"
   ],
   "Coordinator unavailable. Restart Warpai to reconnect.": [
-    "Coordinator 不可用。请重启 Warpai 以重新连接。",
-    "Coordinator 無法使用。請重新啟動 Warpai 以重新連線。"
+    "协调者不可用。请重启 Warpai 以重新连接。",
+    "協調者無法使用。請重新啟動 Warpai 以重新連線。"
   ],
   "Copied branch name": [
     "已复制分支名称",
@@ -1856,8 +1856,8 @@
     "建立整合"
   ],
   "Create and manage API keys to allow other Oz cloud agents to access your Warpai account.\nFor more information, visit the ": [
-    "创建和管理 API 密钥，允许其他 Oz 云端 Agent 访问你的 Warpai 账号。\n更多信息请参阅 ",
-    "建立與管理 API 金鑰，允許其他 Oz 雲端 Agent 存取你的 Warpai 帳號。\n更多資訊請參閱 "
+    "创建和管理 API 密钥，允许其他 Oz 云端 智能体访问你的 Warpai 账号。\n更多信息请参阅 ",
+    "建立與管理 API 金鑰，允許其他 Oz 雲端 智慧體存取你的 Warpai 帳號。\n更多資訊請參閱 "
   ],
   "Create anonymous user": [
     "创建匿名用户",
@@ -2852,8 +2852,8 @@
     "編輯 API 金鑰"
   ],
   "Edit CLI agent toolbelt": [
-    "编辑 CLI Agent 工具栏",
-    "編輯 CLI Agent 工具列"
+    "编辑 CLI 智能体工具栏",
+    "編輯 CLI 智慧體工具列"
   ],
   "Edit Link": [
     "编辑链接",
@@ -2872,8 +2872,8 @@
     "編輯變數"
   ],
   "Edit agent toolbelt": [
-    "编辑 Agent 工具栏",
-    "編輯 Agent 工具列"
+    "编辑 智能体工具栏",
+    "編輯 智慧體工具列"
   ],
   "Edit anyway": [
     "仍然编辑",
@@ -3444,8 +3444,8 @@
     "啟用程式碼庫索引與 WARP.md"
   ],
   "Enabling natural language detection will detect when natural language is written in the terminal input, and then automatically switch to Agent Mode for AI queries.": [
-    "启用自然语言检测后，终端会识别输入的自然语言，并自动切换到 Agent 模式处理 AI 查询。",
-    "啟用自然語言偵測後，終端會辨識輸入的自然語言，並自動切換至 Agent 模式處理 AI 查詢。"
+    "启用自然语言检测后，终端会识别输入的自然语言，并自动切换到 智能体模式处理 AI 查询。",
+    "啟用自然語言偵測後，終端會辨識輸入的自然語言，並自動切換至 智慧體模式處理 AI 查詢。"
   ],
   "Encountered an incorrect detection? ": [
     "遇到错误的识别结果？ ",
@@ -3512,8 +3512,8 @@
     "環境"
   ],
   "Environments define where your ambient agents run. Set one up in minutes via GitHub (recommended), Warpai-assisted setup, or manual configuration.": [
-    "环境定义后台 Agent 的运行位置。你可以通过 GitHub（推荐）、Warpai 辅助设置或手动配置，在几分钟内完成设置。",
-    "環境定義背景 Agent 的執行位置。你可以透過 GitHub（推薦）、Warpai 輔助設定或手動設定，在幾分鐘內完成設定。"
+    "环境定义后台 智能体的运行位置。你可以通过 GitHub（推荐）、Warpai 辅助设置或手动配置，在几分钟内完成设置。",
+    "環境定義背景 智慧體的執行位置。你可以透過 GitHub（推薦）、Warpai 輔助設定或手動設定，在幾分鐘內完成設定。"
   ],
   "Error": [
     "错误",
@@ -3564,8 +3564,8 @@
     "執行逾時 {} · 審查逾時 {} · 審查逾期 {}"
   ],
   "Existing private tasks and panes keep their original scope. Review participants and mapped checkouts, then explicitly open a new shared pane. Start a configured native agent there to participate.": [
-    "现有私有任务和窗格保持原范围。请检查参与者与映射的检出目录，再明确打开新的共享窗格，并在其中启动已配置的原生 Agent 以参与协作。",
-    "現有私人任務和窗格保持原範圍。請檢查參與者與對應的簽出目錄，再明確開啟新的共用窗格，並在其中啟動已設定的原生 Agent 以參與協作。"
+    "现有私有任务和窗格保持原范围。请检查参与者与映射的检出目录，再明确打开新的共享窗格，并在其中启动已配置的原生 智能体以参与协作。",
+    "現有私人任務和窗格保持原範圍。請檢查參與者與對應的簽出目錄，再明確開啟新的共用窗格，並在其中啟動已設定的原生 智慧體以參與協作。"
   ],
   "Exit Vim insert mode": [
     "退出 Vim 插入模式",
@@ -3612,16 +3612,16 @@
     "匯出你的資料"
   ],
   "Extended cloud agents access": [
-    "扩展云端 Agent 使用权限",
-    "擴充雲端 Agent 使用權限"
+    "扩展云端 智能体使用权限",
+    "擴充雲端 智慧體使用權限"
   ],
   "Failed": [
     "失败",
     "失敗"
   ],
   "Failed to delete conversation. Please exit the agent view and try again.": [
-    "无法删除对话。请退出 Agent 视图后重试。",
-    "無法刪除對話。請退出 Agent 檢視後重試。"
+    "无法删除对话。请退出 智能体视图后重试。",
+    "無法刪除對話。請退出 智慧體檢視後重試。"
   ],
   "Failed to load blocks. Please try again.": [
     "无法加载命令块，请重试。",
@@ -3844,8 +3844,8 @@
     "免費額度"
   ],
   "Fresh Agent runs in this checkout will share messages and tasks with other explicitly joined worktrees of this repository. Existing private runs and history keep their scope. Start an Agent in a fresh pane after joining.": [
-    "此检出目录中的新 Agent 运行将与本仓库其他明确加入的 Worktree 共享消息和任务。现有私有运行和历史保持原范围。加入后请在新窗格中启动 Agent。",
-    "此簽出目錄中的新 Agent 執行將與本儲存庫其他明確加入的 Worktree 共用訊息和任務。現有私人執行和歷史保持原範圍。加入後請在新窗格中啟動 Agent。"
+    "此检出目录中的新 智能体运行将与本仓库其他明确加入的 工作树共享消息和任务。现有私有运行和历史保持原范围。加入后请在新窗格中启动 智能体。",
+    "此簽出目錄中的新 智慧體執行將與本儲存庫其他明確加入的 工作樹共用訊息和任務。現有私人執行和歷史保持原範圍。加入後請在新窗格中啟動 智慧體。"
   ],
   "From GitHub": [
     "来自 GitHub",
@@ -4108,12 +4108,12 @@
     "預設索引新資料夾"
   ],
   "Indexing helps agents quickly understand context and provide targeted solutions. Code is never stored on the server.": [
-    "索引帮助 Agent 快速理解上下文并提供有针对性的解决方案。代码不会存储在服务器上。",
-    "索引協助 Agent 快速理解上下文並提供有針對性的解決方案。程式碼不會儲存在伺服器上。"
+    "索引帮助 智能体快速理解上下文并提供有针对性的解决方案。代码不会存储在服务器上。",
+    "索引協助 智慧體快速理解上下文並提供有針對性的解決方案。程式碼不會儲存在伺服器上。"
   ],
   "Infinitely scalable coding agent — run in local sessions or in the cloud.": [
-    "无限扩展的编程 Agent，可在本地会话或云端运行。",
-    "無限擴充的程式設計 Agent，可在本機工作階段或雲端執行。"
+    "无限扩展的编程 智能体，可在本地会话或云端运行。",
+    "無限擴充的程式設計 智慧體，可在本機工作階段或雲端執行。"
   ],
   "Info": [
     "信息",
@@ -4280,20 +4280,20 @@
     "垃圾桶中的項目將在 30 天後永久刪除。"
   ],
   "Iterate with agent": [
-    "与 Agent 继续迭代",
-    "與 Agent 繼續迭代"
+    "与 智能体继续迭代",
+    "與 智慧體繼續迭代"
   ],
   "Join our Slack community (opens external link)": [
     "加入 Slack 社区（打开外部链接）",
     "加入 Slack 社群（開啟外部連結）"
   ],
   "Join worktree team": [
-    "加入 Worktree 团队",
-    "加入 Worktree 團隊"
+    "加入 工作树团队",
+    "加入 工作樹團隊"
   ],
   "Jump to latest agent task": [
-    "跳到最新 Agent 任务",
-    "跳到最新 Agent 任務"
+    "跳到最新 智能体任务",
+    "跳到最新 智慧體任務"
   ],
   "Keep editing": [
     "继续编辑",
@@ -4312,8 +4312,8 @@
     "按鍵"
   ],
   "Kick off a cloud agent": [
-    "启动云端 Agent",
-    "啟動雲端 Agent"
+    "启动云端 智能体",
+    "啟動雲端 智慧體"
   ],
   "Kick off an agent task to view usage history here.": [
     "启动智能体任务后，可在此查看用量记录。",
@@ -4396,8 +4396,8 @@
     "退出參與"
   ],
   "Leave worktree team": [
-    "退出 Worktree 团队",
-    "退出 Worktree 團隊"
+    "退出 工作树团队",
+    "退出 工作樹團隊"
   ],
   "Left": [
     "左侧",
@@ -4412,8 +4412,8 @@
     "左 Option 鍵作為 Meta"
   ],
   "Left Panel: Agent conversations": [
-    "左侧面板：Agent 对话",
-    "左側面板：Agent 對話"
+    "左侧面板：智能体对话",
+    "左側面板：智慧體對話"
   ],
   "Left Panel: Global search": [
     "左侧面板：全局搜索",
@@ -4480,8 +4480,8 @@
     "精確搜尋文字（最多 256 位元組）"
   ],
   "Load agent mode conversation (from debug link in clipboard)": [
-    "加载 Agent 模式对话（来自剪贴板中的调试链接）",
-    "載入 Agent 模式對話（來自剪貼簿中的偵錯連結）"
+    "加载 智能体模式对话（来自剪贴板中的调试链接）",
+    "載入 智慧體模式對話（來自剪貼簿中的偵錯連結）"
   ],
   "Load in subshell": [
     "在子 Shell 中加载",
@@ -4604,8 +4604,8 @@
     "管理 API 金鑰"
   ],
   "Manage Agent permissions": [
-    "管理 Agent 权限",
-    "管理 Agent 權限"
+    "管理 智能体权限",
+    "管理 智慧體權限"
   ],
   "Manage Warpify settings": [
     "管理 Warpify 设置",
@@ -4888,8 +4888,8 @@
     "新增智慧體分頁"
   ],
   "New Cloud Agent Tab": [
-    "新建云端 Agent 标签页",
-    "新增雲端 Agent 分頁"
+    "新建云端 智能体标签页",
+    "新增雲端 智慧體分頁"
   ],
   "New File": [
     "新建文件",
@@ -4956,8 +4956,8 @@
     "新增提示詞"
   ],
   "New recipient agent name": [
-    "新的接收 Agent 名称",
-    "新的接收 Agent 名稱"
+    "新的接收 智能体名称",
+    "新的接收 智慧體名稱"
   ],
   "New shared sessions only": [
     "仅限新的共享会话",
@@ -5096,8 +5096,8 @@
     "尚未建立索引"
   ],
   "No installed CLI agents found in this WSL account.": [
-    "此 WSL 账户中未找到已安装的 CLI Agent。",
-    "此 WSL 帳戶中未找到已安裝的 CLI Agent。"
+    "此 WSL 账户中未找到已安装的 CLI 智能体。",
+    "此 WSL 帳戶中未找到已安裝的 CLI 智慧體。"
   ],
   "No installed managed CLI agents were found.": [
     "未找到已安装的受管理 CLI 智能体。",
@@ -5144,8 +5144,8 @@
     "沒有開啟的變更"
   ],
   "No participating agents": [
-    "暂无参与的 Agent",
-    "尚無參與的 Agent"
+    "暂无参与的 智能体",
+    "尚無參與的 智慧體"
   ],
   "No recorded dependency or delivery blocker.": [
     "未记录依赖或交付阻碍。",
@@ -6340,8 +6340,8 @@
     "該預約不在原始頁面中。請關閉表單，重新整理頁面，再確認新操作。"
   ],
   "Reservations coordinate participants; they do not lock files or prove that writes stopped. Agent renewal requires its owning run. Human maintenance in Spaces and workspaces pins the original owner and expiry; explicit release never completes an attempt.": [
-    "预约用于协调参与者，不会锁定文件，也不证明写入已停止。Agent 续期需要所属运行。在协作空间和工作区中进行人工维护时，会固定原所有者与到期时间；明确释放预约不会完成一次尝试。",
-    "預約用於協調參與者，不會鎖定檔案，也不證明寫入已停止。Agent 續期需要所屬執行。在協作空間和工作區中進行人工維護時，會固定原擁有者與到期時間；明確釋放預約不會完成一次嘗試。"
+    "预约用于协调参与者，不会锁定文件，也不证明写入已停止。智能体续期需要所属运行。在协作空间和工作区中进行人工维护时，会固定原所有者与到期时间；明确释放预约不会完成一次尝试。",
+    "預約用於協調參與者，不會鎖定檔案，也不證明寫入已停止。智慧體續期需要所屬執行。在協作空間和工作區中進行人工維護時，會固定原擁有者與到期時間；明確釋放預約不會完成一次嘗試。"
   ],
   "Reset Zoom": [
     "重置缩放",
@@ -6496,8 +6496,8 @@
     "已審查的工作區加入資訊"
   ],
   "Reviewed · awaiting Coordinator integration choice": [
-    "已审查 · 等待 Coordinator 选择集成",
-    "已審查 · 等待 Coordinator 選擇整合"
+    "已审查 · 等待 协调者选择集成",
+    "已審查 · 等待 協調者選擇整合"
   ],
   "Reviewer": [
     "审查者",
@@ -6512,8 +6512,8 @@
     "撤銷所選智慧體的共用協調存取與喚醒資格。其任務嘗試會保留在此空間中，並可能仍在執行；此操作不會停止 CLI 程序。"
   ],
   "Revoke this checkout's shared communication and queued delivery. Existing processes may still be writing. Start a private Agent in a fresh pane after leaving; task acceptance does not merge branches.": [
-    "撤销此检出目录的共享通信和排队投递。现有进程可能仍在写入。退出后请在新窗格中启动私有 Agent；接受任务结果不会合并分支。",
-    "撤銷此簽出目錄的共用通訊和排隊傳遞。現有程序可能仍在寫入。退出後請在新窗格中啟動私人 Agent；接受任務結果不會合併分支。"
+    "撤销此检出目录的共享通信和排队投递。现有进程可能仍在写入。退出后请在新窗格中启动私有 智能体；接受任务结果不会合并分支。",
+    "撤銷此簽出目錄的共用通訊和排隊傳遞。現有程序可能仍在寫入。退出後請在新窗格中啟動私人 智慧體；接受任務結果不會合併分支。"
   ],
   "Rewind": [
     "回退",
@@ -6560,12 +6560,12 @@
     "規則"
   ],
   "Rules enhance the agent by providing structured guidelines that help maintain consistency, enforce best practices, and adapt to specific workflows, including codebases or broader tasks.": [
-    "规则为 Agent 提供结构化指引，帮助保持一致性、遵循最佳实践，并适应代码库或更广泛任务等不同工作流。",
-    "規則為 Agent 提供結構化指引，協助保持一致性、遵循最佳實務，並適應程式碼庫或更廣泛任務等不同工作流程。"
+    "规则为 智能体提供结构化指引，帮助保持一致性、遵循最佳实践，并适应代码库或更广泛任务等不同工作流。",
+    "規則為 智慧體提供結構化指引，協助保持一致性、遵循最佳實務，並適應程式碼庫或更廣泛任務等不同工作流程。"
   ],
   "Rules help the Warpai Agent follow your conventions, whether for codebases or specific workflows. ": [
-    "规则可帮助 Warpai Agent 遵循你的规范，适用于代码库或特定工作流。 ",
-    "規則可協助 Warpai Agent 遵循你的規範，適用於程式碼庫或特定工作流程。 "
+    "规则可帮助 Warpai 智能体遵循你的规范，适用于代码库或特定工作流。 ",
+    "規則可協助 Warpai 智慧體遵循你的規範，適用於程式碼庫或特定工作流程。 "
   ],
   "Run": [
     "运行",
@@ -6876,8 +6876,8 @@
     "選取所有命令區塊"
   ],
   "Select an active Agent.": [
-    "请选择一个活动 Agent。",
-    "請選擇一個作用中的 Agent。"
+    "请选择一个活动 智能体。",
+    "請選擇一個作用中的 智慧體。"
   ],
   "Select and move to the bottom": [
     "选择并移至底部",
@@ -7196,8 +7196,8 @@
     "在視窗右上角顯示切換程式碼審查面板的按鈕。"
   ],
   "Show a toolbar with quick actions when running coding agents like ": [
-    "运行以下编程 Agent 时显示快捷操作工具栏：",
-    "執行以下程式設計 Agent 時顯示快速操作工具列："
+    "运行以下编程 智能体时显示快捷操作工具栏：",
+    "執行以下程式設計 智慧體時顯示快速操作工具列："
   ],
   "Show autosuggestion ignore button": [
     "显示自动建议忽略按钮",
@@ -7472,12 +7472,12 @@
     "啟動新的 Oz 雲端智慧體"
   ],
   "Start an Agent in this project.": [
-    "在此项目中启动一个 Agent。",
-    "在此專案中啟動一個 Agent。"
+    "在此项目中启动一个 智能体。",
+    "在此專案中啟動一個 智慧體。"
   ],
   "Start an Agent in this remote project.": [
-    "在此远程项目中启动一个 Agent。",
-    "在此遠端專案中啟動一個 Agent。"
+    "在此远程项目中启动一个 智能体。",
+    "在此遠端專案中啟動一個 智慧體。"
   ],
   "Start at the top (Classic mode)": [
     "从顶部开始（经典模式）",
@@ -7496,8 +7496,8 @@
     "啟動遠端控制"
   ],
   "Started agent ": [
-    "已启动 Agent ",
-    "已啟動 Agent "
+    "已启动 智能体 ",
+    "已啟動 智慧體 "
   ],
   "Stash changes": [
     "暂存更改",
@@ -8036,8 +8036,8 @@
     "通知顯示時間"
   ],
   "Toggle Agent conversation list view": [
-    "切换 Agent 对话列表视图",
-    "切換 Agent 對話清單檢視"
+    "切换 智能体对话列表视图",
+    "切換 智慧體對話清單檢視"
   ],
   "Toggle Bookmark block": [
     "切换区块书签",
@@ -8172,8 +8172,8 @@
     "切換團隊工作流程對話框"
   ],
   "Toggle the agent management view": [
-    "切换 Agent 管理视图",
-    "切換 Agent 管理檢視"
+    "切换 智能体管理视图",
+    "切換 智慧體管理檢視"
   ],
   "Toggle underline styling": [
     "切换下划线样式",
@@ -8324,8 +8324,8 @@
     "未知的 MCP 伺服器「{autoinstall_param}」"
   ],
   "Unlock smarter, more consistent responses by letting the Agent understand your codebase and generate rules for it. You can also do this at any point by running /init": [
-    "让 Agent 理解你的代码库并生成规则，从而获得更智能、更一致的回答。你也可以随时运行 /init 完成此操作。",
-    "讓 Agent 理解你的程式碼庫並產生規則，從而取得更智慧、更一致的回答。你也可以隨時執行 /init 完成此操作。"
+    "让 智能体理解你的代码库并生成规则，从而获得更智能、更一致的回答。你也可以随时运行 /init 完成此操作。",
+    "讓 智慧體理解你的程式碼庫並產生規則，從而取得更智慧、更一致的回答。你也可以隨時執行 /init 完成此操作。"
   ],
   "Unpin current tab": [
     "取消固定当前标签页",
@@ -8384,8 +8384,8 @@
     "有可用更新。"
   ],
   "Update the remote Companion for Worktree mode": [
-    "请更新远程 Companion 以使用 Worktree 模式",
-    "請更新遠端 Companion 以使用 Worktree 模式"
+    "请更新远程 Companion 以使用 工作树模式",
+    "請更新遠端 Companion 以使用 工作樹模式"
   ],
   "Updating Coordinator…": [
     "正在更新协调者…",
@@ -8424,8 +8424,8 @@
     "使用提示音"
   ],
   "Use Oz cloud agents to run parallel agents, build agents that run autonomously, and check in on your agents from anywhere. ": [
-    "使用 Oz 云端 Agent 并行运行多个 Agent、构建自主运行的 Agent，并随时随地查看它们。 ",
-    "使用 Oz 雲端 Agent 平行執行多個 Agent、建立自主執行的 Agent，並隨時隨地查看它們。 "
+    "使用 Oz 云端 智能体并行运行多个 智能体、构建自主运行的 智能体，并随时随地查看它们。 ",
+    "使用 Oz 雲端 智慧體平行執行多個 智慧體、建立自主執行的 智慧體，並隨時隨地查看它們。 "
   ],
   "Use Tmux Warpification": [
     "启用 Tmux Warpify 集成",
@@ -8456,8 +8456,8 @@
     "使用原預約頁面中的 ID。續期需要確認歸屬者仍處於活動狀態；釋放僅移除協調宣告，不會停止執行或檔案寫入。"
   ],
   "Use cloud agents to run parallel agents, build agents that run autonomously, and check in on your agents from anywhere. ": [
-    "使用云端 Agent 并行运行多个 Agent、构建自主运行的 Agent，并随时随地查看它们。 ",
-    "使用雲端 Agent 平行執行多個 Agent、建立自主執行的 Agent，並隨時隨地查看它們。 "
+    "使用云端 智能体并行运行多个 智能体、构建自主运行的 智能体，并随时随地查看它们。 ",
+    "使用雲端 智慧體平行執行多個 智慧體、建立自主執行的 智慧體，並隨時隨地查看它們。 "
   ],
   "Use custom padding in alt-screen": [
     "在备用屏幕中使用自定义边距",
@@ -8724,8 +8724,8 @@
     "Warpai 由 OthinusG 開發 · 基於 Warp"
   ],
   "Warpai can automatically index code repositories as you navigate them, helping agents quickly understand context and provide solutions. Code is never stored on the server. If a codebase is unable to be indexed, Warpai can still navigate your codebase and gain insights via grep and find tool calling.": [
-    "Warpai 可以在你浏览代码仓库时自动建立索引，帮助 Agent 快速理解上下文并提供解决方案。代码不会存储在服务器上。如果无法为代码库建立索引，Warpai 仍可通过调用 grep 和 find 工具浏览代码库并获取信息。",
-    "Warpai 可以在你瀏覽程式碼儲存庫時自動建立索引，協助 Agent 快速理解上下文並提供解決方案。程式碼不會儲存在伺服器上。如果無法為程式碼庫建立索引，Warpai 仍可透過呼叫 grep 與 find 工具瀏覽程式碼庫並取得資訊。"
+    "Warpai 可以在你浏览代码仓库时自动建立索引，帮助 智能体快速理解上下文并提供解决方案。代码不会存储在服务器上。如果无法为代码库建立索引，Warpai 仍可通过调用 grep 和 find 工具浏览代码库并获取信息。",
+    "Warpai 可以在你瀏覽程式碼儲存庫時自動建立索引，協助 智慧體快速理解上下文並提供解決方案。程式碼不會儲存在伺服器上。如果無法為程式碼庫建立索引，Warpai 仍可透過呼叫 grep 與 find 工具瀏覽程式碼庫並取得資訊。"
   ],
   "Warpai doesn't currently support your default shell, falling back to zsh.  ": [
     "Warpai 目前不支持你的默认 Shell，将改用 zsh。   ",
@@ -8752,8 +8752,8 @@
     "Warpai 已是最新版本。"
   ],
   "Warpai pipes through notifications from any CLI coding agent into a unified notification center that works across all coding agents and harnesses. ": [
-    "Warpai 将各 CLI 编程 Agent 的通知汇集到统一通知中心，适用于各种 Agent 和运行工具。 ",
-    "Warpai 將各 CLI 程式設計 Agent 的通知匯集至統一通知中心，適用於各種 Agent 與執行工具。 "
+    "Warpai 将各 CLI 编程 智能体的通知汇集到统一通知中心，适用于各种 智能体和运行工具。 ",
+    "Warpai 將各 CLI 程式設計 智慧體的通知匯集至統一通知中心，適用於各種 智慧體與執行工具。 "
   ],
   "Warpai prompt": [
     "Warpai 提示符",
@@ -8836,8 +8836,8 @@
     "啟用後，"
   ],
   "When set to true, Warpai will automatically index code repositories as you navigate them - helping agents quickly understand context and provide targeted solutions.": [
-    "启用后，Warpai 会在你浏览代码仓库时自动建立索引，帮助 Agent 快速理解上下文并提供有针对性的解决方案。",
-    "啟用後，Warpai 會在你瀏覽程式碼儲存庫時自動建立索引，協助 Agent 快速理解上下文並提供有針對性的解決方案。"
+    "启用后，Warpai 会在你浏览代码仓库时自动建立索引，帮助 智能体快速理解上下文并提供有针对性的解决方案。",
+    "啟用後，Warpai 會在你瀏覽程式碼儲存庫時自動建立索引，協助 智慧體快速理解上下文並提供有針對性的解決方案。"
   ],
   "When this setting is enabled, Warpai will scan blocks, the contents of Warpai Drive objects, and Oz prompts for potential sensitive information and prevent saving or sending this data to any servers. You can customize this list via regexes.": [
     "启用后，Warpai 会扫描区块、Warpai Drive 对象内容和 Oz 提示中的潜在敏感信息，并阻止保存这些数据或将其发送到任何服务器。你可以通过正则表达式自定义此列表。",
@@ -8908,12 +8908,12 @@
     "工作樹"
   ],
   "Worktree collaboration": [
-    "Worktree 协作",
-    "Worktree 協作"
+    "工作树协作",
+    "工作樹協作"
   ],
   "Worktree registry unavailable": [
-    "Worktree 注册表不可用",
-    "Worktree 登錄表無法使用"
+    "工作树注册表不可用",
+    "工作樹登錄表無法使用"
   ],
   "Worktree removed. Its branch was retained.": [
     "工作树已移除，分支已保留。",
@@ -9008,8 +9008,8 @@
     "有 {} 個{}正在執行"
   ],
   "You haven't added any MCP servers yet. Once you do, you'll be able to control how much autonomy the Warpai Agent has when interacting with them. ": [
-    "你尚未添加任何 MCP 服务器。添加后，即可控制 Warpai Agent 与服务器交互时的自主权限。 ",
-    "你尚未新增任何 MCP 伺服器。新增後，即可控制 Warpai Agent 與伺服器互動時的自主權限。 "
+    "你尚未添加任何 MCP 服务器。添加后，即可控制 Warpai 智能体与服务器交互时的自主权限。 ",
+    "你尚未新增任何 MCP 伺服器。新增後，即可控制 Warpai 智慧體與伺服器互動時的自主權限。 "
   ],
   "You haven’t set up any environments yet.": [
     "尚未设置任何环境。",
@@ -9200,12 +9200,12 @@
     "AI 命令 提示 建議 程式碼差異 橫幅 單元測試 提交 合併請求 Git 審查 自動產生"
   ],
   "agent oz ai a.i. knowledge fact memory memories rules warp drive context workflows notebooks environment variables": [
-    "Agent AI 知识 事实 记忆 规则 上下文 工作流 笔记本 环境变量",
-    "Agent AI 知識 事實 記憶 規則 上下文 工作流程 筆記本 環境變數"
+    "智能体 AI 知识 事实 记忆 规则 上下文 工作流 笔记本 环境变量",
+    "智慧體 AI 知識 事實 記憶 規則 上下文 工作流程 筆記本 環境變數"
   ],
   "agent-reported": [
-    "Agent 报告",
-    "Agent 回報"
+    "智能体报告",
+    "智慧體回報"
   ],
   "alias name": [
     "别名",
@@ -9420,8 +9420,8 @@
     "資料 用量 帳號 服務商 配額 API 金鑰 Codex Claude Gemini Cursor OpenCode Antigravity"
   ],
   "default session mode agent terminal new pane tab open config": [
-    "默认 会话 模式 Agent 终端 新窗格 标签页 打开 配置",
-    "預設 工作階段 模式 Agent 終端機 新窗格 分頁 開啟 設定"
+    "默认 会话 模式 智能体终端 新窗格 标签页 打开 配置",
+    "預設 工作階段 模式 智慧體終端機 新窗格 分頁 開啟 設定"
   ],
   "desktop notifications": [
     "桌面通知",
@@ -9492,8 +9492,8 @@
     "例如 ~/code-repos/repo"
   ],
   "e.g., this environment is for all front end focused agents": [
-    "例如，此环境供专注前端的所有 Agent 使用",
-    "例如，此環境供專注前端的所有 Agent 使用"
+    "例如，此环境供专注前端的所有 智能体使用",
+    "例如，此環境供專注前端的所有 智慧體使用"
   ],
   "earn rewards referral share friends": [
     "奖励 推荐 分享 好友",
@@ -9512,8 +9512,8 @@
     "環境變數"
   ],
   "environments environment ambient agents github warp assisted manual configuration": [
-    "环境 Agent GitHub 辅助 手动 配置",
-    "環境 Agent GitHub 輔助 手動 設定"
+    "环境 智能体 GitHub 辅助 手动 配置",
+    "環境 智慧體 GitHub 輔助 手動 設定"
   ],
   "error": [
     "错误",
@@ -9652,8 +9652,8 @@
     "語言 英文 中文 簡體 繁體"
   ],
   "latest user prompt conversation title tab names vertical tabs oz third-party agent": [
-    "最新 用户 提示 对话 标题 标签页 垂直 第三方 Agent",
-    "最新 使用者 提示 對話 標題 分頁 垂直 第三方 Agent"
+    "最新 用户 提示 对话 标题 标签页 垂直 第三方 智能体",
+    "最新 使用者 提示 對話 標題 分頁 垂直 第三方 智慧體"
   ],
   "launch configurations": [
     "启动配置",
@@ -9764,8 +9764,8 @@
     "新視窗 自訂大小"
   ],
   "other oz updates zero state empty changelog new conversation agent what's new use agent footer toolbar layout chip chips rearrange re-arrange thinking expanded reasoning collapse never show hide conversation history": [
-    "更新 空状态 更新日志 新对话 Agent 页脚 工具栏 布局 排列 思考 推理 展开 折叠 显示 隐藏 历史",
-    "更新 空狀態 更新記錄 新對話 Agent 頁尾 工具列 配置 排列 思考 推理 展開 摺疊 顯示 隱藏 歷史"
+    "更新 空状态 更新日志 新对话 智能体页脚 工具栏 布局 排列 思考 推理 展开 折叠 显示 隐藏 历史",
+    "更新 空狀態 更新記錄 新對話 智慧體頁尾 工具列 配置 排列 思考 推理 展開 摺疊 顯示 隱藏 歷史"
   ],
   "outcome {value}": [
     "结果 {value}",
@@ -9776,28 +9776,28 @@
     "大綱 程式碼庫 符號 上下文 選單 索引"
   ],
   "oz agent ai input natural language detection autodetection prompt terminal command commands history shell executed execution": [
-    "Agent AI 输入 自然语言 自动检测 提示 终端 命令 历史 Shell 执行",
-    "Agent AI 輸入 自然語言 自動偵測 提示 終端機 命令 歷史 Shell 執行"
+    "智能体 AI 输入 自然语言 自动检测 提示 终端 命令 历史 Shell 执行",
+    "智慧體 AI 輸入 自然語言 自動偵測 提示 終端機 命令 歷史 Shell 執行"
   ],
   "oz agent mcp server servers model context protocol file-based file based project claude .mcp.json .claude/.mcp.json .codex config.toml .codex/config.toml": [
-    "Agent MCP 服务器 模型上下文协议 文件 配置 项目 Claude Codex",
-    "Agent MCP 伺服器 模型上下文協定 檔案 設定 專案 Claude Codex"
+    "智能体 MCP 服务器 模型上下文协议 文件 配置 项目 Claude Codex",
+    "智慧體 MCP 伺服器 模型上下文協定 檔案 設定 專案 Claude Codex"
   ],
   "oz auto open code review pane panel agent mode change first time accepted diff view conversation": [
-    "自动 打开 代码审查 窗格 面板 Agent 模式 首次 接受 差异 对话",
-    "自動 開啟 程式碼審查 窗格 面板 Agent 模式 首次 接受 差異 對話"
+    "自动 打开 代码审查 窗格 面板 智能体模式 首次 接受 差异 对话",
+    "自動 開啟 程式碼審查 窗格 面板 智慧體模式 首次 接受 差異 對話"
   ],
   "oz cloud agent computer use orchestration multi-agent": [
-    "云端 Agent 计算机使用 编排 多 Agent",
-    "雲端 Agent 電腦操作 編排 多 Agent"
+    "云端 智能体计算机使用 编排 多 智能体",
+    "雲端 智慧體電腦操作 編排 多 智慧體"
   ],
   "oz cloud platform api keys authentication": [
     "云端 平台 API 密钥 身份验证",
     "雲端 平台 API 金鑰 身分驗證"
   ],
   "oz warp agent global ai a.i. active next command prompt code diffs suggestion suggested suggestions agent mode natural language detection input hint api keys bring your own byo google anthropic openai": [
-    "Agent AI 命令 提示 代码差异 建议 模式 自然语言 检测 输入 API 密钥 自带 Google Anthropic OpenAI",
-    "Agent AI 命令 提示 程式碼差異 建議 模式 自然語言 偵測 輸入 API 金鑰 自備 Google Anthropic OpenAI"
+    "智能体 AI 命令 提示 代码差异 建议 模式 自然语言 检测 输入 API 密钥 自带 Google Anthropic OpenAI",
+    "智慧體 AI 命令 提示 程式碼差異 建議 模式 自然語言 偵測 輸入 API 金鑰 自備 Google Anthropic OpenAI"
   ],
   "plan billing": [
     "方案 账单",
@@ -9988,8 +9988,8 @@
     "摘要 {value}"
   ],
   "sync cloud conversation store storage ai agent": [
-    "同步 云端 对话 保存 存储 AI Agent",
-    "同步 雲端 對話 儲存 AI Agent"
+    "同步 云端 对话 保存 存储 AI 智能体",
+    "同步 雲端 對話 儲存 AI 智慧體"
   ],
   "sync with os theme themes background backgrounds color colors customize": [
     "同步系统 主题 背景 颜色 自定义",
@@ -10024,8 +10024,8 @@
     "遙測 使用 分析 資料 收集"
   ],
   "terminal input message line bar agent": [
-    "终端 输入 消息 行 工具栏 Agent",
-    "終端機 輸入 訊息 行 工具列 Agent"
+    "终端 输入 消息 行 工具栏 智能体",
+    "終端機 輸入 訊息 行 工具列 智慧體"
   ],
   "text agent ai font family font size monospace": [
     "智能体文本 字体 字号 等宽字体",
@@ -10060,8 +10060,8 @@
     "以下說明"
   ],
   "third party cli coding agent claude codex gemini toolbar footer layout chip chips rearrange re-arrange bar command regex auto show rich input dismiss": [
-    "第三方 CLI 编程 Agent Claude Codex Gemini 工具栏 页脚 布局 排列 命令 正则 自动 显示 富文本 输入 关闭",
-    "第三方 CLI 編寫 Agent Claude Codex Gemini 工具列 頁尾 配置 排列 命令 正規表示式 自動 顯示 富文字 輸入 關閉"
+    "第三方 CLI 编程 智能体 Claude Codex Gemini 工具栏 页脚 布局 排列 命令 正则 自动 显示 富文本 输入 关闭",
+    "第三方 CLI 編寫 智慧體 Claude Codex Gemini 工具列 頁尾 配置 排列 命令 正規表示式 自動 顯示 富文字 輸入 關閉"
   ],
   "this conversation": [
     "此对话",
@@ -10148,8 +10148,8 @@
     "造訪管理面板"
   ],
   "voice agent oz ai a.i. speech input natural language talk english": [
-    "语音 Agent AI 输入 自然语言 说话 英语",
-    "語音 Agent AI 輸入 自然語言 說話 英語"
+    "语音 智能体 AI 输入 自然语言 说话 英语",
+    "語音 智慧體 AI 輸入 自然語言 說話 英語"
   ],
   "waiting for approval": [
     "等待批准",
