@@ -3538,7 +3538,7 @@ impl FeaturesPageView {
                     })
                     .map(|val| {
                         DropdownItem::new(
-                            val.display_name(),
+                            warpui::localization::text(val.display_name()),
                             FeaturesPageAction::SetDefaultSessionMode(val),
                         )
                     })
@@ -3569,8 +3569,8 @@ impl FeaturesPageView {
                                 .is_some_and(|p| p.to_string_lossy() == current_tab_config_path)
                         })
                         .map(|c| c.name.clone())
-                        .unwrap_or_else(|| DefaultSessionMode::Terminal.display_name().to_string()),
-                    other => other.display_name().to_string(),
+                        .unwrap_or_else(|| warpui::localization::text(DefaultSessionMode::Terminal.display_name()).to_string()),
+                    other => warpui::localization::text(other.display_name()).to_string(),
                 };
                 dropdown.set_selected_by_name(&selected_name, ctx);
             },

@@ -186,3 +186,8 @@ Display inventory includes Dialog titles, Span labels and bold/italic text.
 Native confirmation producers localize shared-session close, rewind, MCP removal
 variants and unsaved-change dialogs while preserving each operation's scope
 and warning text. Diagnostic logs and generic user-provided dialogs stay raw.
+
+Default-session and SSH-install dropdowns translate enum labels only at display
+consumers; selection still uses typed actions or matching translated labels.
+New-session search ranking bases use the current interface language, matching
+its localized result descriptions and accessibility launch announcements.

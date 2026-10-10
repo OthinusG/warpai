@@ -324,7 +324,7 @@ impl WarpifyPageView {
         let items: Vec<DropdownItem<WarpifyPageAction>> = SshExtensionInstallMode::iter()
             .map(|mode| {
                 DropdownItem::new(
-                    mode.display_name(),
+                    warpui::localization::text(mode.display_name()),
                     WarpifyPageAction::SetSshExtensionInstallMode(mode),
                 )
             })

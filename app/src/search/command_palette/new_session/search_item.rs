@@ -75,10 +75,10 @@ impl crate::search::item::SearchItem for SearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Selected {}.", self.option.description())
+        warpui::localization::format_text("Selected {}.", &[("0", self.option.description())])
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
-        Some("Press enter to launch this session.".into())
+        Some(warpui::localization::text("Press enter to launch this session.").into())
     }
 }

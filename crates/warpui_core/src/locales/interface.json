@@ -539,6 +539,10 @@
     "始终询问",
     "一律詢問"
   ],
+  "Always install": [
+    "始终安装",
+    "一律安裝"
+  ],
   "Always run automatically": [
     "始终自动运行",
     "一律自動執行"
@@ -1706,6 +1710,10 @@
   "Create": [
     "创建",
     "建立"
+  ],
+  "Create New Tab": [
+    "新建标签页",
+    "新增分頁"
   ],
   "Create New Tab: {}": [
     "新建标签页：{}",
@@ -4711,6 +4719,10 @@
     "从不询问",
     "永不詢問"
   ],
+  "Never install": [
+    "从不安装",
+    "永不安裝"
+  ],
   "New": [
     "新建",
     "新增"
@@ -5638,6 +5650,10 @@
   "Preserve input focus on block selection": [
     "选择命令块时保留输入焦点",
     "選取命令區塊時保留輸入焦點"
+  ],
+  "Press enter to launch this session.": [
+    "按 Enter 启动此会话。",
+    "按 Enter 啟動此工作階段。"
   ],
   "Press escape to close.": [
     "按 Esc 关闭。",
@@ -6711,6 +6727,10 @@
     "已选择工作流：{command}",
     "已選取工作流程：{command}"
   ],
+  "Selected {}.": [
+    "已选择 {}。",
+    "已選取 {}。"
+  ],
   "Selection cursor did not advance": [
     "选择游标未推进",
     "選取游標未推進"
@@ -7119,6 +7139,22 @@
     "拆分窗格",
     "分割窗格"
   ],
+  "Split Pane Down": [
+    "向下拆分窗格",
+    "向下分割窗格"
+  ],
+  "Split Pane Left": [
+    "向左拆分窗格",
+    "向左分割窗格"
+  ],
+  "Split Pane Right": [
+    "向右拆分窗格",
+    "向右分割窗格"
+  ],
+  "Split Pane Up": [
+    "向上拆分窗格",
+    "向上分割窗格"
+  ],
   "Split Pane {direction}: {}": [
     "{direction}拆分窗格：{}",
     "{direction}分割窗格：{}"
@@ -7414,6 +7450,10 @@
   "Tab": [
     "标签页",
     "分頁"
+  ],
+  "Tab Config": [
+    "标签页配置",
+    "分頁設定"
   ],
   "Tab configs": [
     "标签页配置",

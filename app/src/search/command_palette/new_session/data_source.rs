@@ -289,7 +289,7 @@ impl NewSessionSearcher for FuzzyNewSessionSearcher {
             .iter()
             .filter_map(|base| {
                 match_indices_case_insensitive(
-                    base.to_lowercase().as_str(),
+                    warpui::localization::text(base).to_lowercase().as_str(),
                     query_str.to_lowercase().as_str(),
                 )
                 .map(|result| result.score)
@@ -403,7 +403,7 @@ mod full_text_searcher {
             let mut max_match_searcher = BASE_TEXT_SEARCH_SCHEMA
                 .create_async_searcher(MIN_MEMORY_BUDGET, background_executor.clone());
             let max_match_documents = SEARCHER_BASE_STRINGS.iter().map(|base| BaseTextDocument {
-                base_text: base.to_string(),
+                base_text: warpui::localization::text(base).to_string(),
             });
             if max_match_searcher
                 .build_index_async(max_match_documents)
