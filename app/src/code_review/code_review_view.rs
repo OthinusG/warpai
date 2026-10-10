@@ -546,26 +546,26 @@ impl DiscardOperationType {
     pub fn title(&self) -> String {
         match self {
             DiscardOperationType::AllUncommittedChanges => {
-                "Discard uncommitted changes?".to_string()
+                warpui::localization::text("Discard uncommitted changes?").to_string()
             }
             DiscardOperationType::FileUncommittedChanges => {
-                "Discard all uncommitted changes to file?".to_string()
+                warpui::localization::text("Discard all uncommitted changes to file?").to_string()
             }
-            DiscardOperationType::AllChangesAgainstBranch(_) => "Discard all changes?".to_string(),
+            DiscardOperationType::AllChangesAgainstBranch(_) => warpui::localization::text("Discard all changes?").to_string(),
             DiscardOperationType::FileChangesAgainstBranch(_) => {
-                "Discard all changes to file?".to_string()
+                warpui::localization::text("Discard all changes to file?").to_string()
             }
         }
     }
 
     pub fn description(&self) -> Option<String> {
         match self {
-            DiscardOperationType::AllUncommittedChanges => Some("You're about to discard all local changes that haven't been committed.".to_string()),
-            DiscardOperationType::FileUncommittedChanges => Some("This will restore this file to the last committed version and discard local edits.".to_string()),
-            DiscardOperationType::AllChangesAgainstBranch(None) => Some("You're about to discard all committed and uncommitted changes.".to_string()),
-            DiscardOperationType::FileChangesAgainstBranch(None) => Some("This will restore this file to the main branch version and discard all committed and uncommitted edits.".to_string()),
-            DiscardOperationType::AllChangesAgainstBranch(Some(_)) => Some("You're about to discard all committed and uncommitted changes.".to_string()),
-            DiscardOperationType::FileChangesAgainstBranch(Some(branch)) => Some(format!("This will reset this file to the {branch} branch version and discard all committed and uncommitted edits.")),
+            DiscardOperationType::AllUncommittedChanges => Some(warpui::localization::text("You're about to discard all local changes that haven't been committed.").to_string()),
+            DiscardOperationType::FileUncommittedChanges => Some(warpui::localization::text("This will restore this file to the last committed version and discard local edits.").to_string()),
+            DiscardOperationType::AllChangesAgainstBranch(None) => Some(warpui::localization::text("You're about to discard all committed and uncommitted changes.").to_string()),
+            DiscardOperationType::FileChangesAgainstBranch(None) => Some(warpui::localization::text("This will restore this file to the main branch version and discard all committed and uncommitted edits.").to_string()),
+            DiscardOperationType::AllChangesAgainstBranch(Some(_)) => Some(warpui::localization::text("You're about to discard all committed and uncommitted changes.").to_string()),
+            DiscardOperationType::FileChangesAgainstBranch(Some(branch)) => Some(warpui::localization::format_text("This will reset this file to the {branch} branch version and discard all committed and uncommitted edits.", &[("branch", branch.as_str())])),
         }
     }
 
@@ -4508,7 +4508,7 @@ impl CodeReviewView {
                         zero_state_column.add_child(
                             Container::new(
                                 Text::new(
-                                    format!("Repo is initialized with a {file_name} file."),
+                                    warpui::localization::format_text("Repo is initialized with a {file_name} file.", &[("file_name", file_name)]),
                                     appearance.ui_font_family(),
                                     12.,
                                 )
@@ -5318,7 +5318,7 @@ impl CodeReviewView {
                 let save_keystroke = Keystroke::parse("cmdorctrl-s").unwrap_or_default();
                 let save_shortcut = save_keystroke.displayed();
                 let tooltip_text =
-                    format!("This file has unsaved changes. {save_shortcut} to save");
+                    warpui::localization::format_text("This file has unsaved changes. {save_shortcut} to save", &[("save_shortcut", format!("{save_shortcut}").as_str())]);
                 render_unsaved_circle_with_tooltip(
                     editor_state.unsaved_changes_mouse_state(),
                     tooltip_text,

@@ -146,8 +146,8 @@ impl MCPServersSettingsPageView {
         ctx: &mut ViewContext<Self>,
     ) {
         let message = match server_name {
-            Some(name) => format!("Successfully logged out of {name} MCP server"),
-            None => "Successfully logged out of MCP server".to_string(),
+            Some(name) => warpui::localization::format_text("Successfully logged out of {name} MCP server", &[("name", name.as_str())]),
+            None => warpui::localization::text("Successfully logged out of MCP server").to_string(),
         };
         match item_id {
             ServerCardItemId::TemplatableMCP(_) => {
@@ -329,7 +329,7 @@ impl MCPServersSettingsPageView {
             log::warn!(
                 "Unrecognized autoinstall value '{autoinstall_param}': no matching gallery item found"
             );
-            self.add_error_toast(format!("Unknown MCP server '{autoinstall_param}'"), ctx);
+            self.add_error_toast(warpui::localization::format_text("Unknown MCP server '{autoinstall_param}'", &[("autoinstall_param", autoinstall_param)]), ctx);
             return;
         };
 
@@ -357,7 +357,7 @@ impl MCPServersSettingsPageView {
             // gallery entry cannot be turned into a valid template. Surface the
             // failure to the user rather than silently returning.
             self.add_error_toast(
-                format!("MCP server '{gallery_title}' cannot be installed from this link."),
+                warpui::localization::format_text("MCP server '{gallery_title}' cannot be installed from this link.", &[("gallery_title", gallery_title.as_str())]),
                 ctx,
             );
             return;

@@ -166,3 +166,8 @@ Indirect display fallbacks (untitled files, unnamed messages, workspaces and
 servers), detached-branch labels and reservation/attempt summaries translate at
 their display producers. Real names, branch names, message bodies and protocol
 values remain unchanged; history task-state labels use the existing catalog.
+
+Review discard confirmation titles/descriptions, rule-initialization captions,
+unsaved-file shortcut tooltips and MCP logout/deeplink results are explicit
+localized display producers; discard scope and server installation behavior
+are unchanged. Indirect producers remain part of manual coverage review.

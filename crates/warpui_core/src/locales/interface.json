@@ -2543,6 +2543,18 @@
     "全部丢弃",
     "全部捨棄"
   ],
+  "Discard all changes to file?": [
+    "丢弃此文件的所有更改？",
+    "捨棄此檔案的所有變更？"
+  ],
+  "Discard all changes?": [
+    "丢弃所有更改？",
+    "捨棄所有變更？"
+  ],
+  "Discard all uncommitted changes to file?": [
+    "丢弃此文件的所有未提交更改？",
+    "捨棄此檔案的所有未提交變更？"
+  ],
   "Discard changes": [
     "丢弃修改",
     "捨棄變更"
@@ -2550,6 +2562,10 @@
   "Discard this version": [
     "丢弃此版本",
     "捨棄此版本"
+  ],
+  "Discard uncommitted changes?": [
+    "丢弃未提交的更改？",
+    "捨棄未提交的變更？"
   ],
   "Discovered {total_nodes} chunks": [
     "已发现 {total_nodes} 个片段",
@@ -4271,6 +4287,10 @@
     "MCP 服务器",
     "MCP 伺服器"
   ],
+  "MCP server '{gallery_title}' cannot be installed from this link.": [
+    "无法通过此链接安装 MCP 服务器“{gallery_title}”。",
+    "無法透過此連結安裝 MCP 伺服器「{gallery_title}」。"
+  ],
   "MODELS": [
     "模型",
     "模型"
@@ -5867,6 +5887,10 @@
     "全部替换",
     "全部取代"
   ],
+  "Repo is initialized with a {file_name} file.": [
+    "仓库已通过 {file_name} 文件初始化。",
+    "儲存庫已透過 {file_name} 檔案初始化。"
+  ],
   "Repo(s)": [
     "仓库",
     "儲存庫"
@@ -7047,6 +7071,14 @@
     "子 shell",
     "子 shell"
   ],
+  "Successfully logged out of MCP server": [
+    "已成功退出 MCP 服务器登录",
+    "已成功登出 MCP 伺服器"
+  ],
+  "Successfully logged out of {name} MCP server": [
+    "已成功退出 {name} MCP 服务器登录",
+    "已成功登出 {name} MCP 伺服器"
+  ],
   "Successfully replaced match. Selected match is {match_index} of {remaining_matches}": [
     "已替换匹配项。当前选中第 {match_index} 项，共 {remaining_matches} 项",
     "已取代符合項目。目前選取第 {match_index} 項，共 {remaining_matches} 項"
@@ -7387,6 +7419,10 @@
     "此文件已保存的变更尚未在这里显示。",
     "此檔案已儲存的變更尚未顯示於此。"
   ],
+  "This file has unsaved changes. {save_shortcut} to save": [
+    "此文件有未保存的更改。按 {save_shortcut} 保存",
+    "此檔案有未儲存的變更。按 {save_shortcut} 儲存"
+  ],
   "This mapping applies only to new explicitly joined panes. Changing a checkout's space revokes its earlier shared admissions. Existing private work remains private; matching Git remotes never joins projects.": [
     "此映射仅适用于新加入且明确授权的窗格。更改检出目录的空间会撤销先前的共享许可。现有私有工作保持私有；相同 Git 远程地址不会自动关联项目。",
     "此對應僅適用於新加入且明確授權的窗格。變更檢出目錄的空間會撤銷先前的共用許可。現有私有工作維持私有；相同 Git 遠端位址不會自動關聯專案。"
@@ -7434,6 +7470,18 @@
   "This will permanently delete the theme.": [
     "这将永久删除此主题。",
     "這將永久刪除此佈景主題。"
+  ],
+  "This will reset this file to the {branch} branch version and discard all committed and uncommitted edits.": [
+    "这将把此文件重置为 {branch} 分支版本，并丢弃所有已提交和未提交的编辑。",
+    "這將把此檔案重設為 {branch} 分支版本，並捨棄所有已提交和未提交的編輯。"
+  ],
+  "This will restore this file to the last committed version and discard local edits.": [
+    "这将把此文件恢复为最后提交的版本，并丢弃本地编辑。",
+    "這將把此檔案還原為最後提交的版本，並捨棄本機編輯。"
+  ],
+  "This will restore this file to the main branch version and discard all committed and uncommitted edits.": [
+    "这将把此文件恢复为主分支版本，并丢弃所有已提交和未提交的编辑。",
+    "這將把此檔案還原為主分支版本，並捨棄所有已提交和未提交的編輯。"
   ],
   "This workflow is no longer available.": [
     "此工作流已不可用。",
@@ -7762,6 +7810,10 @@
   "Uninstall Oz CLI command": [
     "卸载 Oz CLI 命令",
     "解除安裝 Oz CLI 命令"
+  ],
+  "Unknown MCP server '{autoinstall_param}'": [
+    "未知的 MCP 服务器“{autoinstall_param}”",
+    "未知的 MCP 伺服器「{autoinstall_param}」"
   ],
   "Unlock smarter, more consistent responses by letting the Agent understand your codebase and generate rules for it. You can also do this at any point by running /init": [
     "让 Agent 理解你的代码库并生成规则，从而获得更智能、更一致的回答。你也可以随时运行 /init 完成此操作。",
@@ -8410,6 +8462,14 @@
   "You seem to be running an older (unsupported) version, please follow ": [
     "你似乎正在运行较旧的版本（已不受支持），请按 ",
     "你似乎正在執行較舊的版本（已不受支援），請依照 "
+  ],
+  "You're about to discard all committed and uncommitted changes.": [
+    "即将丢弃所有已提交和未提交的更改。",
+    "即將捨棄所有已提交和未提交的變更。"
+  ],
+  "You're about to discard all local changes that haven't been committed.": [
+    "即将丢弃所有尚未提交的本地更改。",
+    "即將捨棄所有尚未提交的本機變更。"
   ],
   "You're viewing a snapshot": [
     "当前显示的是快照",
