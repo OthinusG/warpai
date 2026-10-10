@@ -2386,8 +2386,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         "../../../specs/agent-communication-v2/panel-fixtures.json"
     ))?;
     // Cover startup stalls too; the driver's watchdog starts only after initialization.
-    std::thread::spawn(|| {
+    let deadline_directory = directory.clone();
+    std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(420));
+        // Windows GUI processes may not retain redirected stderr.
+        let _ = std::fs::write(deadline_directory.join("checkpoint-deadline.txt"),
+            "Native collaboration capture exceeded its 420-second deadline");
         eprintln!("Native collaboration capture exceeded its 420-second deadline");
         std::process::exit(1);
     });

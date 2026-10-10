@@ -162,3 +162,7 @@ ceiling to 450, and the outer single-locale CI step to 15 minutes to include thr
 120-second SSH/SFTP checks. Keep RPC bounds, assertions and zero retries.
 Diagnostic panic locations must come from actual panic records rather than
 compiler warnings; report the watchdog separately. Cloud verification pending.
+
+Windows GUI processes can discard redirected stderr. Persist the source-owned
+watchdog marker beside existing checkpoint files, and test diagnostics with the
+marker absent from the log. Only the derived deadline boolean is published.
