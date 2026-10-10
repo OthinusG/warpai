@@ -188,7 +188,7 @@ impl DetailsBar {
                 let editor = editor_display_name(editor.email.as_deref(), app);
                 appearance
                     .ui_builder()
-                    .span(format!("{editor} is editing"))
+                    .span(warpui::localization::format_text("{editor} is editing", &[("editor", format!("{editor}").as_str())]))
                     .with_style(base_text_styles)
                     .with_highlights(
                         (0..editor.chars().count()).collect(),

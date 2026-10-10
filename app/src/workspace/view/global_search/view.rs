@@ -2062,16 +2062,16 @@ impl View for GlobalSearchView {
             .with_child(query_row);
 
         let files = self.unique_match_count();
-        let file_word = if files == 1 { "file" } else { "files" };
+        let file_word = if files == 1 { warpui::localization::text("file") } else { warpui::localization::text("files") };
 
         let message = if self.is_search_in_progress && self.total_match_count == 0 {
             "".to_string()
         } else if !self.is_search_in_progress && self.total_match_count == 0 {
-            "No results found. Review your gitignore files.".to_string()
+            warpui::localization::text("No results found. Review your gitignore files.").to_string()
         } else {
             match self.total_match_count {
-                1 => format!("1 result in {files} {file_word}"),
-                n => format!("{n} results in {files} {file_word}"),
+                1 => warpui::localization::format_text("1 result in {files} {file_word}", &[("files", format!("{files}").as_str()), ("file_word", file_word)]),
+                n => warpui::localization::format_text("{n} results in {files} {file_word}", &[("n", format!("{n}").as_str()), ("files", format!("{files}").as_str()), ("file_word", file_word)]),
             }
         };
 

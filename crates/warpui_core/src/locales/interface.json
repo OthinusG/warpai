@@ -211,6 +211,10 @@
     "1 条评论",
     "1 則留言"
   ],
+  "1 result in {files} {file_word}": [
+    "{files} 个{file_word}中有 1 个结果",
+    "{files} 個{file_word}中有 1 個結果"
+  ],
   "; abandoned owner, execution effects unknown": [
     "；所有者已退出，执行结果未知",
     "；擁有者已退出，執行結果未知"
@@ -963,6 +967,10 @@
     "适用部分限制。",
     "適用部分限制。"
   ],
+  "Change code block language to {code_block_type}": [
+    "将代码块语言更改为 {code_block_type}",
+    "將程式碼區塊語言變更為 {code_block_type}"
+  ],
   "Change git branch": [
     "切换 Git 分支",
     "切換 Git 分支"
@@ -1470,6 +1478,10 @@
   "Conversations cannot be deleted while in progress.": [
     "无法删除进行中的对话。",
     "無法刪除進行中的對話。"
+  ],
+  "Convert to {}": [
+    "转换为{}",
+    "轉換為{}"
   ],
   "Coordinator": [
     "协调者",
@@ -2062,6 +2074,18 @@
   "Did you intend ": [
     "你是否希望 ",
     "你是否希望 "
+  ],
+  "Did you know that Warpai can directly display Markdown files?": [
+    "Warpai 可以直接显示 Markdown 文件。",
+    "Warpai 可以直接顯示 Markdown 檔案。"
+  ],
+  "Did you know that Warpai can directly edit code?": [
+    "Warpai 可以直接编辑代码。",
+    "Warpai 可以直接編輯程式碼。"
+  ],
+  "Did you know that Warpai can directly edit {display_name} files?": [
+    "Warpai 可以直接编辑 {display_name} 文件。",
+    "Warpai 可以直接編輯 {display_name} 檔案。"
   ],
   "Diff is too large to render": [
     "差异过大，无法显示",
@@ -2726,6 +2750,10 @@
   "Editing skills is not supported in this build": [
     "此版本不支持编辑技能",
     "此版本不支援編輯技能"
+  ],
+  "Editor and Code Review": [
+    "编辑器与代码审查",
+    "編輯器與程式碼審查"
   ],
   "Eligible pool participants: {}": [
     "符合条件的池参与者：{}",
@@ -3967,6 +3995,10 @@
     "插入不触发展开的空格",
     "插入不觸發展開的空格"
   ],
+  "Insert {} block": [
+    "插入{}块",
+    "插入{}區塊"
+  ],
   "Inspect Command": [
     "检查命令",
     "檢查命令"
@@ -4599,6 +4631,10 @@
     "移至段落开头",
     "移至段落開頭"
   ],
+  "Move to {}": [
+    "移动到 {}",
+    "移至 {}"
+  ],
   "My Label": [
     "我的标签",
     "我的標籤"
@@ -4926,6 +4962,10 @@
   "No results found.": [
     "未找到结果。",
     "找不到結果。"
+  ],
+  "No results found. Review your gitignore files.": [
+    "未找到结果。请检查 gitignore 文件。",
+    "找不到結果。請檢查 gitignore 檔案。"
   ],
   "No results matched your filters": [
     "没有符合筛选条件的结果",
@@ -5259,6 +5299,10 @@
     "打开链接",
     "開啟連結"
   ],
+  "Open link: {}": [
+    "打开链接：{}",
+    "開啟連結：{}"
+  ],
   "Open links in desktop app": [
     "在桌面应用中打开链接",
     "在桌面應用程式中開啟連結"
@@ -5310,6 +5354,10 @@
   "Open {name}": [
     "打开 {name}",
     "開啟 {name}"
+  ],
+  "Open {} in Warpai": [
+    "在 Warpai 中打开 {}",
+    "在 Warpai 中開啟 {}"
   ],
   "Opened Warpify Settings": [
     "已打开 Warpify 设置",
@@ -5438,6 +5486,10 @@
   "Paste your auth token from the browser to get complete login.": [
     "粘贴浏览器中的认证令牌以完成登录。",
     "貼上瀏覽器中的驗證權杖以完成登入。"
+  ],
+  "Pasting: {}": [
+    "正在粘贴：{}",
+    "正在貼上：{}"
   ],
   "Personal": [
     "个人",
@@ -6435,6 +6487,10 @@
     "搜索文本不得超过 256 字节",
     "搜尋文字不得超過 256 位元組"
   ],
+  "Secondary click on {}": [
+    "右键点击 {}",
+    "按右鍵點擊 {}"
+  ],
   "Secret command": [
     "敏感命令",
     "敏感命令"
@@ -6598,6 +6654,10 @@
   "Selected for integration": [
     "已选中进行集成",
     "已選取進行整合"
+  ],
+  "Selected workflow: {command}": [
+    "已选择工作流：{command}",
+    "已選取工作流程：{command}"
   ],
   "Selection cursor did not advance": [
     "选择游标未推进",
@@ -9047,6 +9107,10 @@
     "失败",
     "失敗"
   ],
+  "file": [
+    "文件",
+    "檔案"
+  ],
   "files": [
     "文件",
     "檔案"
@@ -9711,6 +9775,10 @@
     "缩放比例 缩放 大小",
     "縮放比例 縮放 大小"
   ],
+  "{editor} is editing": [
+    "{editor} 正在编辑",
+    "{editor} 正在編輯"
+  ],
   "{error} Click to reconnect.": [
     "{error} 点击重新连接。",
     "{error} 點擊重新連線。"
@@ -9719,6 +9787,10 @@
     "{member_count} 个标签页",
     "{member_count} 個分頁"
   ],
+  "{n} results in {files} {file_word}": [
+    "{files} 个{file_word}中有 {n} 个结果",
+    "{files} 個{file_word}中有 {n} 個結果"
+  ],
   "{} (default)": [
     "{}（默认）",
     "{}（預設）"
@@ -9726,6 +9798,10 @@
   "{} accepts autosuggestions.": [
     "按 {} 接受自动建议。",
     "按 {} 接受自動建議。"
+  ],
+  "{} notebook": [
+    "{} 笔记本",
+    "{} 筆記本"
   ],
   "{} opens completion menu.": [
     "按 {} 打开补全菜单。",

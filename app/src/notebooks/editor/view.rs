@@ -3131,7 +3131,7 @@ impl TypedActionView for RichTextEditorView {
             }
             EditorViewAction::Paste | EditorViewAction::MiddleClickPaste => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    format!("Pasting: {}", ctx.clipboard().read().plain_text),
+                    warpui::localization::format_text("Pasting: {}", &[("0", ctx.clipboard().read().plain_text.as_str())]),
                     WarpA11yRole::UserAction,
                 ))
             }
@@ -3158,13 +3158,13 @@ impl TypedActionView for RichTextEditorView {
             ),
             EditorViewAction::OpenTooltipLink(link) => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    format!("Open link: {}", **link),
+                    warpui::localization::format_text("Open link: {}", &[("0", format!("{}", **link).as_str())]),
                     WarpA11yRole::UserAction,
                 ))
             }
             EditorViewAction::SecondaryLinkAction(link) => {
                 let content = link.secondary_action().map_or_else(
-                    || format!("Secondary click on {}", **link),
+                    || warpui::localization::format_text("Secondary click on {}", &[("0", format!("{}", **link).as_str())]),
                     |action| action.accessibility_content.into_owned(),
                 );
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
@@ -3233,7 +3233,7 @@ impl TypedActionView for RichTextEditorView {
             }
             EditorViewAction::InsertBlock(block_type) => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    format!("Insert {} block", BlockType::from(block_type).label()),
+                    warpui::localization::format_text("Insert {} block", &[("0", BlockType::from(block_type).label())]),
                     WarpA11yRole::UserAction,
                 ))
             }
@@ -3267,7 +3267,7 @@ impl TypedActionView for RichTextEditorView {
             EditorViewAction::CodeBlockTypeSelectedAtOffset {
                 code_block_type, ..
             } => ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                format!("Change code block language to {code_block_type}"),
+                warpui::localization::format_text("Change code block language to {code_block_type}", &[("code_block_type", format!("{code_block_type}").as_str())]),
                 WarpA11yRole::UserAction,
             )),
             EditorViewAction::CopyTextToClipboard { .. } => ActionAccessibilityContent::Custom(

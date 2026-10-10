@@ -176,3 +176,8 @@ Command-palette filter names, new-session descriptions and split directions,
 conversation section titles and loading announcements translate explicitly.
 Tab-config removal/parameter prompts and diagnostic severity prefixes are
 localized; configuration identifiers, shell names and LSP messages stay raw.
+
+Global-search counts retain the existing singular/plural branch and translate
+its display noun. Markdown editor accessibility announces links, paste, inserted
+blocks, conversions and language changes through catalog templates; file-open
+banners and notebook movement labels preserve their user-supplied arguments.

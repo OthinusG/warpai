@@ -112,7 +112,7 @@ impl CodeSubpage {
     pub fn title(&self) -> &'static str {
         match self {
             Self::Indexing => warpui::localization::text("Codebase Indexing"),
-            Self::EditorAndCodeReview => "Editor and Code Review",
+            Self::EditorAndCodeReview => warpui::localization::text("Editor and Code Review"),
         }
     }
 }

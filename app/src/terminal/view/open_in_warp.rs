@@ -237,7 +237,7 @@ impl TerminalView {
                 match &self.inline_banners_state.open_in_warp_banner {
                     Some(banner_state) => {
                         ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                            format!("Open {} in Warpai", banner_state.target.path.display()),
+                            warpui::localization::format_text("Open {} in Warpai", &[("0", format!("{}", banner_state.target.path.display()).as_str())]),
                             WarpA11yRole::UserAction,
                         ))
                     }

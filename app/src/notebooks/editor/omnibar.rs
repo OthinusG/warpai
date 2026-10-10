@@ -446,7 +446,7 @@ impl TypedActionView for Omnibar {
                 .style_toggle_a11y(BufferTextStyle::InlineCode),
             OmnibarAction::ConvertBlock(style) => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    format!("Convert to {}", BlockType::from(style).label()),
+                    warpui::localization::format_text("Convert to {}", &[("0", BlockType::from(style).label())]),
                     WarpA11yRole::UserAction,
                 ))
             }

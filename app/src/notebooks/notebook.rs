@@ -1393,7 +1393,7 @@ impl NotebookView {
                 match space {
                     Space::Personal => {
                         menu_items.extend(team_spaces.iter().map(|space| {
-                            MenuItemFields::new(format!("Move to {}", space.name(ctx)))
+                            MenuItemFields::new(warpui::localization::format_text("Move to {}", &[("0", format!("{}", space.name(ctx)).as_str())]))
                                 .with_on_select_action(NotebookAction::MoveToSpace {
                                     cloud_object_type_and_id: cloud_object_type,
                                     new_space: *space,
@@ -2163,7 +2163,7 @@ impl View for NotebookView {
 
     fn accessibility_contents(&self, ctx: &AppContext) -> Option<AccessibilityContent> {
         Some(AccessibilityContent::new_without_help(
-            format!("{} notebook", self.title(ctx)),
+            warpui::localization::format_text("{} notebook", &[("0", self.title(ctx).as_str())]),
             WarpA11yRole::TextRole,
         ))
     }
