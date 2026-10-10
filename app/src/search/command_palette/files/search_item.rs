@@ -97,17 +97,29 @@ impl SearchItem for FileSearchItem {
 
     fn accessibility_label(&self) -> String {
         if self.is_directory {
-            format!("Directory: {}", self.path.display())
+            {
+                let __warpai_locale_argument_0 = &(self.path.display());
+                warpui::localization::format_text(
+                    "Directory: {}",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }
         } else {
-            format!("File: {}", self.path.display())
+            {
+                let __warpai_locale_argument_0 = &(self.path.display());
+                warpui::localization::format_text(
+                    "File: {}",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }
         }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
         Some(if self.is_directory {
-            "Press Enter to navigate to this directory".to_string()
+            warpui::localization::text("Press Enter to navigate to this directory").to_string()
         } else {
-            "Press Enter to open this file".to_string()
+            warpui::localization::text("Press Enter to open this file").to_string()
         })
     }
 
@@ -161,7 +173,13 @@ impl SearchItem for CreateFileSearchItem {
         let text_color = highlight_state.sub_text_fill(appearance).into_solid();
 
         let label = Text::new_inline(
-            format!("Create a file named {}…", &self.file_name),
+            {
+                let __warpai_locale_argument_0 = &(&self.file_name);
+                warpui::localization::format_text(
+                    "Create a file named {}…",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            },
             appearance.ui_font_family(),
             appearance.monospace_font_size(),
         )
@@ -195,14 +213,23 @@ impl SearchItem for CreateFileSearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Create file: {}", self.file_name)
+        {
+            let __warpai_locale_argument_0 = &(self.file_name);
+            warpui::localization::format_text(
+                "Create file: {}",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
-        Some(format!(
-            "Press Enter to create {} in the current directory",
-            self.file_name
-        ))
+        Some({
+            let __warpai_locale_argument_0 = &(self.file_name);
+            warpui::localization::format_text(
+                "Press Enter to create {} in the current directory",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        })
     }
 
     fn render_details(&self, _ctx: &AppContext) -> Option<Box<dyn Element>> {

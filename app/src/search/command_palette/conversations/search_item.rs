@@ -413,28 +413,34 @@ impl SearchItem for ConversationSearchItem {
     fn accessibility_label(&self) -> String {
         match &self.action_info {
             ConversationAction::Resume(matched_conversation) => {
-                format!(
-                    "Conversation: {}",
-                    matched_conversation.as_ref().conversation.title()
-                )
+                {
+                    let __warpai_locale_argument_0 = &(matched_conversation.as_ref().conversation.title());
+                    warpui::localization::format_text(
+                        "Conversation: {}",
+                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                    )
+                }
             }
             ConversationAction::Fork { title, .. } => {
-                format!("Fork current conversation ({title})")
+                warpui::localization::format_text("Fork current conversation ({title})", &[("title", format!("{title}").as_str())])
             }
-            ConversationAction::New => "New conversation".to_string(),
+            ConversationAction::New => warpui::localization::text("New conversation").to_string(),
         }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
         match &self.action_info {
-            ConversationAction::Resume(matched_conversation) => Some(format!(
-                "Press enter to navigate to conversation \"{}\".",
-                matched_conversation.as_ref().conversation.title()
-            )),
+            ConversationAction::Resume(matched_conversation) => Some({
+                let __warpai_locale_argument_0 = &(matched_conversation.as_ref().conversation.title());
+                warpui::localization::format_text(
+                    "Press enter to navigate to conversation \"{}\".",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }),
             ConversationAction::Fork { .. } => {
-                Some("Press enter to fork the current conversation into a new conversation.".into())
+                Some(warpui::localization::text("Press enter to fork the current conversation into a new conversation.").into())
             }
-            ConversationAction::New => Some("Press enter to create a new conversation.".into()),
+            ConversationAction::New => Some(warpui::localization::text("Press enter to create a new conversation.").into()),
         }
     }
 }

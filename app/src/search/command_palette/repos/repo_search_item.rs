@@ -136,6 +136,12 @@ impl SearchItem for RepoSearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Repo: {}", self.metadata.path.display())
+        {
+            let __warpai_locale_argument_0 = &(self.metadata.path.display());
+            warpui::localization::format_text(
+                "Repo: {}",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        }
     }
 }

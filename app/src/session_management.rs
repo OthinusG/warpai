@@ -80,13 +80,19 @@ impl CommandContext {
             Self::None => None,
             Self::LastRunCommand {
                 last_run_command, ..
-            } => Some(format!("Last run command {}", last_run_command.clone())),
-            Self::LastRunAIBlock { prompt } => Some(format!("Last AI interaction: {prompt}")),
+            } => Some({
+                let __warpai_locale_argument_0 = &(last_run_command.clone());
+                warpui::localization::format_text(
+                    "Last run command {}",
+                    &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                )
+            }),
+            Self::LastRunAIBlock { prompt } => Some(warpui::localization::format_text("Last AI interaction: {prompt}", &[("prompt", format!("{prompt}").as_str())])),
             Self::RunningCommand { running_command } => {
-                Some(format!("Currently running {running_command}"))
+                Some(warpui::localization::format_text("Currently running {running_command}", &[("running_command", format!("{running_command}").as_str())]))
             }
             Self::RunningAIBlock { prompt } => {
-                Some(format!("Currently running AI interaction: {prompt}"))
+                Some(warpui::localization::format_text("Currently running AI interaction: {prompt}", &[("prompt", format!("{prompt}").as_str())]))
             }
         }
     }

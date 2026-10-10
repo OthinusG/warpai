@@ -104,13 +104,22 @@ impl SearchItemTrait for SearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Selected tab: {}.", self.tab.title)
+        {
+            let __warpai_locale_argument_0 = &(self.tab.title);
+            warpui::localization::format_text(
+                "Selected tab: {}.",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
-        Some(format!(
-            "Press enter to navigate to tab: {}.",
-            self.tab.title
-        ))
+        Some({
+            let __warpai_locale_argument_0 = &(self.tab.title);
+            warpui::localization::format_text(
+                "Press enter to navigate to tab: {}.",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        })
     }
 }

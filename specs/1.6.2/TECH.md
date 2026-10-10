@@ -198,3 +198,8 @@ while localizing process/session nouns, unsaved-change messages and controls.
 Local worktree removal keeps all checkout protections and the retained-branch
 warning; the display text alone changes. Generic platform modal builders are
 unchanged, preserving user-supplied titles and messages.
+
+Command-palette accessibility includes files/directories, create-file actions,
+launch configs, tabs, repositories, sections, conversation actions and session
+command context. Navigation completion times and empty/running status hints use
+the same explicit templates; real prompts, commands and paths stay unchanged.

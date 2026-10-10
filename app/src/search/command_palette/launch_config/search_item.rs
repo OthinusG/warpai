@@ -70,10 +70,16 @@ impl crate::search::item::SearchItem for SearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Selected {}.", self.launch_config.name)
+        {
+            let __warpai_locale_argument_0 = &(self.launch_config.name);
+            warpui::localization::format_text(
+                "Selected {}.",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
-        Some("Press enter to use this launch configuration.".into())
+        Some(warpui::localization::text("Press enter to use this launch configuration.").into())
     }
 }

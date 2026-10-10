@@ -66,7 +66,13 @@ impl SearchItem for SeparatorSearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!("Section: {}", self.title)
+        {
+            let __warpai_locale_argument_0 = &(self.title);
+            warpui::localization::format_text(
+                "Section: {}",
+                &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+            )
+        }
     }
 
     fn is_static_separator(&self) -> bool {

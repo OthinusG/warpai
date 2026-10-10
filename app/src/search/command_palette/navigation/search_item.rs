@@ -101,17 +101,24 @@ impl crate::search::item::SearchItem for SearchItem {
     }
 
     fn accessibility_label(&self) -> String {
-        format!(
-            "Selected {}. {}.",
-            self.navigation_data().prompt(),
-            self.navigation_data()
+        {
+            let __warpai_locale_argument_0 = &(self.navigation_data().prompt());
+            let __warpai_locale_argument_1 = &(self
+                .navigation_data()
                 .command_context()
                 .a11y_description()
-                .unwrap_or_default()
-        )
+                .unwrap_or_default());
+            warpui::localization::format_text(
+                "Selected {}. {}.",
+                &[
+                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                    ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                ],
+            )
+        }
     }
 
     fn accessibility_help_message(&self) -> Option<String> {
-        Some("Press enter to navigate to this session.".into())
+        Some(warpui::localization::text("Press enter to navigate to this session.").into())
     }
 }

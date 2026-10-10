@@ -1411,9 +1411,25 @@
     "完成！",
     "完成！"
   ],
+  "Completed": [
+    "已完成",
+    "已完成"
+  ],
+  "Completed over 1 hour ago": [
+    "已于 1 小时前完成",
+    "已於 1 小時前完成"
+  ],
   "Completed work older than days (1–3650)": [
     "完成距今超过的天数（1–3650）",
     "完成距今超過的天數（1–3650）"
+  ],
+  "Completed {mins} minute ago": [
+    "已于 {mins} 分钟前完成",
+    "已於 {mins} 分鐘前完成"
+  ],
+  "Completed {mins} minutes ago": [
+    "已于 {mins} 分钟前完成",
+    "已於 {mins} 分鐘前完成"
   ],
   "Completions open as you type (or {}).": [
     "输入时打开补全菜单（或按 {}）。",
@@ -1538,6 +1554,10 @@
   "Conversation forking failed.": [
     "无法创建对话分支。",
     "無法建立對話分支。"
+  ],
+  "Conversation: {}": [
+    "对话：{}",
+    "對話：{}"
   ],
   "Conversations cannot be deleted while in progress.": [
     "无法删除进行中的对话。",
@@ -1779,6 +1799,10 @@
     "创建 PR",
     "建立 PR"
   ],
+  "Create a file named {}…": [
+    "创建名为 {} 的文件…",
+    "建立名為 {} 的檔案…"
+  ],
   "Create a key to manage external access to Warpai": [
     "创建密钥以管理对 Warpai 的外部访问",
     "建立金鑰以管理對 Warpai 的外部存取"
@@ -1834,6 +1858,10 @@
   "Create environment": [
     "创建环境",
     "建立環境"
+  ],
+  "Create file: {}": [
+    "创建文件：{}",
+    "建立檔案：{}"
   ],
   "Create group from tabs": [
     "将标签页组成分组",
@@ -1914,6 +1942,14 @@
   "Current theme": [
     "当前主题",
     "目前佈景主題"
+  ],
+  "Currently running AI interaction: {prompt}": [
+    "当前正在运行 AI 交互：{prompt}",
+    "目前正在執行 AI 互動：{prompt}"
+  ],
+  "Currently running {running_command}": [
+    "当前正在运行：{running_command}",
+    "目前正在執行：{running_command}"
   ],
   "Cursor": [
     "光标",
@@ -2190,6 +2226,10 @@
   "Directory tab colors": [
     "目录标签页颜色",
     "目錄分頁色彩"
+  ],
+  "Directory: {}": [
+    "目录：{}",
+    "目錄：{}"
   ],
   "Disable AI": [
     "禁用 AI",
@@ -2866,6 +2906,10 @@
   "Embed": [
     "嵌入",
     "嵌入"
+  ],
+  "Empty Session": [
+    "空会话",
+    "空白工作階段"
   ],
   "Empty trash": [
     "清空回收站",
@@ -3627,6 +3671,10 @@
     "文件预约 · 当前检出目录 · 最多 50 条记录",
     "檔案預約 · 目前簽出目錄 · 最多 50 筆記錄"
   ],
+  "File: {}": [
+    "文件：{}",
+    "檔案：{}"
+  ],
   "Fill out the arguments in this workflow and copy it to run in your terminal session": [
     "填写工作流参数，然后复制到终端会话中运行",
     "填寫工作流程參數，然後複製至終端機工作階段中執行"
@@ -3754,6 +3802,10 @@
   "Fork current conversation": [
     "分叉当前对话",
     "分岔目前對話"
+  ],
+  "Fork current conversation ({title})": [
+    "派生当前对话（{title}）",
+    "衍生目前對話（{title}）"
   ],
   "Fork from here": [
     "从这里创建分支",
@@ -4275,9 +4327,17 @@
     "最近 30 天",
     "最近 30 天"
   ],
+  "Last AI interaction: {prompt}": [
+    "上次 AI 交互：{prompt}",
+    "上次 AI 互動：{prompt}"
+  ],
   "Last received update {}s ago{}": [
     "上次收到更新：{} 秒前{}",
     "上次收到更新：{} 秒前{}"
+  ],
+  "Last run command {}": [
+    "上次运行的命令：{}",
+    "上次執行的命令：{}"
   ],
   "Last week": [
     "最近一周",
@@ -5119,6 +5179,10 @@
     "没有打开的终端面板。请打开新面板以附加为上下文。",
     "沒有開啟的終端面板。請開啟新面板以附加為上下文。"
   ],
+  "No timestamp found": [
+    "未找到时间戳",
+    "找不到時間戳記"
+  ],
   "No tools available": [
     "没有可用工具",
     "沒有可用工具"
@@ -5731,9 +5795,45 @@
     "选择命令块时保留输入焦点",
     "選取命令區塊時保留輸入焦點"
   ],
+  "Press Enter to create {} in the current directory": [
+    "按 Enter 在当前目录创建 {}",
+    "按 Enter 在目前目錄建立 {}"
+  ],
+  "Press Enter to navigate to this directory": [
+    "按 Enter 前往此目录",
+    "按 Enter 前往此目錄"
+  ],
+  "Press Enter to open this file": [
+    "按 Enter 打开此文件",
+    "按 Enter 開啟此檔案"
+  ],
+  "Press enter to create a new conversation.": [
+    "按 Enter 创建新对话。",
+    "按 Enter 建立新對話。"
+  ],
+  "Press enter to fork the current conversation into a new conversation.": [
+    "按 Enter 将当前对话派生为新对话。",
+    "按 Enter 將目前對話衍生為新對話。"
+  ],
   "Press enter to launch this session.": [
     "按 Enter 启动此会话。",
     "按 Enter 啟動此工作階段。"
+  ],
+  "Press enter to navigate to conversation \"{}\".": [
+    "按 Enter 前往对话“{}”。",
+    "按 Enter 前往對話「{}」。"
+  ],
+  "Press enter to navigate to tab: {}.": [
+    "按 Enter 前往标签页：{}。",
+    "按 Enter 前往分頁：{}。"
+  ],
+  "Press enter to navigate to this session.": [
+    "按 Enter 前往此会话。",
+    "按 Enter 前往此工作階段。"
+  ],
+  "Press enter to use this launch configuration.": [
+    "按 Enter 使用此启动配置。",
+    "按 Enter 使用此啟動設定。"
   ],
   "Press escape to close.": [
     "按 Esc 关闭。",
@@ -6155,6 +6255,10 @@
     "仓库",
     "儲存庫"
   ],
+  "Repo: {}": [
+    "仓库：{}",
+    "儲存庫：{}"
+  ],
   "Repository UUID (optional; explicit logical overlap group)": [
     "仓库 UUID（可选；明确指定逻辑重叠组）",
     "儲存庫 UUID（選填；明確指定邏輯重疊群組）"
@@ -6435,6 +6539,10 @@
     "在隔离的云端环境中运行智能体任务。",
     "在隔離的雲端環境中執行智慧體工作。"
   ],
+  "Running...": [
+    "正在运行…",
+    "正在執行…"
+  ],
   "Runs": [
     "运行记录",
     "執行記錄"
@@ -6659,6 +6767,10 @@
     "敏感信息脱敏",
     "敏感資訊遮蔽"
   ],
+  "Section: {}": [
+    "分组：{}",
+    "分組：{}"
+  ],
   "See docs.": [
     "查看文档。",
     "查看文件。"
@@ -6819,6 +6931,10 @@
     "已选中进行集成",
     "已選取進行整合"
   ],
+  "Selected tab: {}.": [
+    "已选择标签页：{}。",
+    "已選取分頁：{}。"
+  ],
   "Selected workflow: {command}": [
     "已选择工作流：{command}",
     "已選取工作流程：{command}"
@@ -6826,6 +6942,10 @@
   "Selected {}.": [
     "已选择 {}。",
     "已選取 {}。"
+  ],
+  "Selected {}. {}.": [
+    "已选择 {}。{}。",
+    "已選取 {}。{}。"
   ],
   "Selection cursor did not advance": [
     "选择游标未推进",
