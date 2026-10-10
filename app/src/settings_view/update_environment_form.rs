@@ -707,7 +707,7 @@ impl UpdateEnvironmentForm {
                 EnvironmentFormMode::Edit { .. } => "Save environment",
             };
             self.submit_button.update(ctx, |button, ctx| {
-                button.set_label(button_text, ctx);
+                button.set_label(warpui::localization::text(button_text), ctx);
             });
         }
 

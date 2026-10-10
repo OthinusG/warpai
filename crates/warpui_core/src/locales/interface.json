@@ -4055,6 +4055,10 @@
     "忽略此建议",
     "忽略此建議"
   ],
+  "Image": [
+    "图像",
+    "影像"
+  ],
   "Import": [
     "导入",
     "匯入"
@@ -6659,6 +6663,10 @@
     "保存更改？",
     "儲存變更？"
   ],
+  "Save environment": [
+    "保存环境",
+    "儲存環境"
+  ],
   "Save file as": [
     "文件另存为",
     "檔案另存為"
@@ -8772,6 +8780,10 @@
     "Warpai {tag} 已可用。"
   ],
   "Warpify SSH Sessions": [
+    "为 SSH 会话启用 Warpify",
+    "為 SSH 工作階段啟用 Warpify"
+  ],
+  "Warpify SSH session": [
     "为 SSH 会话启用 Warpify",
     "為 SSH 工作階段啟用 Warpify"
   ],

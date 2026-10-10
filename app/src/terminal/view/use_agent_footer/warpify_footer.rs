@@ -90,7 +90,7 @@ impl WarpifyFooterView {
             WarpificationMode::Subshell { .. } => ("Warpify subshell", "terminal:warpify_subshell"),
         };
         self.warpify_button.update(ctx, |button, ctx| {
-            button.set_label(label, ctx);
+            button.set_label(warpui::localization::text(label), ctx);
             button.set_keybinding(Some(KeystrokeSource::Binding(binding_name)), ctx);
         });
         self.mode = Some(mode);

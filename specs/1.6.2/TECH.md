@@ -208,3 +208,7 @@ Display inventory includes label/title setters, static dropdown headers and
 optional tooltips. Runtime Git-action updates, comment button states, file-nav
 and maximize controls translate at their producers so updates retain the
 selected interface language. Generic component setters remain unchanged.
+
+SSH/subshell Warpify footer updates and hidden environment-form submit labels
+use explicit localized display values. Native file-type filters translate Image
+while retaining Markdown/Yaml names and file-extension matching.

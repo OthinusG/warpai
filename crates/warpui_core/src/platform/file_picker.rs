@@ -36,7 +36,7 @@ impl FileType {
     /// Human-readable name for this general category of files.
     pub fn display_name(&self) -> &str {
         match self {
-            FileType::Image => "Image",
+            FileType::Image => crate::localization::text("Image"),
             FileType::Yaml => "Yaml",
             FileType::Markdown => "Markdown",
         }
