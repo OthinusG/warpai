@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use settings::ToggleableSetting as _;
-use std::fmt::Write;
 use warpui::{
     modals::{AlertDialogWithCallbacks, AppModalCallback, ModalButton},
     AppContext, EntityId, SingletonEntity, ViewContext, ViewHandle, WeakViewHandle, WindowId,
@@ -359,48 +358,45 @@ impl<'a> UnsavedStateSummary<'a> {
         let mut info_text_lines = Vec::<String>::new();
 
         let scope_suffix = match self.scope {
-            QuitScope::Tabs(ref tabs) if tabs.len() == 1 => " in this tab.",
-            QuitScope::Window(_) => " in this window.",
-            QuitScope::Pane { .. } => " in this pane.",
+            QuitScope::Tabs(ref tabs) if tabs.len() == 1 => warpui::localization::text(" in this tab."),
+            QuitScope::Window(_) => warpui::localization::text(" in this window."),
+            QuitScope::Pane { .. } => warpui::localization::text(" in this pane."),
             QuitScope::App | QuitScope::Tabs(_) | QuitScope::EditorTab { .. } => ".",
         };
 
         if self.total_long_running_commands > 0 {
-            let mut process_info_text = format!(
+            let mut process_info_text = warpui::localization::format_text(
                 "You have {} {} running",
-                self.total_long_running_commands,
-                pluralize(self.total_long_running_commands, "process", "processes")
+                &[("0", self.total_long_running_commands.to_string().as_str()),
+                  ("1", warpui::localization::text(pluralize(self.total_long_running_commands, "process", "processes")))],
             );
             if self.windows_with_long_running_commands > 1 {
-                let _ = write!(
-                    &mut process_info_text,
-                    " in {} windows",
-                    self.windows_with_long_running_commands
-                );
+                process_info_text.push_str(&warpui::localization::format_text(
+                    " in {} windows", &[("0", self.windows_with_long_running_commands.to_string().as_str())],
+                ));
             } else if self.tabs_with_long_running_commands > 1 {
-                let _ = write!(
-                    &mut process_info_text,
-                    " in {} tabs",
-                    self.tabs_with_long_running_commands
-                );
+                process_info_text.push_str(&warpui::localization::format_text(
+                    " in {} tabs", &[("0", self.tabs_with_long_running_commands.to_string().as_str())],
+                ));
             }
             process_info_text.push_str(scope_suffix);
             info_text_lines.push(process_info_text);
         }
 
         if self.shared_sessions > 0 {
-            info_text_lines.push(format!(
+            info_text_lines.push(warpui::localization::format_text(
                 "You are sharing {} {}{scope_suffix}",
-                self.shared_sessions,
-                pluralize(self.shared_sessions, "session", "sessions")
+                &[("0", self.shared_sessions.to_string().as_str()),
+                  ("1", warpui::localization::text(pluralize(self.shared_sessions, "session", "sessions"))),
+                  ("scope_suffix", scope_suffix)],
             ));
         }
 
         if self.unsaved_code_changes {
             if let QuitScope::EditorTab { ref file_name, .. } = self.scope {
-                info_text_lines.push(format!("Do you want to save the changes you made to {}? Your changes will be discarded if you don't save them.", file_name.clone().unwrap_or("this file".to_string())));
+                info_text_lines.push(warpui::localization::format_text("Do you want to save the changes you made to {}? Your changes will be discarded if you don't save them.", &[("0", file_name.as_deref().unwrap_or(warpui::localization::text("this file")))]));
             } else {
-                info_text_lines.push(format!("You have unsaved file changes{scope_suffix}"));
+                info_text_lines.push(warpui::localization::format_text("You have unsaved file changes{scope_suffix}", &[("scope_suffix", scope_suffix)]));
             }
         }
 
@@ -466,25 +462,25 @@ impl<'a> QuitWarningDialog<'a> {
 
         if let Some(callback) = on_confirm {
             let confirm_title = match state.scope {
-                QuitScope::Window(_) | QuitScope::Tabs(_) | QuitScope::Pane { .. } => "Yes, close",
-                QuitScope::App => "Yes, quit",
+                QuitScope::Window(_) | QuitScope::Tabs(_) | QuitScope::Pane { .. } => warpui::localization::text("Yes, close"),
+                QuitScope::App => warpui::localization::text("Yes, quit"),
                 _ => "",
             };
             buttons.push(ModalButton::for_app(confirm_title.to_string(), callback));
         }
 
         if let Some(callback) = on_save_changes {
-            buttons.push(ModalButton::for_app("Save".to_string(), callback));
+            buttons.push(ModalButton::for_app(warpui::localization::text("Save").to_string(), callback));
         }
 
         if let Some(callback) = on_discard_changes {
-            buttons.push(ModalButton::for_app("Don't Save".to_string(), callback));
+            buttons.push(ModalButton::for_app(warpui::localization::text("Don't Save").to_string(), callback));
         }
 
         if let Some(callback) = on_show_processes {
             if state.total_long_running_commands > 0 {
                 buttons.push(ModalButton::for_app(
-                    "Show running processes".to_string(),
+                    warpui::localization::text("Show running processes").to_string(),
                     move |app| {
                         callback(app);
                     },
@@ -493,16 +489,16 @@ impl<'a> QuitWarningDialog<'a> {
         }
 
         if let Some(callback) = on_cancel {
-            buttons.push(ModalButton::for_app("Cancel".to_string(), callback));
+            buttons.push(ModalButton::for_app(warpui::localization::text("Cancel").to_string(), callback));
         }
 
         let title = match &state.scope {
-            QuitScope::Pane { .. } => "Close pane?",
-            QuitScope::Tabs(tabs) if tabs.len() == 1 => "Close tab?",
-            QuitScope::Tabs(_) => "Close tabs?",
-            QuitScope::Window(_) => "Close window?",
-            QuitScope::App => "Quit Warpai?",
-            QuitScope::EditorTab { .. } => "Save changes?",
+            QuitScope::Pane { .. } => warpui::localization::text("Close pane?"),
+            QuitScope::Tabs(tabs) if tabs.len() == 1 => warpui::localization::text("Close tab?"),
+            QuitScope::Tabs(_) => warpui::localization::text("Close tabs?"),
+            QuitScope::Window(_) => warpui::localization::text("Close window?"),
+            QuitScope::App => warpui::localization::text("Quit Warpai?"),
+            QuitScope::EditorTab { .. } => warpui::localization::text("Save changes?"),
         };
 
         AlertDialogWithCallbacks::for_app(

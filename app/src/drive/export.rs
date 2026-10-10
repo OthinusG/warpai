@@ -250,7 +250,7 @@ impl ExportManager {
                         .with_onclick_action(WorkspaceAction::OpenInExplorer { path: root_dir });
                 }
                 toast_stack.add_ephemeral_toast(
-                    DismissibleToast::success("Finished exporting objects".to_string())
+                    DismissibleToast::success(warpui::localization::text("Finished exporting objects").to_string())
                         .with_link(toast_link),
                     window_id,
                     ctx,

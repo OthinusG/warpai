@@ -191,3 +191,10 @@ Default-session and SSH-install dropdowns translate enum labels only at display
 consumers; selection still uses typed actions or matching translated labels.
 New-session search ranking bases use the current interface language, matching
 its localized result descriptions and accessibility launch announcements.
+
+Native modal buttons and success toasts are part of the display inventory.
+Quit warnings preserve their existing scope/count logic and plural branches
+while localizing process/session nouns, unsaved-change messages and controls.
+Local worktree removal keeps all checkout protections and the retained-branch
+warning; the display text alone changes. Generic platform modal builders are
+unchanged, preserving user-supplied titles and messages.

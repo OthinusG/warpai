@@ -92,7 +92,7 @@ pub fn maybe_log_out(app: &mut AppContext) {
             || num_unsaved_objects > 0
             || num_unsaved_files > 0)
     {
-        let mut button_data = vec![ModalButton::for_app("Yes, log out", |ctx| {
+        let mut button_data = vec![ModalButton::for_app(warpui::localization::text("Yes, log out"), |ctx| {
             log_out(ctx);
         })];
 
@@ -107,7 +107,7 @@ pub fn maybe_log_out(app: &mut AppContext) {
                 "You have {num_long_running_commands} {plural} running."
             ));
 
-            button_data.push(ModalButton::for_app("Show running processes", move |ctx| {
+            button_data.push(ModalButton::for_app(warpui::localization::text("Show running processes"), move |ctx| {
                 let windowing_model = ctx.windows();
                 let window_id = if let Some(active_window_id) = windowing_model.active_window() {
                     active_window_id
@@ -168,10 +168,10 @@ pub fn maybe_log_out(app: &mut AppContext) {
             ));
         }
 
-        button_data.push(ModalButton::for_app("Cancel", move |ctx| {}));
+        button_data.push(ModalButton::for_app(warpui::localization::text("Cancel"), move |ctx| {}));
 
         let alert_data = AlertDialogWithCallbacks::for_app(
-            "Log out?",
+            warpui::localization::text("Log out?"),
             info_text_vec.join("\n"),
             button_data,
             move |ctx| {

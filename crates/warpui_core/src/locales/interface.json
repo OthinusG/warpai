@@ -79,6 +79,26 @@
     " 以获得 SSO 和自动零数据保留等安全功能。",
     " 以取得 SSO 與自動零資料保留等安全功能。"
   ],
+  " in this pane.": [
+    "，位于此窗格。",
+    "，位於此窗格。"
+  ],
+  " in this tab.": [
+    "，位于此标签页。",
+    "，位於此分頁。"
+  ],
+  " in this window.": [
+    "，位于此窗口。",
+    "，位於此視窗。"
+  ],
+  " in {} tabs": [
+    "，分布在 {} 个标签页中",
+    "，分布於 {} 個分頁中"
+  ],
+  " in {} windows": [
+    "，分布在 {} 个窗口中",
+    "，分布於 {} 個視窗中"
+  ],
   " may resolve this issue.": [
     " 可能解决此问题。",
     " 可能解決此問題。"
@@ -246,6 +266,10 @@
   "AI command suggestions": [
     "AI 命令建议",
     "AI 命令建議"
+  ],
+  "API key deleted": [
+    "API 密钥已删除",
+    "API 金鑰已刪除"
   ],
   "AWS Access Key ID:": [
     "AWS 访问密钥 ID：",
@@ -1191,6 +1215,10 @@
     "关闭面板",
     "關閉面板"
   ],
+  "Close pane?": [
+    "关闭窗格？",
+    "關閉窗格？"
+  ],
   "Close panel": [
     "关闭面板",
     "關閉面板"
@@ -1215,13 +1243,25 @@
     "关闭标签页",
     "關閉分頁"
   ],
+  "Close tab?": [
+    "关闭标签页？",
+    "關閉分頁？"
+  ],
   "Close tabs to the right": [
     "关闭右侧标签页",
     "關閉右側分頁"
   ],
+  "Close tabs?": [
+    "关闭这些标签页？",
+    "關閉這些分頁？"
+  ],
   "Close the current tab": [
     "关闭当前标签页",
     "關閉目前分頁"
+  ],
+  "Close window?": [
+    "关闭窗口？",
+    "關閉視窗？"
   ],
   "Closed suggestions.": [
     "已关闭建议。",
@@ -1491,6 +1531,10 @@
     "控制终端内运行的程序能否读写系统剪贴板。",
     "控制終端機內執行的程式能否讀寫系統剪貼簿。"
   ],
+  "Conversation deleted": [
+    "对话已删除",
+    "對話已刪除"
+  ],
   "Conversation forking failed.": [
     "无法创建对话分支。",
     "無法建立對話分支。"
@@ -1514,6 +1558,10 @@
   "Copied branch name": [
     "已复制分支名称",
     "已複製分支名稱"
+  ],
+  "Copied to clipboard": [
+    "已复制到剪贴板",
+    "已複製到剪貼簿"
   ],
   "Copy": [
     "复制",
@@ -2623,6 +2671,10 @@
     "已禁用",
     "已停用"
   ],
+  "Disabled all synchronized inputs.": [
+    "已禁用所有同步输入。",
+    "已停用所有同步輸入。"
+  ],
   "Discard all": [
     "全部丢弃",
     "全部捨棄"
@@ -2667,6 +2719,10 @@
     "不再显示",
     "不要再顯示"
   ],
+  "Do you want to save the changes you made to {}? Your changes will be discarded if you don't save them.": [
+    "要保存对 {} 的更改吗？如果不保存，更改将被丢弃。",
+    "要儲存對 {} 的變更嗎？如果不儲存，變更將被捨棄。"
+  ],
   "Documentation": [
     "文档",
     "文件"
@@ -2674,6 +2730,10 @@
   "Documentation.": [
     "文档。",
     "文件。"
+  ],
+  "Don't Save": [
+    "不保存",
+    "不要儲存"
   ],
   "Don't ask me this again": [
     "不再询问",
@@ -3623,6 +3683,10 @@
     "完成",
     "完成"
   ],
+  "Finished exporting objects": [
+    "对象导出完成",
+    "物件匯出完成"
+  ],
   "First reservation page": [
     "预约首页",
     "預約首頁"
@@ -4319,6 +4383,10 @@
     "关联单点登录",
     "連結單一登入"
   ],
+  "Link copied to clipboard": [
+    "链接已复制到剪贴板",
+    "連結已複製到剪貼簿"
+  ],
   "Link to Documentation": [
     "文档链接",
     "文件連結"
@@ -4386,6 +4454,10 @@
   "Log out": [
     "注销",
     "登出"
+  ],
+  "Log out?": [
+    "退出登录？",
+    "登出？"
   ],
   "Look incorrect? ": [
     "看起来不正确？ ",
@@ -5591,9 +5663,17 @@
     "方案",
     "方案"
   ],
+  "Plan ID copied to clipboard": [
+    "计划 ID 已复制到剪贴板",
+    "計畫 ID 已複製到剪貼簿"
+  ],
   "Plan auto-sync": [
     "计划自动同步",
     "計畫自動同步"
+  ],
+  "Plan synced to your Warpai Drive": [
+    "计划已同步到你的 Warpai Drive",
+    "計畫已同步至你的 Warpai Drive"
   ],
   "Play notification sounds": [
     "播放通知声音",
@@ -5798,6 +5878,10 @@
   "Quit Warpai": [
     "退出 Warpai",
     "結束 Warpai"
+  ],
+  "Quit Warpai?": [
+    "退出 Warpai？",
+    "結束 Warpai？"
   ],
   "Quit when all windows are closed": [
     "关闭所有窗口后退出",
@@ -6010,6 +6094,10 @@
   "Remove the previous character": [
     "删除前一个字符",
     "刪除前一個字元"
+  ],
+  "Remove this local worktree?\n{}\n\nChanged, untracked, ignored, locked or open checkouts are protected. The Git branch is retained.": [
+    "移除此本地工作树？\n{}\n\n包含更改、未跟踪或忽略的文件，以及已锁定或打开的工作树均受到保护。Git 分支将保留。",
+    "移除此本機工作樹？\n{}\n\n包含變更、未追蹤或忽略的檔案，以及已鎖定或開啟的工作樹均受到保護。Git 分支將保留。"
   ],
   "Remove worktree": [
     "移除工作树",
@@ -6423,6 +6511,10 @@
     "保存为工作流",
     "儲存為工作流程"
   ],
+  "Save changes?": [
+    "保存更改？",
+    "儲存變更？"
+  ],
   "Save file as": [
     "文件另存为",
     "檔案另存為"
@@ -6558,6 +6650,10 @@
   "Secret command": [
     "敏感命令",
     "敏感命令"
+  ],
+  "Secret key copied.": [
+    "密钥已复制。",
+    "金鑰已複製。"
   ],
   "Secret redaction": [
     "敏感信息脱敏",
@@ -7022,6 +7118,10 @@
   "Show prompt": [
     "显示提示符",
     "顯示提示符"
+  ],
+  "Show running processes": [
+    "显示运行中的进程",
+    "顯示執行中的程序"
   ],
   "Show sticky command header": [
     "固定显示命令标题",
@@ -8639,6 +8739,10 @@
     "Worktree 注册表不可用",
     "Worktree 登錄表無法使用"
   ],
+  "Worktree removed. Its branch was retained.": [
+    "工作树已移除，分支已保留。",
+    "工作樹已移除，分支已保留。"
+  ],
   "Worktrees": [
     "工作树",
     "工作樹"
@@ -8655,9 +8759,21 @@
     "仅允许写入",
     "僅允許寫入"
   ],
+  "Yes, close": [
+    "确认关闭",
+    "確認關閉"
+  ],
   "Yes, empty trash": [
     "确认清空回收站",
     "確認清空垃圾桶"
+  ],
+  "Yes, log out": [
+    "确认退出登录",
+    "確認登出"
+  ],
+  "Yes, quit": [
+    "确认退出",
+    "確認結束"
   ],
   "Yes, skip login": [
     "是，跳过登录",
@@ -8683,6 +8799,10 @@
     "你已离线。部分规则将为只读。",
     "你已離線。部分規則將為唯讀。"
   ],
+  "You are sharing {} {}{scope_suffix}": [
+    "正在共享 {} 个{}{scope_suffix}",
+    "正在共享 {} 個{}{scope_suffix}"
+  ],
   "You can enable notifications through the command palette.": [
     "你可以通过命令面板启用通知。",
     "你可以透過命令面板啟用通知。"
@@ -8702,6 +8822,14 @@
   "You have unsaved changes.": [
     "有未保存的更改。",
     "有未儲存的變更。"
+  ],
+  "You have unsaved file changes{scope_suffix}": [
+    "有未保存的文件更改{scope_suffix}",
+    "有未儲存的檔案變更{scope_suffix}"
+  ],
+  "You have {} {} running": [
+    "有 {} 个{}正在运行",
+    "有 {} 個{}正在執行"
   ],
   "You haven't added any MCP servers yet. Once you do, you'll be able to control how much autonomy the Warpai Agent has when interacting with them. ": [
     "你尚未添加任何 MCP 服务器。添加后，即可控制 Warpai Agent 与服务器交互时的自主权限。 ",
@@ -9519,6 +9647,14 @@
     "私有",
     "私有"
   ],
+  "process": [
+    "进程",
+    "程序"
+  ],
+  "processes": [
+    "进程",
+    "程序"
+  ],
   "project explorer file tree left panel tools": [
     "项目浏览器 文件树 左侧工具面板",
     "專案瀏覽器 檔案樹 左側工具面板"
@@ -9598,6 +9734,10 @@
   "see recorded attempts": [
     "查看已记录的尝试",
     "查看已記錄的嘗試"
+  ],
+  "session": [
+    "会话",
+    "工作階段"
   ],
   "sessions": [
     "会话",
@@ -9750,6 +9890,10 @@
   "this conversation": [
     "此对话",
     "此對話"
+  ],
+  "this file": [
+    "此文件",
+    "此檔案"
   ],
   "this workspace": [
     "此工作区",

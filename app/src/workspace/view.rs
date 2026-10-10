@@ -16620,7 +16620,7 @@ impl Workspace {
                                             },
                                         ) {
                                             new_toast = DismissibleToast::success(
-                                                "Plan synced to your Warpai Drive".to_string(),
+                                                warpui::localization::text("Plan synced to your Warpai Drive").to_string(),
                                             )
                                             .with_object_id(object_id_clone)
                                             .with_link(
@@ -22202,9 +22202,9 @@ impl TypedActionView for Workspace {
                 let workspace = ctx.handle();
                 let repository = repository.clone();
                 let checkout = checkout.clone();
-                let description = format!("Remove this local worktree?\n{}\n\nChanged, untracked, ignored, locked or open checkouts are protected. The Git branch is retained.", checkout.display());
-                let dialog = AlertDialogWithCallbacks::for_app("Remove worktree", description,
-                    vec![ModalButton::for_app("Cancel", |_| {}), ModalButton::for_app("Remove", move |app| {
+                let description = warpui::localization::format_text("Remove this local worktree?\n{}\n\nChanged, untracked, ignored, locked or open checkouts are protected. The Git branch is retained.", &[("0", checkout.display().to_string().as_str())]);
+                let dialog = AlertDialogWithCallbacks::for_app(warpui::localization::text("Remove worktree"), description,
+                    vec![ModalButton::for_app(warpui::localization::text("Cancel"), |_| {}), ModalButton::for_app(warpui::localization::text("Remove"), move |app| {
                         let Some(workspace) = workspace.upgrade(app) else { return; };
                         workspace.update(app, |workspace, ctx| {
                             let open_directories: Vec<_> = ctx.window_ids().flat_map(|window| {
@@ -22217,7 +22217,7 @@ impl TypedActionView for Workspace {
                             }, |workspace, result, ctx| {
                                 workspace.toast_stack.update(ctx, |stack, ctx| {
                                     stack.add_ephemeral_toast(match result {
-                                        Ok(()) => DismissibleToast::success("Worktree removed. Its branch was retained.".into()),
+                                        Ok(()) => DismissibleToast::success(warpui::localization::text("Worktree removed. Its branch was retained.").into()),
                                         Err(error) => DismissibleToast::error(error.to_string()),
                                     }, ctx);
                                 });
@@ -23071,7 +23071,7 @@ impl TypedActionView for Workspace {
 
                 self.toast_stack.update(ctx, |view, ctx| {
                     let new_toast =
-                        DismissibleToast::success("Disabled all synchronized inputs.".to_string());
+                        DismissibleToast::success(warpui::localization::text("Disabled all synchronized inputs.").to_string());
                     view.add_ephemeral_toast(new_toast, ctx);
                 });
             }
@@ -23970,7 +23970,7 @@ impl TypedActionView for Workspace {
 
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
-                        DismissibleToast::success("Conversation deleted".to_string()),
+                        DismissibleToast::success(warpui::localization::text("Conversation deleted").to_string()),
                         window_id,
                         ctx,
                     );

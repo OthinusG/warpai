@@ -120,8 +120,8 @@ BINDING_DISPLAY = re.compile(
 )
 
 DISPLAY = re.compile(
-    r"(?:Text::new(?:_inline)?|Span::new|Dialog::new|FormattedTextElement::from_str|CustomMenuItem::new"
-    r"|DismissibleToast::(?:default|error|warning)|ToastLink::new|FormattedTextFragment::(?:plain_text|hyperlink|bold|italic)|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
+    r"(?:Text::new(?:_inline)?|Span::new|Dialog::new|ModalButton::for_(?:app|view)|AlertDialogWithCallbacks::for_(?:app|view)|FormattedTextElement::from_str|CustomMenuItem::new"
+    r"|DismissibleToast::(?:default|error|warning|success)|ToastLink::new|FormattedTextFragment::(?:plain_text|hyperlink|bold|italic)|Menu::new|MenuItemFields::(?:new|new_submenu|new_with_label)|DropdownItem::new|Category::new|MenuItemLabelText::new"
     r"|ActionButton::new|render_page_title|AccessibilityContent::new(?:_without_help)?"
     r"|(?:build_sub_header|render_sub_header_with_description|render_dropdown_item)\(\s*appearance\s*,"
     r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"
