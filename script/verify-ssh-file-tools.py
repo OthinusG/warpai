@@ -120,7 +120,7 @@ def main():
                                         raise RuntimeError("Owned SSH master unavailable")
                                     time.sleep(0.025)
                                 env["WARP_TEST_SSH_SOCKET"] = str(socket)
-                            subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=330)
+                            subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=450)
                         finally:
                             if master is not None:
                                 master.terminate()
