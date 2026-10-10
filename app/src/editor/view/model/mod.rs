@@ -532,7 +532,7 @@ impl EditorModel {
                 AccessibilityContent::new(delta, format!(", {action}"), WarpA11yRole::UserAction)
             }
             (true, false) => {
-                AccessibilityContent::new_without_help("Unselected", WarpA11yRole::UserAction)
+                AccessibilityContent::new_without_help(warpui::localization::text("Unselected"), WarpA11yRole::UserAction)
             }
         }
     }

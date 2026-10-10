@@ -24054,7 +24054,7 @@ impl TypedActionView for TerminalView {
             }
             BookmarkBlock(_) | BookmarkSelectedBlock => {
                 Custom(AccessibilityContent::new_without_help(
-                    "Toggle Bookmark block",
+                    warpui::localization::text("Toggle Bookmark block"),
                     WarpA11yRole::TextRole,
                 ))
             }
@@ -24080,15 +24080,15 @@ impl TypedActionView for TerminalView {
                 WarpA11yRole::TextRole,
             )),
             ScrollToBottomOfSelectedBlocks => Custom(AccessibilityContent::new_without_help(
-                "Scrolled to bottom of selected block".to_string(),
+                warpui::localization::text("Scrolled to bottom of selected block").to_string(),
                 WarpA11yRole::TextRole,
             )),
             ScrollToTopOfSelectedBlocks => Custom(AccessibilityContent::new_without_help(
-                "Scrolled to top of selected block".to_string(),
+                warpui::localization::text("Scrolled to top of selected block").to_string(),
                 WarpA11yRole::TextRole,
             )),
             ScrollToBottomOfOverhangingBlock(_) => Custom(AccessibilityContent::new_without_help(
-                "Scrolled to bottom of bottommost visible block".to_string(),
+                warpui::localization::text("Scrolled to bottom of bottommost visible block").to_string(),
                 WarpA11yRole::TextRole,
             )),
             CopyOutputs => {
@@ -24156,15 +24156,15 @@ impl TypedActionView for TerminalView {
                 WarpA11yRole::TextRole,
             )),
             ShowInitializationBlock => Custom(AccessibilityContent::new_without_help(
-                "Showed initialization block",
+                warpui::localization::text("Showed initialization block"),
                 WarpA11yRole::TextareaRole,
             )),
             ShowWarpifySettings => Custom(AccessibilityContent::new_without_help(
-                "Opened Warpify Settings",
+                warpui::localization::text("Opened Warpify Settings"),
                 WarpA11yRole::ButtonRole,
             )),
             OpenFilesPalette { .. } => Custom(AccessibilityContent::new_without_help(
-                "Opened file search palette",
+                warpui::localization::text("Opened file search palette"),
                 WarpA11yRole::ButtonRole,
             )),
             InsertCommandCorrection { .. }
@@ -24234,28 +24234,28 @@ impl TypedActionView for TerminalView {
             OpenCodeInWarp { .. } => ActionAccessibilityContent::from_debug(),
             OpenInWarpBanner(action) => self.open_in_warp_banner_accessibility_content(*action),
             OpenAIBlockAttachedBlocksMenu { .. } => Custom(AccessibilityContent::new_without_help(
-                "Open list of blocks attached as context to this AI query.".to_owned(),
+                warpui::localization::text("Open list of blocks attached as context to this AI query.").to_owned(),
                 WarpA11yRole::PopoverRole,
             )),
             OpenAIBlockOverflowMenu { .. } => Custom(AccessibilityContent::new_without_help(
-                "Open overflow menu with copy options for this AI block.".to_owned(),
+                warpui::localization::text("Open overflow menu with copy options for this AI block.").to_owned(),
                 WarpA11yRole::PopoverRole,
             )),
             RewindAIConversation { .. } => Custom(AccessibilityContent::new_without_help(
-                "Show confirmation dialog to rewind to before this point in the AI conversation."
+                warpui::localization::text("Show confirmation dialog to rewind to before this point in the AI conversation.")
                     .to_owned(),
                 WarpA11yRole::ButtonRole,
             )),
             ExecuteRewindAIConversation { .. } => Custom(AccessibilityContent::new_without_help(
-                "Execute rewind to before this point in the AI conversation.".to_owned(),
+                warpui::localization::text("Execute rewind to before this point in the AI conversation.").to_owned(),
                 WarpA11yRole::ButtonRole,
             )),
             SelectAIAttachedBlock(_) => Custom(AccessibilityContent::new_without_help(
-                "Click on a block attached as context to this AI query.".to_owned(),
+                warpui::localization::text("Click on a block attached as context to this AI query.").to_owned(),
                 WarpA11yRole::ButtonRole,
             )),
             PickRepoToOpen => Custom(AccessibilityContent::new_without_help(
-                "Use file picker to select a git repository".to_owned(),
+                warpui::localization::text("Use file picker to select a git repository").to_owned(),
                 WarpA11yRole::PopoverRole,
             )),
             #[cfg(feature = "voice_input")]

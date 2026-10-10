@@ -1095,6 +1095,10 @@
     "点击此处粘贴浏览器中的令牌",
     "點擊此處貼上瀏覽器中的權杖"
   ],
+  "Click on a block attached as context to this AI query.": [
+    "点击附加到此 AI 查询的区块。",
+    "點選附加至此 AI 查詢的區塊。"
+  ],
   "Click to learn more in docs": [
     "点击查看文档了解更多",
     "點擊查看文件瞭解更多"
@@ -1114,6 +1118,10 @@
   "Close Current Session": [
     "关闭当前会话",
     "關閉目前工作階段"
+  ],
+  "Close View in Warpai banner": [
+    "关闭“在 Warpai 中查看”横幅",
+    "關閉「在 Warpai 中檢視」橫幅"
   ],
   "Close Warpai AI": [
     "关闭 Warpai AI",
@@ -1174,6 +1182,10 @@
   "Close the current tab": [
     "关闭当前标签页",
     "關閉目前分頁"
+  ],
+  "Closed suggestions.": [
+    "已关闭建议。",
+    "已關閉建議。"
   ],
   "Cloud Agent Run Cancelled": [
     "云端智能体运行已取消",
@@ -1467,6 +1479,10 @@
     "全部复制",
     "全部複製"
   ],
+  "Copy Link": [
+    "复制链接",
+    "複製連結"
+  ],
   "Copy URL": [
     "复制 URL",
     "複製 URL"
@@ -1478,6 +1494,10 @@
   "Copy and clear selected lines": [
     "复制并清除所选行",
     "複製並清除所選行"
+  ],
+  "Copy code block": [
+    "复制代码区块",
+    "複製程式碼區塊"
   ],
   "Copy command": [
     "复制命令",
@@ -1847,6 +1867,14 @@
     "剪切右侧全部内容",
     "剪下右側全部內容"
   ],
+  "Cut line left": [
+    "剪切光标左侧行内容",
+    "剪下游標左側行內容"
+  ],
+  "Cut line right": [
+    "剪切光标右侧行内容",
+    "剪下游標右側行內容"
+  ],
   "Cut word left": [
     "剪切左侧单词",
     "剪下左側單字"
@@ -1942,6 +1970,14 @@
   "Delete forever": [
     "永久删除",
     "永久刪除"
+  ],
+  "Delete line left": [
+    "删除光标左侧行内容",
+    "刪除游標左側行內容"
+  ],
+  "Delete line right": [
+    "删除光标右侧行内容",
+    "刪除游標右側行內容"
   ],
   "Delete profile": [
     "删除配置方案",
@@ -2594,6 +2630,10 @@
   "Edit CLI agent toolbelt": [
     "编辑 CLI Agent 工具栏",
     "編輯 CLI Agent 工具列"
+  ],
+  "Edit Link": [
+    "编辑链接",
+    "編輯連結"
   ],
   "Edit Profile": [
     "编辑配置方案",
@@ -3266,6 +3306,10 @@
   "Executable path": [
     "可执行文件路径",
     "執行檔路徑"
+  ],
+  "Execute rewind to before this point in the AI conversation.": [
+    "执行回退，回到此 AI 对话中的此位置之前。",
+    "執行回退，回到此 AI 對話中的此位置之前。"
   ],
   "Execution Profile": [
     "执行配置",
@@ -4819,6 +4863,10 @@
     "没有符合筛选条件的结果",
     "沒有符合篩選條件的結果"
   ],
+  "No results.": [
+    "没有结果。",
+    "沒有結果。"
+  ],
   "No search results found": [
     "未找到搜索结果",
     "找不到搜尋結果"
@@ -5071,6 +5119,10 @@
     "打开命令块上下文菜单",
     "開啟命令區塊上下文選單"
   ],
+  "Open block-insertion menu": [
+    "打开区块插入菜单",
+    "開啟區塊插入選單"
+  ],
   "Open coding agent settings": [
     "打开编程智能体设置",
     "開啟程式設計智慧體設定"
@@ -5086,6 +5138,10 @@
   "Open conversation": [
     "打开对话",
     "開啟對話"
+  ],
+  "Open embedded object search menu": [
+    "打开嵌入对象搜索菜单",
+    "開啟嵌入物件搜尋選單"
   ],
   "Open file": [
     "打开文件",
@@ -5139,6 +5195,10 @@
     "在桌面应用中打开链接",
     "在桌面應用程式中開啟連結"
   ],
+  "Open list of blocks attached as context to this AI query.": [
+    "打开附加到此 AI 查询的区块列表。",
+    "開啟附加至此 AI 查詢的區塊清單。"
+  ],
   "Open new windows with custom size": [
     "使用自定义尺寸打开新窗口",
     "以自訂尺寸開啟新視窗"
@@ -5146,6 +5206,10 @@
   "Open on Desktop": [
     "在桌面端打开",
     "在桌面端開啟"
+  ],
+  "Open overflow menu with copy options for this AI block.": [
+    "打开包含此 AI 区块复制选项的更多菜单。",
+    "開啟包含此 AI 區塊複製選項的更多選單。"
   ],
   "Open project rules": [
     "打开项目规则",
@@ -5178,6 +5242,14 @@
   "Open {name}": [
     "打开 {name}",
     "開啟 {name}"
+  ],
+  "Opened Warpify Settings": [
+    "已打开 Warpify 设置",
+    "已開啟 Warpify 設定"
+  ],
+  "Opened file search palette": [
+    "已打开文件搜索面板",
+    "已開啟檔案搜尋面板"
   ],
   "Opening files is unavailable for remote sessions": [
     "远程会话无法打开文件",
@@ -5731,6 +5803,10 @@
     "从团队中移除",
     "從團隊移除"
   ],
+  "Remove link": [
+    "移除链接",
+    "移除連結"
+  ],
   "Remove queued prompt": [
     "移除排队中的提示",
     "移除佇列中的提示"
@@ -6207,6 +6283,18 @@
     "向上滚动半页（Vim）",
     "向上捲動半頁（Vim）"
   ],
+  "Scrolled to bottom of bottommost visible block": [
+    "已滚动到最下方可见区块的底部",
+    "已捲動至最下方可見區塊的底部"
+  ],
+  "Scrolled to bottom of selected block": [
+    "已滚动到选定区块底部",
+    "已捲動至所選區塊底部"
+  ],
+  "Scrolled to top of selected block": [
+    "已滚动到选定区块顶部",
+    "已捲動至所選區塊頂部"
+  ],
   "Search": [
     "搜索",
     "搜尋"
@@ -6567,6 +6655,10 @@
     "按 Shift+Ctrl+Space，将区块或所选文本交给 Warpai AI 提问。",
     "按 Shift+Ctrl+Space，將區塊或所選文字交給 Warpai AI 提問。"
   ],
+  "Shift-tab": [
+    "Shift+Tab",
+    "Shift+Tab"
+  ],
   "Shortcut": [
     "快捷键",
     "快速鍵"
@@ -6635,9 +6727,17 @@
     "更新后显示版本变更通知",
     "更新後顯示版本變更通知"
   ],
+  "Show character palette": [
+    "显示字符面板",
+    "顯示字元面板"
+  ],
   "Show code review button": [
     "显示代码审查按钮",
     "顯示程式碼審查按鈕"
+  ],
+  "Show confirmation dialog to rewind to before this point in the AI conversation.": [
+    "显示确认对话框，以回退到此 AI 对话中的此位置之前。",
+    "顯示確認對話框，以回退至此 AI 對話中的此位置之前。"
   ],
   "Show context lines around matches": [
     "显示匹配项周围的上下文行",
@@ -6658,6 +6758,10 @@
   "Show file navigation": [
     "显示文件导航",
     "顯示檔案導覽"
+  ],
+  "Show find bar": [
+    "显示查找栏",
+    "顯示尋找列"
   ],
   "Show find bar in code review": [
     "显示代码审查查找栏",
@@ -6726,6 +6830,10 @@
   "Show/hide all windows": [
     "显示/隐藏所有窗口",
     "顯示／隱藏所有視窗"
+  ],
+  "Showed initialization block": [
+    "已显示初始化区块",
+    "已顯示初始化區塊"
   ],
   "Showing {total_refs} references": [
     "显示 {total_refs} 处引用",
@@ -6930,6 +7038,10 @@
   "Successfully replaced match. Selected match is {match_index} of {remaining_matches}": [
     "已替换匹配项。当前选中第 {match_index} 项，共 {remaining_matches} 项",
     "已取代符合項目。目前選取第 {match_index} 項，共 {remaining_matches} 項"
+  ],
+  "Successfully replaced the last match.": [
+    "已成功替换最后一个匹配项。",
+    "已成功取代最後一個符合項目。"
   ],
   "Suggest corrected commands": [
     "建议修正命令",
@@ -7355,6 +7467,10 @@
     "切换 Agent 对话列表视图",
     "切換 Agent 對話清單檢視"
   ],
+  "Toggle Bookmark block": [
+    "切换区块书签",
+    "切換區塊書籤"
+  ],
   "Toggle Case Sensitivity": [
     "切换大小写敏感",
     "切換區分大小寫"
@@ -7474,6 +7590,10 @@
   "Toggle strikethrough styling": [
     "切换删除线样式",
     "切換刪除線樣式"
+  ],
+  "Toggle task list": [
+    "切换任务列表",
+    "切換工作清單"
   ],
   "Toggle team workflows modal": [
     "切换团队工作流对话框",
@@ -7639,6 +7759,10 @@
     "取消固定当前标签页组",
     "取消釘選目前分頁群組"
   ],
+  "Unselected": [
+    "已取消选择",
+    "已取消選取"
+  ],
   "Unshare": [
     "取消共享",
     "取消共用"
@@ -7762,6 +7886,10 @@
   "Use enter and shift-enter to navigate between matches. Escape to quit.": [
     "使用 Enter 和 Shift+Enter 在匹配项之间切换。按 Esc 退出。",
     "使用 Enter 與 Shift+Enter 在符合項目之間切換。按 Esc 退出。"
+  ],
+  "Use file picker to select a git repository": [
+    "使用文件选择器选择 Git 仓库",
+    "使用檔案選擇器選取 Git 儲存庫"
   ],
   "Use latest user prompt as conversation title in tab names": [
     "以最新用户提示作为标签页中的对话标题",

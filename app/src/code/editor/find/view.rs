@@ -404,7 +404,7 @@ impl CodeEditorFind {
                 WarpA11yRole::UserAction,
             )
         } else {
-            AccessibilityContent::new_without_help("No results.", WarpA11yRole::UserAction)
+            AccessibilityContent::new_without_help(warpui::localization::text("No results."), WarpA11yRole::UserAction)
         };
         ctx.emit_a11y_content(content);
     }
@@ -421,7 +421,7 @@ impl CodeEditorFind {
             )
         } else {
             AccessibilityContent::new_without_help(
-                "Successfully replaced the last match.",
+                warpui::localization::text("Successfully replaced the last match."),
                 WarpA11yRole::UserAction,
             )
         };

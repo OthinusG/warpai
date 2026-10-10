@@ -452,7 +452,7 @@ impl TypedActionView for Omnibar {
             }
             OmnibarAction::OpenLinkEditor => ActionAccessibilityContent::from_debug(),
             OmnibarAction::UnstyleLink => ActionAccessibilityContent::Custom(
-                AccessibilityContent::new_without_help("Remove link", WarpA11yRole::UserAction),
+                AccessibilityContent::new_without_help(warpui::localization::text("Remove link"), WarpA11yRole::UserAction),
             ),
         }
     }

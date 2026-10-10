@@ -246,7 +246,7 @@ impl TerminalView {
             }
             OpenInWarpBannerAction::Close => {
                 ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
-                    "Close View in Warpai banner",
+                    warpui::localization::text("Close View in Warpai banner"),
                     WarpA11yRole::UserAction,
                 ))
             }

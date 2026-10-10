@@ -720,7 +720,7 @@ pub fn accessibility_content(
         )),
         // Any non-successful autoupdate check
         (RequestType::ManualCheck, _) => Some(AccessibilityContent::new_without_help(
-            "No updates available",
+            warpui::localization::text("No updates available"),
             WarpA11yRole::HelpRole,
         )),
         _ => None,

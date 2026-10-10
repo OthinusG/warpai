@@ -266,7 +266,7 @@ impl<T: FindModel + Entity<Event = FindEvent> + 'static> Find<T> {
                 WarpA11yRole::UserAction,
             )
         } else {
-            AccessibilityContent::new_without_help("No results.", WarpA11yRole::UserAction)
+            AccessibilityContent::new_without_help(warpui::localization::text("No results."), WarpA11yRole::UserAction)
         };
         ctx.emit_a11y_content(content);
     }

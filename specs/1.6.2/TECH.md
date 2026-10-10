@@ -157,3 +157,7 @@ watchdogs and zero retries are unchanged; one stalled locale still fails early.
 Git push/publish/PR confirmation and progress labels, secret-display dropdown
 labels and terminal-kind badges translate their fixed display text. Typed actions,
 redaction modes, Git commands and CLI agent program names are unchanged.
+
+Accessibility announcements without a separate help argument are included in
+the display inventory and localized, including selection, clipboard, find/replace,
+scrolling and menu actions. Shortcut names keep their key identities.

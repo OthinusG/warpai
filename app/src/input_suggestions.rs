@@ -645,7 +645,7 @@ impl InputSuggestions {
         ctx: &mut ViewContext<Self>,
     ) {
         ctx.emit_a11y_content(AccessibilityContent::new_without_help(
-            "Closed suggestions.",
+            warpui::localization::text("Closed suggestions."),
             WarpA11yRole::UserAction,
         ));
         ctx.emit(Event::CloseSuggestion {
