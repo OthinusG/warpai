@@ -30,7 +30,7 @@ def main() -> None:
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
     panic_records = "\n".join(checkpoint.read_text(errors="replace") for checkpoint in args.output.parent.rglob("checkpoint-panic.txt"))
-    for name in ["checkpoint-panic.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
+    for name in ["checkpoint-panic.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
         for checkpoint in args.output.parent.rglob(name):
             log += "\n" + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", panic_records.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
