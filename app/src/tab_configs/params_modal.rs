@@ -283,7 +283,7 @@ impl TabConfigParamsModal {
                 TabConfigParamType::Text => {
                     let default_text = param.default.clone().unwrap_or_default();
                     let placeholder = if default_text.is_empty() {
-                        format!("Enter {name}")
+                        warpui::localization::format_text("Enter {name}", &[("name", format!("{name}").as_str())])
                     } else {
                         default_text.clone()
                     };
@@ -597,7 +597,7 @@ impl View for TabConfigParamsModal {
                     form.add_child(
                         Container::new(
                             Text::new_inline(
-                                format!("Default: {default_value}"),
+                                warpui::localization::format_text("Default: {default_value}", &[("default_value", format!("{default_value}").as_str())]),
                                 appearance.ui_font_family(),
                                 appearance.ui_font_size() - 1.,
                             )

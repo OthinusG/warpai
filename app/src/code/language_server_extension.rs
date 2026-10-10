@@ -588,11 +588,11 @@ impl LocalCodeEditorView {
 
         // Create the diagnostic text with bold severity prefix.
         let severity_text = match diagnostic.severity {
-            lsp_types::DiagnosticSeverity::ERROR => "Error",
-            lsp_types::DiagnosticSeverity::WARNING => "Warning",
-            lsp_types::DiagnosticSeverity::INFORMATION => "Info",
-            lsp_types::DiagnosticSeverity::HINT => "Hint",
-            _ => "Diagnostic",
+            lsp_types::DiagnosticSeverity::ERROR => warpui::localization::text("Error"),
+            lsp_types::DiagnosticSeverity::WARNING => warpui::localization::text("Warning"),
+            lsp_types::DiagnosticSeverity::INFORMATION => warpui::localization::text("Info"),
+            lsp_types::DiagnosticSeverity::HINT => warpui::localization::text("Hint"),
+            _ => warpui::localization::text("Diagnostic"),
         };
 
         let text = FormattedText::new([FormattedTextLine::Line(vec![

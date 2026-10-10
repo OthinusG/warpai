@@ -109,12 +109,12 @@ impl View for RemoveTabConfigConfirmationDialog {
             .with_margin_right(12.)
             .finish();
 
-        let title = format!("Remove '{}'?", self.config_name);
+        let title = warpui::localization::format_text("Remove '{}'?", &[("0", &self.config_name)]);
 
         let dialog = Dialog::new(
             title,
             Some(
-                "This tab config will be permanently deleted. This action cannot be undone.".into(),
+                warpui::localization::text("This tab config will be permanently deleted. This action cannot be undone.").into(),
             ),
             UiComponentStyles {
                 width: Some(DIALOG_WIDTH),

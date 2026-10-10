@@ -27,9 +27,9 @@ enum ConversationSection {
 impl ConversationSection {
     fn title(&self) -> &'static str {
         match self {
-            ConversationSection::ActivePane => "Active pane conversations",
-            ConversationSection::OtherActive => "Other active conversations",
-            ConversationSection::Past => "Past conversations",
+            ConversationSection::ActivePane => warpui::localization::text("Active pane conversations"),
+            ConversationSection::OtherActive => warpui::localization::text("Other active conversations"),
+            ConversationSection::Past => warpui::localization::text("Past conversations"),
         }
     }
 

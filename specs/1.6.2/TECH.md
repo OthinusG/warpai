@@ -171,3 +171,8 @@ Review discard confirmation titles/descriptions, rule-initialization captions,
 unsaved-file shortcut tooltips and MCP logout/deeplink results are explicit
 localized display producers; discard scope and server installation behavior
 are unchanged. Indirect producers remain part of manual coverage review.
+
+Command-palette filter names, new-session descriptions and split directions,
+conversation section titles and loading announcements translate explicitly.
+Tab-config removal/parameter prompts and diagnostic severity prefixes are
+localized; configuration identifiers, shell names and LSP messages stay raw.

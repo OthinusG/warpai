@@ -765,7 +765,7 @@ impl<T: Action + Clone> SearchBar<T> {
         if let Some(loading_filters) = self.mixer.as_ref(ctx).loading_query_filters() {
             for loading_filter in loading_filters.into_iter() {
                 ctx.emit_a11y_content(AccessibilityContent::new_without_help(
-                    format!("Loading {} suggestions", loading_filter.display_name()),
+                    warpui::localization::format_text("Loading {} suggestions", &[("0", loading_filter.display_name())]),
                     WarpA11yRole::MenuItemRole,
                 ));
             }

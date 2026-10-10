@@ -29,10 +29,10 @@ impl fmt::Display for Direction {
             f,
             "{}",
             match self {
-                Direction::Down => "Down",
-                Direction::Right => "Right",
-                Direction::Up => "Up",
-                Direction::Left => "Left",
+                Direction::Down => warpui::localization::text("Down"),
+                Direction::Right => warpui::localization::text("Right"),
+                Direction::Up => warpui::localization::text("Up"),
+                Direction::Left => warpui::localization::text("Left"),
             }
         )
     }
@@ -81,12 +81,12 @@ impl NewSessionOption {
 impl NewSessionOption {
     pub(super) fn new(id: NewSessionOptionId, config: NewSessionConfig) -> Self {
         let description = match &config {
-            NewSessionConfig::NewTab(shell) => format!("Create New Tab: {}", shell.short_name()),
+            NewSessionConfig::NewTab(shell) => warpui::localization::format_text("Create New Tab: {}", &[("0", format!("{}", shell.short_name()).as_str())]),
             NewSessionConfig::NewWindow(shell) => {
-                format!("Create New Window: {}", shell.short_name())
+                warpui::localization::format_text("Create New Window: {}", &[("0", format!("{}", shell.short_name()).as_str())])
             }
             NewSessionConfig::Split(direction, shell) => {
-                format!("Split Pane {direction}: {}", shell.short_name())
+                warpui::localization::format_text("Split Pane {direction}: {}", &[("0", format!("{}", shell.short_name()).as_str()), ("direction", format!("{direction}").as_str())])
             }
         };
         Self {

@@ -239,6 +239,10 @@
     "AI 命令搜索",
     "AI 命令搜尋"
   ],
+  "AI command suggestions": [
+    "AI 命令建议",
+    "AI 命令建議"
+  ],
   "AWS Access Key ID:": [
     "AWS 访问密钥 ID：",
     "AWS 存取金鑰 ID："
@@ -310,6 +314,10 @@
   "Active Screen": [
     "当前屏幕",
     "目前螢幕"
+  ],
+  "Active pane conversations": [
+    "当前窗格的对话",
+    "目前窗格的對話"
   ],
   "Activity · latest 200 received events": [
     "活动 · 最近收到的 200 个事件",
@@ -1671,9 +1679,17 @@
     "创建",
     "建立"
   ],
+  "Create New Tab: {}": [
+    "新建标签页：{}",
+    "新增分頁：{}"
+  ],
   "Create New Window": [
     "新建窗口",
     "新增視窗"
+  ],
+  "Create New Window: {}": [
+    "新建窗口：{}",
+    "新增視窗：{}"
   ],
   "Create PR": [
     "创建 PR",
@@ -1951,6 +1967,10 @@
     "新会话的默认 shell",
     "新工作階段的預設 shell"
   ],
+  "Default: {default_value}": [
+    "默认值：{default_value}",
+    "預設值：{default_value}"
+  ],
   "Delete": [
     "删除",
     "刪除"
@@ -2034,6 +2054,10 @@
   "Description": [
     "描述",
     "說明"
+  ],
+  "Diagnostic": [
+    "诊断",
+    "診斷"
   ],
   "Did you intend ": [
     "你是否希望 ",
@@ -2614,6 +2638,10 @@
   "Double-click smart selection": [
     "双击智能选择",
     "連按兩下智慧選取"
+  ],
+  "Down": [
+    "向下",
+    "向下"
   ],
   "Download": [
     "下载",
@@ -3267,6 +3295,10 @@
     "在此输入提示词…（例如“创建按日期排序对象数组的函数”或“帮助调试此 React 组件”）。",
     "在此輸入提示詞…（例如「建立依日期排序物件陣列的函式」或「協助偵錯此 React 元件」）。"
   ],
+  "Enter {name}": [
+    "输入{name}",
+    "輸入{name}"
+  ],
   "Enterprise credit usage isn't fully available in this view yet. Contact a team admin for detailed usage reporting.": [
     "此页面尚未提供完整的 Enterprise 额度使用情况。请联系团队管理员获取详细的使用报告。",
     "此頁面尚未提供完整的 Enterprise 額度使用情況。請聯絡團隊管理員取得詳細的使用報告。"
@@ -3759,6 +3791,10 @@
     "在垂直标签页布局中隐藏搜索栏",
     "在垂直分頁配置中隱藏搜尋列"
   ],
+  "Hint": [
+    "提示",
+    "提示"
+  ],
   "History": [
     "历史记录",
     "歷史記錄"
@@ -3870,6 +3906,10 @@
   "Infinitely scalable coding agent — run in local sessions or in the cloud.": [
     "无限扩展的编程 Agent，可在本地会话或云端运行。",
     "無限擴充的程式設計 Agent，可在本機工作階段或雲端執行。"
+  ],
+  "Info": [
+    "信息",
+    "資訊"
   ],
   "Initialization Settings": [
     "初始化设置",
@@ -4238,6 +4278,10 @@
   "Loading session...": [
     "正在加载会话…",
     "正在載入工作階段…"
+  ],
+  "Loading {} suggestions": [
+    "正在加载{}建议",
+    "正在載入{}建議"
   ],
   "Loading...": [
     "正在加载…",
@@ -5307,6 +5351,10 @@
     "其他",
     "其他"
   ],
+  "Other active conversations": [
+    "其他活动对话",
+    "其他使用中的對話"
+  ],
   "Other agents: usage unsupported. Qoder CN has no verified background usage interface.": [
     "其他智能体不支持用量查询。Qoder CN 尚无已验证的后台用量接口。",
     "其他智慧體不支援用量查詢。Qoder CN 尚無已驗證的背景用量介面。"
@@ -5374,6 +5422,10 @@
   "Past 3 days": [
     "过去 3 天",
     "過去 3 天"
+  ],
+  "Past conversations": [
+    "历史对话",
+    "歷史對話"
   ],
   "Paste": [
     "粘贴",
@@ -5810,6 +5862,10 @@
   "Remove": [
     "移除",
     "移除"
+  ],
+  "Remove '{}'?": [
+    "删除“{}”？",
+    "刪除「{}」？"
   ],
   "Remove Warpai MCP from all agents": [
     "从所有智能体中移除 Warpai MCP",
@@ -6951,6 +7007,10 @@
     "拆分窗格",
     "分割窗格"
   ],
+  "Split Pane {direction}: {}": [
+    "{direction}拆分窗格：{}",
+    "{direction}分割窗格：{}"
+  ],
   "Split pane": [
     "拆分窗格",
     "分割窗格"
@@ -7467,6 +7527,10 @@
     "此建议正在另一个标签页中编辑。",
     "此建議正在另一個分頁中編輯。"
   ],
+  "This tab config will be permanently deleted. This action cannot be undone.": [
+    "此标签页配置将被永久删除。此操作无法撤销。",
+    "此分頁設定將被永久刪除。此操作無法復原。"
+  ],
   "This will permanently delete the theme.": [
     "这将永久删除此主题。",
     "這將永久刪除此佈景主題。"
@@ -7843,6 +7907,10 @@
     "未命名",
     "未命名"
   ],
+  "Up": [
+    "向上",
+    "向上"
+  ],
   "Update": [
     "更新",
     "更新"
@@ -8182,6 +8250,10 @@
   "WSL workspace unavailable. Check the selected Linux account and its dedicated WSL Companion, then reconnect.": [
     "WSL 工作区不可用。请检查所选 Linux 账户及其专用 WSL Companion，然后重新连接。",
     "WSL 工作區無法使用。請檢查所選 Linux 帳戶及其專用 WSL Companion，然後重新連線。"
+  ],
+  "Warning": [
+    "警告",
+    "警告"
   ],
   "Warpai API Key": [
     "Warpai API 密钥",
@@ -8623,6 +8695,10 @@
     "账号 注册",
     "帳號 註冊"
   ],
+  "actions": [
+    "操作",
+    "操作"
+  ],
   "active": [
     "活动中",
     "活動中"
@@ -8695,6 +8771,10 @@
     "AWS Bedrock Amazon 凭据 登录 配置",
     "AWS Bedrock Amazon 認證資料 登入 設定"
   ],
+  "base models": [
+    "基础模型",
+    "基礎模型"
+  ],
   "base {value}": [
     "基准 {value}",
     "基準 {value}"
@@ -8706,6 +8786,10 @@
   "blocked": [
     "受阻",
     "受阻"
+  ],
+  "blocks": [
+    "命令块",
+    "命令區塊"
   ],
   "branch {value}": [
     "分支 {value}",
@@ -8739,6 +8823,10 @@
     "关闭下方标签页",
     "關閉下方分頁"
   ],
+  "code": [
+    "代码",
+    "程式碼"
+  ],
   "code coding codebase repository index indexing indices context path lsp language server": [
     "代码 编程 代码库 仓库 索引 上下文 路径 LSP 语言服务器",
     "程式碼 編寫 程式碼庫 儲存庫 索引 上下文 路徑 LSP 語言伺服器"
@@ -8771,6 +8859,10 @@
     "命令 {value}",
     "命令 {value}"
   ],
+  "commands": [
+    "命令",
+    "命令"
+  ],
   "commit {value}": [
     "提交 {value}",
     "提交 {value}"
@@ -8791,6 +8883,10 @@
     "对话 ",
     "對話 "
   ],
+  "conversations": [
+    "对话",
+    "對話"
+  ],
   "copy on select": [
     "选中时复制",
     "選取時複製"
@@ -8810,6 +8906,10 @@
   "ctrl tab behavior pane switch session recent": [
     "Ctrl Tab 行为 窗格切换 最近会话",
     "Ctrl Tab 行為 窗格切換 最近工作階段"
+  ],
+  "current directory conversations": [
+    "当前目录的对话",
+    "目前目錄的對話"
   ],
   "cursor shape cursor type block bar beam underline": [
     "光标形状 光标类型 方块 竖线 下划线",
@@ -8842,6 +8942,10 @@
   "device {value}; remote metadata, content not fetched": [
     "设备 {value}；远程元数据，内容尚未获取",
     "裝置 {value}；遠端中繼資料，內容尚未取得"
+  ],
+  "diff sets": [
+    "差异集",
+    "差異集"
   ],
   "dim inactive panes": [
     "调暗非活动窗格",
@@ -8907,6 +9011,10 @@
     "编辑器 打开 文件 Markdown AI 对话 布局 窗格 标签页",
     "編輯器 開啟 檔案 Markdown AI 對話 配置 窗格 分頁"
   ],
+  "environment variables": [
+    "环境变量",
+    "環境變數"
+  ],
   "environments environment ambient agents github warp assisted manual configuration": [
     "环境 Agent GitHub 辅助 手动 配置",
     "環境 Agent GitHub 輔助 手動 設定"
@@ -8939,6 +9047,10 @@
     "失败",
     "失敗"
   ],
+  "files": [
+    "文件",
+    "檔案"
+  ],
   "filing an issue": [
     "提交问题",
     "提交問題"
@@ -8954,6 +9066,10 @@
   "for terminal": [
     "用于终端",
     "用於終端機"
+  ],
+  "full terminal use models": [
+    "完整终端操作模型",
+    "完整終端操作模型"
   ],
   "global hotkey quake mode keybinding quick terminal": [
     "全局快捷键 下拉终端模式 按键绑定 快速终端",
@@ -8986,6 +9102,14 @@
   "hide title bar search bar vertical tabs chrome minimal": [
     "隐藏标题栏 搜索栏 垂直标签页 极简",
     "隱藏標題列 搜尋列 垂直分頁 極簡"
+  ],
+  "historical conversations": [
+    "历史对话",
+    "歷史對話"
+  ],
+  "history": [
+    "历史记录",
+    "歷史記錄"
   ],
   "history and capacity": [
     "历史与容量",
@@ -9030,6 +9154,10 @@
   "latest user prompt conversation title tab names vertical tabs oz third-party agent": [
     "最新 用户 提示 对话 标题 标签页 垂直 第三方 Agent",
     "最新 使用者 提示 對話 標題 分頁 垂直 第三方 Agent"
+  ],
+  "launch configurations": [
+    "启动配置",
+    "啟動設定"
   ],
   "learn more about MCPs.": [
     "了解更多 MCP 信息。",
@@ -9119,6 +9247,10 @@
     "未设置",
     "未設定"
   ],
+  "notebooks": [
+    "笔记本",
+    "筆記本"
+  ],
   "offline": [
     "离线",
     "離線"
@@ -9171,6 +9303,10 @@
     "方案 账单",
     "方案 帳單"
   ],
+  "plans": [
+    "计划",
+    "計畫"
+  ],
   "preserve input focus block selection navigate arrow keys": [
     "保留 输入 焦点 命令块 选择 导航 方向键",
     "保留 輸入 焦點 命令區塊 選取 導覽 方向鍵"
@@ -9191,9 +9327,17 @@
     "项目浏览器 文件树 左侧工具面板",
     "專案瀏覽器 檔案樹 左側工具面板"
   ],
+  "prompt history": [
+    "提示词历史",
+    "提示詞歷史"
+  ],
   "prompt ps1 terminal warp shell custom": [
     "提示符 终端 shell 自定义",
     "提示符 終端機 shell 自訂"
+  ],
+  "prompts": [
+    "提示词",
+    "提示詞"
   ],
   "queued": [
     "排队中",
@@ -9219,6 +9363,10 @@
     "重新打开 恢复已关闭标签页 会话",
     "重新開啟 還原已關閉分頁 工作階段"
   ],
+  "repos": [
+    "仓库",
+    "儲存庫"
+  ],
   "repository {value}": [
     "仓库 {value}",
     "儲存庫 {value}"
@@ -9226,6 +9374,10 @@
   "restore session window tab pane startup": [
     "恢复会话 窗口 标签页 窗格 启动",
     "還原工作階段 視窗 分頁 窗格 啟動"
+  ],
+  "rules": [
+    "规则",
+    "規則"
   ],
   "running": [
     "运行中",
@@ -9251,6 +9403,10 @@
     "查看已记录的尝试",
     "查看已記錄的嘗試"
   ],
+  "sessions": [
+    "会话",
+    "工作階段"
+  ],
   "settings sync": [
     "设置 同步",
     "設定 同步"
@@ -9270,6 +9426,14 @@
   "sign out log out logout": [
     "退出 登出 注销",
     "退出 登出 登出"
+  ],
+  "skills": [
+    "技能",
+    "技能"
+  ],
+  "slash commands": [
+    "斜杠命令",
+    "斜線命令"
   ],
   "slash commands terminal mode input menu": [
     "斜杠 命令 终端 模式 输入 菜单",
@@ -9334,6 +9498,10 @@
   "tab indicator": [
     "标签页状态指示器",
     "分頁狀態指示器"
+  ],
+  "tabs": [
+    "标签页",
+    "分頁"
   ],
   "telemetry crash reports stability data collection": [
     "遥测 崩溃 报告 稳定性 数据 收集",
@@ -9518,6 +9686,10 @@
   "word smart select semantic separator": [
     "单词 智能选择 语义 分隔符",
     "單字 智慧選取 語意 分隔符號"
+  ],
+  "workflows": [
+    "工作流",
+    "工作流程"
   ],
   "working": [
     "正在工作",
