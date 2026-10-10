@@ -4139,6 +4139,10 @@
     "初始化 Warpai 项目",
     "初始化 Warpai 專案"
   ],
+  "InlineCode": [
+    "行内代码",
+    "行內程式碼"
+  ],
   "Input": [
     "输入",
     "輸入"
@@ -4274,6 +4278,10 @@
   "It looks like you logged into a Warpai account through a web browser. If you continue, any personal Warpai drive objects and preferences from this anonymous session with be permanently deleted.": [
     "你似乎通过浏览器登录了 Warpai 账号。如果继续，此匿名会话中的所有个人 Warpai Drive 对象和偏好设置将被永久删除。",
     "你似乎透過瀏覽器登入了 Warpai 帳號。如果繼續，此匿名工作階段中的所有個人 Warpai Drive 物件與偏好設定將被永久刪除。"
+  ],
+  "Italic": [
+    "斜体",
+    "斜體"
   ],
   "Items in the trash will be deleted forever after 30 days.": [
     "回收站中的项目将在 30 天后永久删除。",
@@ -7535,6 +7543,10 @@
     "在云端保存 AI 对话",
     "在雲端儲存 AI 對話"
   ],
+  "StrikeThrough": [
+    "删除线",
+    "刪除線"
+  ],
   "Strikethrough": [
     "删除线",
     "刪除線"
@@ -8811,6 +8823,10 @@
     "内置控制台可查看 Warpai 与外部服务器的所有通信，帮助你确认工作数据的安全。",
     "內建主控台可查看 Warpai 與外部伺服器的所有通訊，協助你確認工作資料的安全。"
   ],
+  "Weight(Bold)": [
+    "粗体",
+    "粗體"
+  ],
   "Welcome to Warpai": [
     "欢迎使用 Warpai",
     "歡迎使用 Warpai"
@@ -9751,9 +9767,17 @@
     "笔记本",
     "筆記本"
   ],
+  "off": [
+    "关闭",
+    "關閉"
+  ],
   "offline": [
     "离线",
     "離線"
+  ],
+  "on": [
+    "开启",
+    "開啟"
   ],
   "online": [
     "在线",
@@ -10246,6 +10270,10 @@
   "{n} results in {files} {file_word}": [
     "{files} 个{file_word}中有 {n} 个结果",
     "{files} 個{file_word}中有 {n} 個結果"
+  ],
+  "{style} {action}": [
+    "{style}：{action}",
+    "{style}：{action}"
   ],
   "{} (default)": [
     "{}（默认）",

@@ -1786,7 +1786,11 @@ impl NotebooksEditorModel {
         } else {
             "on"
         };
-        let text = format!("{style:?} {action}");
+        let style_label = format!("{style:?}");
+        let text = warpui::localization::format_text("{style} {action}", &[
+            ("style", warpui::localization::text(&style_label)),
+            ("action", warpui::localization::text(action)),
+        ]);
         ActionAccessibilityContent::Custom(AccessibilityContent::new_without_help(
             text,
             WarpA11yRole::UserAction,

@@ -217,3 +217,8 @@ Localized concept names use consistent translations for Agent, Worktree,
 Coordinator, Workspace and Spaces. Source keys, placeholder names, protocol
 identifiers and user-provided values stay unchanged; Agent SDK and HTTP
 User-Agent names retain their technical spelling.
+
+Markdown inline-style accessibility translates the known Bold/Italic/Underline/
+InlineCode/StrikeThrough display labels and on/off announcements. English keeps
+its original debug-style wording; text formatting state and stored styles do
+not change. Both editor and toolbar callers use the existing shared helper.
