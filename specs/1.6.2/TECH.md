@@ -203,3 +203,8 @@ Command-palette accessibility includes files/directories, create-file actions,
 launch configs, tabs, repositories, sections, conversation actions and session
 command context. Navigation completion times and empty/running status hints use
 the same explicit templates; real prompts, commands and paths stay unchanged.
+
+Display inventory includes label/title setters, static dropdown headers and
+optional tooltips. Runtime Git-action updates, comment button states, file-nav
+and maximize controls translate at their producers so updates retain the
+selected interface language. Generic component setters remain unchanged.

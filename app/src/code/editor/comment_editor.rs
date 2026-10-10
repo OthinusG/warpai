@@ -275,7 +275,7 @@ impl CommentEditor {
         self.is_imported_comment = origin.is_imported_from_github();
 
         self.save_button.update(ctx, |button, ctx| {
-            button.set_label("Update", ctx);
+            button.set_label(warpui::localization::text("Update"), ctx);
         });
         ctx.notify();
 
@@ -294,7 +294,7 @@ impl CommentEditor {
         self.is_imported_comment = false;
 
         self.save_button.update(ctx, |button, ctx| {
-            button.set_label("Comment", ctx);
+            button.set_label(warpui::localization::text("Comment"), ctx);
         });
         ctx.notify();
 

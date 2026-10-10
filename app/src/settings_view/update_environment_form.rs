@@ -758,7 +758,7 @@ impl UpdateEnvironmentForm {
                 self.remove_setup_command_mouse_states.clear();
                 // Update button text for Create mode
                 self.submit_button.update(ctx, |button, ctx| {
-                    button.set_label("Create", ctx);
+                    button.set_label(warpui::localization::text("Create"), ctx);
                 });
             }
             EnvironmentFormInitArgs::Edit {
@@ -799,7 +799,7 @@ impl UpdateEnvironmentForm {
                     .collect();
                 // Update button text for Edit mode
                 self.submit_button.update(ctx, |button, ctx| {
-                    button.set_label("Save", ctx);
+                    button.set_label(warpui::localization::text("Save"), ctx);
                 });
             }
         }

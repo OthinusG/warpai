@@ -1517,7 +1517,7 @@ impl CodeReviewView {
 
         self.maximize_button.update(ctx, |button, ctx| {
             button.set_icon(Some(icon), ctx);
-            button.set_tooltip(Some(tooltip), ctx);
+            button.set_tooltip(Some(warpui::localization::text(tooltip)), ctx);
         });
     }
 
@@ -1528,7 +1528,7 @@ impl CodeReviewView {
             "Show file navigation"
         };
         self.file_nav_button.update(ctx, |button, ctx| {
-            button.set_tooltip(Some(tooltip), ctx);
+            button.set_tooltip(Some(warpui::localization::text(tooltip)), ctx);
         });
     }
 
@@ -6732,10 +6732,10 @@ impl CodeReviewView {
     fn update_git_operations_ui(&mut self, ctx: &mut ViewContext<Self>) {
         if self.diff_state_model.as_ref(ctx).is_ssh() {
             self.git_primary_action_button.update(ctx, |button, ctx| {
-                button.set_label("Use remote terminal for Git actions", ctx);
+                button.set_label(warpui::localization::text("Use remote terminal for Git actions"), ctx);
                 button.set_disabled(true, ctx);
                 button.set_tooltip(
-                    Some("Commit, push and discard changes in the remote terminal"),
+                    Some(warpui::localization::text("Commit, push and discard changes in the remote terminal")),
                     ctx,
                 );
             });
@@ -6747,10 +6747,10 @@ impl CodeReviewView {
             PrimaryGitActionMode::Commit => {
                 let disabled = !self.has_uncommitted_changes(ctx);
                 self.git_primary_action_button.update(ctx, |button, ctx| {
-                    button.set_label("Commit", ctx);
+                    button.set_label(warpui::localization::text("Commit"), ctx);
                     button.set_icon(Some(Icon::GitCommit), ctx);
                     button.set_disabled(disabled, ctx);
-                    button.set_tooltip(disabled.then_some("No changes to commit"), ctx);
+                    button.set_tooltip(disabled.then_some(warpui::localization::text("No changes to commit")), ctx);
                     button.set_on_click(
                         |ctx| ctx.dispatch_typed_action(CodeReviewAction::OpenCommitDialog),
                         ctx,
@@ -6759,12 +6759,12 @@ impl CodeReviewView {
                 });
                 self.git_operations_chevron.update(ctx, |button, ctx| {
                     button.set_disabled(disabled, ctx);
-                    button.set_tooltip(disabled.then_some("No git actions available"), ctx);
+                    button.set_tooltip(disabled.then_some(warpui::localization::text("No git actions available")), ctx);
                 });
             }
             PrimaryGitActionMode::Push => {
                 self.git_primary_action_button.update(ctx, |button, ctx| {
-                    button.set_label("Push", ctx);
+                    button.set_label(warpui::localization::text("Push"), ctx);
                     button.set_icon(Some(Icon::ArrowUp), ctx);
                     button.set_disabled(false, ctx);
                     button.set_on_click(
@@ -6779,7 +6779,7 @@ impl CodeReviewView {
             }
             PrimaryGitActionMode::CreatePr => {
                 self.git_primary_action_button.update(ctx, |button, ctx| {
-                    button.set_label("Create PR", ctx);
+                    button.set_label(warpui::localization::text("Create PR"), ctx);
                     button.set_icon(Some(Icon::Github), ctx);
                     button.set_disabled(false, ctx);
                     button.set_on_click(
@@ -6811,7 +6811,7 @@ impl CodeReviewView {
             }
             PrimaryGitActionMode::Publish => {
                 self.git_primary_action_button.update(ctx, |button, ctx| {
-                    button.set_label("Publish", ctx);
+                    button.set_label(warpui::localization::text("Publish"), ctx);
                     button.set_icon(Some(Icon::UploadCloud), ctx);
                     button.set_disabled(false, ctx);
                     button.set_on_click(

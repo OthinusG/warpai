@@ -1387,6 +1387,10 @@
     "提交说明",
     "提交說明"
   ],
+  "Commit, push and discard changes in the remote terminal": [
+    "在远程终端中提交、推送和丢弃更改",
+    "在遠端終端機中提交、推送及捨棄變更"
+  ],
   "Communication is off. Enable it in Settings > Features > Agent communication.": [
     "通信已关闭。请在“设置 > 功能 > Agent 通信”中启用。",
     "通訊已關閉。請在「設定 > 功能 > Agent 通訊」中啟用。"
@@ -1778,6 +1782,10 @@
   "Create": [
     "创建",
     "建立"
+  ],
+  "Create Environment": [
+    "创建环境",
+    "建立環境"
   ],
   "Create New Tab": [
     "新建标签页",
@@ -3975,6 +3983,14 @@
     "以下示例展示如何在终端中使用 AI，借助",
     "以下範例展示如何在終端中使用 AI，藉助"
   ],
+  "Hide Rich Input": [
+    "隐藏富文本输入",
+    "隱藏豐富文字輸入"
+  ],
+  "Hide file navigation": [
+    "隐藏文件导航",
+    "隱藏檔案導覽"
+  ],
   "Hide search bar in vertical tab layout": [
     "在垂直标签页布局中隐藏搜索栏",
     "在垂直分頁配置中隱藏搜尋列"
@@ -4430,6 +4446,10 @@
   "Line number:Column": [
     "行号:列号",
     "行號:欄號"
+  ],
+  "Linear Issue": [
+    "Linear 事项",
+    "Linear 議題"
   ],
   "Lines scrolled by mouse wheel interval": [
     "每次鼠标滚轮滚动的行数",
@@ -5015,6 +5035,10 @@
     "未找到网址",
     "找不到網址"
   ],
+  "No changes to commit": [
+    "没有可提交的更改",
+    "沒有可提交的變更"
+  ],
   "No cloud environment was started": [
     "未启动云端环境",
     "尚未啟動雲端環境"
@@ -5054,6 +5078,10 @@
   "No folders have been initialized yet.": [
     "尚未初始化任何文件夹。",
     "尚未初始化任何資料夾。"
+  ],
+  "No git actions available": [
+    "没有可用的 Git 操作",
+    "沒有可用的 Git 操作"
   ],
   "No images": [
     "没有图片",
@@ -5923,6 +5951,10 @@
     "项目路径不可用",
     "專案路徑無法使用"
   ],
+  "Project setup": [
+    "项目设置",
+    "專案設定"
+  ],
   "Prompt": [
     "提示词",
     "提示詞"
@@ -6286,6 +6318,10 @@
   "Request to sign up failed.": [
     "注册请求失败。",
     "註冊請求失敗。"
+  ],
+  "Requested Edit": [
+    "请求的编辑",
+    "要求的編輯"
   ],
   "Rescan agents": [
     "重新扫描智能体",
@@ -6798,6 +6834,10 @@
   "Select Coordinator": [
     "选择协调者",
     "選擇協調者"
+  ],
+  "Select MCP servers": [
+    "选择 MCP 服务器",
+    "選取 MCP 伺服器"
   ],
   "Select To Line End": [
     "选择至行尾",
@@ -8430,6 +8470,10 @@
   "Use regex to define additional secrets or data you'd like to redact. This will take effect when the next command runs. You can use the inline (?i) flag as a prefix to your regex to make it case-insensitive.": [
     "使用正则表达式定义需要脱敏的其他敏感信息或数据。此设置将在下一条命令运行时生效。你可以在正则表达式前添加内联标志 (?i)，以忽略大小写。",
     "使用正規表示式定義需要遮蔽的其他敏感資訊或資料。此設定將在下一條命令執行時生效。你可以在正規表示式前加入行內旗標 (?i)，以忽略大小寫。"
+  ],
+  "Use remote terminal for Git actions": [
+    "在远程终端中执行 Git 操作",
+    "在遠端終端機中執行 Git 操作"
   ],
   "Use the command palette to install and relaunch Warpai": [
     "通过命令面板安装并重新启动 Warpai",

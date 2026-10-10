@@ -17592,7 +17592,7 @@ impl Workspace {
         {
             BlocklistAIHistoryModel::handle(ctx).update(ctx, |history, _ctx| {
                 if let Some(conversation) = history.conversation_mut(&conversation_id) {
-                    conversation.set_fallback_display_title("Linear Issue".to_string());
+                    conversation.set_fallback_display_title(warpui::localization::text("Linear Issue").to_string());
                 }
             });
         }

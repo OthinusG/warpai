@@ -453,13 +453,13 @@ impl ExecutionProfileEditorView {
 
         let mcp_allowlist_dropdown = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = FilterableDropdown::new(ctx);
-            dropdown.set_menu_header_to_static("Select MCP servers");
+            dropdown.set_menu_header_to_static(warpui::localization::text("Select MCP servers"));
             dropdown
         });
 
         let mcp_denylist_dropdown = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = FilterableDropdown::new(ctx);
-            dropdown.set_menu_header_to_static("Select MCP servers");
+            dropdown.set_menu_header_to_static(warpui::localization::text("Select MCP servers"));
             dropdown
         });
 

@@ -523,8 +523,8 @@ impl AgentInputFooter {
                 let is_open = matches!(new_input_state, CLIAgentInputState::Open { .. });
                 me.rich_input_button.update(ctx, |button, ctx| {
                     if is_open {
-                        button.set_label("Hide Rich Input", ctx);
-                        button.set_tooltip(Some("Hide Rich Input"), ctx);
+                        button.set_label(warpui::localization::text("Hide Rich Input"), ctx);
+                        button.set_tooltip(Some(warpui::localization::text("Hide Rich Input")), ctx);
                         button.set_keybinding(
                             Some(KeystrokeSource::Binding(
                                 OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING,
@@ -532,8 +532,8 @@ impl AgentInputFooter {
                             ctx,
                         );
                     } else {
-                        button.set_label("Rich Input", ctx);
-                        button.set_tooltip(Some("Open Rich Input"), ctx);
+                        button.set_label(warpui::localization::text("Rich Input"), ctx);
+                        button.set_tooltip(Some(warpui::localization::text("Open Rich Input")), ctx);
                         button.set_keybinding(
                             Some(KeystrokeSource::Binding(
                                 OPEN_CLI_AGENT_RICH_INPUT_KEYBINDING,

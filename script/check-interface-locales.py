@@ -126,8 +126,8 @@ DISPLAY = re.compile(
     r"|(?:build_sub_header|render_sub_header_with_description|render_dropdown_item)\(\s*appearance\s*,"
     r"|render_body_item(?:_label(?:_with_icon|_internal)?)?(?:::<[^>]+>)?"
     r"|\.(?:with_label|with_tooltip|with_text_label|with_title|with_placeholder"
-    r"|with_centered_text_label|tool_tip|set_placeholder_text|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
-    r"\s*\(\s*$"
+    r"|set_label|set_title|set_menu_header_to_static|set_fallback_display_title|with_centered_text_label|tool_tip|set_placeholder_text|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
+    r"\s*\(\s*$|\.set_tooltip\(\s*(?:Some\(|disabled\.then_some\()\s*$"
 )
 
 # Brand/technical names and terminal preview content must retain their spelling.

@@ -122,7 +122,7 @@ impl DirectoryColorAddPicker {
             let mut dropdown = FilterableDropdown::new(ctx);
             dropdown.set_top_bar_max_width(MENU_WIDTH);
             dropdown.set_menu_width(MENU_WIDTH, ctx);
-            dropdown.set_menu_header_to_static(BUTTON_LABEL);
+            dropdown.set_menu_header_to_static(warpui::localization::text(BUTTON_LABEL));
             dropdown
         });
 
