@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-11. Current decisions and unfinished work only. Read this with
+Updated 2026-10-12. Current decisions and unfinished work only. Read this with
 [AGENTS.md](AGENTS.md) and [README.md](README.md). Detailed historical receipts
 and superseded decisions are in [the archive](docs/history/MEMORY-2026-10-10.md);
 consult it only when a specific historical question requires it.
@@ -21,30 +21,21 @@ consult it only when a specific historical question requires it.
   source. Follow [release gates](specs/RELEASE.md), including five installers and
   checksums. Finish UI acceptance before screenshots/packages. Protocol major is 1.
 
-## Current patch releases: 1.5.1 and 1.5.5
+## Published releases and maintenance
 
-- Baseline: published Warpai 1.5.0 / Companion 4.0.0; its audit was explicitly
-  ended. The owner now authorizes sequential publication of 1.5.1, then 1.5.5.
-  Add no telemetry. 1.6.0 is now authorized for the WSL revision; no telemetry.
-- b.txt has eight items (duplicate 7): first seven UI items are 1.5.1; Data usage
-  is 1.5.5. Companion stays 4.0.0. Contract:
-  [PATCHES-1.5.1-1.5.5.md](specs/agent-communication-v2/PATCHES-1.5.1-1.5.5.md).
-- 1.5.1: toolbelt icon; native worktree removal; Coordinator dropdown; mode
-  heading/icons/dividers/spacing; selectable secondary History; Message/Assign
-  dropdowns. Rescan/Remove MCP appear only when communication is enabled;
-  nonfunctional App icon selector is removed, retaining Dock visibility.
-- Combined source 74649624 passes both OS default/platform builds, focused tests
-  and native assertions in [38018432379](https://github.com/OthinusG/warpai/actions/runs/38018432379).
-  Both artifacts have 274 valid PNGs and clean diagnostics. The Tools-panel
-  capture correction is included in published 1.5.5.
-- Independent 1.5.1 at 30ad76bb is public with both desktops, Companion 4.0.0
-  and checksum lists. Release runs 38022801330 / 38025608195 succeeded.
-- 1.5.5 is tagged at fc6f3487, including corrected captures at 61d50dbe.
-  Runs 38025511405 / 38028454517 passed; 1.5.5 is public.
-  Retain all five installers and checksum receipts.
-- 1.6.0: feature/wsl-1.5.8 in /private/tmp/warpai-wsl-1.5.8. Release after acceptance.
-  1.6.2: feature/1.6.2 in /private/tmp/warpai-1.6.2; merge later 1.6.0 fixes.
-  Specs: specs/1.6.2/{PRODUCT,TECH}.md; parallel CI authorized; poll both every 30m.
+- Public 1.5.1/1.5.5 receipts remain in their owning patch specs; retain tags/assets.
+- 1.6.0 is public at 80e71661, with both desktops and Companion 4.0.0.
+  Source-matched native acceptance: 38119276766; builds: 38131069169/38134098256.
+- 1.6.2 is public at 0b109b87; both desktop native acceptance: 38147733290.
+  English/Simplified/Traditional captures and diagnostics pass; all five installers,
+  both checksum lists and source provenance pass. Builds: 38152318120/38155542555.
+  Companion stays 4.0.0. Published tags must never be retargeted.
+- Main includes both releases. Post-publication cleanup and milestone/1.6.2
+  follow specs/1.6.2/POST-RELEASE.md; preserve the dirty root worktree.
+- Remove private upstream setup/routing, not shared terminal compatibility or
+  pinned dependencies. Keep four workflows and the independent gh-pages branch.
+  GitHub fork detachment requires a supported operation; never delete/recreate
+  this repository or claim detachment without verifying fork=false.
 
 ## Project, worktree and Agent ownership
 
@@ -106,11 +97,10 @@ consult it only when a specific historical question requires it.
 
 ## SSH, task integrity and files
 
-- App 1.6.0: both desktops authorized after acceptance. Companion: 4.0.0;
+- App 1.6.0 is published; Companion: 4.0.0;
   WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
   logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
   Native Codex may add --no-daemon; no wrapper or host MCP injection.
-  Full 15a29850 desktop/native acceptance passes; corrected packaging gate pending.
   WSL steps 60s/process 420s; clear static polling fence before live WSL; CI-DIAGNOSIS.md.
   Check Windows rlto/release_bundle; debug-only WSL helpers share callee cfg.
   Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
@@ -145,11 +135,12 @@ consult it only when a specific historical question requires it.
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
   1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
   Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
-  Inspect edges/menus/Review/loading/toasts; scan wrapped text/header_text. Keep IDs; no cfg(test) debug helpers.
-  Use one owned SSH master per capture locale; close it before the next process.
-  Close captured dropdowns; their selectors and fixed defaults must use the same localized labels.
-  Locale tooling: UTF-8/POSIX paths. Windows CI verifies protoc and exports PROTOC.
+  Inspect menus/Review/loading/toasts; scan wrapped text/header_text; keep IDs; no cfg(test) drivers.
+  Each capture locale owns one SSH master; close before the next process.
+  Close dropdowns; selectors/defaults share localized labels.
+  UTF-8/POSIX locale tooling; verify/export PROTOC on Windows.
   Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
+  CI: poll every half hour in-session; owner forbids local background monitors.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
 - Ordinary Codex invocations (including --yolo/resume) adapt at Warpai's execution

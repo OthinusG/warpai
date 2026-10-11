@@ -5,8 +5,8 @@
 # like a real signed app (custom URL schemes, user notifications, etc.).
 #
 # This script is invoked by `./script/run`, which handles cross-platform
-# setup (install_channel_config, binary name detection, feature-to-env-var
-# mapping). The following env vars are expected to be set by the caller:
+# setup (standalone binary selection and feature argument mapping).
+# The following env vars are expected to be set by the caller:
 #   WARP_BIN_NAME  — "warpai-local" (internal local build) or "warpai"
 #   WARP_CHANNEL   — "local" or "oss"
 #   FEATURES       — comma-separated cargo features (already normalized)
