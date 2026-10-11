@@ -315,3 +315,9 @@ the existing WSL authority assertion to require the localized Head target label.
 The catalog now has 2677 pairs and 2780 marked display sites. Rerun the complete
 both-platform/native gate and inspect Review in both Chinese locales before
 tagging 1.6.2; successful dd55235d CI alone is not final visual acceptance.
+
+Run 38132366093 exposes E0308 in the new Windows native assertion: ViewHandle
+read callbacks provide AppContext, while build_diff_targets unnecessarily
+requires ViewContext. The producer only reads repository/model state. Accept
+AppContext in that existing method, preserving its rows and every caller; do not
+add a duplicate fixture producer or loosen the assertion. Rerun both platforms.

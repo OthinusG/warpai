@@ -1658,7 +1658,7 @@ impl CodeReviewView {
         );
     }
 
-    pub(crate) fn build_diff_targets(&self, ctx: &ViewContext<Self>) -> Vec<DiffTarget> {
+    pub(crate) fn build_diff_targets(&self, ctx: &AppContext) -> Vec<DiffTarget> {
         let Some(repo) = self.active_repo.as_ref() else {
             return Vec::new();
         };
