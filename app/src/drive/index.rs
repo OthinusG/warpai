@@ -4583,7 +4583,7 @@ impl DriveIndex {
                             "Copy workflow text"
                         };
                         menu_items.push(
-                            MenuItemFields::new(label)
+                            MenuItemFields::new(warpui::localization::text(label))
                                 .with_on_select_action(DriveIndexAction::CopyObjectToClipboard(
                                     *cloud_object_type_and_id,
                                 ))
@@ -4641,7 +4641,7 @@ impl DriveIndex {
                                 match space {
                                     Space::Personal | Space::Shared => None,
                                     Space::Team { .. } => Some(
-                                        MenuItemFields::new(format!("Move to {}", space.name(app)))
+                                        MenuItemFields::new(warpui::localization::format_text("Move to {}", &[("0", space.name(app).as_str())]))
                                             .with_on_select_action(DriveIndexAction::MoveObject {
                                                 cloud_object_type_and_id: *cloud_object_type_and_id,
                                                 new_space: *space,

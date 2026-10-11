@@ -373,9 +373,9 @@ pub fn init(app: &mut AppContext) {
         EditableBinding::new(
             CANCEL_COMMAND_KEYBINDING,
             if cfg!(windows) {
-                "Copy text or cancel active process"
+                warpui::localization::text("Copy text or cancel active process")
             } else {
-                "Cancel active process"
+                warpui::localization::text("Cancel active process")
             },
             TerminalAction::CtrlC,
         )

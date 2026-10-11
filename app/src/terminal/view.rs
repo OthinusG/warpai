@@ -13082,7 +13082,7 @@ fn build_onboarding_keybindings(ctx: &AppContext) -> OnboardingKeybindings {
 /// Builds the context-menu label for forking an AI conversation from a given query.
 fn fork_label_for_query(query: &str) -> String {
     if query.is_empty() {
-        "Fork from last query".to_string()
+        warpui::localization::text("Fork from last query").to_string()
     } else {
         let first_line = query.lines().next().unwrap_or(query).trim();
         let chars: Vec<char> = first_line.chars().take(21).collect();
@@ -13091,7 +13091,7 @@ fn fork_label_for_query(query: &str) -> String {
         } else {
             (chars.iter().collect::<String>(), "")
         };
-        format!("Fork from \"{truncated}{suffix}\"")
+        warpui::localization::format_text("Fork from \"{truncated}{suffix}\"", &[("truncated", truncated.as_str()), ("suffix", suffix)])
     }
 }
 
@@ -14965,7 +14965,7 @@ impl TerminalView {
                                         },
                                     ))
                                     .into_item(),
-                                MenuItemFields::new(show_in_file_explorer_menu_item_label)
+                                MenuItemFields::new(warpui::localization::text(show_in_file_explorer_menu_item_label))
                                     .with_on_select_action(TerminalAction::ShowInFileExplorer(
                                         path.clone(),
                                     ))
@@ -15040,9 +15040,9 @@ impl TerminalView {
                     fields.extend([
                         MenuItem::Separator,
                         MenuItemFields::new(if FeatureFlag::AgentMode.is_enabled() {
-                            *ATTACH_AS_AGENT_MODE_CONTEXT_TEXT
+                            warpui::localization::text(*ATTACH_AS_AGENT_MODE_CONTEXT_TEXT)
                         } else {
-                            ASK_AI_ASSISTANT_TEXT
+                            warpui::localization::text(ASK_AI_ASSISTANT_TEXT)
                         })
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::AskAI(if FeatureFlag::AgentMode.is_enabled() {
@@ -15127,7 +15127,7 @@ impl TerminalView {
                 };
 
                 let mut items = vec![
-                    MenuItemFields::new(copy_str)
+                    MenuItemFields::new(warpui::localization::text(copy_str))
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::CopyBlocks,
                         ))
@@ -15137,7 +15137,7 @@ impl TerminalView {
                         ))
                         .with_disabled(is_copy_both_disabled)
                         .into_item(),
-                    MenuItemFields::new(copy_commands_str)
+                    MenuItemFields::new(warpui::localization::text(copy_commands_str))
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::CopyBlockCommands,
                         ))
@@ -15147,7 +15147,7 @@ impl TerminalView {
                         ))
                         .with_disabled(is_copy_commands_disabled)
                         .into_item(),
-                    MenuItemFields::new(share_block_label)
+                    MenuItemFields::new(warpui::localization::text(share_block_label))
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::OpenShareBlockModal {
                                 block_index: tail_block_index,
@@ -15266,7 +15266,7 @@ impl TerminalView {
 
                 items.append(&mut vec![
                     MenuItem::Separator,
-                    MenuItemFields::new(find_str)
+                    MenuItemFields::new(warpui::localization::text(find_str))
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::FindWithinBlock,
                         ))
@@ -15297,7 +15297,7 @@ impl TerminalView {
 
                 items.append(&mut vec![
                     MenuItem::Separator,
-                    MenuItemFields::new(scroll_to_top_str)
+                    MenuItemFields::new(warpui::localization::text(scroll_to_top_str))
                         .with_on_select_action(TerminalAction::ContextMenu(
                             ContextMenuAction::ScrollToTopOfBlock,
                         ))
@@ -15307,7 +15307,7 @@ impl TerminalView {
                         ))
                         .into_item(),
                 ]);
-                items.append(&mut vec![MenuItemFields::new(scroll_to_bottom_str)
+                items.append(&mut vec![MenuItemFields::new(warpui::localization::text(scroll_to_bottom_str))
                     .with_on_select_action(TerminalAction::ContextMenu(
                         ContextMenuAction::ScrollToBottomOfBlock,
                     ))
@@ -15903,13 +15903,13 @@ impl TerminalView {
         if !is_editor_disabled {
             let input_settings = InputSettings::as_ref(ctx);
             let inverse_action = if *input_settings.show_hint_text {
-                "Hide"
+                warpui::localization::text("Hide input hint text")
             } else {
-                "Show"
+                warpui::localization::text("Show input hint text")
             };
             items.push(MenuItem::Separator);
             items.push(
-                MenuItemFields::new(format!("{inverse_action} input hint text"))
+                MenuItemFields::new(inverse_action)
                     .with_on_select_action(TerminalAction::InputContextMenuItem(
                         InputContextMenuAction::ToggleInputHintText,
                     ))
@@ -16048,9 +16048,9 @@ impl TerminalView {
                 menu_items.extend([
                     MenuItem::Separator,
                     MenuItemFields::new(if FeatureFlag::AgentMode.is_enabled() {
-                        *ATTACH_AS_AGENT_MODE_CONTEXT_TEXT
+                        warpui::localization::text(*ATTACH_AS_AGENT_MODE_CONTEXT_TEXT)
                     } else {
-                        ASK_AI_ASSISTANT_TEXT
+                        warpui::localization::text(ASK_AI_ASSISTANT_TEXT)
                     })
                     .with_on_select_action(TerminalAction::ContextMenu(ContextMenuAction::AskAI(
                         AskAISource::SelectedTerminalText,
@@ -16381,14 +16381,14 @@ impl TerminalView {
         if ChannelState::channel().is_dogfood() {
             vec![
                 (
-                    "Copy debugging link".to_string(),
+                    warpui::localization::text("Copy debugging link").to_string(),
                     ContextMenuAction::CopyAIDebuggingLink {
                         conversation_token: conversation_token.clone(),
                         request_id: server_output_id,
                     },
                 ),
                 (
-                    "Copy conversation ID".to_string(),
+                    warpui::localization::text("Copy conversation ID").to_string(),
                     ContextMenuAction::CopyConversationId {
                         conversation_id: conversation_token.clone(),
                     },
@@ -16396,7 +16396,7 @@ impl TerminalView {
             ]
         } else {
             vec![(
-                "Copy debugging ID".to_string(),
+                warpui::localization::text("Copy debugging ID").to_string(),
                 ContextMenuAction::CopyExternalDebuggingId {
                     request_id: server_output_id,
                     conversation_id: conversation_token.clone(),

@@ -5054,7 +5054,7 @@ impl SettingsWidget for ZoomLevelWidget {
 
         render_dropdown_item(
             appearance,
-            "Zoom",
+            warpui::localization::text("Zoom"),
             Some(warpui::localization::text("Adjusts the default zoom level across all windows")),
             Some(reset_button),
             LocalOnlyIconState::for_setting(

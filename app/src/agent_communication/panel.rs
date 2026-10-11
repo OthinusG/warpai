@@ -4780,6 +4780,75 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .with_take_screenshot("live-ssh-code-editor.png"),
         )
+        .with_step(TestStep::new("open native remote file context menu").with_action(|app, window, _| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
+            tree.update(app, |tree, ctx| tree.capture_context_menu(ctx));
+        }).add_named_assertion("remote context menu exposes localized file actions", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::code::file_tree::FileTreeAction>>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
+                    ["Open in new pane", "Open in new tab", "Rename", "Delete"].iter().all(|label|
+                        menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                            fields.label() == warpui::localization::text(label))))))))
+        }).with_take_screenshot("interface-context-menu-remote-file.png"))
+        .with_step(TestStep::new("close native remote file context menu").with_action(|app, window, _| {
+            for menu in app.views_of_type::<crate::menu::Menu<crate::code::file_tree::FileTreeAction>>(window).unwrap_or_default() {
+                menu.update(app, |menu, ctx| menu.handle_action(&crate::menu::MenuAction::Close(false), ctx));
+            }
+        }))
+        .with_step(TestStep::new("open native code pane menu").with_action(|app, window, _| {
+            let panes = app.views_of_type::<crate::pane_group::pane::view::PaneView<crate::code::view::CodeView>>(window).unwrap();
+            let header = panes.iter().find_map(|pane| pane.read(app, |pane, ctx| {
+                pane.child(ctx).as_ref(ctx).local_path(ctx)
+                    .filter(|path| warp_files::FileModel::as_ref(ctx).is_ssh_file(path))
+                    .map(|_| pane.header().clone())
+            })).expect("Native SSH code pane header");
+            header.update(app, |header, ctx| header.handle_action(&crate::pane_group::pane::view::PaneHeaderAction::OpenOverflowMenu, ctx));
+        }).add_named_assertion("code pane menu exposes localized copy action", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::pane_group::pane::view::PaneHeaderAction<crate::code::view::CodeViewAction, crate::code::view::CodeViewAction>>>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
+                    menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                        fields.label() == warpui::localization::text("Copy file path")))))))
+        }).with_take_screenshot("interface-context-menu-code-pane.png"))
+        .with_step(TestStep::new("close native code pane menu").with_action(|app, window, _| {
+            for menu in app.views_of_type::<crate::menu::Menu<crate::pane_group::pane::view::PaneHeaderAction<crate::code::view::CodeViewAction, crate::code::view::CodeViewAction>>>(window).unwrap_or_default() {
+                menu.update(app, |menu, ctx| menu.handle_action(&crate::menu::MenuAction::Close(false), ctx));
+            }
+        }))
+        .with_step(TestStep::new("open native terminal input context menu").with_action(|app, window, _| {
+            let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+            terminal.update(app, |terminal, ctx| terminal.handle_action(&crate::terminal::view::TerminalAction::OpenInputContextMenu {
+                position: pathfinder_geometry::vector::vec2f(400., 180.),
+            }, ctx));
+        }).add_named_assertion("terminal context menu exposes localized input and pane actions", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::terminal::view::TerminalAction>>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
+                    ["Paste", "Split pane right"].iter().all(|label| menu.items().iter().any(|item|
+                        item.fields().is_some_and(|fields| fields.label() == warpui::localization::text(label))))))))
+        }).with_take_screenshot("interface-context-menu-terminal.png"))
+        .with_step(TestStep::new("close native terminal context menu").with_action(|app, window, _| {
+            for menu in app.views_of_type::<crate::menu::Menu<crate::terminal::view::TerminalAction>>(window).unwrap_or_default() {
+                menu.update(app, |menu, ctx| menu.handle_action(&crate::menu::MenuAction::Close(false), ctx));
+            }
+        }))
+        .with_step(TestStep::new("open native tab context menu").with_action(|app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| workspace.handle_action(&WorkspaceAction::ToggleTabRightClickMenu {
+                tab_index: workspace.active_tab_index(),
+                anchor: crate::workspace::TabContextMenuAnchor::Pointer(pathfinder_geometry::vector::vec2f(400., 180.)),
+            }, ctx));
+        }).add_named_assertion("tab context menu exposes localized close action", |app, window| {
+            warpui::async_assert!(app.views_of_type::<crate::menu::Menu<WorkspaceAction>>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
+                    menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                        fields.label() == warpui::localization::text("Close tab")))))))
+        }).with_take_screenshot("interface-context-menu-tab.png"))
+        .with_step(TestStep::new("close native tab context menu").with_action(|app, window, _| {
+            for menu in app.views_of_type::<crate::menu::Menu<WorkspaceAction>>(window).unwrap_or_default() {
+                menu.update(app, |menu, ctx| menu.handle_action(&crate::menu::MenuAction::Close(false), ctx));
+            }
+        }))
         .with_step(TestStep::new("edit remote code in existing editor").with_action(|app, window, _| {
             let views = app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap();
             let editor = views.iter().find(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)))).unwrap().clone();
@@ -4878,6 +4947,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         [
             "live-ssh-file-explorer.png",
             "live-ssh-code-editor.png",
+            "interface-context-menu-remote-file.png",
+            "interface-context-menu-code-pane.png",
+            "interface-context-menu-terminal.png",
+            "interface-context-menu-tab.png",
             "live-ssh-code-dirty.png",
             "live-ssh-code-saved.png",
             "live-ssh-markdown-preview.png",

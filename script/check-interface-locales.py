@@ -115,8 +115,11 @@ def fields(template):
 
 
 BINDING_DISPLAY = re.compile(
-    r'BindingDescription::new\(\s*$|EditableBinding::new\(\s*"[^"\n]*"\s*,\s*$'
-    r"|FixedBinding::custom\(\s*[^,()]+,\s*[^,()]+,\s*$"
+    r'BindingDescription::new(?:_preserve_case)?\(\s*$'
+    r'|EditableBinding::new\(\s*(?:(?://[^\n]*\n|/\*.*?\*/)\s*)*'
+    r'(?:"[^"\n]*"|[A-Z][A-Z_0-9]*)\s*,\s*$'
+    r"|FixedBinding::custom\(\s*[^,()]+,\s*[^,()]+,\s*$",
+    re.DOTALL,
 )
 
 DISPLAY = re.compile(
@@ -194,14 +197,15 @@ def validate(catalog):
                 assert value in catalog, f"Missing constant translation: {path}:{value}"
                 marked += 1
             for start, end, value in rust_strings(source):
-                prefix = source[max(0, start - 200):start]
+                prefix = source[max(0, start - 2000):start]
                 if re.search(r"localization::(?:text|format_text)\(\s*$", prefix):
                     assert value in catalog, f"Missing translation: {path}:{value}"
                     marked += 1
                 elif BINDING_DISPLAY.search(prefix):
                     assert value in catalog, f"Missing binding translation: {path}:{value}"
                     marked += 1
-                elif DISPLAY.search(prefix) and re.search(r"[A-Za-z]", value):
+                elif (DISPLAY.search(prefix) or (relative == "app/src/settings_view/keybindings.rs"
+                      and re.search(r"render_text\(\s*$", prefix))) and re.search(r"[A-Za-z]", value):
                     if value in VERBATIM.get(relative, ()) or (value == "ESC" and relative in KEY_LABEL_FILES):
                         continue
                     remaining.append({"file": str(path.relative_to(ROOT)),
@@ -219,6 +223,9 @@ def self_check():
     assert localized_constant_values('const TITLE: &str = "Find"; localization::text(TITLE)') == ["Find"]
     assert localized_constant_values('static HELP: LazyLock<&str> = LazyLock::new(|| { "Help" }); localization::text(*HELP)') == ["Help"]
     assert localized_constant_values('const TITLE: &str = "User"; view.title(TITLE)') == []
+    assert BINDING_DISPLAY.search('EditableBinding::new(\n ACTION_NAME,\n ')
+    assert BINDING_DISPLAY.search('EditableBinding::new(\n // Keep the action ID stable.\n "action:id",\n ')
+    assert not BINDING_DISPLAY.search('EditableBinding::new("action:id", description, ')
 
 
 def main():

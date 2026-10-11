@@ -6954,7 +6954,7 @@ impl CodeReviewView {
         };
 
         items.push(
-            MenuItemFields::new(comment_label)
+            MenuItemFields::new(warpui::localization::text(comment_label))
                 .with_icon(comment_icon)
                 .with_on_select_action(CodeReviewAction::OpenCommentComposerFromHeader)
                 .into_item(),
@@ -6991,7 +6991,7 @@ impl CodeReviewView {
             };
 
             items.push(
-                MenuItemFields::new(comment_label)
+                MenuItemFields::new(warpui::localization::text(comment_label))
                     .with_icon(comment_icon)
                     .with_on_select_action(CodeReviewAction::OpenCommentComposerFromHeader)
                     .into_item(),

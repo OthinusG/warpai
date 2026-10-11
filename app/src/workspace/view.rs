@@ -7700,19 +7700,19 @@ impl Workspace {
         if FeatureFlag::Autoupdate.is_enabled() && ChannelState::show_autoupdate_menu_items() {
             if let Some(version) = ChannelState::app_version() {
                 menu_items.push(
-                    MenuItemFields::new(format!("Current version is {version}"))
+                    MenuItemFields::new(warpui::localization::format_text("Current version is {version}", &[("version", version.to_string().as_str())]))
                         .with_disabled(true)
                         .into_item(),
                 );
                 match autoupdate::get_update_state(ctx) {
                     AutoupdateStage::UpdateReady { new_version, .. }
                     | AutoupdateStage::UpdatedPendingRestart { new_version } => menu_items.push(
-                        MenuItemFields::new(format!("Install update ({})", new_version.version))
+                        MenuItemFields::new(warpui::localization::format_text("Install update ({})", &[("0", new_version.version.to_string().as_str())]))
                             .with_on_select_action(WorkspaceAction::ApplyUpdate)
                             .into_item(),
                     ),
                     AutoupdateStage::Updating { new_version, .. } => menu_items.push(
-                        MenuItemFields::new(format!("Updating to ({})", new_version.version))
+                        MenuItemFields::new(warpui::localization::format_text("Updating to ({})", &[("0", new_version.version.to_string().as_str())]))
                             .with_disabled(true)
                             .into_item(),
                     ),
@@ -9434,7 +9434,7 @@ impl Workspace {
                     ) =>
                 {
                     items.push(
-                        MenuItemFields::new(format!("Updating to ({})", new_version.version))
+                        MenuItemFields::new(warpui::localization::format_text("Updating to ({})", &[("0", new_version.version.to_string().as_str())]))
                             .with_disabled(true)
                             .into_item(),
                     )
@@ -9666,7 +9666,7 @@ impl Workspace {
                     "Move group left"
                 };
                 items.push(
-                    MenuItemFields::new(label)
+                    MenuItemFields::new(warpui::localization::text(label))
                         .with_on_select_action(WorkspaceAction::MoveTabGroupUp(group_id))
                         .into_item(),
                 );
@@ -9678,7 +9678,7 @@ impl Workspace {
                     "Move group right"
                 };
                 items.push(
-                    MenuItemFields::new(label)
+                    MenuItemFields::new(warpui::localization::text(label))
                         .with_on_select_action(WorkspaceAction::MoveTabGroupDown(group_id))
                         .into_item(),
                 );
@@ -9704,7 +9704,7 @@ impl Workspace {
                     "Close tabs to the left"
                 };
                 items.push(
-                    MenuItemFields::new(label)
+                    MenuItemFields::new(warpui::localization::text(label))
                         .with_on_select_action(WorkspaceAction::CloseTabsAboveGroup(group_id))
                         .into_item(),
                 );
@@ -9716,7 +9716,7 @@ impl Workspace {
                     "Close tabs to the right"
                 };
                 items.push(
-                    MenuItemFields::new(label)
+                    MenuItemFields::new(warpui::localization::text(label))
                         .with_on_select_action(WorkspaceAction::CloseTabsBelowGroup(group_id))
                         .into_item(),
                 );
@@ -9730,7 +9730,7 @@ impl Workspace {
             } else {
                 ("Pin group", WorkspaceAction::PinTabGroup(group_id))
             };
-            vec![MenuItemFields::new(label)
+            vec![MenuItemFields::new(warpui::localization::text(label))
                 .with_on_select_action(action)
                 .into_item()]
         } else {
@@ -9811,7 +9811,7 @@ impl Workspace {
             return;
         };
 
-        if label == MOVE_TO_GROUP_LABEL {
+        if label == warpui::localization::text(MOVE_TO_GROUP_LABEL) {
             // Single-tab pane menu carries a `tab_index`; the multi-tab
             // selection menu has no single source tab so we pass `None` and
             // the sidecar builder infers the multi-tab selection.
@@ -9870,7 +9870,7 @@ impl Workspace {
 
         // Flip the anchor side when the sidecar would overflow the window.
         let render_left =
-            self.should_render_sidecar_left(MOVE_TO_GROUP_LABEL, MOVE_TO_GROUP_SIDECAR_WIDTH, app);
+            self.should_render_sidecar_left(warpui::localization::text(MOVE_TO_GROUP_LABEL), MOVE_TO_GROUP_SIDECAR_WIDTH, app);
         let (offset, parent_anchor, child_anchor) = if render_left {
             (
                 vec2f(-4., 0.),
@@ -9888,7 +9888,7 @@ impl Workspace {
         stack.add_positioned_overlay_child(
             sidecar_element,
             OffsetPositioning::offset_from_save_position_element(
-                MOVE_TO_GROUP_LABEL,
+                warpui::localization::text(MOVE_TO_GROUP_LABEL),
                 offset,
                 PositionedElementOffsetBounds::WindowByPosition,
                 parent_anchor,
@@ -10022,7 +10022,7 @@ impl Workspace {
                 .with_height(NEW_SESSION_SIDECAR_SEARCH_BOX_HEIGHT)
                 .finish()
             }),
-            Some("Search repos".to_string()),
+            Some(warpui::localization::text("Search repos").to_string()),
         )
         .with_no_interaction_on_hover()
         .no_highlight_on_hover()
@@ -10298,7 +10298,7 @@ impl Workspace {
         };
 
         match label.as_str() {
-            "New worktree config" => {
+            label if label == warpui::localization::text("New worktree config") => {
                 self.tab_config_action_sidecar_item = None;
                 let auto_select_first_repo = self.new_session_dropdown_menu.read(ctx, |menu, _| {
                     menu.last_selection_source() != Some(MenuSelectionSource::Pointer)
@@ -10310,7 +10310,7 @@ impl Workspace {
                 );
             }
             // Items that don't get any sidecar.
-            "New tab config" => {
+            label if label == warpui::localization::text("New tab config") => {
                 self.tab_config_action_sidecar_item = None;
                 if self.show_new_session_sidecar {
                     self.show_new_session_sidecar = false;
@@ -22087,7 +22087,7 @@ impl TypedActionView for Workspace {
                                 ..Default::default()
                             })),
                             Arc::new(HashMap::new()),
-                            Some("Collaboration".into()),
+                            Some(warpui::localization::text("Collaboration").into()),
                             ctx,
                         );
                     } else {

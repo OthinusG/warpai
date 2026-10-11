@@ -364,6 +364,15 @@ impl FileTreeView {
     }
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn capture_context_menu(&mut self, ctx: &mut ViewContext<Self>) {
+        let id = self.selected_item.clone().expect("Selected native fixture file");
+        self.handle_action(&FileTreeAction::OpenContextMenu {
+            position: pathfinder_geometry::vector::vec2f(400., 180.),
+            id,
+        }, ctx);
+    }
+
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn open_ssh_checkpoint(&mut self, name: &str, ctx: &mut ViewContext<Self>) {
         let id = self
             .root_directories
@@ -2747,7 +2756,7 @@ impl FileTreeView {
                 };
                 for (label, action) in actions {
                     items.push(
-                        MenuItemFields::new(label)
+                        MenuItemFields::new(warpui::localization::text(label))
                             .with_on_select_action(action)
                             .into_item(),
                     );

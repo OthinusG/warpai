@@ -152,9 +152,9 @@ pub fn init(app: &mut AppContext) {
 
     if ChannelState::enable_debug_features() {
         let crash_description = if cfg!(target_os = "macos") {
-            "Crash the app (for testing sentry-cocoa)"
+            warpui::localization::text("Crash the app (for testing sentry-cocoa)")
         } else {
-            "Crash the app (for testing sentry-native)"
+            warpui::localization::text("Crash the app (for testing sentry-native)")
         };
         app.register_editable_bindings([
             EditableBinding::new("workspace:crash", crash_description, WorkspaceAction::Crash)

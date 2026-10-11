@@ -299,6 +299,10 @@
     "接受自动建议",
     "接受自動建議"
   ],
+  "Accept Prompt Suggestion": [
+    "接受提示词建议",
+    "接受提示詞建議"
+  ],
   "Accept and save": [
     "接受并保存",
     "接受並儲存"
@@ -434,6 +438,10 @@
   "Add selection for next occurrence": [
     "选择下一个匹配项",
     "選取下一個符合項目"
+  ],
+  "Add your own custom keybindings to existing actions below.": [
+    "为以下现有操作添加自定义快捷键。",
+    "為以下現有操作新增自訂快捷鍵。"
   ],
   "Add-on credits": [
     "额外额度",
@@ -967,6 +975,10 @@
     "取消",
     "取消"
   ],
+  "Cancel active process": [
+    "取消活动进程",
+    "取消作用中程序"
+  ],
   "Cancel summarization": [
     "取消摘要",
     "取消摘要"
@@ -1159,6 +1171,10 @@
     "清屏",
     "清除螢幕"
   ],
+  "Clear secret": [
+    "清除机密",
+    "清除機密"
+  ],
   "Clear selected lines": [
     "清除所选行",
     "清除所選行"
@@ -1194,6 +1210,14 @@
   "Close Current Session": [
     "关闭当前会话",
     "關閉目前工作階段"
+  ],
+  "Close Tabs Below": [
+    "关闭下方标签页",
+    "關閉下方分頁"
+  ],
+  "Close Tabs to the Right": [
+    "关闭右侧标签页",
+    "關閉右側分頁"
   ],
   "Close View in Warpai banner": [
     "关闭“在 Warpai 中查看”横幅",
@@ -1262,6 +1286,18 @@
   "Close tab?": [
     "关闭标签页？",
     "關閉分頁？"
+  ],
+  "Close tabs above": [
+    "关闭上方标签页",
+    "關閉上方分頁"
+  ],
+  "Close tabs below": [
+    "关闭下方标签页",
+    "關閉下方分頁"
+  ],
+  "Close tabs to the left": [
+    "关闭左侧标签页",
+    "關閉左側分頁"
   ],
   "Close tabs to the right": [
     "关闭右侧标签页",
@@ -1334,6 +1370,10 @@
   "Codebase too large": [
     "代码库过大",
     "程式碼庫過大"
+  ],
+  "Collaboration": [
+    "协作",
+    "協作"
   ],
   "Collapse": [
     "折叠",
@@ -1635,6 +1675,10 @@
     "复制并清除所选行",
     "複製並清除所選行"
   ],
+  "Copy branch": [
+    "复制分支",
+    "複製分支"
+  ],
   "Copy code block": [
     "复制代码区块",
     "複製程式碼區塊"
@@ -1651,9 +1695,25 @@
     "复制命令输出",
     "複製命令輸出"
   ],
+  "Copy commands": [
+    "复制命令",
+    "複製命令"
+  ],
+  "Copy conversation ID": [
+    "复制对话 ID",
+    "複製對話 ID"
+  ],
   "Copy conversation text": [
     "复制对话文本",
     "複製對話文字"
+  ],
+  "Copy debugging ID": [
+    "复制调试 ID",
+    "複製偵錯 ID"
+  ],
+  "Copy debugging link": [
+    "复制调试链接",
+    "複製偵錯連結"
   ],
   "Copy error": [
     "复制错误",
@@ -1703,6 +1763,10 @@
     "以 Markdown 格式复制输出",
     "以 Markdown 格式複製輸出"
   ],
+  "Copy pane title": [
+    "复制窗格标题",
+    "複製窗格標題"
+  ],
   "Copy path": [
     "复制路径",
     "複製路徑"
@@ -1714,6 +1778,10 @@
   "Copy prompt": [
     "复制提示符",
     "複製提示字元"
+  ],
+  "Copy pull request link": [
+    "复制拉取请求链接",
+    "複製提取要求連結"
   ],
   "Copy relative path": [
     "复制相对路径",
@@ -1735,9 +1803,17 @@
     "复制会话共享链接",
     "複製工作階段共享連結"
   ],
+  "Copy tab title": [
+    "复制标签页标题",
+    "複製分頁標題"
+  ],
   "Copy text": [
     "复制文本",
     "複製文字"
+  ],
+  "Copy text or cancel active process": [
+    "复制文本或取消活动进程",
+    "複製文字或取消作用中程序"
   ],
   "Copy to Personal": [
     "复制到个人空间",
@@ -1758,6 +1834,10 @@
   "Copy working directory": [
     "复制工作目录",
     "複製工作目錄"
+  ],
+  "Copy {}": [
+    "复制{}",
+    "複製{}"
   ],
   "Could not automatically install plugin. Please click the chip again for manual installation steps.": [
     "无法自动安装插件。请再次点击标签查看手动安装步骤。",
@@ -1802,6 +1882,14 @@
   "Crash reports assist with debugging and stability improvements.": [
     "崩溃报告有助于调试和改善稳定性。",
     "當機報告有助於偵錯和改善穩定性。"
+  ],
+  "Crash the app (for testing sentry-cocoa)": [
+    "使应用崩溃（测试 sentry-cocoa）",
+    "使應用程式當機（測試 sentry-cocoa）"
+  ],
+  "Crash the app (for testing sentry-native)": [
+    "使应用崩溃（测试 sentry-native）",
+    "使應用程式當機（測試 sentry-native）"
   ],
   "Create": [
     "创建",
@@ -1974,6 +2062,10 @@
   "Current theme": [
     "当前主题",
     "目前佈景主題"
+  ],
+  "Current version is {version}": [
+    "当前版本为 {version}",
+    "目前版本為 {version}"
   ],
   "Currently running AI interaction: {prompt}": [
     "当前正在运行 AI 交互：{prompt}",
@@ -2879,6 +2971,10 @@
     "编辑 CLI 智能体工具栏",
     "編輯 CLI 智慧體工具列"
   ],
+  "Edit Code Diff": [
+    "编辑代码差异",
+    "編輯程式碼差異"
+  ],
   "Edit Link": [
     "编辑链接",
     "編輯連結"
@@ -2914,6 +3010,10 @@
   "Edit prompt": [
     "编辑提示",
     "編輯提示"
+  ],
+  "Edit requested command": [
+    "编辑请求的命令",
+    "編輯請求的命令"
   ],
   "Edit rule": [
     "编辑规则",
@@ -3755,6 +3855,10 @@
     "查找上一个搜索匹配项",
     "尋找上一個搜尋符合項目"
   ],
+  "Find within blocks": [
+    "在区块内查找",
+    "在區塊內尋找"
+  ],
   "Find within selected block": [
     "在所选命令块内查找",
     "在所選命令區塊內尋找"
@@ -3843,9 +3947,17 @@
     "派生当前对话（{title}）",
     "衍生目前對話（{title}）"
   ],
+  "Fork from \"{truncated}{suffix}\"": [
+    "从“{truncated}{suffix}”分叉",
+    "從「{truncated}{suffix}」分支"
+  ],
   "Fork from here": [
     "从这里创建分支",
     "從這裡建立分支"
+  ],
+  "Fork from last query": [
+    "从上次提问分叉",
+    "從上次提問分支"
   ],
   "Fork in new pane": [
     "在新面板中创建分支",
@@ -4018,6 +4130,10 @@
   "Hide file navigation": [
     "隐藏文件导航",
     "隱藏檔案導覽"
+  ],
+  "Hide input hint text": [
+    "隐藏输入提示文字",
+    "隱藏輸入提示文字"
   ],
   "Hide search bar in vertical tab layout": [
     "在垂直标签页布局中隐藏搜索栏",
@@ -4246,6 +4362,10 @@
   "Install the Warpai plugin to enable rich agent notifications within Warpai": [
     "安装 Warpai 插件以启用应用内丰富智能体通知",
     "安裝 Warpai 外掛程式以啟用應用程式內的豐富智慧體通知"
+  ],
+  "Install update ({})": [
+    "安装更新（{}）",
+    "安裝更新（{}）"
   ],
   "Install update and relaunch": [
     "安装更新并重新启动",
@@ -4715,6 +4835,10 @@
     "最大化",
     "最大化"
   ],
+  "Maximize pane": [
+    "最大化窗格",
+    "最大化窗格"
+  ],
   "Maximum rows in a block": [
     "命令块最大行数",
     "命令區塊的最大行數"
@@ -4734,6 +4858,10 @@
   "Middle-click to paste": [
     "鼠标中键粘贴",
     "滑鼠中鍵貼上"
+  ],
+  "Minimize pane": [
+    "还原窗格",
+    "還原窗格"
   ],
   "Missing a repo?": [
     "找不到仓库？",
@@ -4774,6 +4902,22 @@
   "Move Forward One Word": [
     "向前移动一个单词",
     "向前移動一個單字"
+  ],
+  "Move Tab Down": [
+    "下移标签页",
+    "下移分頁"
+  ],
+  "Move Tab Left": [
+    "左移标签页",
+    "左移分頁"
+  ],
+  "Move Tab Right": [
+    "右移标签页",
+    "右移分頁"
+  ],
+  "Move Tab Up": [
+    "上移标签页",
+    "上移分頁"
   ],
   "Move backward one word": [
     "向后移动一个单词",
@@ -4823,6 +4967,22 @@
     "向前移动一个单词",
     "向前移動一個單字"
   ],
+  "Move group down": [
+    "下移标签组",
+    "下移分頁群組"
+  ],
+  "Move group left": [
+    "左移标签组",
+    "左移分頁群組"
+  ],
+  "Move group right": [
+    "右移标签组",
+    "右移分頁群組"
+  ],
+  "Move group up": [
+    "上移标签组",
+    "上移分頁群組"
+  ],
   "Move tab left": [
     "向左移动标签页",
     "向左移動分頁"
@@ -4854,6 +5014,10 @@
   "Move to start of line": [
     "移至行首",
     "移至行首"
+  ],
+  "Move to start of paragraph": [
+    "移至段落开头",
+    "移至段落開頭"
   ],
   "Move to the end of the buffer": [
     "移至缓冲区末尾",
@@ -4951,6 +5115,10 @@
     "新建智能体",
     "新增智慧體"
   ],
+  "New agent conversation": [
+    "新建智能体对话",
+    "新增智慧體對話"
+  ],
   "New argument": [
     "新参数",
     "新參數"
@@ -4998,6 +5166,10 @@
   "New recipient agent name": [
     "新的接收 智能体名称",
     "新的接收 智慧體名稱"
+  ],
+  "New session": [
+    "新建会话",
+    "新增工作階段"
   ],
   "New shared sessions only": [
     "仅限新的共享会话",
@@ -5599,6 +5771,10 @@
     "打开设置文件",
     "開啟設定檔"
   ],
+  "Open tab configs menu": [
+    "打开标签页配置菜单",
+    "開啟分頁設定選單"
+  ],
   "Open task": [
     "打开任务",
     "開啟任務"
@@ -5774,6 +5950,14 @@
   "Pin current tab group": [
     "固定当前标签页组",
     "釘選目前分頁群組"
+  ],
+  "Pin group": [
+    "固定标签组",
+    "固定分頁群組"
+  ],
+  "Pin tab": [
+    "固定标签页",
+    "固定分頁"
   ],
   "Pin to bottom": [
     "固定在底部",
@@ -6131,6 +6315,10 @@
     "推荐",
     "建議"
   ],
+  "Reconnect": [
+    "重新连接",
+    "重新連線"
+  ],
   "Redact secrets (API keys, passwords, IP addresses, PII etc.)": [
     "遮蔽敏感信息（API 密钥、密码、IP 地址、个人信息等）",
     "遮蔽敏感資訊（API 金鑰、密碼、IP 位址、個人資訊等）"
@@ -6295,6 +6483,14 @@
     "重命名",
     "重新命名"
   ],
+  "Rename active pane": [
+    "重命名活动窗格",
+    "重新命名作用中窗格"
+  ],
+  "Rename pane": [
+    "重命名窗格",
+    "重新命名窗格"
+  ],
   "Rename tab": [
     "重命名标签页",
     "重新命名分頁"
@@ -6391,6 +6587,10 @@
     "重置缩放",
     "重設縮放"
   ],
+  "Reset active pane name": [
+    "重置活动窗格名称",
+    "重設作用中窗格名稱"
+  ],
   "Reset font size to default": [
     "恢复默认字号",
     "還原預設字型大小"
@@ -6402,6 +6602,10 @@
   "Reset notebook font size": [
     "重置笔记本字号",
     "重設筆記本字型大小"
+  ],
+  "Reset pane name": [
+    "重置窗格名称",
+    "重設窗格名稱"
   ],
   "Reset tab name": [
     "重置标签页名称",
@@ -6655,6 +6859,10 @@
     "SSH 项目不可用（{code}）。最后接收的状态已过期。请检查终端连接，然后重新连接。",
     "SSH 專案無法使用（{code}）。最後接收的狀態已過期。請檢查終端機連線，然後重新連線。"
   ],
+  "SSH setup": [
+    "SSH 设置",
+    "SSH 設定"
+  ],
   "Same line prompt": [
     "同行提示符",
     "同列提示符"
@@ -6767,9 +6975,17 @@
     "终端输出向上滚动一页",
     "終端機輸出向上捲動一頁"
   ],
+  "Scroll to bottom of blocks": [
+    "滚动到区块底部",
+    "捲動至區塊底端"
+  ],
   "Scroll to bottom of selected block": [
     "滚动到所选命令块底部",
     "捲動到所選命令區塊底部"
+  ],
+  "Scroll to top of blocks": [
+    "滚动到区块顶部",
+    "捲動至區塊頂端"
   ],
   "Scroll to top of selected block": [
     "滚动到所选命令块顶部",
@@ -6798,6 +7014,10 @@
   "Search MCP Servers": [
     "搜索 MCP 服务器",
     "搜尋 MCP 伺服器"
+  ],
+  "Search Warpai Drive": [
+    "搜索 Warpai Drive",
+    "搜尋 Warpai Drive"
   ],
   "Search by name or by keys (ex. \"cmd d\")": [
     "按名称或按键搜索（例如“cmd d”）",
@@ -6947,6 +7167,10 @@
     "选择已登录的 WSL 账户",
     "選擇已登入的 WSL 帳戶"
   ],
+  "Select next block": [
+    "选择下一个区块",
+    "選取下一個區塊"
+  ],
   "Select next command": [
     "选择下一条命令",
     "選取下一條命令"
@@ -6978,6 +7202,10 @@
   "Select only after logging into a remote PowerShell prompt": [
     "登录远程 PowerShell 后才能选择",
     "登入遠端 PowerShell 後才能選取"
+  ],
+  "Select previous block": [
+    "选择上一个区块",
+    "選取上一個區塊"
   ],
   "Select previous command": [
     "选择上一条命令",
@@ -7102,6 +7330,14 @@
   "Session type": [
     "会话类型",
     "工作階段類型"
+  ],
+  "Set Input Mode to Agent Mode": [
+    "将输入模式设为智能体模式",
+    "將輸入模式設為智慧體模式"
+  ],
+  "Set Input Mode to Terminal Mode": [
+    "将输入模式设为终端模式",
+    "將輸入模式設為終端機模式"
   ],
   "Set Warpai as Default Terminal": [
     "将 Warpai 设为默认终端",
@@ -7319,6 +7555,10 @@
     "显示应用内智能体通知",
     "顯示應用程式內的智慧體通知"
   ],
+  "Show input hint text": [
+    "显示输入提示文字",
+    "顯示輸入提示文字"
+  ],
   "Show ligatures in terminal": [
     "在终端显示连字",
     "在終端機顯示連字"
@@ -7338,6 +7578,10 @@
   "Show running processes": [
     "显示运行中的进程",
     "顯示執行中的程序"
+  ],
+  "Show saved comment": [
+    "显示已保存的评论",
+    "顯示已儲存的留言"
   ],
   "Show sticky command header": [
     "固定显示命令标题",
@@ -7795,6 +8039,10 @@
     "接管控制权",
     "接管控制權"
   ],
+  "Take control of running command": [
+    "接管运行中的命令",
+    "接管執行中的命令"
+  ],
   "Take over": [
     "接管",
     "接管"
@@ -8007,6 +8255,10 @@
     "此共享会话显示打开时的状态。如果智能体仍在运行，请刷新以查看最新进度。",
     "此共用對話顯示開啟時的狀態。如果智慧體仍在執行，請重新整理以查看最新進度。"
   ],
+  "This shortcut conflicts with other keybinds": [
+    "此快捷键与其他绑定冲突",
+    "此快捷鍵與其他綁定衝突"
+  ],
   "This suggestion is being edited in another tab.": [
     "此建议正在另一个标签页中编辑。",
     "此建議正在另一個分頁中編輯。"
@@ -8091,9 +8343,17 @@
     "切换 智能体对话列表视图",
     "切換 智慧體對話清單檢視"
   ],
+  "Toggle Auto-execute Mode": [
+    "切换自动执行模式",
+    "切換自動執行模式"
+  ],
   "Toggle Bookmark block": [
     "切换区块书签",
     "切換區塊書籤"
+  ],
+  "Toggle CLI Agent Rich Input": [
+    "切换命令行智能体富文本输入",
+    "切換命令列智慧體豐富文字輸入"
   ],
   "Toggle Case Sensitivity": [
     "切换大小写敏感",
@@ -8107,6 +8367,14 @@
     "切换焦点报告",
     "切換焦點回報"
   ],
+  "Toggle Hide CLI Responses": [
+    "切换命令行响应显示",
+    "切換命令列回應顯示"
+  ],
+  "Toggle Maximize Active Pane": [
+    "切换活动窗格最大化",
+    "切換作用中窗格最大化"
+  ],
   "Toggle Maximize Code Review Panel": [
     "切换代码审查面板最大化",
     "切換程式碼審查面板最大化"
@@ -8118,6 +8386,10 @@
   "Toggle PTY Recording for Session": [
     "切换会话 PTY 录制",
     "切換工作階段 PTY 錄製"
+  ],
+  "Toggle Queue Next Prompt": [
+    "切换下一个提示词排队",
+    "切換下一個提示詞排隊"
   ],
   "Toggle Regex": [
     "切换正则表达式",
@@ -8150,6 +8422,10 @@
   "Toggle block filter": [
     "切换区块筛选器",
     "切換區塊篩選器"
+  ],
+  "Toggle block filter on selected or last block": [
+    "切换选中或最后区块的过滤器",
+    "切換所選或最後區塊的篩選器"
   ],
   "Toggle bookmark": [
     "切换书签",
@@ -8190,6 +8466,10 @@
   "Toggle navigation palette": [
     "切换导航面板",
     "切換導覽面板"
+  ],
+  "Toggle notification mailbox": [
+    "切换通知收件箱",
+    "切換通知收件匣"
   ],
   "Toggle project explorer": [
     "切换项目资源管理器",
@@ -8391,6 +8671,14 @@
     "取消固定当前标签页组",
     "取消釘選目前分頁群組"
   ],
+  "Unpin group": [
+    "取消固定标签组",
+    "取消固定分頁群組"
+  ],
+  "Unpin tab": [
+    "取消固定标签页",
+    "取消固定分頁"
+  ],
   "Unselected": [
     "已取消选择",
     "已取消選取"
@@ -8406,6 +8694,10 @@
   "Untitled": [
     "未命名",
     "未命名"
+  ],
+  "Untitled group": [
+    "未命名标签组",
+    "未命名分頁群組"
   ],
   "Up": [
     "向上",
@@ -8447,6 +8739,10 @@
     "正在更新协调者…",
     "正在更新協調者…"
   ],
+  "Updating to ({})": [
+    "正在更新至（{}）",
+    "正在更新至（{}）"
+  ],
   "Upgrade": [
     "升级",
     "升級"
@@ -8474,6 +8770,10 @@
   "Usage reporting is currently limited": [
     "使用情况报告目前受限",
     "使用情況報告目前受限"
+  ],
+  "Use": [
+    "使用",
+    "使用"
   ],
   "Use Audible Bell": [
     "使用提示音",
@@ -8746,6 +9046,10 @@
   "WSL project": [
     "WSL 项目",
     "WSL 專案"
+  ],
+  "WSL setup": [
+    "WSL 设置",
+    "WSL 設定"
   ],
   "WSL setup did not complete. Its result may be partial; rescan this account before retrying changes.": [
     "WSL 设置未完成，可能已产生部分变更；再次修改前请重新扫描此账户。",
@@ -9138,6 +9442,10 @@
   "You’re out of credits": [
     "额度已用完",
     "額度已用完"
+  ],
+  "Zoom": [
+    "缩放",
+    "縮放"
   ],
   "Zoom In": [
     "放大",
@@ -10151,6 +10459,10 @@
     "切换参数",
     "切換參數"
   ],
+  "to reference these keybindings in a side pane at anytime.": [
+    "，即可随时在侧边窗格查看这些快捷键。",
+    "，即可隨時在側邊窗格查看這些快捷鍵。"
+  ],
   "to toggle selection": [
     "切换选择",
     "切換選取"
@@ -10326,6 +10638,10 @@
   "{} (default)": [
     "{}（默认）",
     "{}（預設）"
+  ],
+  "{} (restored from {})": [
+    "{}（从 {} 恢复）",
+    "{}（從 {} 還原）"
   ],
   "{} accepts autosuggestions.": [
     "按 {} 接受自动建议。",

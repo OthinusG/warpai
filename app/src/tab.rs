@@ -483,7 +483,7 @@ impl TabData {
     ) {
         if let Some(value) = value {
             menu_items.push(
-                MenuItemFields::new(label)
+                MenuItemFields::new(warpui::localization::text(label))
                     .with_on_select_action(WorkspaceAction::CopyTextToClipboard(value))
                     .into_item(),
             );
@@ -534,9 +534,9 @@ impl TabData {
         if can_move_right {
             menu_items.push(
                 MenuItemFields::new(if uses_vertical_tabs {
-                    "Move Tab Down"
+                    warpui::localization::text("Move Tab Down")
                 } else {
-                    "Move Tab Right"
+                    warpui::localization::text("Move Tab Right")
                 })
                 .with_on_select_action(WorkspaceAction::MoveTabRight(index))
                 .into_item(),
@@ -545,9 +545,9 @@ impl TabData {
         if can_move_left {
             menu_items.push(
                 MenuItemFields::new(if uses_vertical_tabs {
-                    "Move Tab Up"
+                    warpui::localization::text("Move Tab Up")
                 } else {
-                    "Move Tab Left"
+                    warpui::localization::text("Move Tab Left")
                 })
                 .with_on_select_action(WorkspaceAction::MoveTabLeft(index))
                 .into_item(),
@@ -574,12 +574,12 @@ impl TabData {
             .custom_vertical_tabs_title()
             .is_some();
 
-        let mut menu_items = vec![MenuItemFields::new(target.rename_label)
+        let mut menu_items = vec![MenuItemFields::new(warpui::localization::text(target.rename_label))
             .with_on_select_action(WorkspaceAction::RenamePane(target.locator))
             .into_item()];
         if has_custom_name {
             menu_items.push(
-                MenuItemFields::new(target.reset_label)
+                MenuItemFields::new(warpui::localization::text(target.reset_label))
                     .with_on_select_action(WorkspaceAction::ResetPaneName(target.locator))
                     .into_item(),
             );
@@ -614,9 +614,9 @@ impl TabData {
         if not_last_tab {
             menu_items.push(
                 MenuItemFields::new(if uses_vertical_tabs {
-                    "Close Tabs Below"
+                    warpui::localization::text("Close Tabs Below")
                 } else {
-                    "Close Tabs to the Right"
+                    warpui::localization::text("Close Tabs to the Right")
                 })
                 .with_on_select_action(WorkspaceAction::CloseTabsRight(index))
                 .into_item(),
@@ -645,7 +645,7 @@ impl TabData {
         } else {
             ("Pin tab", WorkspaceAction::PinTab(index))
         };
-        vec![MenuItemFields::new(label)
+        vec![MenuItemFields::new(warpui::localization::text(label))
             .with_on_select_action(action)
             .into_item()]
     }

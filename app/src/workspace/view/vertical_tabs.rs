@@ -4014,7 +4014,7 @@ fn terminal_primary_line_data(
     }
 
     TerminalPrimaryLineData::Text {
-        text: "New session".to_string(),
+        text: warpui::localization::text("New session").to_string(),
         font: TerminalPrimaryLineFont::Ui,
     }
 }

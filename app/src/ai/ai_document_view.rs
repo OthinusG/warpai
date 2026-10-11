@@ -857,7 +857,7 @@ impl AIDocumentView {
             .iter()
             .map(|entry| {
                 let label = if let Some(from_version) = entry.restored_from {
-                    format!("{} (restored from {})", entry.version, from_version)
+                    warpui::localization::format_text("{} (restored from {})", &[("0", entry.version.to_string().as_str()), ("1", from_version.to_string().as_str())])
                 } else {
                     entry.version.to_string()
                 };

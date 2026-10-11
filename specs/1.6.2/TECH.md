@@ -249,4 +249,21 @@ Settings already uses dual-axis scrolling below its minimum page width; narrow
 captures show only its left edge. Reuse native horizontal wheel events to capture
 both edges at width 800 and open the Language menu after revealing its controls.
 Add 14 right-edge captures per locale (macOS 960; Windows with WSL 978), retain
-the existing page-selection checks and inspect both edges in cloud artifacts.
+the existing page-selection checks and inspect both edges in cloud artifacts. Four native context-menu captures per locale
+bring the final image counts to macOS 972 and Windows with WSL 990.
+
+Windows completes the same run with 936 valid images and no failed native
+assertions. Review also finds fixed labels outside the inventory's direct
+literal patterns: keybinding descriptions after constant identifiers/comments,
+keybindings help text, Markdown mode labels, Zoom and remote connection buttons,
+and fixed vertical-tab titles. Expand the inventory for those binding arguments
+and the page-local text helper; translate fixed producers without rewriting
+user tab titles or commands. Review terminal, tab, file-tree, editor and
+collaboration context-menu labels and include native menu captures where the
+existing debug driver can exercise the menu. Verify strict UTF-8 coverage,
+syntax and focused regression tests, then rerun both platforms from one commit.
+
+Menu hover dispatch and saved-position anchors must compare the localized fixed
+menu labels. Otherwise Move to group and New worktree config sidecars stop
+opening in Chinese despite translated parent labels. User group names, tab
+configuration names, commands, shell names and paths remain literal.
