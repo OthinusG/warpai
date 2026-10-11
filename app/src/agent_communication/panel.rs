@@ -4788,7 +4788,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::code::file_tree::FileTreeAction>>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
                     ["Open in new pane", "Open in new tab", "Rename", "Delete"].iter().all(|label|
-                        menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                        menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if
                             fields.label() == warpui::localization::text(label))))))))
         }).with_take_screenshot("interface-context-menu-remote-file.png"))
         .with_step(TestStep::new("close native remote file context menu").with_action(|app, window, _| {
@@ -4807,7 +4807,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         }).add_named_assertion("code pane menu exposes localized copy action", |app, window| {
             warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::pane_group::pane::view::PaneHeaderAction<crate::code::view::CodeViewAction, crate::code::view::CodeViewAction>>>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
-                    menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                    menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if
                         fields.label() == warpui::localization::text("Copy file path")))))))
         }).with_take_screenshot("interface-context-menu-code-pane.png"))
         .with_step(TestStep::new("close native code pane menu").with_action(|app, window, _| {
@@ -4824,7 +4824,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::terminal::view::TerminalAction>>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
                     ["Paste", "Split pane right"].iter().all(|label| menu.items().iter().any(|item|
-                        item.fields().is_some_and(|fields| fields.label() == warpui::localization::text(label))))))))
+                        matches!(item, crate::menu::MenuItem::Item(fields) if fields.label() == warpui::localization::text(label))))))))
         }).with_take_screenshot("interface-context-menu-terminal.png"))
         .with_step(TestStep::new("close native terminal context menu").with_action(|app, window, _| {
             for menu in app.views_of_type::<crate::menu::Menu<crate::terminal::view::TerminalAction>>(window).unwrap_or_default() {
@@ -4841,7 +4841,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         }).add_named_assertion("tab context menu exposes localized close action", |app, window| {
             warpui::async_assert!(app.views_of_type::<crate::menu::Menu<WorkspaceAction>>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
-                    menu.items().iter().any(|item| item.fields().is_some_and(|fields|
+                    menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if
                         fields.label() == warpui::localization::text("Close tab")))))))
         }).with_take_screenshot("interface-context-menu-tab.png"))
         .with_step(TestStep::new("close native tab context menu").with_action(|app, window, _| {

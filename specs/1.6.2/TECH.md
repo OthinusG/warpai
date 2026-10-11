@@ -267,3 +267,9 @@ Menu hover dispatch and saved-position anchors must compare the localized fixed
 menu labels. Otherwise Move to group and New worktree config sidecars stop
 opening in Chinese despite translated parent labels. User group names, tab
 configuration names, commands, shell names and paths remain literal.
+
+The 738cbc08 cloud run (38113575843) fails both desktop compile gates because
+the native capture assertions used `MenuItem::fields`, which exists only under
+`cfg(test)`. Match the existing public `MenuItem::Item` variant directly in the
+four debug assertions; retain real menu labels and all screenshot assertions.
+Rerun complete source-matched desktop acceptance after this driver-only fix.
