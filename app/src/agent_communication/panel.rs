@@ -5344,8 +5344,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     filenames.push(filename.clone());
                     driver = driver.with_step(TestStep::new(&filename).with_action(|app, window, _| {
                         let view = app.views_of_type::<crate::settings_view::AppearanceSettingsPageView>(window).unwrap()[0].clone();
-                        view.update(app, |view, ctx| view.capture_language_menu(ctx));
+                        view.update(app, |view, ctx| view.capture_language_menu(true, ctx));
                     }).with_take_screenshot(filename));
+                    driver = driver.with_step(TestStep::new("close captured language menu").with_action(|app, window, _| {
+                        let view = app.views_of_type::<crate::settings_view::AppearanceSettingsPageView>(window).unwrap()[0].clone();
+                        view.update(app, |view, ctx| view.capture_language_menu(false, ctx));
+                    }));
                 }
             }
         }
@@ -5385,12 +5389,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             updates.available = (["available", "unavailable"].contains(&state)).then(|| "v1.99.0".into());
                             updates.download_url = (state == "available").then(|| crate::release_updates::installer_url("v1.99.0", std::env::consts::OS, std::env::consts::ARCH)).flatten();
                             updates.status = match state {
-                                "checking" => "Checking for updates…",
-                                "current" => "Warpai is up to date.",
-                                "available" | "unavailable" => "Warpai v1.99.0 is available.",
-                                "error" => "Could not check for updates. Try again or open GitHub Releases.",
-                                _ => "",
-                            }.into();
+                                "checking" => warpui::localization::text("Checking for updates…").into(),
+                                "current" => warpui::localization::text("Warpai is up to date.").into(),
+                                "available" | "unavailable" => warpui::localization::format_text("Warpai {tag} is available.", &[("tag", "v1.99.0")]),
+                                "error" => warpui::localization::text("Could not check for updates. Try again or open GitHub Releases.").into(),
+                                _ => String::new(),
+                            };
                             ctx.notify();
                         });
                     });

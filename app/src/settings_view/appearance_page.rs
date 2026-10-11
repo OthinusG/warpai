@@ -706,10 +706,10 @@ impl View for AppearanceSettingsPageView {
 
 impl AppearanceSettingsPageView {
     #[cfg(debug_assertions)]
-    pub(crate) fn capture_language_menu(&mut self, ctx: &mut ViewContext<Self>) {
+    pub(crate) fn capture_language_menu(&mut self, expanded: bool, ctx: &mut ViewContext<Self>) {
         self.language_dropdown.update(ctx, |dropdown, ctx| {
             dropdown.close(ctx);
-            dropdown.toggle_expanded(ctx);
+            if expanded { dropdown.toggle_expanded(ctx); }
         });
     }
 

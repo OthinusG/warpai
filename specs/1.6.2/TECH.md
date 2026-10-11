@@ -291,3 +291,15 @@ terminate that master in the existing finally cleanup. Assert it is live before
 launch; retain authentication, real file-tree assertions and process deadlines.
 Rerun the complete source-matched gate; do not treat the partial 499 images as
 acceptance. If failures persist, inspect redacted owned-server failure categories.
+
+Run 38122883940 passes macOS native acceptance with 972 valid source-matched
+PNGs and clean diagnostics for b0a3aaa5; all four menus and shared pane labels
+are Chinese in both Chinese locales. Further settings review finds the external
+editor default-option variables unlocalized and New Tab selection still matched
+the English label. Localize those fixed defaults and their matching selectors,
+including the existing AI-layout consumer; actions/settings values stay unchanged.
+Close the debug Language dropdown after each capture so it cannot carry its
+modal state into another page/width. About fixtures must use the production
+available-version translation template instead of an English preformatted status.
+Add the default-option producer to strict inventory; rerun both platforms and
+inspect full settings/error/update states before accepting this revision.
