@@ -171,9 +171,11 @@ def localized_constant_values(source):
             r"(?:LazyLock::new\(\|\|\s*\{\s*)?$", prefix)
         if declaration:
             constants[declaration[1]] = value
-    return [constants[name] for name in re.findall(
-        r"localization::text\(\s*\*?([A-Z_][A-Z_0-9]*)\s*\)", source)
-        if name in constants]
+    names = re.findall(r"localization::text\(\s*\*?([A-Z_][A-Z_0-9]*)\s*\)", source)
+    names += re.findall(
+        r"(?:BindingDescription::new(?:_preserve_case)?\(\s*"
+        r"|EditableBinding::new\(\s*[^,]+,\s*)([A-Z_][A-Z_0-9]*)\s*[,)]", source)
+    return [constants[name] for name in names if name in constants]
 
 
 def validate(catalog):
@@ -223,6 +225,7 @@ def self_check():
     assert localized_constant_values('const TITLE: &str = "Find"; localization::text(TITLE)') == ["Find"]
     assert localized_constant_values('static HELP: LazyLock<&str> = LazyLock::new(|| { "Help" }); localization::text(*HELP)') == ["Help"]
     assert localized_constant_values('const TITLE: &str = "User"; view.title(TITLE)') == []
+    assert localized_constant_values('const SAVE: &str = "Save file"; EditableBinding::new(ID, SAVE, action)') == ["Save file"]
     assert BINDING_DISPLAY.search('EditableBinding::new(\n ACTION_NAME,\n ')
     assert BINDING_DISPLAY.search('EditableBinding::new(\n // Keep the action ID stable.\n "action:id",\n ')
     assert not BINDING_DISPLAY.search('EditableBinding::new("action:id", description, ')

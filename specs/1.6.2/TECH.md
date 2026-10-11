@@ -273,3 +273,11 @@ the native capture assertions used `MenuItem::fields`, which exists only under
 `cfg(test)`. Match the existing public `MenuItem::Item` variant directly in the
 four debug assertions; retain real menu labels and all screenshot assertions.
 Rerun complete source-matched desktop acceptance after this driver-only fix.
+
+Run 38115465987 passes macOS compilation, regressions and 972 source-matched
+PNG captures for 6b0995e5. Visual review still finds the shared pane maximize
+label, exported Save file binding description, generated slash-command prefix
+and Warpify success heading in English. Translate their fixed producers and
+the remote-refresh error wrapper while retaining command names and error detail.
+Extend constant binding inventory and assert the maximize label in the real
+code-pane menu. Recheck both desktops and native images before publication.

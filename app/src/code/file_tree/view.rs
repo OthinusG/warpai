@@ -519,8 +519,9 @@ impl FileTreeView {
                         view.poll_ssh(ctx);
                     }
                     Err(error) => {
-                        view.ssh_error = Some(format!(
-                            "Remote files could not refresh: {error}. Refresh to reconnect."
+                        view.ssh_error = Some(warpui::localization::format_text(
+                            "Remote files could not refresh: {error}. Refresh to reconnect.",
+                            &[("error", &error.to_string())],
                         ));
                     }
                 }

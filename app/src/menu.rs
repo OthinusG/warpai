@@ -662,11 +662,11 @@ impl<A: Action + Clone> MenuItemFields<A> {
     }
 
     pub fn toggle_pane_action(is_maximized: bool) -> Self {
-        Self::new(if is_maximized {
+        Self::new(warpui::localization::text(if is_maximized {
             "Minimize pane"
         } else {
             "Maximize pane"
-        })
+        }))
     }
 
     /// Creates a [`MenuItemFields`] where the `on_select_action` is of a

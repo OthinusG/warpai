@@ -4807,8 +4807,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         }).add_named_assertion("code pane menu exposes localized copy action", |app, window| {
             warpui::async_assert!(app.views_of_type::<crate::menu::Menu<crate::pane_group::pane::view::PaneHeaderAction<crate::code::view::CodeViewAction, crate::code::view::CodeViewAction>>>(window)
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |menu, _|
-                    menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if
-                        fields.label() == warpui::localization::text("Copy file path")))))))
+                    ["Copy file path", "Maximize pane"].iter().all(|label|
+                        menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if
+                            fields.label() == warpui::localization::text(label))))))))
         }).with_take_screenshot("interface-context-menu-code-pane.png"))
         .with_step(TestStep::new("close native code pane menu").with_action(|app, window, _| {
             for menu in app.views_of_type::<crate::menu::Menu<crate::pane_group::pane::view::PaneHeaderAction<crate::code::view::CodeViewAction, crate::code::view::CodeViewAction>>>(window).unwrap_or_default() {
