@@ -303,3 +303,15 @@ modal state into another page/width. About fixtures must use the production
 available-version translation template instead of an English preformatted status.
 Add the default-option producer to strict inventory; rerun both platforms and
 inspect full settings/error/update states before accepting this revision.
+
+Run 38126828908 passes both platforms for dd55235d, with 972 macOS and 990
+Windows source-matched PNGs, clean diagnostics and 324/330 images per locale.
+Settings, updates and four native menus pass visual review. The live WSL Review
+capture exposes two remaining variable-produced English labels: the header's
+no-branch fallback and the selected uncommitted diff target. Localize those fixed
+display producers and the empty selector fallback; preserve actual branch names
+and DiffMode values. Extend strict inventory to DiffTarget display literals and
+the existing WSL authority assertion to require the localized Head target label.
+The catalog now has 2677 pairs and 2780 marked display sites. Rerun the complete
+both-platform/native gate and inspect Review in both Chinese locales before
+tagging 1.6.2; successful dd55235d CI alone is not final visual acceptance.

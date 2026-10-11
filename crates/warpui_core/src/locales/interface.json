@@ -6763,6 +6763,10 @@
     "正在审查代码修改",
     "正在審查程式碼變更"
   ],
+  "Reviewing open changes": [
+    "正在审查未提交的更改",
+    "正在審查未提交的變更"
+  ],
   "Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.": [
     "撤销所选智能体的共享协调访问和唤醒资格。其任务尝试会保留在此空间中，并可能仍在执行；此操作不会停止 CLI 进程。",
     "撤銷所選智慧體的共用協調存取與喚醒資格。其任務嘗試會保留在此空間中，並可能仍在執行；此操作不會停止 CLI 程序。"
@@ -8646,6 +8650,10 @@
   "Unavailable — refresh agents after updating the executable search path.": [
     "不可用 — 更新可执行文件搜索路径后，请刷新智能体。",
     "無法使用 — 更新執行檔搜尋路徑後，請重新整理智慧體。"
+  ],
+  "Uncommitted changes": [
+    "未提交的更改",
+    "未提交的變更"
   ],
   "Underline": [
     "下划线",

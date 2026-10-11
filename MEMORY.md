@@ -145,7 +145,7 @@ consult it only when a specific historical question requires it.
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
   1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
   Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
-  Capture scroll edges/native menus; preserve IDs/user data. Debug drivers cannot use cfg(test) helpers.
+  Capture scroll edges/menus/Review labels; preserve IDs/user data. Debug drivers cannot use cfg(test) helpers.
   Use one owned SSH master per capture locale; close it before the next process.
   Close captured dropdowns; their selectors and fixed defaults must use the same localized labels.
   Locale tooling uses explicit UTF-8 and POSIX inventory paths on Windows.

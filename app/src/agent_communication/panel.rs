@@ -5539,7 +5539,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx|
                     view.diff_state_model().as_ref(ctx).ssh_files().is_some_and(|files|
                         files.connection.is_wsl() && files.canonical_root == std::env::var("WARP_TEST_WSL_ROOT").unwrap())
-                    && view.loaded_diff_stats().is_some_and(|stats| stats.files_changed > 0)))))
+                    && view.loaded_diff_stats().is_some_and(|stats| stats.files_changed > 0)
+                    && view.build_diff_targets(ctx).iter().any(|target|
+                        matches!(target.mode, crate::code_review::diff_state::DiffMode::Head)
+                        && target.label == warpui::localization::text("Uncommitted changes"))))))
         }).with_take_screenshot("live-wsl-file-review.png"))
         .with_step(TestStep::new("show current-account WSL MCP settings").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {

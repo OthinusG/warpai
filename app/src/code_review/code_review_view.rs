@@ -1671,7 +1671,7 @@ impl CodeReviewView {
 
         // 1. Always add "Uncommitted changes" first.
         targets.push(DiffTarget::new(
-            "Uncommitted changes",
+            warpui::localization::text("Uncommitted changes"),
             DiffMode::Head,
             matches!(current_mode, DiffMode::Head),
         ));
