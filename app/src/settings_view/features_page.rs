@@ -118,11 +118,11 @@ use warpui::{
 
 cfg_if::cfg_if! {
     if #[cfg(target_os = "macos")] {
-        static EXTRA_META_KEYS_LEFT_TEXT: &str = warpui::localization::text("Left Option key is Meta");
-        static EXTRA_META_KEYS_RIGHT_TEXT: &str = warpui::localization::text("Right Option key is Meta");
+        static EXTRA_META_KEYS_LEFT_TEXT: &str = "Left Option key is Meta";
+        static EXTRA_META_KEYS_RIGHT_TEXT: &str = "Right Option key is Meta";
     } else {
-        static EXTRA_META_KEYS_LEFT_TEXT: &str = warpui::localization::text("Left Alt key is Meta");
-        static EXTRA_META_KEYS_RIGHT_TEXT: &str = warpui::localization::text("Right Alt key is Meta");
+        static EXTRA_META_KEYS_LEFT_TEXT: &str = "Left Alt key is Meta";
+        static EXTRA_META_KEYS_RIGHT_TEXT: &str = "Right Alt key is Meta";
     }
 }
 
@@ -178,7 +178,7 @@ pub fn init_actions_from_parent_view<T: Action + Clone>(
             flags::RESTORE_SESSION_CONTEXT_FLAG,
         ),
         ToggleSettingActionPair::new(
-            EXTRA_META_KEYS_LEFT_TEXT,
+            warpui::localization::text(EXTRA_META_KEYS_LEFT_TEXT),
             builder(SettingsAction::FeaturesPageToggle(
                 FeaturesPageAction::ToggleLeftMetaKey,
             )),
@@ -191,7 +191,7 @@ pub fn init_actions_from_parent_view<T: Action + Clone>(
                 .is_supported_on_current_platform(),
         ),
         ToggleSettingActionPair::new(
-            EXTRA_META_KEYS_RIGHT_TEXT,
+            warpui::localization::text(EXTRA_META_KEYS_RIGHT_TEXT),
             builder(SettingsAction::FeaturesPageToggle(
                 FeaturesPageAction::ToggleRightMetaKey,
             )),
@@ -5496,7 +5496,7 @@ impl SettingsWidget for ExtraMetaKeysWidget {
             .borrow_mut();
         Flex::column()
             .with_child(render_body_item::<FeaturesPageAction>(
-                EXTRA_META_KEYS_LEFT_TEXT.into(),
+                warpui::localization::text(EXTRA_META_KEYS_LEFT_TEXT).into(),
                 None,
                 LocalOnlyIconState::for_setting(
                     crate::terminal::keys_settings::ExtraMetaKeys::storage_key(),
@@ -5517,7 +5517,7 @@ impl SettingsWidget for ExtraMetaKeysWidget {
                 None,
             ))
             .with_child(render_body_item::<FeaturesPageAction>(
-                EXTRA_META_KEYS_RIGHT_TEXT.into(),
+                warpui::localization::text(EXTRA_META_KEYS_RIGHT_TEXT).into(),
                 None,
                 LocalOnlyIconState::for_setting(
                     crate::terminal::keys_settings::ExtraMetaKeys::storage_key(),

@@ -34,7 +34,8 @@ use crate::{
 };
 use about_page::AboutPageView;
 use ai_page::{AISettingsPageAction, AISettingsPageEvent, AISettingsPageView, AISubpage};
-use appearance_page::{AppearancePageAction, AppearanceSettingsPageView};
+use appearance_page::AppearancePageAction;
+pub(crate) use appearance_page::AppearanceSettingsPageView;
 #[cfg(feature = "warp_platform")]
 use billing_and_usage_page::{BillingAndUsagePageEvent, BillingAndUsagePageView};
 use code_page::CodeSubpage;

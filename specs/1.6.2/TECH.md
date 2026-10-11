@@ -223,3 +223,16 @@ Markdown inline-style accessibility translates the known Bold/Italic/Underline/
 InlineCode/StrikeThrough display labels and on/off announcements. English keeps
 its original debug-style wording; text formatting state and stored styles do
 not change. Both editor and toolbar callers use the existing shared helper.
+
+## Initial cloud gate correction
+
+Run https://github.com/OthinusG/warpai/actions/runs/38106145597 fails before
+native acceptance. Windows decodes the UTF-8 catalog using its default charmap;
+macOS compilation reports runtime translation in four platform-specific static
+Meta-key labels and a private Appearance module reference from the capture driver.
+Read/write source catalogs explicitly as UTF-8 and normalize inventory paths to
+POSIX spelling so Windows uses the same reviewed exclusions. Keep Meta-key
+constants literal and translate their display consumers. Re-export only the
+Appearance view type within the crate for the existing debug capture. Verify
+encoding warnings as errors, strict coverage and Rust syntax locally, then rerun
+both cloud build configurations, focused tests and three-locale native acceptance.

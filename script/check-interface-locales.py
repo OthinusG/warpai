@@ -188,8 +188,8 @@ def validate(catalog):
             # Linux desktop UI is outside the supported desktop release scope.
             if path == ROOT / "app/src/autoupdate/linux.rs":
                 continue
-            source = path.read_text()
-            relative = str(path.relative_to(ROOT))
+            source = path.read_text(encoding="utf-8")
+            relative = path.relative_to(ROOT).as_posix()
             for value in localized_constant_values(source):
                 assert value in catalog, f"Missing constant translation: {path}:{value}"
                 marked += 1
@@ -227,10 +227,10 @@ def main():
     parser.add_argument("--strict", action="store_true", help="Fail on unclassified direct display literals")
     args = parser.parse_args()
     self_check()
-    catalog = json.loads(CATALOG.read_text())
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     marked, remaining = validate(catalog)
     if args.inventory:
-        args.inventory.write_text(json.dumps(remaining, ensure_ascii=False, indent=2) + "\n")
+        args.inventory.write_text(json.dumps(remaining, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Validated {len(catalog)} translation pairs and {marked} marked display sites.")
     print(f"Unclassified direct display literals: {len(remaining)}; review inventory before acceptance.")
     if args.strict and remaining:

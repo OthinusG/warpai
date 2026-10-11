@@ -5253,7 +5253,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     let filename = format!("settings-interface-language-menu-{theme_name}-{width}.png");
                     filenames.push(filename.clone());
                     driver = driver.with_step(TestStep::new(&filename).with_action(|app, window, _| {
-                        let view = app.views_of_type::<crate::settings_view::appearance_page::AppearanceSettingsPageView>(window).unwrap()[0].clone();
+                        let view = app.views_of_type::<crate::settings_view::AppearanceSettingsPageView>(window).unwrap()[0].clone();
                         view.update(app, |view, ctx| view.capture_language_menu(ctx));
                     }).with_take_screenshot(filename));
                 }
