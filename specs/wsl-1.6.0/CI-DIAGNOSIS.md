@@ -166,3 +166,16 @@ compiler warnings; report the watchdog separately. Cloud verification pending.
 Windows GUI processes can discard redirected stderr. Persist the source-owned
 watchdog marker beside existing checkpoint files, and test diagnostics with the
 marker absent from the log. Only the derived deadline boolean is published.
+
+## Static fixture polling fence carried into WSL
+
+Run https://github.com/OthinusG/warpai/actions/runs/38092526979 reaches the
+real WSL Explorer/editor (276 images), then fails the guest-Companion connection
+assertion after its full step budget; the watchdog does not expire. The usage
+layout fixture sets `in_flight = true` to freeze projection reads. Unlike the
+earlier transition to live local projection, the later WSL transition does not
+clear that synthetic fence, so `refresh` returns before making a guest request.
+Clear it beside the existing debug-only native-Companion override reset. Keep
+production polling, transport bounds and the real connection assertion unchanged.
+Verify Rust parsing, rerun the focused Windows capture, then full both-OS
+source-matched acceptance. Apply the same commit to 1.6.2 before its cloud gate.
