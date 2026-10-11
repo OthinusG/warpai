@@ -1971,9 +1971,7 @@ impl FileTreeView {
     fn show_exceeded_file_limit_toast(ctx: &mut ViewContext<Self>) {
         let window_id = ctx.window_id();
         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-            let toast = DismissibleToast::error(String::from(
-                "Folder has too many files to display in the file explorer.",
-            ))
+            let toast = DismissibleToast::error(warpui::localization::text("Folder has too many files to display in the file explorer.").to_owned())
             .with_object_id("file_tree_exceeded_file_limit".to_string());
             toast_stack.add_ephemeral_toast(toast, window_id, ctx);
         });

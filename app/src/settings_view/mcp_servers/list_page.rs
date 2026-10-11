@@ -836,7 +836,7 @@ impl MCPServersListPageView {
                 // Show the toast that the server updated, even though we don't update the cloud template in this case
                 let window_id = ctx.window_id();
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    let toast = DismissibleToast::success(String::from("MCP server updated"));
+                    let toast = DismissibleToast::success(warpui::localization::text("MCP server updated").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
             }

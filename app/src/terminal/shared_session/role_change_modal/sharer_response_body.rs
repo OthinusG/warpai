@@ -148,7 +148,7 @@ impl SharerResponseBody {
                     ButtonVariant::Outlined,
                     role_request_params.button_mouse_states.deny_button,
                 )
-                .with_centered_text_label(String::from("Deny"))
+                .with_centered_text_label(warpui::localization::text("Deny").to_owned())
                 .with_style(UiComponentStyles {
                     font_size: Some(BUTTON_FONT_SIZE),
                     font_weight: Some(Weight::Bold),
@@ -178,7 +178,7 @@ impl SharerResponseBody {
                 ButtonVariant::Outlined,
                 role_request_params.button_mouse_states.approve_button,
             )
-            .with_centered_text_label(String::from("Approve"))
+            .with_centered_text_label(warpui::localization::text("Approve").to_owned())
             .with_style(UiComponentStyles {
                 font_size: Some(BUTTON_FONT_SIZE),
                 font_weight: Some(Weight::Bold),

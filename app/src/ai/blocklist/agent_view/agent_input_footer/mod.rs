@@ -1718,9 +1718,7 @@ impl AgentInputFooter {
     fn show_cli_microphone_access_toast(&self, ctx: &mut ViewContext<Self>) {
         let window_id = ctx.window_id();
         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-            let toast = DismissibleToast::error(String::from(
-                "Failed to start voice input (you may need to enable Microphone access)",
-            ));
+            let toast = DismissibleToast::error(warpui::localization::text("Failed to start voice input (you may need to enable Microphone access)").to_owned());
             toast_stack.add_ephemeral_toast(toast, window_id, ctx);
         });
     }

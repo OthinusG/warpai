@@ -1916,7 +1916,7 @@ impl AgentManagementView {
             let mut stack = Stack::new().with_child(loading_icon);
             if mouse_state.is_hovered() {
                 let tooltip = ui_builder
-                    .tool_tip(String::from("Loading cloud agent runs"))
+                    .tool_tip(warpui::localization::text("Loading cloud agent runs").to_owned())
                     .build()
                     .finish();
                 stack.add_positioned_overlay_child(

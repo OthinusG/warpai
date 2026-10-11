@@ -321,3 +321,14 @@ read callbacks provide AppContext, while build_diff_targets unnecessarily
 requires ViewContext. The producer only reads repository/model state. Accept
 AppContext in that existing method, preserving its rows and every caller; do not
 add a duplicate fixture producer or loosen the assertion. Rerun both platforms.
+
+Run 38135111782 passes macOS native acceptance for a822977c; the live SSH
+Review header and Head target are localized. Screenshot review exposes the
+shared successful-save toast still using an English String::from literal.
+Localize that display producer and extend strict inventory to String::from
+arguments at existing display boundaries. Review and localize the 39 newly
+exposed tooltip, toast, menu, accessibility and button literals, retaining
+action IDs, error handling and user content. Add 27 catalog pairs and a scanner
+self-check; no cloud feature is enabled by translating dormant shared UI.
+Rerun full both-platform native acceptance and inspect successful-save toasts
+in both Chinese locales before tagging.

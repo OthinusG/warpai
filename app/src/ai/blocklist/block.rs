@@ -5725,7 +5725,7 @@ impl TypedActionView for AIBlock {
                 let window_id = ctx.window_id();
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     toast_stack.add_ephemeral_toast(
-                        DismissibleToast::success(String::from("Copied to clipboard")),
+                        DismissibleToast::success(warpui::localization::text("Copied to clipboard").to_owned()),
                         window_id,
                         ctx,
                     );
@@ -5974,7 +5974,7 @@ impl TypedActionView for AIBlock {
                 let window_id = ctx.window_id();
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                     let toast =
-                        DismissibleToast::default(String::from("Thank you for the feedback!"));
+                        DismissibleToast::default(warpui::localization::text("Thank you for the feedback!").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
             }

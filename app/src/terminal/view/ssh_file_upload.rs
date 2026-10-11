@@ -302,7 +302,7 @@ impl FileUpload {
         if let FileUploadStatus::AwaitingPassword = file.status {
             session_action_row.add_child(
                 FormattedTextElement::from_str(
-                    String::from("Waiting for password input"),
+                    warpui::localization::text("Waiting for password input").to_owned(),
                     font_family,
                     font_size,
                 )

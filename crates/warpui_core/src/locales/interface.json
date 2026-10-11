@@ -327,6 +327,10 @@
     "在此访问标签页配置。",
     "在此存取分頁設定。"
   ],
+  "Action Selected": [
+    "操作已选中",
+    "操作已選取"
+  ],
   "Activate next pane": [
     "激活下一个窗格",
     "啟用下一個窗格"
@@ -614,6 +618,10 @@
   "Apply link": [
     "应用链接",
     "套用連結"
+  ],
+  "Approve": [
+    "批准",
+    "核准"
   ],
   "Archive": [
     "归档",
@@ -979,6 +987,10 @@
     "取消活动进程",
     "取消作用中程序"
   ],
+  "Cancel request": [
+    "取消请求",
+    "取消請求"
+  ],
   "Cancel summarization": [
     "取消摘要",
     "取消摘要"
@@ -1006,6 +1018,10 @@
   "Cannot open a new terminal session": [
     "无法打开新的终端会话",
     "無法開啟新的終端工作階段"
+  ],
+  "Cannot save — remote session disconnected.": [
+    "无法保存：远程会话已断开连接。",
+    "無法儲存：遠端工作階段已中斷連線。"
   ],
   "Cannot send queries as a read-only viewer.": [
     "只读查看者无法发送查询。",
@@ -1603,6 +1619,10 @@
     "继续按 Enter 替换更多匹配项，或使用上下方向键切换。",
     "繼續按 Enter 取代更多符合項目，或使用上下方向鍵切換。"
   ],
+  "Continue sharing": [
+    "继续共享",
+    "繼續共用"
+  ],
   "Continue summarization": [
     "继续摘要",
     "繼續摘要"
@@ -1618,6 +1638,10 @@
   "Conversation deleted": [
     "对话已删除",
     "對話已刪除"
+  ],
+  "Conversation exported to clipboard": [
+    "对话已导出到剪贴板",
+    "對話已匯出至剪貼簿"
   ],
   "Conversation forking failed.": [
     "无法创建对话分支。",
@@ -3767,13 +3791,25 @@
     "无法加载对话。",
     "無法載入對話。"
   ],
+  "Failed to load file.": [
+    "无法加载文件。",
+    "無法載入檔案。"
+  ],
   "Failed to prepare file download.": [
     "无法准备文件下载。",
     "無法準備檔案下載。"
   ],
+  "Failed to save file.": [
+    "无法保存文件。",
+    "無法儲存檔案。"
+  ],
   "Failed to start environment": [
     "无法启动环境",
     "無法啟動環境"
+  ],
+  "Failed to start voice input (you may need to enable Microphone access)": [
+    "无法启动语音输入（可能需要允许访问麦克风）",
+    "無法啟動語音輸入（可能需要允許存取麥克風）"
   ],
   "Features": [
     "功能",
@@ -3810,6 +3846,10 @@
   "File reservations · current checkout · up to 50 records": [
     "文件预约 · 当前检出目录 · 最多 50 条记录",
     "檔案預約 · 目前簽出目錄 · 最多 50 筆記錄"
+  ],
+  "File saved.": [
+    "文件已保存。",
+    "檔案已儲存。"
   ],
   "File: {}": [
     "文件：{}",
@@ -3926,6 +3966,10 @@
   "Folder": [
     "文件夹",
     "資料夾"
+  ],
+  "Folder has too many files to display in the file explorer.": [
+    "文件夹中的文件过多，无法在文件资源管理器中显示。",
+    "資料夾中的檔案過多，無法在檔案總管中顯示。"
   ],
   "Follow up with existing conversation": [
     "继续现有对话",
@@ -4631,6 +4675,10 @@
     "关联单点登录",
     "連結單一登入"
   ],
+  "Link copied": [
+    "链接已复制",
+    "連結已複製"
+  ],
   "Link copied to clipboard": [
     "链接已复制到剪贴板",
     "連結已複製到剪貼簿"
@@ -4658,6 +4706,10 @@
   "Loading agents...": [
     "正在加载智能体…",
     "正在載入智慧體…"
+  ],
+  "Loading cloud agent runs": [
+    "正在加载云端代理运行记录",
+    "正在載入雲端代理執行記錄"
   ],
   "Loading collaboration…": [
     "正在加载协作信息…",
@@ -4731,9 +4783,17 @@
     "无法通过此链接安装 MCP 服务器“{gallery_title}”。",
     "無法透過此連結安裝 MCP 伺服器「{gallery_title}」。"
   ],
+  "MCP server updated": [
+    "MCP 服务器已更新",
+    "MCP 伺服器已更新"
+  ],
   "MODELS": [
     "模型",
     "模型"
+  ],
+  "Make Editor": [
+    "设为编辑者",
+    "設為編輯者"
   ],
   "Make Warpai the default terminal": [
     "将 Warpai 设为默认终端",
@@ -4850,6 +4910,10 @@
   "Meet your new agent inbox": [
     "查看全新的智能体收件箱",
     "查看全新的智慧體收件匣"
+  ],
+  "Menu Closed": [
+    "菜单已关闭",
+    "選單已關閉"
   ],
   "Message": [
     "消息",
@@ -5255,6 +5319,10 @@
     "未找到网址",
     "找不到網址"
   ],
+  "No active conversation to export": [
+    "没有可导出的当前对话",
+    "沒有可匯出的目前對話"
+  ],
   "No changes to commit": [
     "没有可提交的更改",
     "沒有可提交的變更"
@@ -5410,6 +5478,10 @@
   "No settings match your search.": [
     "没有匹配搜索条件的设置。",
     "沒有符合搜尋條件的設定。"
+  ],
+  "No suggestions": [
+    "没有建议",
+    "沒有建議"
   ],
   "No tabs match your search.": [
     "没有匹配搜索条件的标签页。",
@@ -6587,6 +6659,10 @@
     "预约用于协调参与者，不会锁定文件，也不证明写入已停止。智能体续期需要所属运行。在协作空间和工作区中进行人工维护时，会固定原所有者与到期时间；明确释放预约不会完成一次尝试。",
     "預約用於協調參與者，不會鎖定檔案，也不證明寫入已停止。智慧體續期需要所屬執行。在協作空間和工作區中進行人工維護時，會固定原擁有者與到期時間；明確釋放預約不會完成一次嘗試。"
   ],
+  "Reset": [
+    "重置",
+    "重設"
+  ],
   "Reset Zoom": [
     "重置缩放",
     "重設縮放"
@@ -6642,6 +6718,10 @@
   "Resize pane > Move divider up": [
     "调整窗格 > 上移分隔线",
     "調整窗格 > 上移分隔線"
+  ],
+  "Resource not found or access denied": [
+    "未找到资源或访问被拒绝",
+    "找不到資源或存取遭拒"
   ],
   "Restart": [
     "重新启动",
@@ -7807,6 +7887,10 @@
     "启动远程控制",
     "啟動遠端控制"
   ],
+  "Start sharing": [
+    "开始共享",
+    "開始共用"
+  ],
   "Started agent ": [
     "已启动 智能体 ",
     "已啟動 智慧體 "
@@ -7858,6 +7942,14 @@
   "Subject (optional)": [
     "主题（可选）",
     "主旨（選填）"
+  ],
+  "Submenu Closed": [
+    "子菜单已关闭",
+    "子選單已關閉"
+  ],
+  "Submenu Expanded": [
+    "子菜单已展开",
+    "子選單已展開"
   ],
   "Subshells": [
     "子 shell",
@@ -8003,6 +8095,10 @@
     "同步中 — {completed_nodes} / {total_nodes}",
     "同步中 — {completed_nodes} / {total_nodes}"
   ],
+  "Syncing Warpai Drive": [
+    "正在同步 Warpai Drive",
+    "正在同步 Warpai Drive"
+  ],
   "Syncing...": [
     "正在同步…",
     "正在同步…"
@@ -8126,6 +8222,10 @@
   "Text Editing": [
     "文字编辑",
     "文字編輯"
+  ],
+  "Thank you for the feedback!": [
+    "感谢您的反馈！",
+    "感謝您的回饋！"
   ],
   "The /open-file command is only available for local sessions": [
     "/open-file 命令仅适用于本地会话",
@@ -9083,6 +9183,10 @@
     "WSL 工作区不可用。请检查所选 Linux 账户及其专用 WSL Companion，然后重新连接。",
     "WSL 工作區無法使用。請檢查所選 Linux 帳戶及其專用 WSL Companion，然後重新連線。"
   ],
+  "Waiting for password input": [
+    "正在等待输入密码",
+    "正在等待輸入密碼"
+  ],
   "Warning": [
     "警告",
     "警告"
@@ -9146,6 +9250,10 @@
   "Warpai terminal prompt": [
     "Warpai 终端提示符",
     "Warpai 終端提示字元"
+  ],
+  "Warpai updated!": [
+    "Warpai 已更新！",
+    "Warpai 已更新！"
   ],
   "Warpai will prevent use of premium models when this dollar limit is reached. Resets on a monthly basis.": [
     "达到此美元上限后，Warpai 将停止使用高级模型。额度每月重置。",

@@ -626,9 +626,7 @@ impl Input {
                 // Show a toast to confirm the export
                 let window_id = ctx.window_id();
                 ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-                    let toast = DismissibleToast::default(String::from(
-                        "Conversation exported to clipboard",
-                    ));
+                    let toast = DismissibleToast::default(warpui::localization::text("Conversation exported to clipboard").to_owned());
                     toast_stack.add_ephemeral_toast(toast, window_id, ctx);
                 });
             }

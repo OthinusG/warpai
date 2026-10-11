@@ -244,7 +244,7 @@ impl View for Body {
                 ButtonVariant::Accent,
                 self.button_mouse_states.start_sharing_button.clone(),
             )
-            .with_centered_text_label(String::from("Start sharing"))
+            .with_centered_text_label(warpui::localization::text("Start sharing").to_owned())
             .with_style(style::button_styles());
 
         // If none of the scrollback options are available, the start sharing
@@ -270,7 +270,7 @@ impl View for Body {
                 ButtonVariant::Outlined,
                 self.button_mouse_states.cancel_button.clone(),
             )
-            .with_centered_text_label(String::from("Cancel"))
+            .with_centered_text_label(warpui::localization::text("Cancel").to_owned())
             .with_style(style::button_styles())
             .build()
             .with_cursor(Cursor::PointingHand)

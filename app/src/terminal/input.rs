@@ -4561,7 +4561,7 @@ impl Input {
             let window_id = ctx.window_id();
             ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
                 let toast =
-                    DismissibleToast::default(String::from("No active conversation to export"));
+                    DismissibleToast::default(warpui::localization::text("No active conversation to export").to_owned());
                 toast_stack.add_ephemeral_toast(toast, window_id, ctx);
             });
             return;

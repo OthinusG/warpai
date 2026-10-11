@@ -701,7 +701,7 @@ impl InputSuggestions {
                     Align::new(
                         Container::new(
                             Text::new_inline(
-                                String::from("No suggestions"),
+                                warpui::localization::text("No suggestions").to_owned(),
                                 appearance.monospace_font_family(),
                                 appearance.monospace_font_size(),
                             )

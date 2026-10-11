@@ -14210,7 +14210,7 @@ impl Workspace {
                                 link = link.with_keystroke(keystroke);
                             }
 
-                            let toast = DismissibleToast::default(String::from("Warpai updated!"))
+                            let toast = DismissibleToast::default(warpui::localization::text("Warpai updated!").to_owned())
                                 .with_link(link);
 
                             stack.add_ephemeral_toast(toast, ctx);
@@ -14664,9 +14664,7 @@ impl Workspace {
 
                 if !object_found {
                     self.toast_stack.update(ctx, |toast_stack, ctx| {
-                        let toast = DismissibleToast::error(String::from(
-                            "Resource not found or access denied",
-                        ));
+                        let toast = DismissibleToast::error(warpui::localization::text("Resource not found or access denied").to_owned());
                         toast_stack.add_ephemeral_toast(toast, ctx);
                     });
                     ctx.notify();
@@ -20077,7 +20075,7 @@ impl Workspace {
                 Some(hovered_styles),
                 None,
             )
-            .with_centered_text_label(String::from("Sign up"));
+            .with_centered_text_label(warpui::localization::text("Sign up").to_owned());
 
         Align::new(
             button
@@ -20119,7 +20117,7 @@ impl Workspace {
                 Some(hovered_styles),
                 None,
             )
-            .with_centered_text_label(String::from("Sign up"));
+            .with_centered_text_label(warpui::localization::text("Sign up").to_owned());
 
         Align::new(
             button

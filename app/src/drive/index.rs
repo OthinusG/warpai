@@ -2976,7 +2976,7 @@ impl DriveIndex {
                 if mouse_state.is_hovered() {
                     let tooltip = appearance
                         .ui_builder()
-                        .tool_tip(String::from("Syncing Warpai Drive"));
+                        .tool_tip(warpui::localization::text("Syncing Warpai Drive").to_owned());
 
                     stack.add_positioned_overlay_child(
                         tooltip.build().finish(),
