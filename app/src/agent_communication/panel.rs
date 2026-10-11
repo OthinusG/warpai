@@ -5412,6 +5412,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             collaboration.update(app, |panel, _| {
                 // The earlier native-Companion fixture override must not mask the real WSL selection.
                 panel.remote = None;
+                // Static usage layouts freeze polling without an actual outstanding request.
+                panel.in_flight = false;
             });
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
