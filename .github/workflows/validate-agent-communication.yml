@@ -103,6 +103,7 @@ jobs:
           cargo test -p remote_server --locked
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
+          cargo check -p warpai --bin warpai --profile rlto --features release_bundle,gui,nld_improvements --target x86_64-pc-windows-msvc --locked
       - name: Verify Windows legacy metadata and credential cleanup
         if: ${{ !inputs.native_windows_only && (!inputs.protocol_only || inputs.check_app) }}
         run: |
