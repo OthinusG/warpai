@@ -236,3 +236,17 @@ constants literal and translate their display consumers. Re-export only the
 Appearance view type within the crate for the existing debug capture. Verify
 encoding warnings as errors, strict coverage and Rust syntax locally, then rerun
 both cloud build configurations, focused tests and three-locale native acceptance.
+
+## Native locale review correction
+
+The macOS portion of run 38106868836 passes its build/test/capture gates and
+produces 918 valid images. Visual review finds missing catalog entries for
+enum-derived navigation labels and fixture statuses, a literal Settings header/
+tab title, and optional setting descriptions that bypass explicit localization.
+Translate those fixed display producers and add a regression covering actual
+SettingsSection labels in both Chinese locales while preserving English IDs.
+Settings already uses dual-axis scrolling below its minimum page width; narrow
+captures show only its left edge. Reuse native horizontal wheel events to capture
+both edges at width 800 and open the Language menu after revealing its controls.
+Add 14 right-edge captures per locale (macOS 960; Windows with WSL 978), retain
+the existing page-selection checks and inspect both edges in cloud artifacts.

@@ -167,7 +167,7 @@ impl View for CommunicationSettingsView {
                 .build()
                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Enable))
                 .finish(),
-            Some("Configure local MCP access for selected CLI agents. Communication stays within each project.".into()),
+            Some(warpui::localization::text("Configure local MCP access for selected CLI agents. Communication stays within each project.").into()),
         ));
         if model.preferences.enabled || !model.preferences.selected.is_empty() {
             body.add_child(render_sub_header(appearance, warpui::localization::text("Agents"), None));
@@ -282,7 +282,7 @@ impl View for CommunicationSettingsView {
             body.add_child(render_body_item::<Action>(
                 warpui::localization::text("WSL communication").into(), None, LocalOnlyIconState::Hidden, ToggleState::Enabled, appearance,
                 wsl_switch.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslEnable)).finish(),
-                Some("Log into WSL in a Warpai terminal before configuring communication.".into()),
+                Some(warpui::localization::text("Log into WSL in a Warpai terminal before configuring communication.").into()),
             ));
             if model.wsl.preferences.enabled {
                 body.add_child(render_body_item::<Action>(
@@ -300,7 +300,7 @@ impl View for CommunicationSettingsView {
                         render_body_item_label_with_icon::<Action>(warpui::localization::text("Install WSL Companion").into(), crate::agent_usage::agent_icon("custom"), None, None,
                             LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
                         checkbox.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslCompanion)).finish(),
-                        appearance, Some("Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.".into()),
+                        appearance, Some(warpui::localization::text("Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.").into()),
                     ));
                 }
                 for (command, _) in &model.wsl.agents {

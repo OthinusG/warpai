@@ -2077,7 +2077,7 @@ impl BackingView for EnvironmentsPageView {
         _ctx: &HeaderRenderContext<'_>,
         _app: &AppContext,
     ) -> HeaderContent {
-        HeaderContent::simple("Environments")
+        HeaderContent::simple(warpui::localization::text("Environments"))
     }
 
     fn set_focus_handle(&mut self, focus_handle: PaneFocusHandle, _ctx: &mut ViewContext<Self>) {

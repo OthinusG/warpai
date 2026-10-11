@@ -8320,7 +8320,7 @@ impl Workspace {
         self.add_tab_with_pane_layout(
             panes_layout,
             Arc::new(HashMap::new()),
-            Some("Settings".to_owned()),
+            Some(warpui::localization::text("Settings").to_owned()),
             ctx,
         );
     }
@@ -20036,7 +20036,7 @@ impl Workspace {
                 icons::Icon::WarpaiSettings,
                 &self.mouse_states.settings_icon,
                 WorkspaceAction::ShowSettings,
-                "Settings".to_string(),
+                warpui::localization::text("Settings").to_owned(),
                 self.cached_keybindings[SHOW_SETTINGS_KEYBINDING_NAME].clone(),
                 false,
                 false,

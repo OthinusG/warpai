@@ -313,7 +313,7 @@ impl View for ExternalEditorView {
                         ctx.dispatch_typed_action(ExternalEditorAction::ToggleTabbedEditorView);
                     })
                     .finish(),
-                Some(TABBED_FILE_VIEWER_TOGGLE_DESCRIPTION.into()),
+                Some(warpui::localization::text(TABBED_FILE_VIEWER_TOGGLE_DESCRIPTION).into()),
             ));
         }
 

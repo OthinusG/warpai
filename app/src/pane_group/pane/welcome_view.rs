@@ -292,7 +292,7 @@ impl BackingView for WelcomeView {
         _ctx: &view::HeaderRenderContext<'_>,
         _app: &AppContext,
     ) -> view::HeaderContent {
-        view::HeaderContent::simple("New tab")
+        view::HeaderContent::simple(warpui::localization::text("New tab"))
     }
 
     fn set_focus_handle(&mut self, focus_handle: PaneFocusHandle, _ctx: &mut ViewContext<Self>) {

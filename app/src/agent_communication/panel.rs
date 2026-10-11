@@ -5248,7 +5248,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     warpui::async_assert!(app.views_of_type::<crate::settings_view::SettingsView>(window)
                         .is_some_and(|views| views.iter().any(|view|
                             view.read(app, |view, _| view.current_settings_section() == section))))
+                }));
+                driver = driver.with_step(TestStep::new("show settings content left edge").with_event(warpui::Event::ScrollWheel {
+                    position: pathfinder_geometry::vector::vec2f(width as f32 - 30., 400.),
+                    delta: pathfinder_geometry::vector::vec2f(1000., 0.),
+                    precise: true,
+                    modifiers: Default::default(),
                 }).with_take_screenshot(filename));
+                if width == 800 {
+                    let filename = format!("settings-interface-{name}-{theme_name}-{width}-right.png");
+                    filenames.push(filename.clone());
+                    driver = driver.with_step(TestStep::new("reveal narrow settings controls").with_event(warpui::Event::ScrollWheel {
+                        position: pathfinder_geometry::vector::vec2f(width as f32 - 30., 400.),
+                        delta: pathfinder_geometry::vector::vec2f(-1000., 0.),
+                        precise: true,
+                        modifiers: Default::default(),
+                    }).with_take_screenshot(filename));
+                }
                 if section == crate::settings_view::SettingsSection::Appearance {
                     let filename = format!("settings-interface-language-menu-{theme_name}-{width}.png");
                     filenames.push(filename.clone());

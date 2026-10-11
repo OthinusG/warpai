@@ -87,7 +87,28 @@ fn search_terms_match(terms: &str, query: &str) -> bool {
 
 #[cfg(test)]
 mod localization_search_tests {
-    use super::search_terms_match;
+    use super::{search_terms_match, SettingsSection};
+
+    #[test]
+    fn native_settings_navigation_labels_have_both_chinese_forms() {
+        use warpui::localization::{text_in, Language};
+        for section in [
+            SettingsSection::Appearance,
+            SettingsSection::Features,
+            SettingsSection::CodeIndexing,
+            SettingsSection::EditorAndCodeReview,
+            SettingsSection::Keybindings,
+            SettingsSection::SharedBlocks,
+            SettingsSection::Privacy,
+            SettingsSection::About,
+        ] {
+            let identifier = section.to_string();
+            assert_eq!(text_in(Language::English, &identifier), identifier);
+            for language in [Language::SimplifiedChinese, Language::TraditionalChinese] {
+                assert_ne!(text_in(language, &identifier), identifier, "{section:?}");
+            }
+        }
+    }
 
     #[test]
     fn settings_search_preserves_english_and_matches_both_chinese_forms() {

@@ -283,6 +283,10 @@
     "AWS 凭据已过期或缺失",
     "AWS 憑證已過期或遺失"
   ],
+  "About": [
+    "关于",
+    "關於"
+  ],
   "Absolute": [
     "绝对行号",
     "絕對行號"
@@ -404,6 +408,10 @@
     "將檔案差異新增至上下文"
   ],
   "Add regex": [
+    "添加正则表达式",
+    "新增正規表示式"
+  ],
+  "Add regex pattern": [
     "添加正则表达式",
     "新增正規表示式"
   ],
@@ -586,6 +594,10 @@
   "Anyone with the link": [
     "任何拥有链接的人",
     "任何擁有連結的人"
+  ],
+  "Appearance": [
+    "外观",
+    "外觀"
   ],
   "Applies only to this WSL account.": [
     "仅适用于此 WSL 账户。",
@@ -922,6 +934,10 @@
   "Bundled skills cannot be edited": [
     "无法编辑内置技能",
     "無法編輯內建技能"
+  ],
+  "Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.": [
+    "随 Windows 版 Warpai 提供。仅适用于所选 WSL 账户；取消勾选会移除其安装。",
+    "隨 Windows 版 Warpai 提供。僅適用於所選 WSL 帳戶；取消勾選會移除其安裝。"
   ],
   "Busy": [
     "忙碌",
@@ -1391,6 +1407,10 @@
     "在远程终端中提交、推送和丢弃更改",
     "在遠端終端機中提交、推送及捨棄變更"
   ],
+  "Communication is enabled. No CLI agents selected.": [
+    "通信已启用。尚未选择 CLI 智能体。",
+    "通訊已啟用。尚未選取 CLI 智慧體。"
+  ],
   "Communication is off. Enable it in Settings > Features > Agent communication.": [
     "通信已关闭。请在“设置 > 功能 > 智能体通信”中启用。",
     "通訊已關閉。請在「設定 > 功能 > 智慧體通訊」中啟用。"
@@ -1462,6 +1482,10 @@
   "Configure keyboard shortcuts": [
     "配置快捷键",
     "設定快捷鍵"
+  ],
+  "Configure local MCP access for selected CLI agents. Communication stays within each project.": [
+    "配置所选 CLI 智能体的本地 MCP 访问权限。通信仅限于各自项目内。",
+    "設定所選 CLI 智慧體的本機 MCP 存取權限。通訊僅限於各自專案內。"
   ],
   "Configure whether Warpai attempts to “Warpify” (add support for blocks, input modes, etc) certain shells. ": [
     "配置 Warpai 是否尝试为某些 Shell 启用“Warpify”（添加区块、输入模式等功能）。 ",
@@ -3647,6 +3671,10 @@
     "无法启动环境",
     "無法啟動環境"
   ],
+  "Features": [
+    "功能",
+    "功能"
+  ],
   "Feedback": [
     "反馈",
     "意見回饋"
@@ -4106,6 +4134,10 @@
   "Index new folders by default": [
     "默认索引新文件夹",
     "預設索引新資料夾"
+  ],
+  "Indexing and projects": [
+    "索引与项目",
+    "索引與專案"
   ],
   "Indexing helps agents quickly understand context and provide targeted solutions. Code is never stored on the server.": [
     "索引帮助 智能体快速理解上下文并提供有针对性的解决方案。代码不会存储在服务器上。",
@@ -5242,6 +5274,10 @@
   "Normal": [
     "常规",
     "一般"
+  ],
+  "Not installed — install the CLI to enable project-local MCP access.": [
+    "未安装 — 安装 CLI 以启用项目内 MCP 访问。",
+    "未安裝 — 安裝 CLI 以啟用專案內 MCP 存取。"
   ],
   "Not running": [
     "未运行",
@@ -6514,6 +6550,10 @@
   "Reviewer name (optional; defaults to issuer)": [
     "审查者姓名（可选；默认为发布者）",
     "審查者姓名（選填；預設為發布者）"
+  ],
+  "Reviewing code changes": [
+    "正在审查代码修改",
+    "正在審查程式碼變更"
   ],
   "Revoke the selected agent's shared coordination access and wake eligibility. Its task attempts remain in this space and may still be executing; this does not stop the CLI process.": [
     "撤销所选智能体的共享协调访问和唤醒资格。其任务尝试会保留在此空间中，并可能仍在执行；此操作不会停止 CLI 进程。",
@@ -8307,6 +8347,10 @@
     "无法加载文件内容",
     "無法載入檔案內容"
   ],
+  "Unavailable — refresh agents after updating the executable search path.": [
+    "不可用 — 更新可执行文件搜索路径后，请刷新智能体。",
+    "無法使用 — 更新執行檔搜尋路徑後，請重新整理智慧體。"
+  ],
   "Underline": [
     "下划线",
     "底線"
@@ -8858,6 +8902,10 @@
   "When this setting is enabled, Warpai will scan blocks, the contents of Warpai Drive objects, and Oz prompts for potential sensitive information and prevent saving or sending this data to any servers. You can customize this list via regexes.": [
     "启用后，Warpai 会扫描区块、Warpai Drive 对象内容和 Oz 提示中的潜在敏感信息，并阻止保存这些数据或将其发送到任何服务器。你可以通过正则表达式自定义此列表。",
     "啟用後，Warpai 會掃描區塊、Warpai Drive 物件內容與 Oz 提示中的潛在敏感資訊，並阻止儲存這些資料或將其傳送至任何伺服器。你可以透過正規表示式自訂此清單。"
+  ],
+  "When this setting is on, any files opened in the same tab will be automatically grouped into a single editor pane.": [
+    "启用此设置后，同一标签页中打开的文件会自动归入同一个编辑器面板。",
+    "啟用此設定後，同一分頁中開啟的檔案會自動歸入同一個編輯器面板。"
   ],
   "When this setting is on, the code review panel will open on the first accepted diff of a conversation": [
     "启用后，会话中首次接受修改时将打开代码审查面板",
