@@ -47,7 +47,7 @@ consult it only when a specific historical question requires it.
   Retain all five installers and checksum receipts.
 - 1.6.0: feature/wsl-1.5.8 in /private/tmp/warpai-wsl-1.5.8. Release after acceptance.
   1.6.2: feature/1.6.2 in /private/tmp/warpai-1.6.2; merge later 1.6.0 fixes.
-  Specs: specs/1.6.2/{PRODUCT,TECH}.md; CI waits for 1.6.0 acceptance.
+  Specs: specs/1.6.2/{PRODUCT,TECH}.md; parallel CI authorized; poll both every 30m.
 
 ## Project, worktree and Agent ownership
 

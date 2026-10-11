@@ -1,7 +1,9 @@
 # Warpai 1.6.2
 
 Authorized 2026-10-11. Develop independently while 1.6.0 is validated/released.
-Start 1.6.2 cloud acceptance only after 1.6.0 acceptance passes. Apply every later
+Owner authorization 2026-10-11 now permits concurrent cloud acceptance with
+1.6.0, checked every 30 minutes. Release each version only after its own complete
+acceptance passes, retaining the 1.6.0-first publication order. Apply every later
 1.6.0 correction to this branch before its acceptance; do not duplicate fixes.
 
 ## User outcomes

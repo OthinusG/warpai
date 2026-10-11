@@ -35,7 +35,7 @@
    tooltips, notifications, accessibility and native platform menus.
 5. Add source/catalog coverage checks and focused migration/default/template tests.
    Local verification is syntax/script/catalog only; Rust and runtime checks run
-   on GitHub after 1.6.0 acceptance, with all three locales and representative
+   on GitHub concurrently with 1.6.0, with all three locales and representative
    narrow/high-zoom/light/dark screenshots. Preserve existing SSH/WSL assertions.
 6. Incorporate later 1.6.0 fixes by their existing commits, then complete full
    source-matched acceptance and existing immutable-tag release gates for 1.6.2.
@@ -64,7 +64,8 @@ terminal preview content. Passing this checker does not establish complete UI
 coverage: indirect constants, optional help text, dynamic actions/statuses, search
 terms and accessibility labels still require review and native locale walkthroughs.
 The 1.6.2 workflow runs the checker and sets desktop version metadata to 1.6.2;
-cloud execution remains gated on successful 1.6.0 acceptance.
+the owner now authorizes concurrent 1.6.0/1.6.2 cloud acceptance, checked every
+30 minutes. Each version retains its own complete release gates.
 
 Native captures now accept explicit language codes through the existing SSH/file
 acceptance driver. Each native process loads its language from a newly created
@@ -73,7 +74,7 @@ a startup assertion verifies the stored and active language agree. The workflow
 runs English, Simplified Chinese and Traditional Chinese sequentially against the
 same owned SSH fixture, retaining separate process/profile artifacts and the
 existing WSL cases. No production language override or personal installation is
-introduced. These runtime checks have not run yet; the 1.6.0 gate still applies.
+introduced. Cloud runtime results remain pending.
 
 Focused cloud checks cover reordered confirmation arguments, preserved literal
 user braces, typed public owner defaults and bilingual settings search. Native
@@ -138,7 +139,7 @@ declared 2021/2024 edition. Strict catalog checks cover 2,573 translation pairs
 and 2,675 marked display sites; changed Python, YAML and JSON syntax checks
 pass. Companion sources and Linux desktop updater sources match the 1.6.0
 acceptance baseline 8a366b1d. Cloud compilation, tests and three-locale native
-visual acceptance remain gated on successful 1.6.0 acceptance.
+visual acceptance remain pending; parallel cloud acceptance is now authorized.
 
 Expand native acceptance to all seven additional visible settings sections:
 Appearance, Features, both Code subpages, Keyboard shortcuts, Shared blocks and
