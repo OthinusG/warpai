@@ -30,8 +30,11 @@ consult it only when a specific historical question requires it.
   English/Simplified/Traditional captures and diagnostics pass; all five installers,
   both checksum lists and source provenance pass. Builds: 38152318120/38155542555.
   Companion stays 4.0.0. Published tags must never be retargeted.
-- Main includes both releases. Post-publication cleanup and milestone/1.6.2
-  follow specs/1.6.2/POST-RELEASE.md; preserve the dirty root worktree.
+- Main includes both releases and audited cleanup; milestone/1.6.2 snapshots main.
+  Maintenance source 045ae5f4 passes both desktop and three-platform Companion
+  checks (38162351334/38162351317). Receipt: specs/1.6.2/POST-RELEASE.md.
+  Five stale remote branches and upstream tracking were removed; dirty local
+  worktrees are preserved. The eight website labels now advertise public 1.6.2.
 - Remove private upstream setup/routing, not shared terminal compatibility or
   pinned dependencies. Keep four workflows and the independent gh-pages branch.
   GitHub fork detachment requires a supported operation; never delete/recreate

@@ -111,6 +111,18 @@ detachment has been executed.
   argument forwarding passed macOS/Windows stubs without local app execution.
 - The owner-requested macOS Python monitor, LaunchAgent and owned support directory
   were removed. Subsequent half-hour checks occur in the active agent session.
-- Cloud validation of the maintenance commit, milestone creation, stale branch
-  removal and upstream removal remain delivery gates. GitHub fork detachment is
-  still unperformed because no supported callable operation is available.
+- Maintenance source 045ae5f4da29f072922374df97f9edeb013d6aa4 passes both
+  desktop checks (38162351334) and three-platform Companion checks (38162351317).
+  Cleanup touches development setup/internal-channel diagnostics, not desktop
+  UI; the published three-language native acceptance remains the UI receipt.
+- Pages source 4b8706b3 passes deployment 38162265529. Both production languages
+  display 1.6.2 with valid release links and existing font glyph coverage.
+- Removed five merged remote feature/patch/release branches, three clean owned
+  worktrees and their local branches, and the upstream remote/tracking refs.
+  Preserved the dirty root and 1.6.2 worktrees, published tags/assets and gh-pages.
+- Final documentation alone follows the verified maintenance source; the two
+  documentation files cannot change its compiled source/build inputs. Main and
+  milestone/1.6.2 retain the same final repository snapshot.
+- GitHub still reports fork=true, parent terzigolu/warp-lite. The supported leave-
+  fork-network UI cannot be operated by the tools available in this session;
+  no repository deletion, visibility workaround or unsupported mutation was used.
