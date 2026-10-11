@@ -131,7 +131,7 @@ DISPLAY = re.compile(
     r"|\.(?:with_label|with_tooltip|with_text_label|with_title|with_placeholder"
     r"|set_label|set_title|set_menu_header_to_static|set_fallback_display_title|with_centered_text_label|tool_tip|set_placeholder_text|set_placeholder|with_secondary_text|with_subtext|span|label|link|paragraph|wrappable_text))"
     r"\s*\(\s*(?:String::from\(\s*)?$|\.set_tooltip\(\s*(?:Some\(|disabled\.then_some\()\s*$"
-    r"|let\s+default_option_text\s*=\s*$"
+    r"|let\s+(?:default_option_text|header_text)\s*=\s*$"
 )
 
 # Brand/technical names and terminal preview content must retain their spelling.
@@ -231,6 +231,7 @@ def self_check():
     assert BINDING_DISPLAY.search('EditableBinding::new(\n // Keep the action ID stable.\n "action:id",\n ')
     assert not BINDING_DISPLAY.search('EditableBinding::new("action:id", description, ')
     assert DISPLAY.search('let default_option_text = ')
+    assert DISPLAY.search('let header_text = ')
     assert DISPLAY.search('DiffTarget::new(\n ')
     assert DISPLAY.search('DismissibleToast::success(String::from(')
 

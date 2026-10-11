@@ -145,7 +145,7 @@ consult it only when a specific historical question requires it.
 - Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
   1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
   Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
-  Inspect edges/menus/Review/toasts; scan String::from. Keep IDs/data; debug cannot use cfg(test) helpers.
+  Inspect edges/menus/Review/loading/toasts; scan wrapped text/header_text. Keep IDs; no cfg(test) debug helpers.
   Use one owned SSH master per capture locale; close it before the next process.
   Close captured dropdowns; their selectors and fixed defaults must use the same localized labels.
   Locale tooling: UTF-8/POSIX paths. Windows CI verifies protoc and exports PROTOC.

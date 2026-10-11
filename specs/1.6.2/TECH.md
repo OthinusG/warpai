@@ -339,3 +339,13 @@ cannot find protoc. Run this native package step in PowerShell, check its exit
 status and the compiler version, and publish its verified executable path as
 PROTOC for subsequent Cargo steps. Keep the protocol and native acceptance
 gates intact. Rerun both desktops for the resulting source before release.
+
+Run 38139771778 passes both desktops for 2580c5ef (972 macOS/990 Windows
+source-matched PNGs; clean diagnostics). Windows Traditional Chinese WSL
+review happens to capture the loading state, exposing the variable-produced
+Loading open changes header. Localize that shared placeholder producer. Extend
+header_text inventory and localize its one additional fixed conversation-summary
+header; retain state transitions and user content. Run full native acceptance
+before replacing the unpublished release candidate. Release run 38144883701
+was started early with auto_publish=false at the owner request; its tagged
+source predates this final loading-state correction and must not be published.

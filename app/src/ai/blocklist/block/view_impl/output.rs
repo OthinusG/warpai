@@ -789,7 +789,7 @@ pub(super) fn render(props: Props, app: &AppContext) -> Box<dyn Element> {
                             SummarizationType::ConversationSummary
                         ) && !are_all_text_sections_empty(&text.sections) =>
                         {
-                            let header_text = "Conversation summarized".to_string();
+                            let header_text = warpui::localization::text("Conversation summarized").to_owned();
                             if let Some(element) = render_collapsible_block(
                                 output_message,
                                 header_text,
