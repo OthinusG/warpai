@@ -332,3 +332,10 @@ action IDs, error handling and user content. Add 27 catalog pairs and a scanner
 self-check; no cloud feature is enabled by translating dormant shared UI.
 Rerun full both-platform native acceptance and inspect successful-save toasts
 in both Chinese locales before tagging.
+
+Run 38139339617 fails Windows before application/native acceptance: Chocolatey
+reports zero installed packages with a successful exit, then remote_protocol
+cannot find protoc. Run this native package step in PowerShell, check its exit
+status and the compiler version, and publish its verified executable path as
+PROTOC for subsequent Cargo steps. Keep the protocol and native acceptance
+gates intact. Rerun both desktops for the resulting source before release.

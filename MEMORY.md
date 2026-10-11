@@ -148,7 +148,7 @@ consult it only when a specific historical question requires it.
   Inspect edges/menus/Review/toasts; scan String::from. Keep IDs/data; debug cannot use cfg(test) helpers.
   Use one owned SSH master per capture locale; close it before the next process.
   Close captured dropdowns; their selectors and fixed defaults must use the same localized labels.
-  Locale tooling uses explicit UTF-8 and POSIX inventory paths on Windows.
+  Locale tooling: UTF-8/POSIX paths. Windows CI verifies protoc and exports PROTOC.
   Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
