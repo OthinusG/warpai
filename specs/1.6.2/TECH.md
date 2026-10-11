@@ -281,3 +281,13 @@ and Warpify success heading in English. Translate their fixed producers and
 the remote-refresh error wrapper while retaining command names and error detail.
 Extend constant binding inventory and assert the maximize label in the real
 code-pane menu. Recheck both desktops and native images before publication.
+
+Run 38119305483 passes macOS compilation/tests but capture fails in the second
+locale before menu assertions: owned remote tree population reports
+`SshAuthenticationUnavailable`. The capture fixture reused one OpenSSH master
+for three application processes, allowing previous-process channels to survive
+into the next locale. Give each locale its own short private master socket and
+terminate that master in the existing finally cleanup. Assert it is live before
+launch; retain authentication, real file-tree assertions and process deadlines.
+Rerun the complete source-matched gate; do not treat the partial 499 images as
+acceptance. If failures persist, inspect redacted owned-server failure categories.
