@@ -179,3 +179,14 @@ Clear it beside the existing debug-only native-Companion override reset. Keep
 production polling, transport bounds and the real connection assertion unchanged.
 Verify Rust parsing, rerun the focused Windows capture, then full both-OS
 source-matched acceptance. Apply the same commit to 1.6.2 before its cloud gate.
+
+## Windows release-profile guard — 2026-10-11
+
+Full acceptance 38105942222 passes for 15a29850. macOS/three Companion
+release run 38114188371 passes, but Windows run 38116679999 fails with E0599:
+`wsl_checkpoint_ready` is Windows-only while its callee `ssh_checkpoint_ready`
+is debug/local-fs-only. Give the caller the same debug/local-fs conditions.
+Add the exact Windows rlto/release_bundle feature/target check to acceptance;
+keep both existing default/platform checks. The draft v1.6.0 is not public.
+Do not replace its tag or upload differently sourced Windows assets silently.
+Synchronize this correction into 1.6.2, then rerun both desktop/native gates.
