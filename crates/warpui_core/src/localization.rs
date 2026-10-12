@@ -159,7 +159,10 @@ mod tests {
             "First page", "Next page", "Settings", "Search tabs...", "Connect",
             "Manage usage accounts", "Refresh usage", "Checking…", "Refresh to check usage",
             "Refreshing; showing the previous reading", "Reading is stale; refresh to update",
-            "Usage query timed out", "Sign-in expired; reconnect in Settings"] {
+            "Usage query timed out", "Sign-in expired; reconnect in Settings",
+            "Hide", "Show", "You", "Unassigned", "Unavailable agent", "Coordinator",
+            "succeeded", "Open local file evidence {id}", "Uninstall WSL Companion",
+            "Removing guest MCP configuration…", "Waiting for Companion connections to close…"] {
             assert_eq!(text_in(Language::English, source), source);
             for language in [Language::SimplifiedChinese, Language::TraditionalChinese] {
                 assert_ne!(text_in(language, source), source, "{language:?}: {source}");
