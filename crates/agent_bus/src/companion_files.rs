@@ -513,7 +513,9 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
     if !super::root_matches(&project.handle, &project.root).map_err(path_error)? {
         return Err(ManagedErrorCode::ManagedStaleAttachment);
     }
-    let git = crate::installation::git_executable().map_err(path_error)?;
+    let git = crate::installation::git_executable().map_err(|error| if error.kind() == std::io::ErrorKind::NotFound {
+        ManagedErrorCode::ManagedFeatureUnavailable
+    } else { path_error(error) })?;
     let mut command = Command::new(&git);
     #[cfg(windows)]
     {
@@ -543,7 +545,9 @@ fn git_bytes(project: &Project, arguments: &[&str], limit: usize) -> Result<Vec<
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        .map_err(|error| if error.kind() == std::io::ErrorKind::NotFound {
+            ManagedErrorCode::ManagedFeatureUnavailable
+        } else { ManagedErrorCode::ManagedUnavailable })?;
     let stdout = child.stdout.take().unwrap();
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     std::thread::spawn(move || {

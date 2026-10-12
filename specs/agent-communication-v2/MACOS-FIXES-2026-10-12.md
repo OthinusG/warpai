@@ -305,3 +305,12 @@ the assertion and its timeout. Failure diagnostics now record each creation
 predicate, tab count and modal presence as bounded counts/booleans, plus existing
 Git exit categories. The diagnostic self-check rejects runtime payloads. A new
 receipt is required before assigning a root cause to this native failure.
+
+### Desktop without system Git
+
+Windows desktop installations currently use system Git; Companion packages own
+their private Git runtime. Missing desktop Git must be reported as a missing
+capability, not invalid user input or a stale connection. Preserve other Git error
+categories and repository identity checks. Show localized installation guidance
+for repository collaboration. Verify in an isolated child process with an empty
+PATH, without changing the test runner's environment or installing tools.

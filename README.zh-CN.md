@@ -208,9 +208,13 @@ Warpai 每次启动检查一次更新。下载后按上方说明安装。
 ### 远程 companion
 
 **Warpai Companion 4.0.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
-组件自带私有 Git；Warpai 的文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
+组件自带私有 Git；Warpai 的远程文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
 Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Companion 按需启动，
 空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
+
+本地桌面的 Git 功能需要 PATH 中可用的系统 Git。请安装 Git 并重启 Warpai，
+再使用本地仓库协作、工作树或 Git Review。SSH／WSL 的依赖见
+[功能依赖记录](docs/FEATURE-DEPENDENCIES.md)。
 
 | 远程主机 | 下载 |
 | --- | --- |

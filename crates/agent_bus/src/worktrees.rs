@@ -104,7 +104,9 @@ impl Worktree {
                 "--git-common-dir",
             ],
         )
-        .map_err(|_| invalid_input("A registered Git worktree is required"))?;
+        .map_err(|error| if error == remote_protocol::proto::ManagedErrorCode::ManagedFeatureUnavailable {
+            crate::domain("git_unavailable", "Git is unavailable in this environment", false, None)
+        } else { invalid_input("A registered Git worktree is required") })?;
         let mut lines = metadata.lines();
         let top = lines
             .next()
@@ -156,6 +158,30 @@ pub(crate) mod tests {
         ControllerOperation, Operation,
     };
     use serde_json::Value;
+
+    #[test]
+    fn missing_git_reports_a_capability_error() {
+        let directory = tempfile::tempdir().unwrap();
+        if std::env::var_os("WARPAI_TEST_MISSING_GIT").is_none() {
+            // Isolate PATH so parallel tests keep their Git runtime.
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "worktrees::tests::missing_git_reports_a_capability_error", "--nocapture"])
+                .env("WARPAI_TEST_MISSING_GIT", "1").env("PATH", directory.path())
+                .current_dir(directory.path()).status().unwrap();
+            assert!(status.success());
+            return;
+        }
+        std::fs::create_dir(directory.path().join(".git")).unwrap();
+        let error = Worktree::discover(directory.path()).err().unwrap();
+        assert_eq!(crate::DomainError::from_error(error).code, "git_unavailable");
+        assert!(directory.path().join(".git").is_dir());
+        let server = RunningBroker::start(&directory.path().join("bus.sqlite")).unwrap();
+        let project = crate::project_root(directory.path()).unwrap();
+        let query = crate::transport::PanelQuery { project, ..Default::default() };
+        assert!(server.broker.operator_panel(&query).is_ok());
+        let error = server.broker.operator_panel(&crate::transport::PanelQuery { worktree: true, ..query }).unwrap_err();
+        assert_eq!(crate::DomainError::from_error(error).code, "git_unavailable");
+    }
 
     pub(crate) struct Fixture {
         pub directory: tempfile::TempDir,

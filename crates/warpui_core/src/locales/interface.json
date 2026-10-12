@@ -1,4 +1,5 @@
 {
+  "Git is unavailable in this environment. Install Git, then restart Warpai. Repository collaboration and worktrees require Git.": ["当前环境无法运行 Git。请安装 Git 后重启 Warpai。仓库协作和工作树功能需要 Git。", "目前環境無法執行 Git。請安裝 Git 後重新啟動 Warpai。儲存庫協作和工作樹功能需要 Git。"],
   "Hide": ["隐藏", "隱藏"],
   "Removing guest MCP configuration…": ["正在清理 WSL 中的 MCP 配置…", "正在清理 WSL 中的 MCP 設定…"],
   "Waiting for Companion connections to close…": ["正在等待 Companion 连接关闭…", "正在等待 Companion 連線關閉…"],

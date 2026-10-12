@@ -14,8 +14,8 @@ for specific historical questions.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   A user-reported error permits immediate diagnosis. Use focused retries while
   debugging, then one complete source-matched acceptance run before delivery.
-- CI dispatch is not acceptance; retain sanitized failure predicates and finish
-  authorized fixes without repeated permission questions.
+- CI dispatch is not acceptance; finish authorized fixes.
+- Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
 - Release immutable tags through existing workflows; both desktops build the same

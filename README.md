@@ -257,11 +257,15 @@ Install the downloaded package using the instructions above.
 ### Remote companion
 
 **Warpai Companion 4.0.0** provides the remote workspace on your Linux, macOS or
-Windows machine, including its private Git runtime. Warpai's file, Review and
+Windows machine, including its private Git runtime. Warpai's remote file, Review and
 Agent communication infrastructure requires no separate Git, Python, Node, tmux
 or socat installation. Vendor Agents retain their own requirements. Companion
 starts on demand and exits after 60 idle seconds. Choose the installer for the
 machine you connect to.
+
+Local desktop Git features require system Git on PATH. Install Git and restart
+Warpai before using local repository collaboration, worktrees or Git Review.
+See [feature dependencies](docs/FEATURE-DEPENDENCIES.md) for SSH/WSL requirements.
 
 | Remote host | Package |
 | --- | --- |
