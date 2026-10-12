@@ -26,7 +26,7 @@ impl CollaborationPanel {
                 Action::RefreshUsage,
             ),
         ] {
-            let tip = builder.tool_tip(label.to_owned()).build().finish();
+            let tip = builder.tool_tip(warpui::localization::text(label).to_owned()).build().finish();
             let button = crate::ui_components::buttons::icon_button(
                 appearance,
                 icon,
@@ -84,13 +84,12 @@ impl CollaborationPanel {
                             warpui::localization::text("5h usage detection is disabled").into()
                         }
                     }
-                    Some(Err(error)) => (*error).to_owned(),
-                    None => if usage.checking {
+                    Some(Err(error)) => warpui::localization::text(error).to_owned(),
+                    None => warpui::localization::text(if usage.checking {
                         "Checking…"
                     } else {
                         "Refresh to check usage"
-                    }
-                    .into(),
+                    }).into(),
                 };
                 let mut tooltip = format!("{} · {}\n{status}", account.provider.name(), account.label);
                 if let Some(Ok(reading)) = reading {
@@ -120,14 +119,16 @@ impl CollaborationPanel {
                     }
         }
             if usage.checking && reading.is_some() {
-                tooltip.push_str("\nRefreshing; showing the previous reading");
+                tooltip.push('\n');
+                tooltip.push_str(warpui::localization::text("Refreshing; showing the previous reading"));
             }
             if reading.is_some_and(Result::is_ok)
                 && usage
                     .updated
                     .is_some_and(|t| t.elapsed() > Duration::from_secs(360))
             {
-                tooltip.push_str("\nReading is stale; refresh to update");
+                tooltip.push('\n');
+                tooltip.push_str(warpui::localization::text("Reading is stale; refresh to update"));
             }
             let label = builder
                 .span(format!("{} · {}", account.provider.name(), account.label))

@@ -105,15 +105,36 @@ fn managed_agent_child() {
                     },
                 )
                 .unwrap();
-                // Keep fixture receipts below the native console line width.
-                let result = serde_json::json!({"id":result["id"],"state":result["state"],
-                    "attempt_id":result["attempt_id"],
-                    "has_message":result["messages"].as_array().is_some_and(|messages|
-                        messages.iter().any(|message| message["body"] == "Remote fixture message"))});
+                let result = fixture_receipt(&result);
                 println!("FIXTURE_RESULT_{operation_sequence}={result}");
             }
         }
     }
+}
+
+// Keep receipts below console line width while preserving delivery and execution identities.
+fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({"id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
+        "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],
+        "messages":result["messages"].as_array().map(|messages| messages.iter()
+            .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),
+        "has_message":result["messages"].as_array().is_some_and(|messages|
+            messages.iter().any(|message| message["body"] == "Remote fixture message"))})
+}
+
+#[test]
+fn fixture_receipts_preserve_correlated_delivery_and_execution_identity() {
+    let result = serde_json::json!({"id":"result", "kind":"result_succeeded",
+        "reply_to":"request", "to":"issuer", "from":"worker", "attempt_id":"attempt",
+        "messages":[{"id":"result", "body":"Remote fixture message"}],
+        "supervision":{"history":"x".repeat(2000)}});
+    let receipt = fixture_receipt(&result);
+    for key in ["id", "kind", "reply_to", "to", "from", "attempt_id"] {
+        assert_eq!(receipt[key], result[key]);
+    }
+    assert_eq!(receipt["messages"][0]["id"], "result");
+    assert_eq!(receipt["has_message"], true);
+    assert!(receipt.to_string().len() < 1000);
 }
 
 struct Attachment {

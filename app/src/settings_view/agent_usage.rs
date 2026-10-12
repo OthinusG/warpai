@@ -266,7 +266,7 @@ impl View for UsageSettingsView {
                 account.provider.name(),
                 account.label,
                 if account.cli_login {
-                    " · current CLI account on this computer"
+                    warpui::localization::text(" · current CLI account on this computer")
                 } else {
                     ""
                 }

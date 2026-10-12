@@ -1,14 +1,13 @@
 # Project Memory
 
-Updated 2026-10-12. Current decisions and unfinished work only. Read this with
-[AGENTS.md](AGENTS.md) and [README.md](README.md). Detailed historical receipts
-and superseded decisions are in [the archive](docs/history/MEMORY-2026-10-10.md);
-consult it only when a specific historical question requires it.
+Updated 2026-10-12. Read with [AGENTS.md](AGENTS.md) and [README.md](README.md).
+Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult only
+for specific historical questions.
 
 ## Working and delivery rules
 
 - Rust compilation/tests and native desktop acceptance run on GitHub, not locally.
-  Batch 1–16 fixes before full acceptance. Protocol jobs and desktop jobs run
+  Batch 1–17 fixes before full acceptance. Protocol jobs and desktop jobs run
   independently; both desktops cache Cargo outputs and reuse native capture builds.
   Local Rustfmt syntax parsing, diff checks and script/document checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
@@ -25,12 +24,9 @@ consult it only when a specific historical question requires it.
 
 ## Published releases and maintenance
 
-- Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Both desktops,
-  five installers, checksums and provenance passed. Published tags never move;
-  historical receipts remain in their owning specs.
-- Main includes releases and audited cleanup; milestone/1.6.2 snapshots main.
-  Maintenance source 045ae5f4 passes both desktops and three-platform Companion;
-  receipt: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees.
+- Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
+  never move; historical acceptance receipts remain in their owning specs.
+- Prior maintenance acceptance: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees.
 - Remove private upstream setup/routing, not shared terminal compatibility or
   pinned dependencies. Keep four workflows and the independent gh-pages branch.
   GitHub fork detachment requires a supported operation; never delete/recreate
@@ -122,7 +118,7 @@ consult it only when a specific historical question requires it.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (16 issues).
+- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (17 issues).
   Local/SSH/WSL share correlated results and durable decision questions. Project
   peers all observe and decide retry/reassignment/review; execution stays run-fenced.
   Local/SSH/WSL enablement follows the focused terminal independently, including
@@ -144,7 +140,7 @@ consult it only when a specific historical question requires it.
 
 - Keep WARP_* compatibility. Data/settings live in ~/.config/warpai; retain
   sources/profiles/new values.
-  Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
+  English/zh-Hans/zh-Hant UI; restart to apply language.
   Inspect menus/Review/loading/toasts and dynamic/helper labels; keep IDs.
   Windows text shaping loads native glyph fallbacks before caching UI lines;
   Simplified/Traditional use their regional font fallback. No cfg(test) drivers.
@@ -164,6 +160,9 @@ consult it only when a specific historical question requires it.
   stops future Codex session injection without reading/removing its persistent MCP.
 - Keep native Windows argv tests; TOML Unicode escaping precedes shell quoting.
   WSL guest commands stay native without Windows host bridge injection.
+  Verified guest observations seed Windows terminal Agent sessions before any wake;
+  each terminal/run remains independent. Retain plugin listeners and unsent drafts;
+  remote tracking keys include distribution/user. Desktop WSL code is Windows-only.
 - About Update checks stable releases; Download opens the exact platform installer
   or Releases fallback. Startup check defaults off/runs once; no installation writes.
 - Docs are bilingual and Agent-first; update existing README sections, not a

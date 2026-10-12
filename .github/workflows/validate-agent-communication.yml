@@ -214,7 +214,7 @@ jobs:
           New-Item -ItemType Directory -Path 'target/debug/x64' -Force | Out-Null
           Copy-Item 'app/assets/windows/x64/OpenConsole.exe' 'target/debug/x64/OpenConsole.exe' -Force
       - name: Save Windows native Rust outputs
-        if: ${{ steps.native-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
@@ -387,7 +387,7 @@ jobs:
           path: WarpaiReview.app.zip
           retention-days: 7
       - name: Save macOS native Rust outputs
-        if: ${{ steps.native-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |

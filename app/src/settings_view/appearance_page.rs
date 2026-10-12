@@ -2495,7 +2495,7 @@ impl SettingsWidget for LanguageWidget {
             body.add_child(appearance.ui_builder()
                 .button(ButtonVariant::Secondary, view.language_restart_button.clone())
                 .with_text_label(warpui::localization::text("Restart Warpai").into())
-                .build().on_click(|ctx, _, _| ctx.dispatch_typed_action_deferred(AppearancePageAction::RestartForLanguage)).finish());
+                .build().on_click(|ctx, _, _| ctx.dispatch_typed_action(AppearancePageAction::RestartForLanguage)).finish());
         }
         body.finish()
     }

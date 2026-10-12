@@ -1,4 +1,216 @@
 {
+  "Manage usage accounts": [
+    "管理用量账号",
+    "管理用量帳號"
+  ],
+  "Refresh usage": [
+    "刷新用量",
+    "重新整理用量"
+  ],
+  "Checking…": [
+    "正在检查…",
+    "正在檢查…"
+  ],
+  "Refresh to check usage": [
+    "刷新以检查用量",
+    "重新整理以檢查用量"
+  ],
+  "Refreshing; showing the previous reading": [
+    "正在刷新；显示上次读数",
+    "正在重新整理；顯示上次讀數"
+  ],
+  "Reading is stale; refresh to update": [
+    "读数已过期；请刷新",
+    "讀數已過期；請重新整理"
+  ],
+  " · current CLI account on this computer": [
+    " · 本机当前 CLI 账号",
+    " · 本機目前的 CLI 帳號"
+  ],
+  "Could not load usage accounts; existing configuration was preserved": [
+    "无法加载用量账号；已保留现有配置",
+    "無法載入用量帳號；已保留現有設定"
+  ],
+  "Could not save usage accounts": [
+    "无法保存用量账号",
+    "無法儲存用量帳號"
+  ],
+  "A workspace ID is required for Zen balance": [
+    "查询 Zen 余额需要工作区 ID",
+    "查詢 Zen 餘額需要工作區 ID"
+  ],
+  "Could not store credential in OS credential storage": [
+    "无法将凭据保存到操作系统凭据存储",
+    "無法將憑證儲存至作業系統憑證存放區"
+  ],
+  "Enter a label and the required credential; account limit is 64": [
+    "请输入名称和所需凭据；最多添加 64 个账号",
+    "請輸入名稱和所需憑證；最多新增 64 個帳號"
+  ],
+  "Account removed; OS credential cleanup could not be confirmed": [
+    "账号已移除；无法确认操作系统凭据是否清除",
+    "帳號已移除；無法確認作業系統憑證是否清除"
+  ],
+  "Usage query timed out": [
+    "用量查询超时",
+    "用量查詢逾時"
+  ],
+  "Sign-in expired; reconnect in Settings": [
+    "登录已过期；请在设置中重新连接",
+    "登入已過期；請在設定中重新連線"
+  ],
+  "Sign in with the CLI first": [
+    "请先通过 CLI 登录",
+    "請先透過 CLI 登入"
+  ],
+  "Could not read CLI login": [
+    "无法读取 CLI 登录信息",
+    "無法讀取 CLI 登入資訊"
+  ],
+  "CLI login data too large": [
+    "CLI 登录数据过大",
+    "CLI 登入資料過大"
+  ],
+  "CLI login data unavailable": [
+    "CLI 登录数据不可用",
+    "CLI 登入資料無法使用"
+  ],
+  "CLI executable search path unavailable": [
+    "CLI 可执行文件搜索路径不可用",
+    "CLI 執行檔搜尋路徑無法使用"
+  ],
+  "CLI is unavailable": [
+    "CLI 不可用",
+    "CLI 無法使用"
+  ],
+  "CLI output unavailable": [
+    "CLI 输出不可用",
+    "CLI 輸出無法使用"
+  ],
+  "Could not read CLI output": [
+    "无法读取 CLI 输出",
+    "無法讀取 CLI 輸出"
+  ],
+  "CLI response too large": [
+    "CLI 响应过大",
+    "CLI 回應過大"
+  ],
+  "CLI query failed": [
+    "CLI 查询失败",
+    "CLI 查詢失敗"
+  ],
+  "CLI query failed; sign in again": [
+    "CLI 查询失败；请重新登录",
+    "CLI 查詢失敗；請重新登入"
+  ],
+  "CLI usage query timed out": [
+    "CLI 用量查询超时",
+    "CLI 用量查詢逾時"
+  ],
+  "CLI home directory unavailable": [
+    "CLI 主目录不可用",
+    "CLI 主目錄無法使用"
+  ],
+  "Antigravity CLI is unavailable": [
+    "Antigravity CLI 不可用",
+    "Antigravity CLI 無法使用"
+  ],
+  "CLI executable path unavailable": [
+    "CLI 可执行文件路径不可用",
+    "CLI 執行檔路徑無法使用"
+  ],
+  "Requires agy 1.1.11 or newer for a free usage query": [
+    "免费用量查询需要 agy 1.1.11 或更新版本",
+    "免費用量查詢需要 agy 1.1.11 或更新版本"
+  ],
+  "Claude login unavailable": [
+    "Claude 登录信息不可用",
+    "Claude 登入資訊無法使用"
+  ],
+  "Connect a credential in Settings": [
+    "请在设置中连接凭据",
+    "請在設定中連結憑證"
+  ],
+  "CLI login unavailable; sign in again": [
+    "CLI 登录信息不可用；请重新登录",
+    "CLI 登入資訊無法使用；請重新登入"
+  ],
+  "Credential unavailable; reconnect in Settings": [
+    "凭据不可用；请在设置中重新连接",
+    "憑證無法使用；請在設定中重新連線"
+  ],
+  "Usage polling stopped: agy ran a model turn; update agy and restart Warpai": [
+    "已停止用量轮询：agy 执行了模型调用；请更新 agy 并重启 Warpai",
+    "已停止用量輪詢：agy 執行了模型呼叫；請更新 agy 並重新啟動 Warpai"
+  ],
+  "Invalid agy usage response": [
+    "agy 用量响应无效",
+    "agy 用量回應無效"
+  ],
+  "Provider rejected usage query": [
+    "服务提供商拒绝了用量查询",
+    "服務供應商拒絕了用量查詢"
+  ],
+  "Usage unavailable for this account": [
+    "此账号的用量不可用",
+    "此帳號的用量無法使用"
+  ],
+  "Sign in or connect an account in Settings": [
+    "请在设置中登录或连接账号",
+    "請在設定中登入或連結帳號"
+  ],
+  "Could not start usage query": [
+    "无法启动用量查询",
+    "無法啟動用量查詢"
+  ],
+  "Could not find Gemini project": [
+    "无法找到 Gemini 项目",
+    "無法找到 Gemini 專案"
+  ],
+  "Gemini project unavailable": [
+    "Gemini 项目不可用",
+    "Gemini 專案無法使用"
+  ],
+  "Usage query failed; retry in Settings": [
+    "用量查询失败；请在设置中重试",
+    "用量查詢失敗；請在設定中重試"
+  ],
+  "Grok usage query unavailable": [
+    "Grok 用量查询不可用",
+    "Grok 用量查詢無法使用"
+  ],
+  "Invalid credential format": [
+    "凭据格式无效",
+    "憑證格式無效"
+  ],
+  "Use the current agy login": [
+    "请使用当前的 agy 登录账号",
+    "請使用目前的 agy 登入帳號"
+  ],
+  "Account has no access to this usage endpoint": [
+    "此账号无权访问该用量接口",
+    "此帳號無權存取此用量介面"
+  ],
+  "Usage query rate limited; retry later": [
+    "用量查询受到速率限制；请稍后重试",
+    "用量查詢受到速率限制；請稍後重試"
+  ],
+  "Provider usage service unavailable": [
+    "服务提供商的用量服务不可用",
+    "服務供應商的用量服務無法使用"
+  ],
+  "Incomplete usage response": [
+    "用量响应不完整",
+    "用量回應不完整"
+  ],
+  "Usage response too large": [
+    "用量响应过大",
+    "用量回應過大"
+  ],
+  "Invalid usage response": [
+    "用量响应无效",
+    "用量回應無效"
+  ],
   "Connect": [
     "连接",
     "連線"

@@ -37,6 +37,15 @@ Status: implementation in progress. Requested 2026-10-12; no release requested.
     coverage for helper literals and both Chinese glyph sets; inspect native
     screenshots for English leakage, tofu, overflow and unchanged controls.
 
+17. Windows WSL Agent detection and management use the verified Linux account,
+    guest process and guest MCP configuration. Never borrow Windows executable
+    inventory or run identity. Guest observations populate native Agent sessions,
+    including manually started programs without a Windows-side command event;
+    retain existing plugin listeners and input drafts. Multiple terminals may
+    share a distribution/user/project with distinct sessions and runs; closing
+    one does not terminate another. Desktop changes are Windows-only; Linux
+    changes remain limited to the WSL Companion and controlled guest fixtures.
+
 ## Implementation and constraints
 
 Reuse native settings, dropdowns, editors, buttons, layout and Agent Bus operations.
@@ -144,3 +153,17 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   but exposed a readiness fixture that selected the first globally visible task
   on its second iteration. It now locates the current task by ID. Added one
   actual Coordinator-dropdown screenshot and updated native capture counts.
+
+- Source 6eb0b3ad passed macOS/Windows protocol suites and macOS/Windows
+  Companion acceptance. Desktop checks found an EventContext dispatch mismatch
+  for Restart and a Windows-only font cache excluded by an older cfg; both are
+  corrected. Controlled Linux SSH found fixture receipts omitted correlation
+  fields; compact receipts now retain routing, result kind and message IDs.
+  Failed desktop attempts also save partial Cargo outputs for incremental retries.
+- WSL supervision now seeds native terminal Agent sessions from the verified
+  guest program/run before any queued wake. Existing command/plugin sessions and
+  drafts are preserved; guest exit removes only observation-owned sessions.
+  Added Windows regressions for two independent terminal Agent observations and
+  two real PTYs sharing one WSL distribution/user/project. No new WSL desktop
+  code is active on macOS. Usage footer statuses/tooltips and provider errors
+  now translate at display boundaries, preserving account names and quota data.

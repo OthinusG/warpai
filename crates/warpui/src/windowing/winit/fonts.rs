@@ -404,7 +404,6 @@ pub struct TextLayoutSystem {
     /// fonts while doing text layout. This means we need cache the fonts we loaded so we can read
     /// it out at raster time and load any necessary fonts.
     loaded_font_ids_since_last_raster: RwLock<Vec<FontId>>,
-    #[cfg(not(target_os = "windows"))]
     fallback_fonts: DashMap<FontId, Vec<FontId>>,
 }
 
@@ -506,7 +505,6 @@ impl TextLayoutSystem {
             font_id_map: Default::default(),
             font_selections: Default::default(),
             loaded_fonts: Default::default(),
-            #[cfg(not(target_os = "windows"))]
             fallback_fonts: Default::default(),
             #[cfg(feature = "fontkit-rasterizer")]
             loaded_font_ids_since_last_raster: Default::default(),
@@ -848,7 +846,6 @@ impl TextLayoutSystem {
 
                 if let Some(font_id) = font_id {
                     self.font_selections.retain(|_, v| *v != font_id);
-                    #[cfg(not(target_os = "windows"))]
                     {
                         self.fallback_fonts.remove(&font_id);
                         for mut entry in self.fallback_fonts.iter_mut() {

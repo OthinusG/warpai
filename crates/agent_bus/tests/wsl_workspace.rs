@@ -49,8 +49,18 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
         fence: client.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
         executable: "/bin/sh".into(), arguments: vec!["-c".into(), "printf 'LAUNCH_CWD=%s\\n' \"$PWD\"; exec /bin/cat".into()], columns: 80, rows: 24, agent_program: None, working_directory: Some("/home/warpai-test".into()),
     }).await.unwrap();
-    let other = connection.connect(&profile).await.unwrap();
-    drop(other);
+    let mut other = connection.connect(&profile).await.unwrap();
+    assert_eq!(other.fence().unwrap().service_boot_id, boot);
+    let second = other.terminal_launch(TerminalLaunch {
+        fence: other.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
+        executable: "/bin/cat".into(), columns: 80, rows: 24,
+        working_directory: Some(root.clone()), ..Default::default()
+    }).await.unwrap();
+    assert_ne!(state.session_id, second.session_id);
+    assert_ne!(state.run_id, second.run_id);
+    other.terminal_control(TerminalControl { fence: other.fence().cloned(), session_id: second.session_id.clone(),
+        run_id: second.run_id.clone(), action: TerminalAction::TerminalInput as i32,
+        input: b"Second WSL terminal input\n".to_vec(), input_sequence: 1, ..Default::default() }).await.unwrap();
     client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id.clone(),
         run_id: state.run_id.clone(), action: TerminalAction::TerminalInput as i32, input: b"WSL owned input\n".to_vec(),
         input_sequence: 1, ..Default::default() }).await.unwrap();
@@ -58,6 +68,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     for _ in 0..50 {
         let reply = client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id.clone(),
             run_id: state.run_id.clone(), action: TerminalAction::TerminalRead as i32, ..Default::default() }).await.unwrap();
+        assert!(!String::from_utf8_lossy(&reply.output).contains("Second WSL terminal input"));
         if String::from_utf8_lossy(&reply.output).contains("WSL owned input")
             && String::from_utf8_lossy(&reply.output).contains("LAUNCH_CWD=/home/warpai-test") { seen = true; break; }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -65,6 +76,18 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert!(seen);
     client.terminal_control(TerminalControl { fence: client.fence().cloned(), session_id: state.session_id,
         run_id: state.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
+    let mut second_seen = false;
+    for _ in 0..50 {
+        let reply = other.terminal_control(TerminalControl { fence: other.fence().cloned(), session_id: second.session_id.clone(),
+            run_id: second.run_id.clone(), action: TerminalAction::TerminalRead as i32, ..Default::default() }).await.unwrap();
+        assert!(!String::from_utf8_lossy(&reply.output).contains("WSL owned input"));
+        if String::from_utf8_lossy(&reply.output).contains("Second WSL terminal input") { second_seen = true; break; }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert!(second_seen, "Closing one terminal must leave another in the same WSL account running");
+    other.terminal_control(TerminalControl { fence: other.fence().cloned(), session_id: second.session_id,
+        run_id: second.run_id, action: TerminalAction::TerminalStop as i32, ..Default::default() }).await.unwrap();
+    drop(other);
     // Ordinary Linux Agent in its shell, never Companion TerminalLaunch or Agent wrapper.
     // Preserve only the owned fixture's output so startup failures identify the failed guard.
     let native_log = tempfile::NamedTempFile::new().unwrap();

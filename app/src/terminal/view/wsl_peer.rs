@@ -1,6 +1,8 @@
 //! Native WSL terminal delivery; Linux owns run identity and MCP, Windows owns UI guards.
 use super::*;
 use crate::agent_communication::wsl_settings::Target;
+use crate::terminal::cli_agent_sessions::{CLIAgentInputState, CLIAgentSession,
+    CLIAgentSessionContext, CLIAgentSessionStatus};
 use warp_agent_bus::{
     companion::TaskCommand,
     readiness::{Activity, Draft},
@@ -29,6 +31,7 @@ pub(super) struct State {
     epoch: u64,
     submitted: bool,
     cancelled: bool,
+    observed_run: Option<String>,
 }
 
 impl State {
@@ -90,6 +93,41 @@ async fn request(
 }
 
 impl TerminalView {
+    fn clear_observed_wsl_agent(&mut self, ctx: &mut ViewContext<Self>) {
+        let Some(run) = self.wsl_peer.observed_run.take() else { return; };
+        let id = self.view_id;
+        CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+            if model.session(id).is_some_and(|session| session.listener.is_none()
+                && session.session_context.session_id.as_deref() == Some(run.as_str())) {
+                model.remove_session(id, ctx);
+            }
+        });
+    }
+
+    fn observe_wsl_agent(&mut self, context: &Context, state: Option<&NativeState>, ctx: &mut ViewContext<Self>) {
+        let Some(state) = state else { self.clear_observed_wsl_agent(ctx); return; };
+        if self.wsl_peer.observed_run.as_ref().is_some_and(|run| run != &state.run) {
+            self.clear_observed_wsl_agent(ctx);
+        }
+        // Guest process identity proves participation even before any queued wake exists.
+        if CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).is_none() {
+            let agent = enum_iterator::all::<CLIAgent>()
+                .find(|agent| agent.command_prefix() == state.program).unwrap_or(CLIAgent::Unknown);
+            let id = self.view_id;
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.set_session(id, CLIAgentSession {
+                agent, status: CLIAgentSessionStatus::InProgress,
+                session_context: CLIAgentSessionContext { cwd:Some(context.root.clone()),
+                    session_id:Some(state.run.clone()), ..Default::default() },
+                input_state:CLIAgentInputState::Closed, should_auto_toggle_input:false,
+                listener:None, plugin_version:None, remote_host:Some(format!("wsl:{}@{}",
+                    context.target.user, context.target.distribution)), draft_text:None,
+                custom_command_prefix:(agent == CLIAgent::Unknown).then(|| state.program.clone()),
+            }, ctx));
+            self.wsl_peer.observed_run = Some(state.run.clone());
+            ctx.notify();
+        }
+    }
+
     pub(super) fn record_wsl_peer_input(&mut self, bytes: &[u8], ctx: &AppContext) {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context);
@@ -137,6 +175,7 @@ impl TerminalView {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context.clone());
         let Some(context) = context else {
+            self.clear_observed_wsl_agent(ctx);
             return;
         };
         if !enabled || !targets.contains(&context.target) {
@@ -203,8 +242,9 @@ impl TerminalView {
                 Err(_) => { view.wsl_peer.client = None; view.wsl_peer.busy = false; return; }
             };
             view.wsl_peer.client = Some(client.clone());
-            let Some(state) = state.filter(|state| state.valid) else { view.wsl_peer.busy = false; return; };
-            let Some(wake) = state.wake else { view.wsl_peer.busy = false; return; };
+            view.observe_wsl_agent(&context, state.as_ref(), ctx);
+            let Some(state) = state else { view.wsl_peer.busy = false; return; };
+            let Some(wake) = state.wake.filter(|_| state.valid) else { view.wsl_peer.busy = false; return; };
             let agent = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).map(|session| session.agent)
                 .filter(|agent| agent.command_prefix() == state.program || *agent == CLIAgent::Unknown);
             if uuid::Uuid::parse_str(&wake.message_id).is_err() || agent.is_none()
@@ -251,6 +291,37 @@ impl TerminalView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn guest_observations_detect_agents_without_wakes_and_keep_terminals_independent() {
+        use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
+        warpui::App::test((), |mut app| async move {
+            initialize_app_for_terminal_view(&mut app);
+            let first = add_window_with_terminal(&mut app, None);
+            let second = add_window_with_terminal(&mut app, None);
+            let context = Context { session:1_u64.into(), target:Target {
+                distribution:"Ubuntu Test".into(), user:"guest".into(), home:"/home/guest".into()
+            }, shell_pid:123, root:"/home/guest/project".into() };
+            let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false };
+            first.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&state), ctx));
+            let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false };
+            second.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&other), ctx));
+            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(first.id()).unwrap().agent, CLIAgent::Codex);
+            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(second.id()).unwrap().agent, CLIAgent::Claude);
+            first.update(&mut app, |view, ctx| {
+                let mut saved = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap().clone();
+                assert_eq!(saved.remote_host.as_deref(), Some("wsl:guest@Ubuntu Test"));
+                assert_eq!(saved.session_context.cwd.as_deref(), Some(context.root.as_str()));
+                saved.draft_text = Some("unsent prompt".into());
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.set_session(view.view_id, saved, ctx));
+                view.observe_wsl_agent(&context, Some(&state), ctx);
+                assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap().draft_text.as_deref(), Some("unsent prompt"));
+                view.observe_wsl_agent(&context, None, ctx);
+            });
+            assert!(CLIAgentSessionsModel::as_ref(&app).session(first.id()).is_none());
+            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(second.id()).unwrap().session_context.session_id.as_deref(), Some("second-run"));
+        });
+    }
+
     #[test]
     fn manual_input_and_cancel_fence_native_delivery() {
         let mut state = State::default();

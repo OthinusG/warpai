@@ -156,7 +156,10 @@ mod tests {
             "Find within block", "Scroll to top of block", "Scroll to bottom of block",
             "Command / Conversation", "Working Directory", "Show details on hover",
             "Select Agent", "No prerequisites", "You (default reviewer)", "Confirm", "Cancel",
-            "First page", "Next page", "Settings", "Search tabs...", "Connect"] {
+            "First page", "Next page", "Settings", "Search tabs...", "Connect",
+            "Manage usage accounts", "Refresh usage", "Checking…", "Refresh to check usage",
+            "Refreshing; showing the previous reading", "Reading is stale; refresh to update",
+            "Usage query timed out", "Sign-in expired; reconnect in Settings"] {
             assert_eq!(text_in(Language::English, source), source);
             for language in [Language::SimplifiedChinese, Language::TraditionalChinese] {
                 assert_ne!(text_in(language, source), source, "{language:?}: {source}");

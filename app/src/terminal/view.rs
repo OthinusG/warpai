@@ -6520,6 +6520,10 @@ impl TerminalView {
     fn active_session_remote_host<C: ModelAsRef>(&self, ctx: &C) -> Option<String> {
         self.active_block_session_id().and_then(|session_id| {
             let session = self.sessions.as_ref(ctx).get(session_id)?;
+            #[cfg(windows)]
+            if let Some(target) = crate::agent_communication::wsl_settings::Target::from_session(&session) {
+                return Some(format!("wsl:{}@{}", target.user, target.distribution));
+            }
             if session.is_local() {
                 None
             } else {
