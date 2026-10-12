@@ -201,23 +201,23 @@ impl TerminalView {
 
     pub(crate) fn poll_wsl_peer_work(
         &mut self,
-        enabled: bool,
-        targets: &[Target],
+        settings: &crate::agent_communication::wsl_settings::WslSettings,
         ctx: &mut ViewContext<Self>,
     ) {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context.clone());
-        let configuration_generation = crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.generation;
+        // The scheduler owns the communication model's update; do not re-read its singleton.
+        let configuration_generation = settings.generation;
         self.wsl_peer.select_configuration(configuration_generation);
         let Some(context) = context else {
             self.clear_observed_wsl_agent(ctx);
             return;
         };
-        if !enabled || !targets.contains(&context.target) {
+        if !settings.preferences.enabled || !settings.targets.contains(&context.target) {
             self.wsl_peer.client = None;
             return;
         }
-        if crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.busy { self.wsl_peer.client = None; return; }
+        if settings.busy { self.wsl_peer.client = None; return; }
         if self.wsl_peer.unavailable || self.wsl_peer.busy
             || self
                 .wsl_peer
@@ -331,6 +331,24 @@ impl TerminalView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn polling_during_communication_update_does_not_read_its_singleton() {
+        use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
+        use crate::agent_communication::AgentCommunication;
+        warpui::App::test((), |mut app| async move {
+            initialize_app_for_terminal_view(&mut app);
+            let terminal = add_window_with_terminal(&mut app, None);
+            AgentCommunication::handle(&mut app).update(&mut app, |model, ctx| {
+                model.wsl.generation = 7;
+                terminal.update(ctx, |view, ctx| {
+                    view.poll_wsl_peer_work(&model.wsl, ctx);
+                    assert_eq!(view.wsl_peer.configuration_generation, 7);
+                    assert!(view.wsl_peer.context.is_none());
+                    assert!(!view.wsl_peer.busy);
+                });
+            });
+        });
+    }
     #[test]
     fn unavailable_service_requires_configuration_retry_without_losing_drafts() {
         let mut state = State::default();

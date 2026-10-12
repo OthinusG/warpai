@@ -370,3 +370,12 @@ Earlier missing-singleton attribution was incorrect. Remove that instrumentation
 and record only the static type, instance-present and handle-matching guards at
 the failing read. An instance temporarily removed during model update is one
 possible cause; require the receipt before assigning the affected callback.
+
+Run 38294403571 identifies AgentCommunication with matching=true/present=false.
+Its Windows timer updates that model, then synchronously polls every open terminal;
+the poll re-reads AgentCommunication for WSL generation before checking whether the
+terminal even belongs to WSL. This is a circular singleton read. Pass the existing
+WslSettings borrow from the scheduler instead of re-reading or cloning it. Keep
+asynchronous completion/permission reads against current settings and preserve
+generation, busy and target guards. Add a native model-update regression to the
+existing Windows WSL test group. Full both-desktop/real-WSL acceptance is required.

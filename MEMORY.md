@@ -13,7 +13,7 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   A user-reported error permits immediate diagnosis. Use focused retries while
   debugging, then one complete source-matched acceptance run before delivery.
-- Native UI gates release; Windows startup diagnosis remains pending (fix audit).
+- Native UI gates release. WSL polling must not re-read its model during update.
 - Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.

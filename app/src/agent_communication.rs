@@ -475,10 +475,8 @@ impl AgentCommunication {
             #[cfg(windows)]
             {
                 model.refresh_wsl_targets(ctx);
-                let enabled = model.wsl.preferences.enabled;
-                let targets = model.wsl.targets.clone();
                 for view in wsl_settings::logged_in_views(ctx) {
-                    view.update(ctx, |view, ctx| view.poll_wsl_peer_work(enabled, &targets, ctx));
+                    view.update(ctx, |view, ctx| view.poll_wsl_peer_work(&model.wsl, ctx));
                 }
             }
             if let Some(result) = model
