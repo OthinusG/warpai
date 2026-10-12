@@ -42,7 +42,7 @@ pub fn render_alias_expansion_banner(
     let accent_color = appearance.theme().accent().into_solid();
 
     let buttons = vec![InlineBannerTextButton {
-        text: warpui::localization::tr("Enable alias expansion").into(),
+        text: warpui::localization::text("Enable alias expansion").into(),
         text_color: active_ui_text_color.into_solid(),
         button_state: InlineBannerButtonState {
             on_click_event: TerminalAction::AliasExpansionBanner(
@@ -91,7 +91,7 @@ pub fn render_alias_expansion_banner(
         InlineBannerStyle::VeryLowPriority,
         appearance,
         InlineBannerContent {
-            title: warpui::localization::tr("Warpai can auto-expand aliases.").into(),
+            title: warpui::localization::text("Warpai can auto-expand aliases.").into(),
             buttons,
             content: Some(content),
             close_button: Some(close_button),
