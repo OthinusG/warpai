@@ -1,5 +1,29 @@
 # Warpai releases
 
+## 1.6.3 delivery contract
+
+Owner authorization 2026-10-13: check cloud results every 30 minutes, finish all
+1–17 fixes and additional communication/WSL/SSH requirements, then publish Warpai
+1.6.3 with Companion 5.0.0. This supersedes older pending release instructions.
+
+1. Resolve both desktop native capture failures without bypassing assertions.
+   Require one complete source-matched macOS/Windows protocol/build/application/
+   native UI/real WSL acceptance run, including installation/removal recovery,
+   plus all three Companion platform jobs. Review all three UI languages.
+2. Set Companion RELEASE_VERSION and WSL package/test expectations to 5.0.0;
+   preserve SSH protocol major 1 and Agent Bus major 2. Desktop derives 1.6.3 from
+   the immutable tag. Record feature dependencies in public documentation.
+3. Prepare bilingual README/download updates and v1.6.3 notes. Integrate accepted
+   source into main without losing unrelated changes; create immutable v1.6.3.
+   Preserve historical tags, assets and the gh-pages website.
+4. Use release-macos.yml with release_tag=v1.6.3 and auto_publish=true; the existing
+   Windows release workflow follows. Retain all desktop/Companion installer,
+   source/version/runtime/reinstall/signature/checksum gates. Poll every 30 minutes
+   and fix failures; dispatch alone is not acceptance or publication.
+5. Verify all five public installers, both SHA-256 lists, exact tagged provenance
+   and public links, then update website download/dependency notes and delivery
+   receipts. No personal installation or local Rust compilation.
+
 ## 1.6.0 delivery contract
 
 Owner authorization 2026-10-11: after acceptance passes, trigger both desktop

@@ -9,7 +9,7 @@ fn wsl_installation_is_separate_from_ssh() {
     for home in ["relative", "C:\\Users\\Guest", "/home/user\n", ""] {
         assert!(wsl_companion_path(home).is_err());
     }
-    assert_eq!(RELEASE_VERSION, "4.0.0");
+    assert_eq!(RELEASE_VERSION, "5.0.0");
 }
 
 #[test]

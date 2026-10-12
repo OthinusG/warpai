@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-12. Read with [AGENTS.md](AGENTS.md) and [README.md](README.md).
+Updated 2026-10-13. Read with [AGENTS.md](AGENTS.md) and [README.md](README.md).
 Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult only
 for specific historical questions.
 
@@ -26,8 +26,8 @@ for specific historical questions.
 
 - Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
   never move; historical acceptance receipts remain in their owning specs.
-- Prior acceptance: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees, terminal
-  compatibility and pinned dependencies. Fork detachment must verify fork=false;
+- Owner authorized 1.6.3 / Companion 5.0.0 after full acceptance; specs/RELEASE.md.
+  Preserve terminal compatibility and pinned dependencies. Verify fork=false;
   never delete/recreate the repository.
 
 ## Project, worktree and Agent ownership

@@ -22,7 +22,7 @@ curl --fail --location --proto '=https' --tlsv1.2 --max-time 120 https://sh.rust
 bash /home/warpai-test/rustup-install.sh -y --profile minimal --default-toolchain 1.92.0
 source /home/warpai-test/.cargo/env
 cargo build -p warp-agent-bus --bin warpai-companion --locked
-test "$(target/debug/warpai-companion --version)" = 'warpai-companion 4.0.0 protocol 1'
+test "$(target/debug/warpai-companion --version)" = 'warpai-companion 5.0.0 protocol 1'
 cargo build --release -p warp-agent-bus --bin warpai-wsl-companion --features wsl_companion --locked
 python3 script/companion/package-wsl.py target/release/warpai-wsl-companion "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" "$source_revision"
 payload_directory=$(mktemp -d)
@@ -60,7 +60,7 @@ git init -q
 git -c core.hooksPath= -c user.name='Owned WSL Fixture' -c user.email=fixture@example.invalid add binary.dat example.rs preview.md image.png
 git -c core.hooksPath= -c user.name='Owned WSL Fixture' -c user.email=fixture@example.invalid commit -qm 'Owned WSL fixture'
 printf 'outside' > /home/warpai-test/outside
-test "$(/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion --version)" = 'warpai-companion 4.0.0 protocol 1'
+test "$(/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion --version)" = 'warpai-companion 5.0.0 protocol 1'
 install -m 755 /home/warpai-test/warpai-source/script/test-wsl-native-agent.py /home/warpai-test/native-agent-fixture.py
 GUEST
 install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-wsl-companion /home/warpai-other/.config/.warpai/wsl/bin/warpai-wsl-companion
