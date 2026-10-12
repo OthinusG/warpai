@@ -334,3 +334,11 @@ connection. Hold the existing in-flight guard during normalization and restore t
 waiting latch until the explicit native transport is attached. Preserve assertions.
 Windows's static type receipt must also accept workspace-library model types,
 not only the main application crate. Keep exact framework-panic matching.
+
+Owner now authorized Warpai 1.6.3 / Companion 5.0.0 after complete acceptance;
+release contract: specs/RELEASE.md. Version/package expectations are prepared,
+without tagging or publishing before the native gates pass. Review of source
+865a60b9 representative macOS captures confirms the usage footer at the viewport
+bottom, API entry with Back and no Sign in, and Simplified Chinese native worktree
+creation preserving the Coordinator without starting a worker. This is partial
+visual evidence, not final-source or Windows/Traditional Chinese acceptance.
