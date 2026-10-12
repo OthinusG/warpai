@@ -30,7 +30,7 @@ def main() -> None:
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
     panic_records = "\n".join(checkpoint.read_text(errors="replace") for checkpoint in args.output.parent.rglob("checkpoint-panic.txt"))
-    for name in ["checkpoint-panic.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-creation.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
+    for name in ["checkpoint-panic.txt", "checkpoint-singleton.txt", "checkpoint-agent-projection.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-creation.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
         for checkpoint in args.output.parent.rglob(name):
             log += "\n" + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", panic_records.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
@@ -47,6 +47,8 @@ def main() -> None:
         "private_git_errors": sorted(set(int(value) for value in re.findall(r"Native private Git error: code=(\d{1,3})\b", log))),
         "private_git_runner": [dict(stage=int(stage), exit=int(exit_code)) for stage, exit_code in re.findall(r"Native private Git runner: stage=([123]), exit=(-?\d{1,3})\b", log)],
         "panic_locations": locations,
+        "missing_singletons": sorted(set(re.findall(r"Native missing singleton: (warpai::[A-Za-z0-9_:]{1,248})\b", log))),
+        "agent_projection": [dict(zip(["connected", "remote", "project_uuid", "fixture", "online", "renamed", "run_uuid"], [value == "true" for value in values])) for values in re.findall(r"Native Agent projection: connected=(true|false), remote=(true|false), project_uuid=(true|false), fixture=(true|false), online=(true|false), renamed=(true|false), run_uuid=(true|false)\b", log)],
         "deadline_exceeded": bool(re.search(r"Native collaboration capture exceeded its \d+-second deadline", log)),
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }

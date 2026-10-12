@@ -2567,6 +2567,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     panic_directory.join("checkpoint-panic.txt"),
                     format!("{source}:{}:{}", location.line(), location.column()),
                 );
+                if source == "crates/warpui_core/src/core/app.rs" {
+                    if let Some(model) = info.payload().downcast_ref::<String>()
+                        .and_then(|message| message.strip_prefix("Cannot get singleton model of type \""))
+                        .and_then(|message| message.strip_suffix("\" that was never registered"))
+                        .filter(|model| model.starts_with("warpai::") && model.len() <= 256
+                            && model.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':'))) {
+                        // This panic contains only the framework's static Rust type name.
+                        let _ = std::fs::write(panic_directory.join("checkpoint-singleton.txt"), format!("Native missing singleton: {model}"));
+                    }
+                }
             }
         }
         previous_panic_hook(info);
@@ -5708,6 +5718,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 });
             }
             if let Some(assertion) = data.get("failed_assertion_name") {
+                if assertion == "native run and isolated scope" {
+                    eprintln!("Native checkpoint failed: native run and isolated scope");
+                    let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), assertion);
+                }
                 for name in ["interface language loaded from isolated preferences", "requested interface settings section is selected", "live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored", "confirmed WSL selection carries guest user", "owned WSL tree populated", "native editor retains WSL save source", "WSL collaboration uses guest Companion", "WSL Markdown and guest image loaded", "original Review retains WSL project authority", "WSL settings detect installed bundled component for logged-in account"] {
                     if assertion == name {
                         eprintln!("Native checkpoint failed: {name}");

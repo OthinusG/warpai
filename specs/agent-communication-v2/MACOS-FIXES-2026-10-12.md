@@ -314,3 +314,13 @@ capability, not invalid user input or a stale connection. Preserve other Git err
 categories and repository identity checks. Show localized installation guidance
 for repository collaboration. Verify in an isolated child process with an empty
 PATH, without changing the test runner's environment or installing tools.
+
+Source 528ee0a1 passed both OS protocol suites, including missing-Git child-process
+acceptance, and all three Companion platform jobs (38260398074 / 38260403582).
+The prior complete run 38255516864 passed both desktop builds, focused application
+tests, real Windows-to-WSL workspace checks and bundled installation/removal
+recovery. Native captures failed: Windows before the first step at the framework's
+missing-singleton panic; macOS at remote Agent projection. The capture parser had
+omitted existing projection receipts. Include those booleans and only the static
+Rust type name from the exact framework panic; never publish arbitrary payloads.
+Retain projection/Coordinator assertions and require another native acceptance.
