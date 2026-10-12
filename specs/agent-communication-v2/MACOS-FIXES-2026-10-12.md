@@ -387,3 +387,12 @@ native glyphs and the installation progress dialog, but the alias-expansion
 banner still renders its English button despite an existing translation. Translate
 the banner's button and Warpai-branded title at their display boundary. Repeat
 final source-matched acceptance before tagging; prior passing gates are retained.
+
+Run 38311644244 at 5f0f1372 passes macOS native acceptance, both desktop builds,
+protocols and real WSL install/removal recovery; Companion run 38311648189 passes
+all platforms. Windows English captures all 335 images, while Simplified Chinese
+has 330 and panics at `open_ssh_checkpoint` after reopening the WSL Explorer for
+Markdown. The action immediately clicks preview.md before the asynchronous tree
+has listed it. Add a bounded current-guest-tree/file-listed assertion between
+opening Explorer and clicking the file. Preserve the open-file expectation,
+preview/image assertion and all screenshots. Repeat source-matched acceptance.

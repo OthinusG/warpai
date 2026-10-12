@@ -373,6 +373,13 @@ impl FileTreeView {
     }
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn ssh_checkpoint_file_listed(&self, name: &str) -> bool {
+        self.root_directories.values().any(|directory| directory.is_remote()
+            && directory.items.iter().any(|item| matches!(item,
+                FileTreeItem::File { metadata, .. } if metadata.path.as_str().ends_with(name))))
+    }
+
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn open_ssh_checkpoint(&mut self, name: &str, ctx: &mut ViewContext<Self>) {
         let id = self
             .root_directories

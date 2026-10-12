@@ -5627,9 +5627,17 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.cancel_control(ctx));
         }))
-        .with_step(TestStep::new("open WSL Markdown in existing Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
+        .with_step(TestStep::new("wait for WSL Markdown in reopened Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
+        }).add_named_assertion("WSL Markdown listed in the current guest tree", |app, window| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)
+                .is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window)
+                    && tree.as_ref(ctx).ssh_checkpoint_file_listed("preview.md"))))
+        }))
+        .with_step(TestStep::new("open WSL Markdown in existing Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
             tree.update(app, |tree, ctx| tree.open_ssh_checkpoint("preview.md", ctx));
         }).add_named_assertion("WSL Markdown and guest image loaded", |app, window| {
