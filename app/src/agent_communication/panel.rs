@@ -2571,17 +2571,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     panic_directory.join("checkpoint-panic.txt"),
                     format!("{source}:{}:{}", location.line(), location.column()),
                 );
-                if source == "crates/warpui_core/src/core/app.rs" {
-                    if let Some(model) = info.payload().downcast_ref::<String>().map(String::as_str)
-                        .or_else(|| info.payload().downcast_ref::<&str>().copied())
-                        .and_then(|message| message.strip_prefix("Cannot get singleton model of type \""))
-                        .and_then(|message| message.strip_suffix("\" that was never registered"))
-                        .filter(|model| model.contains("::") && model.len() <= 1024
-                            && model.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"_:<>, &[]();".contains(&byte))) {
-                        // This panic contains only the framework's static Rust type name.
-                        let _ = std::fs::write(panic_directory.join("checkpoint-singleton.txt"), format!("Native missing singleton: {model}"));
-                    }
-                }
             }
         }
         previous_panic_hook(info);

@@ -4745,10 +4745,7 @@ impl GetSingletonModelHandle for AppContext {
                 .downcast()
                 .expect("a registered singleton model should never have a refcount of 0"),
             None => {
-                panic!(
-                    "Cannot get singleton model of type {:?} that was never registered",
-                    std::any::type_name::<T>()
-                );
+                unregistered_singleton_model::<T>();
             }
         }
     }
@@ -4761,11 +4758,23 @@ impl AppContext {
                 .downcast_ref(self)
                 .expect("downcast should be type safe"),
             None => {
-                panic!(
-                    "Cannot get singleton model of type {:?} that was never registered",
-                    std::any::type_name::<T>()
-                );
+                unregistered_singleton_model::<T>();
             }
         }
     }
+}
+
+fn unregistered_singleton_model<T: SingletonEntity>() -> ! {
+    #[cfg(debug_assertions)]
+    if let Some(directory) = std::env::var_os(crate::integration::ARTIFACTS_DIR_ENV_VAR) {
+        // GUI panic payloads are unavailable in some capture builds; this name is static.
+        let _ = std::fs::write(
+            std::path::PathBuf::from(directory).join("checkpoint-singleton.txt"),
+            format!("Native missing singleton: {}", std::any::type_name::<T>()),
+        );
+    }
+    panic!(
+        "Cannot get singleton model of type {:?} that was never registered",
+        std::any::type_name::<T>()
+    );
 }

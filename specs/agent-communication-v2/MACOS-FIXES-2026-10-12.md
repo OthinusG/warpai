@@ -356,3 +356,10 @@ before another full source-matched acceptance.
 Companion 5.0.0 run 38283752563 passes Linux and Windows, including installers;
 macOS passes tests but hdiutil image creation reports Resource busy. Retry that
 job once on a fresh runner without changing packaging or relaxing its gates.
+
+The macOS retry passes, completing all three Companion 5.0.0 jobs. Focused Windows
+run 38287257398 still has only the missing-singleton panic location, despite both
+standard payload representations. Remove payload extraction and record the static
+type directly at the framework's shared missing-singleton failure, debug-only
+and only in the existing integration-artifact directory. Preserve the panic.
+Native UI and a final full-source run remain required.
