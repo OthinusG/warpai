@@ -314,11 +314,15 @@ impl TerminalView {
         ctx: &mut ViewContext<Self>,
     ) {
         let shell_pid = context.shell_pid;
+        let configuration_generation = self.wsl_peer.configuration_generation;
+        let selected_client = client.clone();
         ctx.spawn(async move { request(&client, shell_pid, NativeAction::Finish { wake, submitted }).await },
             move |view, result, _| {
-                if view.wsl_peer.context.as_ref() == Some(&context) {
+                if view.wsl_peer.context.as_ref() == Some(&context)
+                    && view.wsl_peer.configuration_generation == configuration_generation
+                    && view.wsl_peer.client.as_ref().is_some_and(|client| Arc::ptr_eq(client, &selected_client)) {
                     view.wsl_peer.busy = false;
-                    if result.is_err() { view.wsl_peer.client = None; }
+                    if result.is_err() { view.wsl_peer.client = None; view.wsl_peer.unavailable = true; }
                 }
             });
     }

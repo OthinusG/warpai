@@ -253,3 +253,6 @@ The final audit also localized participant fallbacks, the inline Coordinator rol
 attempt outcomes and local evidence controls. Agent names and message content are
 preserved. Existing History Back used Text style despite Secondary paging controls;
 it now shares their style. Native projection acceptance remains a required gate.
+WSL delivery completion also checks the configuration generation and exact client
+before clearing connection state. A failed Finish request latches unavailable just
+like a failed observation; stale completions cannot overwrite an explicit retry.
