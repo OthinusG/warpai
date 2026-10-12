@@ -1,8 +1,7 @@
 # Project Memory
 
 Updated 2026-10-13. Read with [AGENTS.md](AGENTS.md) and [README.md](README.md).
-Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult only
-for specific historical questions.
+Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as needed.
 
 ## Working and delivery rules
 
