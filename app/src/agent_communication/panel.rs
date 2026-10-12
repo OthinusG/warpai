@@ -302,6 +302,7 @@ impl Snapshot {
 }
 
 pub(crate) struct CollaborationPanel {
+    window: warpui::WindowId,
     worktree_mode: bool,
     mode_buttons: [MouseStateHandle; 2],
     coordinator_dropdown: ViewHandle<Dropdown<Action>>,
@@ -405,6 +406,7 @@ impl CollaborationPanel {
             Self::schedule(ctx);
         }
         Self {
+            window: ctx.window_id(),
             worktree_mode: false,
             mode_buttons: Default::default(),
             coordinator_dropdown: ctx.add_typed_action_view(Dropdown::new),
@@ -462,12 +464,29 @@ impl CollaborationPanel {
 
     fn communication_enabled(&self, app: &warpui::AppContext) -> bool {
         let model = super::AgentCommunication::as_ref(app);
+        let active = crate::workspace::ActiveSession::as_ref(app);
+        if let Some(session) = active.session(self.window) {
+            // SSH nested inside WSL belongs to the SSH account, not the parent guest.
+            if session.ssh_arguments().is_some() || session.is_legacy_ssh_session() {
+                return true;
+            }
+            #[cfg(windows)]
+            if session.is_wsl() {
+                return model.wsl.preferences.enabled && model.wsl.targets.iter().any(|target|
+                    Some(target.distribution.as_str()) == session.wsl_distro_name()
+                        && target.user == session.user());
+            }
+            if matches!(session.session_type(), crate::terminal::model::session::SessionType::WarpifiedRemote { .. }) {
+                return true;
+            }
+        }
+        if active.remote_pending(self.window) { return true; }
         #[cfg(windows)]
         if let Some(SshConnection::Wsl { distribution, user }) = &self.remote_connection {
             return model.wsl.preferences.enabled && model.wsl.targets.iter().any(|target|
                 &target.distribution == distribution && &target.user == user);
         }
-        model.preferences.enabled
+        self.remote.is_some() || model.preferences.enabled
     }
 
     fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
@@ -633,7 +652,8 @@ impl CollaborationPanel {
         let Some((directory, terminal)) = context.clone() else {
             let status = if enabled {
                 "Select a terminal project. For remote collaboration, use ssh user@host, then cd into the project. SSH setup explains installation and shell integration."
-            } else if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) {
+            } else if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl)
+                || crate::workspace::ActiveSession::as_ref(ctx).session(self.window).is_some_and(|session| session.is_wsl()) {
                 "Enable WSL communication and select this distribution in Settings > Features."
             } else {
                 "Communication is off. Enable it in Settings > Features > Agent communication."
@@ -4727,6 +4747,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }),
         )
         .with_step(
+            TestStep::new("SSH communication is independent of the local toggle").with_action(|app, _, _| {
+                app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.preferences.enabled = false;
+                    ctx.notify();
+                }));
+            }).add_named_assertion("command-entered SSH remains enabled", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, ctx| panel.communication_enabled(ctx)
+                    && !super::AgentCommunication::as_ref(ctx).preferences.enabled))
+            }),
+        )
+        .with_step(
             TestStep::new("open Explorer after confirmed SSH cd").with_action(|app, window, _| {
                     app.update(|ctx| {
                         let sizes = ResizableData::as_ref(ctx).get_all_handles(window).unwrap();
@@ -5443,6 +5475,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.wsl.preferences.enabled = true;
+                model.preferences.enabled = false;
                 model.wsl.preferences.distribution = Some(std::env::var("WARP_TEST_WSL_DISTRIBUTION").unwrap());
                 model.wsl.preferences.user = Some(std::env::var("WARP_TEST_WSL_USER").unwrap());
                 ctx.notify();
@@ -5539,11 +5572,31 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             });
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
-        }).add_named_assertion("WSL collaboration uses guest Companion", |app, window| {
+        }).add_named_assertion("WSL collaboration uses guest Companion while local communication is off", |app, window| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             warpui::async_assert!(panel.read(app, |panel, _| panel.visible && panel.connected
                 && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. }))))
         }).with_take_screenshot("live-wsl-collaboration.png"))
+        .with_step(TestStep::new("WSL disable cannot be bypassed by local communication").with_action(|app, _, _| {
+            app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.preferences.enabled = true;
+                model.wsl.preferences.enabled = false;
+                ctx.notify();
+            }));
+        }).add_named_assertion("focused WSL uses only its own switch", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, ctx| !panel.communication_enabled(ctx) && panel.context.is_none()))
+        }))
+        .with_step(TestStep::new("restore independent WSL communication").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, _, _| {
+            app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.preferences.enabled = false;
+                model.wsl.preferences.enabled = true;
+                ctx.notify();
+            }));
+        }).add_named_assertion("guest reconnects with local communication disabled", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, ctx| panel.communication_enabled(ctx) && panel.connected))
+        }))
         .with_step(TestStep::new("open WSL Markdown in existing Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));

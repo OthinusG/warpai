@@ -116,7 +116,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     let refreshed = observer.project_tasks(&panel, 4).await.unwrap();
     assert_eq!(refreshed["value"]["coordinator_online"], true);
     let scope = refreshed["value"]["collaboration_scope"].as_str().unwrap().to_owned();
-    let message = observer.project_tasks(&TaskCommand::Scoped { scope, command: Box::new(TaskCommand::Operator(
+    let message = observer.project_tasks(&TaskCommand::Scoped { scope: scope.clone(), command: Box::new(TaskCommand::Operator(
         warp_agent_bus::Operation::AgentSend { expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }
     )) }, 5).await.unwrap();
@@ -147,13 +147,36 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     native.stdin.as_mut().unwrap().write_all(format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox.\n", wake.message_id).as_bytes()).await.unwrap();
     client.project_tasks(&native_command(NativeAction::Finish { wake, submitted: true }), 116).await.unwrap();
     let mut delivered = false;
+    let mut answered = false;
     for _ in 0..100 {
+        if !answered {
+            let questions = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+                warp_agent_bus::Operation::AgentQuestions { task_id:None, cursor:None, limit:None }
+            )) }, 117).await.unwrap();
+            if let Some(question) = questions["value"]["questions"].as_array().unwrap().iter()
+                .find(|question| question["reply_to"] == message["value"]["id"]) {
+                let answer = TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+                    warp_agent_bus::Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+                        answer:"Validate guest correlation and return the result".into(), request_id:uuid::Uuid::new_v4().to_string() }
+                )) };
+                let result = observer.project_tasks(&answer, 118).await.unwrap();
+                assert_eq!(result["value"]["to"], question["from"]);
+                assert_eq!(observer.project_tasks(&answer, 119).await.unwrap(), result);
+                answered = true;
+            }
+        }
         let (path, _) = files.download(&metadata_path).await.unwrap();
         let value: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         if value["wakes"] == 1 { delivered = true; break; }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
     assert!(delivered, "Ordinary Linux Agent must consume and acknowledge peer work through MCP");
+    assert!(answered, "WSL questions and idempotent answers must traverse the guest Store");
+    let thread = observer.project_tasks(&TaskCommand::Scoped { scope, command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ThreadGet { thread_id:message["value"]["id"].as_str().unwrap().into(), cursor:None, limit:None }
+    )) }, 120).await.unwrap();
+    assert!(thread["value"]["messages"].as_array().unwrap().iter().any(|result|
+        result["kind"] == "result_succeeded" && result["reply_to"] == message["value"]["id"]));
     drop(native.stdin.take());
     tokio::time::timeout(std::time::Duration::from_secs(10), native.wait()).await.unwrap().unwrap();
     let mut cleared = false;

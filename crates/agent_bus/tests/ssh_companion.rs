@@ -275,6 +275,17 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         .await["has_message"],
         true
     );
+    let ask = Operation::AgentAsk { task_id:None, reply_to:Some(instruction["id"].as_str().unwrap().into()),
+        question:"Confirm the expected remote fixture behavior".into(), request_id:Uuid::new_v4().to_string() };
+    let question = ssh_fixture_operation(&mut two, &mut second, ask.clone()).await;
+    assert_eq!(ssh_fixture_operation(&mut two, &mut second, ask).await["id"], question["id"]);
+    let answer = Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+        answer:"Validate correlation and return the result".into(), request_id:Uuid::new_v4().to_string() };
+    let decision = ssh_fixture_operation(&mut one, &mut first, answer.clone()).await;
+    assert_eq!(decision["to"], instruction["to"]);
+    assert_eq!(ssh_fixture_operation(&mut one, &mut first, answer).await["id"], decision["id"]);
+    ssh_fixture_operation(&mut two, &mut second,
+        Operation::AgentAck { message_id:decision["id"].as_str().unwrap().into() }).await;
     let returned = ssh_fixture_operation(
         &mut two, &mut second,
         Operation::AgentReply {

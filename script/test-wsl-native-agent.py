@@ -10,6 +10,7 @@ import shlex
 import subprocess
 import sys
 import threading
+import time
 import uuid
 
 
@@ -75,7 +76,7 @@ def main():
     rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "owned-native-wsl", "version": "1"}})
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
-    assert len(rpc("tools/list", {})["tools"]) == 32
+    assert len(rpc("tools/list", {})["tools"]) == 35
     assert tool("warp_agent_ready", {})["ready"]
     def publish(wakes):
         temporary = root / "native-session.tmp"
@@ -93,6 +94,21 @@ def main():
             inbox = tool("warp_agent_inbox", {})
             for message in inbox["messages"]:
                 if message["kind"] == "request":
+                    arguments = {"reply_to": message["id"], "question": "Confirm guest fixture acceptance",
+                                 "request_id": str(uuid.uuid4())}
+                    question = tool("warp_agent_ask", arguments)
+                    assert tool("warp_agent_ask", arguments)["id"] == question["id"]
+                    deadline = time.monotonic() + 20
+                    while True:
+                        answers = tool("warp_agent_inbox", {})["messages"]
+                        answer = next((item for item in answers if item["kind"] == "answer"
+                                       and item["reply_to"] == question["id"]), None)
+                        if answer:
+                            assert answer["to"] == message["to"]
+                            tool("warp_agent_ack", {"message_id": answer["id"]})
+                            break
+                        assert time.monotonic() < deadline, "Guest decision answer was not delivered"
+                        time.sleep(0.1)
                     returned = tool("warp_agent_reply", {
                         "reply_to": message["id"], "body": "Guest processing finished; native fixture passed",
                         "outcome": "succeeded", "request_id": str(uuid.uuid4()),

@@ -125,9 +125,11 @@ consult it only when a specific historical question requires it.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (14 issues).
-  Local/SSH/WSL share correlated request/result operations. Project delegation
-  belongs to each issuer; Worktree allocation remains Coordinator-only. Final
+- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (15 issues).
+  Local/SSH/WSL share correlated results and durable decision questions. Project
+  peers all observe and decide retry/reassignment/review; execution stays run-fenced.
+  Local/SSH/WSL enablement follows the focused terminal independently, including
+  command-entered remote sessions. Worktree allocation remains Coordinator-only. Final
   ordinary replies atomically queue results and consume requests; blocked reports
   remain unresolved. Notifications never establish execution or result handling.
 - Wake polls until idle; manual input/cancel/run replacement fences delayed Enter.

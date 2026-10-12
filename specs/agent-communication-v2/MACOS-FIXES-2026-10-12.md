@@ -26,6 +26,9 @@ Status: implementation in progress. Requested 2026-10-12; no release requested.
 14. Windows WSL settings discover confirmed logged-in WSL 2 accounts even when
     the distribution was installed/upgraded after Warpai started. Refresh registry
     metadata without logging into arbitrary accounts or weakening guest identity.
+15. Communication follows the focused terminal, including command-entered SSH
+    and WSL sessions. Local, SSH and WSL enablement are independent; pending
+    remote integration cannot fall back to the local project or local toggle.
 
 ## Implementation and constraints
 
@@ -39,8 +42,9 @@ identity, permission/draft guards and uncertain execution receipts.
 ## Delivery contract and implementation tasks
 
 Local, SSH and WSL use the same Store operations and MCP schema. Project mode
-allows any participant to delegate; the issuer owns collection and integration
-within user authorization. Worktree mode keeps the selected Coordinator's
+allows every participant to observe progress, questions, permission waits,
+deadlines and uncertain execution, and to decide retry, reassignment or review.
+The immediate issuer collects replies within user authorization. Worktree mode keeps the selected Coordinator's
 orchestration authority. Nested Project delegation returns to the immediate
 issuer, who combines results before submitting upstream.
 
@@ -61,6 +65,15 @@ issuer, who combines results before submitting upstream.
 - Task submission notifies both issuer and designated reviewer when different.
   Run identity, uncertainty and ownership fences remain authoritative. Restart
   does not imply successful handling or automatically re-execute old work.
+- `agent_ask`, `agent_answer` and `agent_questions` persist task-linked decisions.
+  Answers derive their destination from the question and UUID replay is stable.
+  Project peers share the decision record; task history retains question/answer
+  text. Old revisions retire unanswered questions. Submission/review cannot
+  bypass unresolved questions. Execution ownership remains run-fenced.
+- Task detail reports observation ages, pending answers, execution/review
+  deadlines and uncertainty. Silence and timeout do not restart execution.
+  Project decisions use current versions; the last valid decision applies,
+  while late results from retired attempts remain rejected.
 
 Execute: finish UI corrections; implement the shared contract and correlation;
 cover independent Project issuers, Worktree roles, FIFO busy replies, duplicate

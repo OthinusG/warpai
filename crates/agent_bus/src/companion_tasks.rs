@@ -694,6 +694,9 @@ impl Projects {
                     operation,
                     Operation::AgentList
                         | Operation::AgentSend { .. }
+                        | Operation::AgentReply { .. }
+                        | Operation::AgentQuestions { .. }
+                        | Operation::AgentAnswer { .. }
                         | Operation::TaskAssign { .. }
                         | Operation::TaskList { .. }
                         | Operation::TaskGet { .. }

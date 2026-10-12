@@ -43,7 +43,11 @@ place to coordinate.
 
 Choose **Project** mode for shared project communication, research and writing,
 or **Worktree** mode for parallel changes in one Git repository. Project keeps
-the team's messages, tasks and history together. In Worktree mode, select an active Agent from any checkout as Coordinator. Agents join their
+the team's messages, tasks and history together. All Project participants can
+observe progress and pending decisions, retry stopped work, reassign tasks and
+review results. Questions and answers retain their original task; busy Agents
+receive results in arrival order. Timeouts never automatically restart work.
+In Worktree mode, select an active Agent from any checkout as Coordinator. Agents join their
 repository team automatically; same-checkout Agents communicate directly and
 cross-checkout communication goes through the Coordinator. The Coordinator assigns tasks and context, collects results, requests
 peer review and chooses what to integrate. Reviewers can request changes; the
@@ -147,6 +151,10 @@ and collaboration, a full terminal, file management, in-app editing and document
 previews. Connect to a Linux, macOS or Windows machine in the
 terminal and enter your project directory; the workspace follows that terminal's
 remote `cd`.
+
+The focused terminal selects communication independently: local uses its local
+setting, WSL uses its distribution/account setting, and SSH uses the remote
+Companion. Entering SSH or WSL through a terminal command follows the same rules.
 
 The remote collaboration view supports both Project and Worktree modes, showing
 Agents, conversations, assignments and results. On one SSH host/account, select or switch

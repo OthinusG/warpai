@@ -564,6 +564,9 @@ impl Store {
             .bind::<BigInt, _>(now() as i64)
             .bind::<Text, _>(&task.id)
             .execute(&mut *self.connection.borrow_mut())?;
+        diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE task_id=? AND kind='question' AND acknowledged=0 AND (revision!=? OR ? IN ('accepted','failed','cancelled','expired'))")
+            .bind::<Text, _>(&task.id).bind::<Integer, _>(task.revision as i32).bind::<Text, _>(&task.state)
+            .execute(&mut *self.connection.borrow_mut())?;
         Ok(())
     }
 
@@ -1168,9 +1171,10 @@ impl Store {
     }
 
     pub fn task_states(&self, actor: &Agent, assignee: &str) -> Result<Vec<Value>> {
-        Ok(diesel::sql_query("SELECT id, state, revision, version FROM tasks WHERE project = ? AND assignee = ? AND archived = 0 AND (issuer = ? OR reviewer = ? OR assignee = ?) ORDER BY created_seq")
+        Ok(diesel::sql_query("SELECT id, state, revision, version FROM tasks WHERE project = ? AND assignee = ? AND archived = 0 AND (?=1 OR issuer = ? OR reviewer = ? OR assignee = ?) ORDER BY created_seq")
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(assignee)
+            .bind::<Integer, _>(i32::from(!self.worktree_mode(&actor.project)? || self.is_worktree_coordinator(actor)?))
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.id)
@@ -1195,9 +1199,12 @@ impl Store {
             .map(TaskRow::task))
     }
 
-    /// Shared queue visibility ends for nonparticipants after a successful claim.
+    /// Project peers supervise all tasks; Worktree peers retain participant scope.
     pub fn task(&self, actor: &Agent, id: &str) -> Result<Task> {
         self.authorize(actor)?;
+        if !self.worktree_mode(&actor.project)? || self.is_worktree_coordinator(actor)? {
+            return self.operator_task(&actor.project, id);
+        }
         let task = self
             .task_row(
                 &format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?)))"),
@@ -1312,6 +1319,48 @@ impl Store {
             .ok_or_else(|| scope_denied("Message not found"))
     }
 
+    fn question_message(&self, actor: &Agent, id: &str) -> Result<Message> {
+        let message = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE id=? AND project=? AND kind='question'")
+            .bind::<Text, _>(id).bind::<Text, _>(&actor.project)
+            .get_result::<MessageRow>(&mut *self.connection.borrow_mut()).optional()?
+            .map(MessageRow::message).ok_or_else(|| scope_denied("Question not found"))?;
+        ensure!(actor.program == OPERATOR_PROGRAM || !self.worktree_mode(&actor.project)? || message.from == actor.id || message.to == actor.id
+            || (message.task_id.is_some() && self.is_worktree_coordinator(actor)?), scope_denied("Question not found"));
+        Ok(message)
+    }
+
+    fn questions(&self, actor: &Agent, task_id: Option<&str>, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
+        if let Some(task_id) = task_id { self.actor_task(actor, task_id)?; }
+        let limit = Self::page_limit(limit)?;
+        let all = actor.program == OPERATOR_PROGRAM || !self.worktree_mode(&actor.project)?;
+        let coordinator = self.is_worktree_coordinator(actor)?;
+        let rows = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE project=? AND kind='question' AND acknowledged=0 AND (? IS NULL OR task_id=?) AND sequence>? AND (?=1 OR sender=? OR recipient=? OR (?=1 AND task_id IS NOT NULL)) ORDER BY sequence LIMIT ?")
+            .bind::<Text, _>(&actor.project).bind::<Nullable<Text>, _>(task_id).bind::<Nullable<Text>, _>(task_id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<Integer, _>(i32::from(all))
+            .bind::<Text, _>(&actor.id).bind::<Text, _>(&actor.id).bind::<Integer, _>(i32::from(coordinator))
+            .bind::<BigInt, _>(limit as i64 + 1).load::<MessageRow>(&mut *self.connection.borrow_mut())?;
+        let (questions, cursor) = bounded_items(rows.into_iter().map(MessageRow::message)
+            .map(|message| (message.sequence, message)), limit)?;
+        Ok(json!({"questions":questions,"cursor":cursor}))
+    }
+
+    fn task_supervision(&self, task: &Task) -> Result<Value> {
+        let event = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE resource=? AND project=? AND json_extract(payload, '$.revision')=? AND kind IN ('task_started','task_progress','task_submitted','task_failed') ORDER BY sequence DESC LIMIT 1")
+            .bind::<Text, _>(&task.id).bind::<Text, _>(&task.project).bind::<Integer, _>(task.revision as i32)
+            .get_result::<EventRow>(&mut *self.connection.borrow_mut()).optional()?.map(EventRow::event);
+        let last = event.as_ref().and_then(|event| event.observed_at);
+        let waiting_reason = event.as_ref().filter(|_| matches!(task.state.as_str(), "running" | "cancel_requested"))
+            .and_then(|event| event.payload["waiting_reason"].as_str());
+        let questions = self.count("SELECT COUNT(*) AS count FROM messages WHERE task_id=? AND kind='question' AND acknowledged=0", &[&task.id])?;
+        Ok(json!({"last_progress_at":last,"progress_age_ms":last.map(|at| now().saturating_sub(at)),
+            "last_progress":event.as_ref().map(|event| &event.payload),"waiting_reason":waiting_reason,
+            "waiting_for_answer":questions > 0,"open_questions":questions,
+            "execution_overdue":task.execution_deadline.is_some_and(|at| now() >= at),
+            "review_overdue":task.review_deadline.is_some_and(|at| now() >= at),
+            "execution_uncertain":self.unresolved_attempts(&task.id, Some(task.revision))?.iter().any(|attempt| attempt.certainty == "unknown"),
+            "automatic_retry":false}))
+    }
+
     fn resolve(&self, actor: &Agent, name: &str) -> Result<Agent> {
         let recipient = self.agent(&actor.project, name)?;
         self.authorize(&recipient)?;
@@ -1385,6 +1434,9 @@ impl Store {
             },
             None => None,
         };
+        if !self.worktree_mode(&actor.project)? {
+            return self.operator_tasks(&actor.project, state, assignee.as_deref(), cursor, Some(limit), include_archived);
+        }
         let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?))) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
@@ -1526,7 +1578,14 @@ impl Store {
                     *include_archived,
                 );
             }
-            Operation::TaskGet { task_id } => return Ok(json!(self.actor_task(actor, task_id)?)),
+            Operation::TaskGet { task_id } => {
+                let task = self.actor_task(actor, task_id)?;
+                let mut value = serde_json::to_value(&task)?;
+                value["supervision"] = self.task_supervision(&task)?;
+                return Ok(value);
+            }
+            Operation::AgentQuestions { task_id, cursor, limit } =>
+                return self.questions(actor, task_id.as_deref(), *cursor, *limit),
             Operation::TaskHistory { task_id, cursor, limit } => return self.task_history(actor, task_id, *cursor, *limit),
             Operation::ThreadGet {
                 thread_id,
@@ -1757,6 +1816,62 @@ impl Store {
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         match operation {
             Operation::TaskIntegrate { task_id, commit, .. } => self.integrate_task(actor, task_id, commit.as_deref()),
+            Operation::AgentAsk { task_id, reply_to, question, .. } => {
+                text(question)?;
+                self.budget_available()?;
+                ensure!(task_id.is_some() || reply_to.is_some(), invalid_input("A question requires its task or original instruction"));
+                let parent = reply_to.as_ref().map(|id| self.visible_message(actor, id)).transpose()?;
+                if let Some(parent) = &parent {
+                    ensure!(!parent.acknowledged, invalid_state("This instruction is already resolved"));
+                    ensure!(parent.to == actor.id && matches!(parent.kind.as_str(), "request" | "message"),
+                        unauthorized("Ask about an instruction addressed to you"));
+                    if let (Some(explicit), Some(inherited)) = (task_id, &parent.task_id) {
+                        ensure!(explicit == inherited, invalid_input("Question task does not match its instruction"));
+                    }
+                }
+                let linked = task_id.clone().or_else(|| parent.as_ref().and_then(|m| m.task_id.clone()));
+                let task = linked.as_ref().map(|id| self.actor_task(actor, id)).transpose()?;
+                if let Some(task) = &task {
+                    ensure!(!matches!(task.state.as_str(), "accepted" | "failed" | "cancelled" | "expired"),
+                        invalid_state("This task no longer needs a decision"));
+                    if task.assignee == actor.id && task.state == "running" {
+                        ensure!(self.confirmable_attempts(task, actor, run)?.iter().any(|a| a.owner == actor.id && a.run == run),
+                            stale_attempt("Question does not belong to your active execution", task.version));
+                    }
+                }
+                let recipient = parent.as_ref().map(|m| m.from.clone()).or_else(|| task.as_ref().map(|t| t.issuer.clone())).unwrap();
+                let message = self.queue(&actor.project, Message {
+                    id:String::new(), from:actor.id.clone(), to:recipient, body:question.clone(), subject:Some("Decision needed".into()),
+                    thread_id:parent.as_ref().map(|m| m.thread_id.clone().unwrap_or_else(|| m.id.clone())),
+                    reply_to:reply_to.clone(), task_id:linked.clone(), revision:task.as_ref().map(|t| t.revision),
+                    kind:"question".into(), acknowledged:false, sequence:0,
+                })?;
+                self.record(&actor.project, "question_asked", &actor.id, linked.as_deref(), None,
+                    json!({"question_id":message.id,"question":question,"run":run,"revision":message.revision}))?;
+                Ok(json!(message))
+            }
+            Operation::AgentAnswer { question_id, answer, .. } => {
+                text(answer)?;
+                self.budget_available()?;
+                let question = self.question_message(actor, question_id)?;
+                ensure!(actor.program == OPERATOR_PROGRAM || question.to == actor.id || !self.worktree_mode(&actor.project)?
+                    || (question.task_id.is_some() && self.is_worktree_coordinator(actor)?), unauthorized("Only an authorized decision maker can answer"));
+                ensure!(!question.acknowledged, invalid_state("This question is already answered or retired"));
+                if let Some(id) = &question.task_id {
+                    let task = self.actor_task(actor, id)?;
+                    ensure!(question.revision == Some(task.revision), stale_revision("Question belongs to an old revision", task.version));
+                }
+                let result = self.queue(&actor.project, Message {
+                    id:String::new(), from:actor.id.clone(), to:question.from, body:answer.clone(), subject:Some("Decision answer".into()),
+                    thread_id:question.thread_id.or_else(|| Some(question.id.clone())), reply_to:Some(question.id.clone()),
+                    task_id:question.task_id.clone(), revision:question.revision, kind:"answer".into(), acknowledged:false, sequence:0,
+                })?;
+                diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE id=?")
+                    .bind::<Text, _>(question_id).execute(&mut *self.connection.borrow_mut())?;
+                self.record(&actor.project, "question_answered", &actor.id, question.task_id.as_deref(), None,
+                    json!({"question_id":question_id,"answer_message_id":result.id,"answer":answer,"run":run}))?;
+                Ok(json!(result))
+            }
             Operation::AgentReply { reply_to, body, outcome, .. } => {
                 self.budget_available()?;
                 text(body)?;
@@ -1764,6 +1879,10 @@ impl Store {
                 ensure!(parent.to == actor.id, unauthorized("Only the recipient can return a result"));
                 ensure!(matches!(parent.kind.as_str(), "message" | "request"),
                     invalid_state("Only peer instructions can receive processing results"));
+                if !matches!(outcome, crate::ReplyOutcome::Blocked) {
+                    ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind='question' AND acknowledged=0", &[reply_to])? == 0,
+                        invalid_state("Resolve outstanding questions before returning a final result"));
+                }
                 ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[reply_to])? == 0,
                     invalid_state("This instruction already has a final result"));
                 let kind = match outcome {
@@ -1846,6 +1965,8 @@ impl Store {
             Operation::AgentAck { message_id } => {
                 let message = self.visible_message(actor, message_id)?;
                 ensure!(message.to == actor.id, unauthorized("Only the recipient can acknowledge a message"));
+                ensure!(message.kind != "question" || message.acknowledged,
+                    invalid_state("Answer the question instead of discarding it"));
                 ensure!(message.kind != "request" || message.acknowledged,
                     invalid_state("Return a final processing result before acknowledging this request"));
                 if message.kind.starts_with("result_") {
@@ -2102,6 +2223,8 @@ impl Store {
                         stale_attempt("Execution attempt was replaced", task.version)
                     );
                 }
+                ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE task_id=? AND kind='question' AND acknowledged=0", &[&task.id])? == 0,
+                    invalid_state("Resolve outstanding questions before submitting work"));
                 self.validate_evidence_ids(&task, evidence_ids)?;
                 diesel::sql_query("UPDATE attempts SET certainty='finished', outcome='submitted', finished_at=? WHERE id=?")
                     .bind::<BigInt, _>(now() as i64)
@@ -2160,7 +2283,7 @@ impl Store {
                 text(feedback)?;
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.reviewer == actor.id || actor.program == OPERATOR_PROGRAM,
+                    task.reviewer == actor.id || actor.program == OPERATOR_PROGRAM || !self.worktree_mode(&actor.project)?,
                     unauthorized("Task reviewer does not match")
                 );
                 ensure!(
@@ -2174,9 +2297,11 @@ impl Store {
                     );
                 }
                 ensure!(
-                    task.state == "submitted",
-                    invalid_state("Task is not submitted")
+                    task.state == "submitted" || (task.state == "accepted" && !self.worktree_mode(&actor.project)?),
+                    invalid_state("Task has no current submitted result")
                 );
+                ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE task_id=? AND kind='question' AND acknowledged=0", &[&task.id])? == 0,
+                    invalid_state("Resolve outstanding questions before reviewing work"));
                 self.ack_task_notification(&task.id, &actor.id)?;
                 diesel::sql_query("INSERT INTO feedback(task_id, revision, author, body, accepted, created_at) VALUES (?,?,?,?,?,?)")
                     .bind::<Text, _>(&task.id)
@@ -2451,7 +2576,7 @@ impl Store {
                 text(reason)?;
                 let task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? || !self.worktree_mode(&actor.project)?,
                     unauthorized("Only the issuer or operator can cancel a task")
                 );
                 if let Some(expected) = expected_version {
@@ -2623,7 +2748,7 @@ impl Store {
                 self.budget_available()?;
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? || !self.worktree_mode(&actor.project)?,
                     unauthorized("Only the issuer or operator can retry a task")
                 );
                 ensure!(
@@ -2706,7 +2831,7 @@ impl Store {
                 self.budget_available()?;
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? || !self.worktree_mode(&actor.project)?,
                     unauthorized("Only the issuer or operator can reassign a task")
                 );
                 ensure!(
@@ -2796,7 +2921,7 @@ impl Store {
             } => {
                 let mut task = self.actor_task(actor, task_id)?;
                 ensure!(
-                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?,
+                    task.issuer == actor.id || actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? || !self.worktree_mode(&actor.project)?,
                     unauthorized("Only the issuer or operator can change prerequisites")
                 );
                 ensure!(
@@ -3246,7 +3371,7 @@ impl Store {
 
     /// Task notifications end through their transition; this clears every outstanding one.
     fn ack_task_notification(&self, task_id: &str, agent: &str) -> Result<()> {
-        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND acknowledged = 0 AND kind NOT IN ('request','message','result_succeeded','result_failed','result_blocked')")
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND acknowledged = 0 AND kind NOT IN ('request','message','result_succeeded','result_failed','result_blocked','question','answer')")
             .bind::<Text, _>(agent)
             .bind::<Text, _>(task_id)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -5281,6 +5406,78 @@ mod tests {
     }
 
     #[test]
+    fn project_peers_share_decisions_and_answers_return_only_to_the_asker() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let peer = actor(&store, "peer");
+        let foreign = store.register("foreign", "claude", "/foreign", "foreign").unwrap();
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        store.execute(&worker, "worker-run", &transition(id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let progress: Operation = serde_json::from_value(json!({"op":"task_progress", "task_id":id,
+            "revision":1, "note":"Inspected the existing interface", "waiting_reason":"Awaiting API decision",
+            "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&worker, "worker-run", &progress).unwrap();
+        let ask = Operation::AgentAsk { task_id:Some(id.into()), reply_to:None,
+            question:"Which API contract should I implement?".into(), request_id:Uuid::new_v4().to_string() };
+        let question = store.execute(&worker, "worker-run", &ask).unwrap();
+        assert_eq!(store.execute(&worker, "worker-run", &ask).unwrap(), question);
+        let query = Operation::AgentQuestions { task_id:Some(id.into()), cursor:None, limit:None };
+        assert_eq!(store.execute(&peer, "peer-run", &query).unwrap()["questions"][0]["id"], question["id"]);
+        assert_eq!(code(&store.execute(&foreign, "foreign-run", &query).unwrap_err()), "scope_denied");
+        let detail = store.execute(&peer, "peer-run", &Operation::TaskGet { task_id:id.into() }).unwrap();
+        assert_eq!(detail["supervision"]["waiting_for_answer"], true);
+        assert_eq!(detail["supervision"]["automatic_retry"], false);
+        assert_eq!(detail["supervision"]["waiting_reason"], "Awaiting API decision");
+        assert!(detail["supervision"]["last_progress_at"].is_number());
+        assert_eq!(code(&store.execute(&worker, "worker-run", &submit(id, 1, None, &Uuid::new_v4().to_string())).unwrap_err()), "invalid_state");
+        let answer = Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+            answer:"Use the existing v2 contract.".into(), request_id:Uuid::new_v4().to_string() };
+        let result = store.execute(&peer, "peer-run", &answer).unwrap();
+        assert_eq!(result["to"], worker.id);
+        assert_eq!(result["reply_to"], question["id"]);
+        assert_eq!(result["task_id"], id);
+        assert_eq!(store.execute(&peer, "peer-run", &answer).unwrap(), result);
+        let duplicate = Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+            answer:"Another answer".into(), request_id:Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&issuer, "issuer-run", &duplicate).unwrap_err()), "invalid_state");
+        assert!(store.execute(&peer, "peer-run", &query).unwrap()["questions"].as_array().unwrap().is_empty());
+        assert!(store.inbox(&worker, None, None).unwrap()["messages"].as_array().unwrap().iter().any(|m| m["id"] == result["id"]));
+        store.execute(&worker, "worker-run", &submit(id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        let accepted = store.execute(&peer, "peer-run", &review(id, 1, true, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(accepted["state"], "accepted");
+        let rework = store.execute(&issuer, "issuer-run", &review(id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(rework["revision"], 2);
+        assert_eq!(rework["state"], "queued");
+        let history = store.task_history(&peer, id, None, None).unwrap();
+        assert!(history["events"].as_array().unwrap().iter().any(|e| e["kind"] == "question_answered" && e["payload"]["answer"] == "Use the existing v2 contract."));
+    }
+
+    #[test]
+    fn task_revision_changes_retire_questions_without_erasing_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("decisions.sqlite");
+        let store = Store::open(path.to_str().unwrap()).unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let peer = actor(&store, "peer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        let question = store.execute(&worker, "worker-run", &Operation::AgentAsk { task_id:Some(id.into()), reply_to:None,
+            question:"Need approval before starting".into(), request_id:Uuid::new_v4().to_string() }).unwrap();
+        let reassign: Operation = serde_json::from_value(json!({"op":"task_reassign", "task_id":id,
+            "assignee":"peer", "reason":"Change owner before execution", "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&peer, "peer-run", &reassign).unwrap();
+        drop(store);
+        let store = Store::open(path.to_str().unwrap()).unwrap();
+        let answer = Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+            answer:"Obsolete approval".into(), request_id:Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&issuer, "issuer-run", &answer).unwrap_err()), "invalid_state");
+        assert!(store.task_history(&peer, id, None, None).unwrap()["events"].as_array().unwrap().iter().any(|e| e["kind"] == "question_asked"));
+    }
+
+    #[test]
     fn attempts_versions_and_events_commit_with_transitions() {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
@@ -5424,7 +5621,7 @@ mod tests {
                 &review(&task_id, 1, true, &Uuid::new_v4().to_string()),
             )
             .is_err());
-        let outsider = actor(&store, "reviewer");
+        let outsider = store.register("foreign-reviewer", "claude", "/foreign", "reviewer").unwrap();
         let foreign_task = store
             .execute(
                 &outsider,
@@ -6224,7 +6421,7 @@ mod tests {
         assert_eq!(detail.attempts.len(), 16);
         assert_eq!(detail.feedback.len(), 8);
         assert_eq!(detail.feedback.last().unwrap(), "Check again 20");
-        assert_eq!(code(&store.task_history(&stranger, id, None, None).unwrap_err()), "scope_denied");
+        assert!(!store.task_history(&stranger, id, None, None).unwrap()["events"].as_array().unwrap().is_empty());
         // History must survive expiry of the response cache.
         diesel::sql_query("DELETE FROM requests").execute(&mut *store.connection.borrow_mut()).unwrap();
         let mut cursor = None;
@@ -6541,7 +6738,7 @@ mod tests {
                 },
             )
             .unwrap_err();
-        assert_eq!(code(&loser), "scope_denied");
+        assert_eq!(code(&loser), "invalid_state");
         let second_pool = store
             .execute(
                 &issuer,
@@ -6571,7 +6768,7 @@ mod tests {
                 },
             )
             .unwrap_err();
-        assert_eq!(code(&ineligible), "scope_denied");
+        assert_eq!(code(&ineligible), "unauthorized");
         store
             .execute(
                 &other,

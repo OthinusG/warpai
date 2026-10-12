@@ -42,7 +42,7 @@ fn managed_agent_child() {
             assert_eq!(response["id"], id);
             assert!(response.get("error").is_none());
             if id == 2 {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 32);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 35);
             }
         }
         drop(input);
@@ -91,7 +91,7 @@ fn managed_agent_child() {
                 use warp_agent_bus::transport::*;
                 operation_sequence += 1;
                 let operation: warp_agent_bus::Operation = serde_json::from_str(value).unwrap();
-                let result = call(
+                let mut result = call(
                     &std::env::var(ENDPOINT).unwrap(),
                     &Request {
                         protocol_major: PROTOCOL_MAJOR,
@@ -105,14 +105,9 @@ fn managed_agent_child() {
                     },
                 )
                 .unwrap();
-                println!(
-                    "FIXTURE_RESULT_{operation_sequence}={}",
-                    serde_json::json!({
-                        "id": result["id"], "attempt_id": result["attempt_id"], "state": result["state"],
-                        "has_message": result["messages"].as_array().is_some_and(|messages|
-                            messages.iter().any(|message| message["body"] == "Remote fixture message"))
-                    })
-                );
+                result["has_message"] = serde_json::json!(result["messages"].as_array().is_some_and(|messages|
+                    messages.iter().any(|message| message["body"] == "Remote fixture message")));
+                println!("FIXTURE_RESULT_{operation_sequence}={result}");
             }
         }
     }

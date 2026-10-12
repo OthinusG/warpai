@@ -221,3 +221,22 @@ unchanged. See [the acceptance contract](WORKTREE-COLLABORATION.md).
 The additive file-chunk fields/actions and capability are specified in
 [the WSL contract](../wsl-1.6.0/TECH.md). Protocol major remains 1.
 SSH clients retain SFTP; WSL requires project_file_chunks before file access.
+
+## Peer supervision and decisions (2026-10-12)
+
+Additive MCP operations shared by local, SSH and WSL:
+`agent_ask {task_id?, reply_to?, question, request_id}` requires a task or original
+instruction; `agent_answer {question_id, answer, request_id}` routes exclusively
+to the asker and consumes the question atomically; `agent_questions
+{task_id?, cursor?, limit?}` pages unresolved questions in arrival order.
+Mutation UUID replay preserves the original response and never duplicates a
+question or answer. Project participants can inspect and answer shared questions
+and supervise all project tasks. Worktree participation restrictions remain.
+Question/answer events preserve task-linked decision history; revision changes
+retire obsolete questions. Pending decisions prevent submission and review.
+Task detail adds `supervision` with observation age, pending-answer count,
+deadline flags and execution uncertainty. Agent discovery adds last-observed and
+last-output timestamps and whether the observation is confirmed. None of these
+observations authorizes automatic re-execution. Decisions retain version/run
+fences and history. Capabilities: `correlated_results`, `decision_questions`,
+`project_supervision`; protocol major is unchanged.

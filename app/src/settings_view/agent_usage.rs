@@ -133,6 +133,7 @@ impl TypedActionView for UsageSettingsView {
                 ctx.notify();
             }
             Action::Add => {
+                if self.api_input && self.credential.as_ref(ctx).buffer_text(ctx).trim().is_empty() { return; }
                 let label = self.label.as_ref(ctx).buffer_text(ctx).trim().to_owned();
                 let context = self.context.as_ref(ctx).buffer_text(ctx).trim().to_owned();
                 let credential = self
@@ -236,7 +237,8 @@ impl View for UsageSettingsView {
             let button = builder
                 .button(ButtonVariant::Secondary, self.buttons[index].clone())
                 .with_text_label(label.to_owned());
-            let button = if model.checking {
+            let button = if model.checking || (index == 0 && self.api_input
+                && self.credential.as_ref(app).buffer_text(app).trim().is_empty()) {
                 button.disabled()
             } else {
                 button

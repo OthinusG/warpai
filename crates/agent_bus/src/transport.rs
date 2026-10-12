@@ -37,7 +37,7 @@ pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
 pub const TERMINAL: &str = "WARP_TERMINAL_SESSION_UUID";
 pub const PROTOCOL_MAJOR: u16 = 2;
 pub const LOCAL_FEATURES: &[&str] = &[
-    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history",
+    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history", "correlated_results", "decision_questions", "project_supervision",
 ];
 const WAIT: Duration = Duration::from_secs(20);
 #[derive(Clone, Serialize, Deserialize)]
@@ -1186,6 +1186,9 @@ impl Broker {
                     agent["activity"] = json!(live.activity);
                     agent["native_activity"] = json!(live.native_activity);
                     agent["readiness_source"] = json!(live.readiness_source);
+                    agent["last_observed_ms"] = json!(live.observed.elapsed().as_millis() as u64);
+                    agent["last_output_ms"] = json!(live.last_output.elapsed().as_millis() as u64);
+                    agent["observation_confirmed"] = json!(live.native_activity.is_some());
                     agent["paused"] = json!(live.paused);
                     agent["has_draft"] = json!(!live.draft.is_empty() || live.rich_draft);
                     agent["draft_state"] = json!(if live.rich_draft { "present" } else { live.draft.state() });
@@ -1223,6 +1226,10 @@ impl Broker {
             let (online, interrupted) = task_runtime(&state, &task);
             result["assignee_online"] = json!(online);
             result["interrupted"] = json!(interrupted);
+            result["supervision"]["assignee_online"] = json!(online);
+            result["supervision"]["execution_uncertain"] = json!(
+                result["supervision"]["execution_uncertain"].as_bool().unwrap_or(false)
+                    || (interrupted && matches!(task.state.as_str(), "running" | "cancel_requested")));
         }
         if matches!(
             request.operation,

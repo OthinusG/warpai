@@ -235,6 +235,27 @@ pub enum Operation {
         outcome: ReplyOutcome,
         request_id: String,
     },
+    AgentAsk {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reply_to: Option<String>,
+        question: String,
+        request_id: String,
+    },
+    AgentAnswer {
+        question_id: String,
+        answer: String,
+        request_id: String,
+    },
+    AgentQuestions {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     AgentInbox {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<u64>,
@@ -497,6 +518,8 @@ impl Operation {
             Self::TaskIntegrate { request_id, .. }
             | Self::AgentSend { request_id, .. }
             | Self::AgentReply { request_id, .. }
+            | Self::AgentAsk { request_id, .. }
+            | Self::AgentAnswer { request_id, .. }
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }
