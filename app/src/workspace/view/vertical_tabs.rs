@@ -5758,7 +5758,7 @@ fn render_compact_subtitle_option(
     const FONT_SIZE: f32 = 12.;
     const GAP: f32 = 8.;
 
-    let label = label.to_string();
+    let label = warpui::localization::text(label).to_owned();
     let main_text = theme.main_text_color(theme.background());
     Hoverable::new(mouse_state, move |hover_state| {
         let check_icon: Box<dyn Element> = if is_selected {
@@ -5811,7 +5811,7 @@ fn render_tab_item_mode_option(
     const FONT_SIZE: f32 = 12.;
     const GAP: f32 = 8.;
 
-    let label = label.to_string();
+    let label = warpui::localization::text(label).to_owned();
     let main_text = theme.main_text_color(theme.background());
     Hoverable::new(mouse_state, move |hover_state| {
         let check_icon: Box<dyn Element> = if is_selected {
@@ -5864,7 +5864,7 @@ fn render_primary_info_option(
     const FONT_SIZE: f32 = 12.;
     const GAP: f32 = 8.;
 
-    let label = label.to_string();
+    let label = warpui::localization::text(label).to_owned();
     let main_text = theme.main_text_color(theme.background());
     Hoverable::new(mouse_state, move |hover_state| {
         let check_icon: Box<dyn Element> = if is_selected {
@@ -5925,7 +5925,7 @@ fn render_show_toggle_option(
     const INFO_ICON_SIZE: f32 = 12.;
     const INFO_GAP: f32 = 4.;
 
-    let label = label.to_string();
+    let label = warpui::localization::text(label).to_owned();
     let main_text = theme.main_text_color(theme.background());
     let info_color = theme.sub_text_color(theme.background());
     let ui_builder = appearance.ui_builder().clone();
@@ -6050,7 +6050,7 @@ fn render_popup_text_segment(
     appearance: &Appearance,
     theme: &WarpTheme,
 ) -> Box<dyn Element> {
-    let label = label.to_string();
+    let label = warpui::localization::text(label).to_owned();
     let main_text = theme.main_text_color(theme.background());
     let sub_text = theme.sub_text_color(theme.background());
     Hoverable::new(mouse_state, move |hover_state| {

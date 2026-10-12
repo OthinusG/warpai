@@ -7596,7 +7596,7 @@ impl SettingsWidget for GraphicsBackendWidget {
         let theme = appearance.theme();
         let dropdown = render_dropdown_item(
             appearance,
-            "Preferred graphics backend",
+            warpui::localization::text("Preferred graphics backend"),
             None,
             None,
             LocalOnlyIconState::for_setting(

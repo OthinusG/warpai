@@ -127,7 +127,7 @@ pub fn render_chip_editor_modal<A: Action + Clone + Copy + 'static>(
 fn render_header(title: &str, appearance: &Appearance) -> Box<dyn Element> {
     appearance
         .ui_builder()
-        .span(title.to_string())
+        .span(warpui::localization::text(title).to_owned())
         .with_style(UiComponentStyles {
             font_size: Some(MODAL_TITLE_FONT_SIZE),
             font_weight: Some(warpui::fonts::Weight::Bold),
@@ -167,7 +167,7 @@ fn render_restore_default_button<A: Action + Clone + Copy + 'static>(
 fn render_section_label(label: &str, appearance: &Appearance) -> Box<dyn Element> {
     appearance
         .ui_builder()
-        .span(label.to_string())
+        .span(warpui::localization::text(label).to_owned())
         .with_style(UiComponentStyles {
             font_size: Some(MODAL_CONTENT_FONT_SIZE),
             font_weight: Some(warpui::fonts::Weight::Semibold),
@@ -205,7 +205,7 @@ pub fn render_chip_editor_sections<A: Action + Clone + Copy + 'static>(
     );
 
     let left_section = Flex::column()
-        .with_child(render_section_label("Left side", appearance))
+        .with_child(render_section_label(warpui::localization::text("Left side"), appearance))
         .with_child(
             Container::new(chip_configurator.render_left_drop_zone(
                 config.activate_action,
@@ -218,7 +218,7 @@ pub fn render_chip_editor_sections<A: Action + Clone + Copy + 'static>(
         .finish();
 
     let right_section = Flex::column()
-        .with_child(render_section_label("Right side", appearance))
+        .with_child(render_section_label(warpui::localization::text("Right side"), appearance))
         .with_child(
             Container::new(chip_configurator.render_right_drop_zone(
                 config.activate_action,
@@ -270,7 +270,7 @@ fn render_primary_button<A: Action + Clone + Copy + 'static>(
     let mut button = appearance
         .ui_builder()
         .button(variant, mouse_state_handle.clone())
-        .with_text_label(label)
+        .with_text_label(warpui::localization::text(&label).to_owned())
         .with_style(UiComponentStyles {
             padding: Some(padding),
             font_size: Some(MODAL_CONTENT_FONT_SIZE),

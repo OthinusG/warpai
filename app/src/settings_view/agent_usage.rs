@@ -74,7 +74,7 @@ impl UsageSettingsView {
                     },
                     ctx,
                 );
-                editor.set_placeholder_text(placeholder, ctx);
+                editor.set_placeholder_text(warpui::localization::text(placeholder), ctx);
                 editor
             })
         };
@@ -122,11 +122,11 @@ impl TypedActionView for UsageSettingsView {
                 self.provider = *provider;
                 self.context.update(ctx, |editor, ctx| {
                     editor.set_placeholder_text(
-                        if *provider == Provider::OpenCodeZen {
+                        warpui::localization::text(if *provider == Provider::OpenCodeZen {
                             "Workspace ID (required for Zen balance)"
                         } else {
                             "Account / project / workspace ID (optional)"
-                        },
+                        }),
                         ctx,
                     )
                 });
@@ -213,7 +213,7 @@ impl View for UsageSettingsView {
             body.add_child(ChildView::new(&self.context).finish());
         }
         if self.api_input {
-            body.add_child(builder.paragraph(self.provider.credential_hint().to_owned()).build().finish());
+            body.add_child(builder.paragraph(warpui::localization::text(self.provider.credential_hint()).to_owned()).build().finish());
         }
         body.add_child(Flex::row().with_spacing(8.)
             .with_child(builder.checkbox(self.buttons[5].clone(), None).check(self.detect_5h)
@@ -236,7 +236,7 @@ impl View for UsageSettingsView {
             { continue; }
             let button = builder
                 .button(ButtonVariant::Secondary, self.buttons[index].clone())
-                .with_text_label(label.to_owned());
+                .with_text_label(warpui::localization::text(label).to_owned());
             let button = if model.checking || (index == 0 && self.api_input
                 && self.credential.as_ref(app).buffer_text(app).trim().is_empty()) {
                 button.disabled()
@@ -252,7 +252,7 @@ impl View for UsageSettingsView {
         }
         body.add_child(buttons.finish());
         if !model.status.is_empty() {
-            body.add_child(builder.paragraph(model.status.clone()).build().finish());
+            body.add_child(builder.paragraph(warpui::localization::text(&model.status).to_owned()).build().finish());
         }
         for account in &model.accounts {
             let states = self
@@ -298,7 +298,7 @@ impl View for UsageSettingsView {
                 row.add_child(
                     builder
                         .button(ButtonVariant::Secondary, states[index].clone())
-                        .with_text_label(label.to_owned())
+                        .with_text_label(warpui::localization::text(label).to_owned())
                         .build()
                         .on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone()))
                         .finish(),

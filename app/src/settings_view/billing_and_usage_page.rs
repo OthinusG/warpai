@@ -2920,7 +2920,7 @@ impl UsageWidget {
                 .with_child(
                     build_sub_header(
                         appearance,
-                        "Usage",
+                        warpui::localization::text("Usage"),
                         Some(
                             appearance
                                 .theme()

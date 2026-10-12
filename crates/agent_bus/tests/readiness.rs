@@ -364,7 +364,7 @@ async fn assigned_task_completion_restores_readiness_without_another_turn() {
         server.broker.readiness("worker", true);
         tokio::time::sleep(Duration::from_millis(850)).await;
         let hidden = status(&server, &peers[2], "worker").await;
-        assert_eq!(hidden["tasks"][0]["id"], task["id"]);
+        assert!(hidden["tasks"].as_array().unwrap().iter().any(|visible| visible["id"] == task["id"]));
         assert_eq!(hidden["can_auto_submit"], true);
         assert_eq!(
             hidden["can_start_task"], false,

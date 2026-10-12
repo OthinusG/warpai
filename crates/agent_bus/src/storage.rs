@@ -1396,7 +1396,9 @@ impl Store {
             "last_observed_at":observed_at,"observation_age_ms":observed_at.map(|at| now().saturating_sub(at)),
             "last_observation":native,"disconnected":disconnected,
             "waiting_for_permission":active && !disconnected && native.is_some_and(|value| value["activity"] == "waiting_approval"),
-            "waiting_for_permission_or_input":active && !disconnected && native.is_some_and(|value| value["blocked"] == true),
+            "waiting_for_input":active && !disconnected && native.is_some_and(|value| value["activity"] == "waiting_input"),
+            "waiting_for_permission_or_input":active && !disconnected && native.is_some_and(|value| value["blocked"] == true
+                || matches!(value["activity"].as_str(), Some("waiting_approval" | "waiting_input"))),
             "last_progress":event.as_ref().map(|event| &event.payload),"waiting_reason":waiting_reason,
             "waiting_for_answer":questions > 0,"open_questions":questions,
             "execution_overdue":task.execution_deadline.is_some_and(|at| now() >= at),

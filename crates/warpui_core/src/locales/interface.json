@@ -1,4 +1,216 @@
 {
+  "Connect": [
+    "连接",
+    "連線"
+  ],
+  "Uses the current agy login (requires 1.1.11 or newer)": [
+    "使用当前的 agy 登录账号（需要 1.1.11 或更新版本）",
+    "使用目前的 agy 登入帳號（需要 1.1.11 或更新版本）"
+  ],
+  "Dashboard cookie (stored in OS credential storage)": [
+    "控制台 Cookie（保存在操作系统凭据存储中）",
+    "控制台 Cookie（儲存在作業系統憑證存放區）"
+  ],
+  "API key (stored in OS credential storage)": [
+    "API 密钥（保存在操作系统凭据存储中）",
+    "API 金鑰（儲存在作業系統憑證存放區）"
+  ],
+  "Workspace ID (required for Zen balance)": [
+    "工作区 ID（查询 Zen 余额时必填）",
+    "工作區 ID（查詢 Zen 餘額時必填）"
+  ],
+  "Available chips": [
+    "可用信息项",
+    "可用資訊項"
+  ],
+  "Available items": [
+    "可用项目",
+    "可用項目"
+  ],
+  "Left side": [
+    "左侧",
+    "左側"
+  ],
+  "Right side": [
+    "右侧",
+    "右側"
+  ],
+  "Usage": [
+    "用量",
+    "用量"
+  ],
+  "Active AI": [
+    "当前 AI",
+    "目前 AI"
+  ],
+  "Base model": [
+    "基础模型",
+    "基礎模型"
+  ],
+  "Knowledge": [
+    "知识",
+    "知識"
+  ],
+  "Key for Activating Voice Input": [
+    "激活语音输入的按键",
+    "啟用語音輸入的按鍵"
+  ],
+  "Voice": [
+    "语音",
+    "語音"
+  ],
+  "Third party CLI agents": [
+    "第三方 CLI 智能体",
+    "第三方 CLI 智能體"
+  ],
+  "Experimental": [
+    "实验性功能",
+    "實驗性功能"
+  ],
+  "API Keys": [
+    "API 密钥",
+    "API 金鑰"
+  ],
+  "AWS Bedrock": [
+    "AWS Bedrock",
+    "AWS Bedrock"
+  ],
+  "Input position": [
+    "输入位置",
+    "輸入位置"
+  ],
+  "Use thin strokes": [
+    "使用细笔画",
+    "使用細筆畫"
+  ],
+  "Enforce minimum contrast": [
+    "强制最低对比度",
+    "強制最低對比度"
+  ],
+  "Tab close button position": [
+    "标签页关闭按钮位置",
+    "分頁關閉按鈕位置"
+  ],
+  "Show the tab bar": [
+    "显示标签栏",
+    "顯示分頁列"
+  ],
+  "Preferred graphics backend": [
+    "首选图形后端",
+    "偏好的圖形後端"
+  ],
+  "Install SSH extension": [
+    "安装 SSH 扩展",
+    "安裝 SSH 擴充功能"
+  ],
+  "Select repository": [
+    "选择仓库",
+    "選擇儲存庫"
+  ],
+  "Select branch": [
+    "选择分支",
+    "選擇分支"
+  ],
+  "Worktree branch name": [
+    "工作树分支名称",
+    "工作樹分支名稱"
+  ],
+  "Communication is off.": [
+    "通信已关闭。",
+    "通訊已關閉。"
+  ],
+  "Account label": [
+    "账号名称",
+    "帳號名稱"
+  ],
+  "Access token / API key / cookie": [
+    "访问令牌 / API 密钥 / Cookie",
+    "存取權杖 / API 金鑰 / Cookie"
+  ],
+  "Account / project / workspace ID (optional)": [
+    "账号 / 项目 / 工作区 ID（可选）",
+    "帳號 / 專案 / 工作區 ID（選填）"
+  ],
+  "Access token, or leave empty to use the current CLI login on this computer": [
+    "访问令牌；留空则使用此电脑当前的 CLI 登录账号",
+    "存取權杖；留空則使用此電腦目前的 CLI 登入帳號"
+  ],
+  "Select Agent": [
+    "选择智能体",
+    "選擇智能體"
+  ],
+  "No prerequisites": [
+    "无前置任务",
+    "無前置任務"
+  ],
+  "First page": [
+    "第一页",
+    "第一頁"
+  ],
+  "Next page": [
+    "下一页",
+    "下一頁"
+  ],
+  "Code review panel": [
+    "代码审查面板",
+    "程式碼審查面板"
+  ],
+  "Tabs panel": [
+    "标签页面板",
+    "分頁面板"
+  ],
+  "Keep awake while agents work": [
+    "智能体工作时保持唤醒",
+    "智能體工作時保持喚醒"
+  ],
+  "Command / Conversation": [
+    "命令 / 对话",
+    "命令 / 對話"
+  ],
+  "Working Directory": [
+    "工作目录",
+    "工作目錄"
+  ],
+  "Show details on hover": [
+    "悬停时显示详情",
+    "游標停留時顯示詳細資訊"
+  ],
+  "Share block...": [
+    "共享命令块…",
+    "分享命令區塊…"
+  ],
+  "Share...": [
+    "共享…",
+    "分享…"
+  ],
+  "Find within block": [
+    "在命令块中查找",
+    "在命令區塊中尋找"
+  ],
+  "Scroll to top of block": [
+    "滚动到命令块顶部",
+    "捲動至命令區塊頂端"
+  ],
+  "Scroll to bottom of block": [
+    "滚动到命令块底部",
+    "捲動至命令區塊底端"
+  ],
+  "When enabled, reopening or restoring a window opens the vertical tabs panel even if it was closed when the window was last saved.": [
+    "启用后，重新打开或恢复窗口时会打开垂直标签页面板，即使上次保存窗口时已将其关闭。",
+    "啟用後，重新開啟或還原視窗時會開啟垂直分頁面板，即使上次儲存視窗時已將其關閉。"
+  ],
+  "When using the vertical tab layout, hide the search bar in the title bar. Search stays available via the command palette and keyboard shortcuts.": [
+    "使用垂直标签页布局时隐藏标题栏中的搜索栏。仍可通过命令面板和键盘快捷键使用搜索。",
+    "使用垂直分頁配置時隱藏標題列中的搜尋列。仍可透過命令面板與鍵盤快捷鍵使用搜尋。"
+  ],
+  "Show the latest user prompt instead of the generated conversation title for Oz and third-party agent sessions in vertical tabs.": [
+    "在垂直标签页中，Oz 和第三方智能体会话显示最新的用户提示，而非自动生成的对话标题。",
+    "在垂直分頁中，Oz 與第三方智能體工作階段顯示最新的使用者提示，而非自動產生的對話標題。"
+  ],
+  "Use an improved implementation of find to keep the UI responsive while searching for matches on large outputs.": [
+    "使用改进的查找功能，在大量输出中搜索匹配项时保持界面响应。",
+    "使用改良的尋找功能，在大量輸出中搜尋符合項目時保持介面回應。"
+  ],
   "Track as task": ["作为任务跟踪", "作為任務追蹤"],
   "5h usage detection is disabled": ["已关闭 5 小时用量探测", "已關閉 5 小時用量偵測"],
   "Detect 5h usage": ["探测 5 小时用量", "偵測 5 小時用量"],

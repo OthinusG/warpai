@@ -677,7 +677,7 @@ impl CollaborationPanel {
             _ => &[],
         };
         for &index in indexes {
-            let mut choices = vec![(if index == 7 { "You (default reviewer)" } else if index == 3 { "No prerequisites" } else { "Select Agent" }.to_owned(), String::new())];
+            let mut choices = vec![(warpui::localization::text(if index == 7 { "You (default reviewer)" } else if index == 3 { "No prerequisites" } else { "Select Agent" }).to_owned(), String::new())];
             if index == 3 {
                 choices.extend(snapshot.tasks.iter().map(|task| (format!("{} · {}", task.description, warpui::localization::text(&task.state)), task.id.clone())));
             } else {
@@ -1121,7 +1121,7 @@ impl CollaborationPanel {
             ] {
                 let button = builder
                     .button(if index == 0 { ButtonVariant::Accent } else { ButtonVariant::Secondary }, form.buttons[index].clone())
-                    .with_text_label(label.into());
+                    .with_text_label(warpui::localization::text(label).into());
                 let missing_recipient = form.selectors.contains_key(&0) && form.fields[0].as_ref(app).buffer_text(app).is_empty();
                 let button = if form.submitting || (index == 0 && (!self.connected || form.choices_loading || missing_recipient ||
                     (matches!(form.kind, Kind::SelectCoordinator) && form.selected_candidate.is_none()))) {

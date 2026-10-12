@@ -850,3 +850,31 @@ fn test_softwrap_caret_positions_multi_paragraph() -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_interface_chinese_text_uses_native_fallbacks() {
+    for text in ["搜索标签页… 设置", "搜尋分頁… 設定"] {
+        for wrapped in [false, true] {
+            let (font_db, roboto) = init_fonts();
+            let style = LineStyle {
+                font_size: FONT_SIZE,
+                line_height_ratio: DEFAULT_UI_LINE_HEIGHT_RATIO,
+                baseline_ratio: DEFAULT_TOP_BOTTOM_RATIO,
+                fixed_width_tab_size: None,
+            };
+            let runs = [(0..text.chars().count(), StyleAndFont::new(roboto, Properties::default(), TextStyle::new()))];
+            if wrapped {
+                let frame = font_db.text_layout_system().layout_text(text, style, &runs,
+                    FRAME_WIDTH, FRAME_HEIGHT, Default::default(), None);
+                assert!(!frame.lines().is_empty());
+                assert!(frame.lines().iter().all(|line| line.chars_with_missing_glyphs.is_empty()), "{text}");
+            } else {
+                let line = font_db.text_layout_system().layout_line(text, style, &runs,
+                    f32::MAX, ClipConfig::default());
+                assert!(line.width > 0.);
+                assert!(line.chars_with_missing_glyphs.is_empty(), "{text}: {:?}", line.chars_with_missing_glyphs);
+            }
+        }
+    }
+}

@@ -215,7 +215,7 @@ pub fn render_models_section(
 ) -> Box<dyn Element> {
     let mut column = Flex::column()
         .with_child(render_separator(appearance))
-        .with_child(render_section_label("MODELS", appearance))
+        .with_child(render_section_label(warpui::localization::text("MODELS"), appearance))
         .with_child(render_filterable_dropdown_row(
             appearance,
             "Base model",
@@ -252,7 +252,7 @@ pub fn render_permissions_section(
     let ai_settings = AISettings::as_ref(app);
     let mut column = Flex::column().with_children([
         render_separator(appearance),
-        render_section_label("PERMISSIONS", appearance),
+        render_section_label(warpui::localization::text("PERMISSIONS"), appearance),
         render_permission_row(
             appearance,
             Icon::Code2,

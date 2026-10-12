@@ -1301,6 +1301,9 @@ impl Broker {
             result["delivery"] = json!("queued");
             result["instruction"] = json!("Work is queued, not completed or acknowledged. The receiver is notified and will process it once ready. By default, monitor every task you delegated: poll warp_agent_list for peer task states, use warp_task_get for results, and warp_agent_wait between polls. Keep coordinating until all delegated tasks are reviewed or the user stops. For ordinary instructions, wait for the recipient's reply before reporting completion.");
         }
+        if matches!(request.operation, Operation::AgentSend { expects_result:false, .. }) {
+            result["instruction"] = json!("Your informational notification is durably queued. No processing result was requested; queue admission does not establish that the recipient read it.");
+        }
         if matches!(request.operation, Operation::AgentReply { .. }) {
             result["instruction"] = json!("Your correlated result is durably queued for the original sender. Its handling is separate from your completion; do not wait for a reply to this result. Finish any remaining owned work, then announce readiness as your final action.");
         }

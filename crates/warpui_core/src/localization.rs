@@ -148,6 +148,23 @@ mod tests {
     }
 
     #[test]
+    fn screenshot_reported_helper_and_dynamic_labels_translate_in_both_chinese_locales() {
+        for source in ["Input position", "Enforce minimum contrast", "Available items",
+            "Left side", "Right side", "Preferred graphics backend", "Communication is off.",
+            "Account label", "Access token / API key / cookie", "Code review panel",
+            "Tab configs", "Tabs panel", "Keep awake while agents work", "Share block...",
+            "Find within block", "Scroll to top of block", "Scroll to bottom of block",
+            "Command / Conversation", "Working Directory", "Show details on hover",
+            "Select Agent", "No prerequisites", "You (default reviewer)", "Confirm", "Cancel",
+            "First page", "Next page", "Settings", "Search tabs...", "Connect"] {
+            assert_eq!(text_in(Language::English, source), source);
+            for language in [Language::SimplifiedChinese, Language::TraditionalChinese] {
+                assert_ne!(text_in(language, source), source, "{language:?}: {source}");
+            }
+        }
+    }
+
+    #[test]
     fn templates_preserve_user_text_and_literal_braces() {
         for language in Language::ALL {
             let text = format_text_in(language, "Open {name}", &[("name", "owned {name} 中文")]);

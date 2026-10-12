@@ -1420,7 +1420,9 @@ fn cooperative_wait_delivers_later_results_without_discarding_the_head() {
     for body in ["first result", "second result"] {
         worker.operation = Operation::AgentSend { expects_result:false, to:"lead".into(), body:body.into(),
             subject:None, thread_id:None, reply_to:None, task_id:None, request_id:request_id() };
-        ids.push(transport::call(&server.broker.endpoint, &worker).unwrap()["id"].clone());
+        let notification = transport::call(&server.broker.endpoint, &worker).unwrap();
+        assert!(notification["instruction"].as_str().unwrap().contains("No processing result was requested"));
+        ids.push(notification["id"].clone());
     }
     lead.operation = Operation::AgentWait;
     for id in ids {
@@ -1466,6 +1468,11 @@ fn native_permission_and_disconnect_observations_survive_broker_restart() {
     issuer.operation = Operation::AgentInbox { cursor:None, limit:None };
     assert!(transport::call(&server.broker.endpoint, &issuer).unwrap()["messages"].as_array().unwrap().iter()
         .any(|message| message["kind"] == "observation" && message["task_id"] == id));
+    server.broker.activity("worker", Activity::WaitingInput);
+    server.broker.input_guard("worker", false, false);
+    let waiting = transport::call(&server.broker.endpoint, &peer).unwrap();
+    assert_eq!(waiting["supervision"]["waiting_for_input"], true);
+    assert_eq!(waiting["supervision"]["waiting_for_permission_or_input"], true);
     server.broker.end("worker");
     let disconnected = transport::call(&server.broker.endpoint, &peer).unwrap();
     assert_eq!(disconnected["supervision"]["disconnected"], true);

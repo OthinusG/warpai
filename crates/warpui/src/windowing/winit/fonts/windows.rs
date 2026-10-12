@@ -14,8 +14,6 @@ use owned_ttf_parser::OwnedFace;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-const EN_US_LOCALE: &str = "en-US";
-
 /// Windows symbol fonts that are used to render window control icons. We specifically do not do any
 /// validation of these fonts (i.e. to check if the font contains english characters).
 const SYMBOL_ICON_FONTS: &[&str] = &["Segoe Fluent Icons", "Segoe MDL2 Assets"];
@@ -166,7 +164,11 @@ impl TextLayoutSystem {
         })?;
 
         let fallback_result =
-            loaded_font.get_fallbacks(character.to_string().as_str(), EN_US_LOCALE);
+            loaded_font.get_fallbacks(character.to_string().as_str(), match warpui_core::localization::language() {
+                warpui_core::localization::Language::English => "en-US",
+                warpui_core::localization::Language::SimplifiedChinese => "zh-CN",
+                warpui_core::localization::Language::TraditionalChinese => "zh-TW",
+            });
 
         // Convert each font-kit fallback `Font` into a UI framework `FontHandle` and load it into
         // fontdb. We deliberately avoid `font_kit::Font::handle()` here: its default impl reads

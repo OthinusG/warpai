@@ -3281,7 +3281,7 @@ impl SettingsWidget for InputModeWidget {
     ) -> Box<dyn Element> {
         render_dropdown_item(
             appearance,
-            "Input position",
+            warpui::localization::text("Input position"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -4051,7 +4051,7 @@ impl SettingsWidget for ThinStrokesWidget {
     ) -> Box<dyn Element> {
         render_dropdown_item(
             appearance,
-            "Use thin strokes",
+            warpui::localization::text("Use thin strokes"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -4084,7 +4084,7 @@ impl SettingsWidget for MinimumContrastWidget {
     ) -> Box<dyn Element> {
         render_dropdown_item(
             appearance,
-            "Enforce minimum contrast",
+            warpui::localization::text("Enforce minimum contrast"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -4298,7 +4298,7 @@ impl SettingsWidget for TabCloseButtonPositionWidget {
     ) -> Box<dyn Element> {
         render_dropdown_item(
             appearance,
-            "Tab close button position",
+            warpui::localization::text("Tab close button position"),
             None,
             None,
             LocalOnlyIconState::for_setting(
@@ -4916,7 +4916,7 @@ impl SettingsWidget for ZenModeWidget {
     ) -> Box<dyn Element> {
         render_dropdown_item(
             appearance,
-            "Show the tab bar",
+            warpui::localization::text("Show the tab bar"),
             None,
             None,
             LocalOnlyIconState::for_setting(

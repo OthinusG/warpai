@@ -8,6 +8,8 @@ consult it only when a specific historical question requires it.
 ## Working and delivery rules
 
 - Rust compilation/tests and native desktop acceptance run on GitHub, not locally.
+  Batch 1–16 fixes before full acceptance. Protocol jobs and desktop jobs run
+  independently; both desktops cache Cargo outputs and reuse native capture builds.
   Local Rustfmt syntax parsing, diff checks and script/document checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
@@ -19,22 +21,16 @@ consult it only when a specific historical question requires it.
   merged, clean, unused branches/worktrees. Retain four validation/release workflows.
 - Release immutable tags through existing workflows; both desktops build the same
   source. Follow [release gates](specs/RELEASE.md), including five installers and
-  checksums. Finish UI acceptance before screenshots/packages. Protocol major is 1.
+  checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
 
 ## Published releases and maintenance
 
-- Public 1.5.1/1.5.5 receipts remain in their owning patch specs; retain tags/assets.
-- 1.6.0 is public at 80e71661, with both desktops and Companion 4.0.0.
-  Source-matched native acceptance: 38119276766; builds: 38131069169/38134098256.
-- 1.6.2 is public at 0b109b87; both desktop native acceptance: 38147733290.
-  English/Simplified/Traditional captures and diagnostics pass; all five installers,
-  both checksum lists and source provenance pass. Builds: 38152318120/38155542555.
-  Companion stays 4.0.0. Published tags must never be retargeted.
-- Main includes both releases and audited cleanup; milestone/1.6.2 snapshots main.
-  Maintenance source 045ae5f4 passes both desktop and three-platform Companion
-  checks (38162351334/38162351317). Receipt: specs/1.6.2/POST-RELEASE.md.
-  Five stale remote branches and upstream tracking were removed; dirty local
-  worktrees are preserved. The eight website labels now advertise public 1.6.2.
+- Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Both desktops,
+  five installers, checksums and provenance passed. Published tags never move;
+  historical receipts remain in their owning specs.
+- Main includes releases and audited cleanup; milestone/1.6.2 snapshots main.
+  Maintenance source 045ae5f4 passes both desktops and three-platform Companion;
+  receipt: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees.
 - Remove private upstream setup/routing, not shared terminal compatibility or
   pinned dependencies. Keep four workflows and the independent gh-pages branch.
   GitHub fork detachment requires a supported operation; never delete/recreate
@@ -103,13 +99,11 @@ consult it only when a specific historical question requires it.
 
 ## SSH, task integrity and files
 
-- App 1.6.0 is published; Companion: 4.0.0;
-  WSL has a separate Windows-bundled guest binary/path. Windows MCP settings:
-  logged-in WSL 2 accounts, install checkbox, distro/user-scoped Rescan/Remove all.
-  Native Codex may add --no-daemon; no wrapper or host MCP injection.
-  WSL steps 60s/process 420s; clear static polling fence before live WSL; CI-DIAGNOSIS.md.
+- WSL uses its separate Windows-bundled guest binary and confirmed WSL 2 accounts;
+  retain distro/user-scoped setup. Contract: specs/wsl-1.6.0/TECH.md.
+  Steps 60s/process 420s; clear static polling fence before live WSL (CI-DIAGNOSIS.md).
   Check Windows rlto/release_bundle; debug-only WSL helpers share callee cfg.
-  Contract: specs/wsl-1.6.0/TECH.md. Accept WSL package 3.x previews.
+  Accept WSL package 3.x previews; no wrapper or Windows host MCP injection.
 - Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
   [API](specs/agent-communication-v2/API.md),
   [Worktree contract](specs/agent-communication-v2/WORKTREE-COLLABORATION.md).
@@ -128,7 +122,7 @@ consult it only when a specific historical question requires it.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (15 issues).
+- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (16 issues).
   Local/SSH/WSL share correlated results and durable decision questions. Project
   peers all observe and decide retry/reassignment/review; execution stays run-fenced.
   Local/SSH/WSL enablement follows the focused terminal independently, including
@@ -148,15 +142,16 @@ consult it only when a specific historical question requires it.
 
 ## Product defaults, CLI integration and website
 
-- Identity: warpai, Warpai, dev.warpai.Warpai, OthinusG/warpai; keep WARP_* compatibility.
-  1.6.2 moves data/settings to ~/.config/warpai; retain sources/profiles/new values.
+- Keep WARP_* compatibility. Data/settings live in ~/.config/warpai; retain
+  sources/profiles/new values.
   Public defaults only; English/zh-Hans/zh-Hant UI, restart to apply language.
-  Inspect menus/Review/loading/toasts; scan wrapped text/header_text; keep IDs; no cfg(test) drivers.
+  Inspect menus/Review/loading/toasts and dynamic/helper labels; keep IDs.
+  Windows text shaping loads native glyph fallbacks before caching UI lines;
+  Simplified/Traditional use their regional font fallback. No cfg(test) drivers.
   Each capture locale owns one SSH master; close before the next process.
   Close dropdowns; selectors/defaults share localized labels.
   UTF-8/POSIX locale tooling; verify/export PROTOC on Windows.
   Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
-  CI: poll every half hour in-session; owner forbids local background monitors.
 - Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
   during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
 - Ordinary Codex invocations (including --yolo/resume) adapt at Warpai's execution

@@ -29,6 +29,13 @@ Status: implementation in progress. Requested 2026-10-12; no release requested.
 15. Communication follows the focused terminal, including command-entered SSH
     and WSL sessions. Local, SSH and WSL enablement are independent; pending
     remote integration cannot fall back to the local project or local toggle.
+16. Complete Simplified/Traditional Chinese settings, chrome, form defaults and
+    helper-provided UI text identified in the 20 screenshots under the supplied
+    lang directory. Windows text shaping must load native glyph fallbacks before
+    caching lines, including search placeholders and Settings. Preserve terminal
+    content, technical identifiers, native typography and layout. Add regression
+    coverage for helper literals and both Chinese glyph sets; inspect native
+    screenshots for English leakage, tofu, overflow and unchanged controls.
 
 ## Implementation and constraints
 
@@ -117,3 +124,23 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   prior receipts while retaining the durable inbox. Failed ordinary replies
   retire unresolved questions atomically. Remote forms use the same focused
   environment gate as the panel, covered by native WSL fixture assertions.
+- Issue 16 references 20 supplied screenshot crops: settings labels/descriptions,
+  usage setup, form defaults/buttons, history paging, toolbar tips, vertical tab
+  options, block menus, and Windows search/Settings tofu. The locale scanner now
+  detects helper arguments and section metadata; dynamic UI labels translate at
+  the interface boundary. Added 53 translation pairs and both-locale regressions.
+  Windows shaping loads existing native fallbacks before line/frame caching,
+  reusing the font cache and preserving terminal/editor content. Native acceptance
+  now also exercises inline Coordinator dropdown selection rather than only the
+  separate form; its menu screenshot is retained for review.
+
+- Validation is batched after corrections 1–16. Protocol suites run in independent
+  macOS/Windows jobs; desktop jobs build their required native fixtures without
+  waiting for the protocol jobs. Companion remains a separate three-platform
+  matrix. Both desktops reuse Cargo outputs within each job and across runs;
+  default and warp_platform checks remain required. Application modules share
+  one Rust crate and cannot independently replace the complete desktop build.
+- Runs 38214441645 / 38214444990 passed prior checkout/coordination regressions
+  but exposed a readiness fixture that selected the first globally visible task
+  on its second iteration. It now locates the current task by ID. Added one
+  actual Coordinator-dropdown screenshot and updated native capture counts.

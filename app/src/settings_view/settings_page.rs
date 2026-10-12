@@ -861,7 +861,7 @@ pub fn build_toggle_element(
     if let Some(description_text) = description_text {
         let description = appearance
             .ui_builder()
-            .paragraph(description_text)
+            .paragraph(warpui::localization::text(&description_text).to_owned())
             .with_style(UiComponentStyles {
                 font_color: Some(blended_colors::text_sub(
                     appearance.theme(),

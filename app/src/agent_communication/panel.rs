@@ -3032,15 +3032,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 snapshot.roles.len() == 2 && snapshot.roles.iter().any(|role| role.role == "worker")))
                 && checkpoint_draft(app, window) == "unsent collaboration draft")
         }).with_take_screenshot("worktree-bound-team.png"))
-        .with_step(TestStep::new("switch Coordinator to the Agent in another worktree").with_action(|app, window, _| {
+        .with_step(TestStep::new("open inline Coordinator dropdown").with_action(|app, window, _| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            panel.update(app, |panel, ctx| {
-                panel.open_control(controls::Kind::SelectCoordinator, ctx);
-                let id = panel.form.as_ref().unwrap().candidates.iter()
-                    .find(|candidate| candidate.agent.name == "ui-worker").unwrap().agent.id.clone();
-                panel.handle_action(&Action::SelectParticipant(id), ctx);
-                panel.confirm_control(ctx);
+            let dropdown = panel.read(app, |panel, _| panel.coordinator_dropdown.clone());
+            dropdown.update(app, |dropdown, ctx| dropdown.toggle_expanded(ctx));
+        }).with_take_screenshot("worktree-coordinator-dropdown.png"))
+        .with_step(TestStep::new("switch Coordinator through the native dropdown callback").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            let (dropdown, action) = panel.read(app, |panel, _| {
+                let snapshot = panel.snapshot.as_ref().unwrap();
+                let candidate = snapshot.candidates.iter().find(|candidate| candidate.agent.name == "ui-worker").unwrap();
+                (panel.coordinator_dropdown.clone(), Action::ChooseCoordinator { project:snapshot.project.clone(),
+                    agent:candidate.agent.id.clone(), run:candidate.run.clone() })
             });
+            dropdown.update(app, |dropdown, ctx| dropdown.handle_action(
+                &crate::view_components::dropdown::DropdownAction::SelectActionAndClose(action), ctx));
         }))
         .with_step(TestStep::new("Coordinator switch preserves both processes")
             .add_named_assertion("worker becomes Coordinator", |app, window| {
@@ -3103,7 +3109,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             },
         ));
     filenames.push("live-empty.png".into());
-    filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png"].map(str::to_owned));
+    filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png", "worktree-coordinator-dropdown.png"].map(str::to_owned));
     filenames.extend(["worktree-switched-coordinator.png", "worktree-coordinator-after-tab-switch.png"].map(str::to_owned));
     filenames.push("worktree-empty-project.png".into());
     for detail in [false, true] {

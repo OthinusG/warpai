@@ -434,12 +434,12 @@ impl View for NewWorktreeModal {
             .with_cross_axis_alignment(CrossAxisAlignment::Stretch);
 
         // Repo picker
-        body.add_child(Self::render_section_label("Select repository", appearance));
+        body.add_child(Self::render_section_label(warpui::localization::text("Select repository"), appearance));
         body.add_child(ChildView::new(&self.repo_picker).finish());
 
         // Branch picker (with gap)
         body.add_child(
-            Container::new(Self::render_section_label("Select branch", appearance))
+            Container::new(Self::render_section_label(warpui::localization::text("Select branch"), appearance))
                 .with_margin_top(SECTION_GAP)
                 .finish(),
         );
@@ -510,7 +510,7 @@ impl View for NewWorktreeModal {
         if !self.autogenerate_branch_name {
             body.add_child(
                 Container::new(Self::render_section_label(
-                    "Worktree branch name",
+                    warpui::localization::text("Worktree branch name"),
                     appearance,
                 ))
                 .with_margin_top(SECTION_GAP)

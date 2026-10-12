@@ -690,7 +690,7 @@ impl SettingsWidget for SSHWidget {
                 move || {
                     Container::new(render_dropdown_item(
                         appearance,
-                        "Install SSH extension",
+                        warpui::localization::text("Install SSH extension"),
                         Some(SSH_EXTENSION_INSTALL_MODE_DESCRIPTION),
                         None,
                         LocalOnlyIconState::for_setting(

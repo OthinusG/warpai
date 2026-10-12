@@ -1097,6 +1097,13 @@ impl TextLayoutSystem {
             // weight or style that isn't available for the font. See https://github.com/pop-os/cosmic-text/issues/58.
             let selected_font =
                 self.select_font(style_and_font.font_family, style_and_font.properties);
+            // Text shaping bypasses the terminal glyph lookup, so load native fallbacks first.
+            #[cfg(target_os = "windows")]
+            for character in text.get(start_byte_index..end_byte_index).unwrap_or_default().chars().filter(|ch| !ch.is_ascii()).unique() {
+                if self.glyph_for_char(selected_font, character).is_none() {
+                    self.fallback_fonts(character, selected_font);
+                }
+            }
             let id = *self
                 .font_id_map
                 .read()
@@ -1530,12 +1537,23 @@ impl TextLayoutSystem {
 
     #[cfg(target_os = "windows")]
     fn fallback_fonts(&self, character: char, font_id: FontId) -> Vec<FontId> {
-        self.get_fallback_fonts_for_character(character, font_id)
-            .map_err(|err| {
-                log::warn!("Unable to fetch fallback fonts for character {character:?}: {err:?}");
-                err
-            })
-            .unwrap_or_default()
+        let cached = self.fallback_fonts.get(&font_id).map(|fonts| fonts.clone()).unwrap_or_default();
+        if cached.iter().any(|font| self.glyph_for_char(*font, character).is_some()) {
+            return cached;
+        }
+        match self.get_fallback_fonts_for_character(character, font_id) {
+            Ok(fonts) => {
+                let mut cached = self.fallback_fonts.entry(font_id).or_default();
+                for font in fonts {
+                    if !cached.contains(&font) { cached.push(font); }
+                }
+                cached.clone()
+            }
+            Err(error) => {
+                log::warn!("Unable to fetch fallback fonts for character {character:?}: {error:?}");
+                cached
+            }
+        }
     }
 
     fn font_metrics(&self, font_id: FontId) -> crate::fonts::Metrics {

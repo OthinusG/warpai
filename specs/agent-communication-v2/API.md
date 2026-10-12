@@ -239,7 +239,9 @@ deadline flags and execution uncertainty. Agent discovery adds last-observed and
 last-output timestamps and whether the observation is confirmed. None of these
 observations authorizes automatic re-execution. Decisions retain version/run
 fences and history. Capabilities: `correlated_results`, `decision_questions`,
-`project_supervision`; protocol major is unchanged.
+`project_supervision`; SSH control major remains 1 and local Agent Bus major
+remains 2. Informational sends do not promise a processing result; work requests
+and their correlated results have separate response instructions.
 
 Cooperative `agent_wait` uses the same per-run notification receipt as native
 wake: delivering an unacknowledged head does not hide later mail. It returns

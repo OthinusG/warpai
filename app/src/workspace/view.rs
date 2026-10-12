@@ -20150,7 +20150,7 @@ impl Workspace {
         let hoverable = Hoverable::new(self.mouse_states.offline_icon.clone(), |state| {
             let mut stack = Stack::new().with_child(icon);
             if state.is_hovered() {
-                let tool_tip = ui_builder.tool_tip(tool_tip_label_text);
+                let tool_tip = ui_builder.tool_tip(warpui::localization::text(&tool_tip_label_text).to_owned());
                 stack.add_positioned_overlay_child(
                     tool_tip.build().finish(),
                     OffsetPositioning::offset_from_parent(
@@ -20201,11 +20201,11 @@ impl Workspace {
         Box::new(move || {
             if let Some(tool_tip_sublabel_text) = tool_tip_sublabel_text {
                 ui_builder
-                    .tool_tip_with_sublabel(tool_tip_label_text, tool_tip_sublabel_text)
+                    .tool_tip_with_sublabel(warpui::localization::text(&tool_tip_label_text).to_owned(), tool_tip_sublabel_text)
                     .build()
                     .finish()
             } else {
-                ui_builder.tool_tip(tool_tip_label_text).build().finish()
+                ui_builder.tool_tip(warpui::localization::text(&tool_tip_label_text).to_owned()).build().finish()
             }
         })
     }

@@ -3225,7 +3225,7 @@ impl SettingsWidget for UsageWidget {
                 .with_child(
                     build_sub_header(
                         appearance,
-                        "Usage",
+                        warpui::localization::text("Usage"),
                         Some(styles::header_font_color(true, app)),
                     )
                     .finish(),
@@ -3596,7 +3596,7 @@ impl SettingsWidget for ActiveAIWidget {
                         .with_child(
                             build_sub_header(
                                 appearance,
-                                "Active AI",
+                                warpui::localization::text("Active AI"),
                                 Some(styles::header_font_color(is_any_ai_enabled, app)),
                             )
                             .finish(),
@@ -3687,7 +3687,7 @@ impl SettingsWidget for AgentsWidget {
             agents_header.add_child(
                 build_sub_header(
                     appearance,
-                    "Agents",
+                    warpui::localization::text("Agents"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -3733,7 +3733,7 @@ impl AgentsWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "Profiles",
+                    warpui::localization::text("Profiles"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .finish(),
@@ -4183,7 +4183,7 @@ impl AgentsWidget {
 
         render_dropdown_item(
             appearance,
-            "Base model",
+            warpui::localization::text("Base model"),
             Some("This model serves as the primary engine behind the Warpai Agent. It powers most interactions and invokes other models for tasks like planning or code generation when necessary. Warpai may automatically switch to alternate models based on model availability or for auxiliary tasks such as conversation summarization."),
             Some(show_in_prompt_checkbox),
             LocalOnlyIconState::Hidden,
@@ -4484,7 +4484,7 @@ impl SettingsWidget for AIInputWidget {
 
         let input_header = build_sub_header(
             appearance,
-            "Input",
+            warpui::localization::text("Input"),
             Some(styles::header_font_color(is_any_ai_enabled, app)),
         )
         .with_padding_bottom(HEADER_PADDING)
@@ -4733,7 +4733,7 @@ impl SettingsWidget for MCPServersWidget {
 
         let header = build_sub_header(
             appearance,
-            "MCP Servers",
+            warpui::localization::text("MCP Servers"),
             Some(styles::header_font_color(is_any_ai_enabled, app)),
         )
         .with_padding_bottom(HEADER_PADDING)
@@ -4985,7 +4985,7 @@ impl SettingsWidget for AIFactWidget {
 
         let header = build_sub_header(
             appearance,
-            "Knowledge",
+            warpui::localization::text("Knowledge"),
             Some(styles::header_font_color(is_any_ai_enabled, app)),
         )
         .with_margin_bottom(HEADER_PADDING)
@@ -5071,7 +5071,7 @@ impl VoiceWidget {
         if ai_settings.is_voice_input_enabled(app) {
             column.add_child(render_dropdown_item(
                 appearance,
-                "Key for Activating Voice Input",
+                warpui::localization::text("Key for Activating Voice Input"),
                 Some("Press and hold to activate."),
                 None,
                 LocalOnlyIconState::for_setting(
@@ -5113,7 +5113,7 @@ impl SettingsWidget for VoiceWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "Voice",
+                    warpui::localization::text("Voice"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -5176,7 +5176,7 @@ impl SettingsWidget for OtherAIWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "Other",
+                    warpui::localization::text("Other"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -5339,7 +5339,7 @@ impl SettingsWidget for CLIAgentWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "Third party CLI agents",
+                    warpui::localization::text("Third party CLI agents"),
                     Some(styles::header_font_color(true, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -5633,7 +5633,7 @@ impl SettingsWidget for CloudAgentComputerUseWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "Experimental",
+                    warpui::localization::text("Experimental"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -5985,7 +5985,7 @@ impl SettingsWidget for ApiKeysWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "API Keys",
+                    warpui::localization::text("API Keys"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
@@ -6432,7 +6432,7 @@ impl SettingsWidget for AwsBedrockWidget {
             .with_child(
                 build_sub_header(
                     appearance,
-                    "AWS Bedrock",
+                    warpui::localization::text("AWS Bedrock"),
                     Some(styles::header_font_color(is_any_ai_enabled, app)),
                 )
                 .with_padding_bottom(HEADER_PADDING)
