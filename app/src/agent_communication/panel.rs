@@ -5597,6 +5597,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
             warpui::async_assert!(panel.read(app, |panel, ctx| panel.communication_enabled(ctx) && panel.connected))
         }))
+        .with_step(TestStep::new("WSL form validation follows the guest switch").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                panel.open_control(controls::Kind::Send, ctx);
+                panel.fill_control_checkpoint(&["", "", ""], ctx);
+            });
+        }).add_named_assertion("local disable does not bypass remote form validation", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.update(app, |panel, ctx| {
+                panel.confirm_control(ctx);
+                panel.control_checkpoint_rejected()
+            }))
+        }))
+        .with_step(TestStep::new("close the rejected WSL form").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.cancel_control(ctx));
+        }))
         .with_step(TestStep::new("open WSL Markdown in existing Explorer").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));

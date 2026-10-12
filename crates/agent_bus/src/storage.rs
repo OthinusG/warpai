@@ -1157,6 +1157,38 @@ impl Store {
         )? > 0)
     }
 
+    /// Persist lifecycle metadata only; drafts and terminal output remain memory-only.
+    pub(crate) fn observe_tasks(&self, actor: &Agent, run: &str, observation: Value) -> Result<()> {
+        self.authorize(actor)?;
+        let rows = diesel::sql_query("SELECT a.id, a.task_id, a.revision, a.owner, a.run, a.certainty, a.outcome, a.started_at, a.finished_at FROM attempts AS a JOIN tasks AS t ON t.id=a.task_id AND t.revision=a.revision WHERE a.owner=? AND a.run=? AND t.assignee=? AND t.project=? AND t.state IN ('running','cancel_requested') AND a.finished_at IS NULL")
+            .bind::<Text, _>(&actor.id).bind::<Text, _>(run).bind::<Text, _>(&actor.id).bind::<Text, _>(&actor.project)
+            .load::<AttemptRow>(&mut *self.connection.borrow_mut())?;
+        if rows.is_empty() { return Ok(()); }
+        self.budget_available()?;
+        self.transaction(|| {
+            for attempt in rows.into_iter().map(AttemptRow::attempt) {
+                self.record(&actor.project, "task_observed", &actor.id, Some(&attempt.task_id), Some(&attempt.id),
+                    json!({"revision":attempt.revision,"run":run,"observation":observation}))?;
+                let activity = observation["activity"].as_str().unwrap_or("unknown");
+                let needs_attention = observation["connected"] == false
+                    || matches!(activity, "waiting_approval" | "waiting_input" | "error" | "cancelled") && observation["source"] == "native"
+                    || activity == "cancelled" && observation["source"] == "user_input"
+                    || observation["source"] == "native_guard" && observation["blocked"] == true
+                        && !matches!(activity, "waiting_approval" | "waiting_input");
+                if needs_attention {
+                    let issuer = diesel::sql_query("SELECT issuer AS value FROM tasks WHERE id=?")
+                        .bind::<Text, _>(&attempt.task_id).get_result::<ValueRow>(&mut *self.connection.borrow_mut())?.value;
+                    if self.inbox_count(&issuer)? < MAX_PENDING_PER_AGENT + CONTROL_MESSAGE_RESERVE {
+                        self.queue(&actor.project, task_message(&actor.id, &issuer, "observation",
+                            format!("Task needs supervision: {activity}; connected={}. Inspect its progress and originating terminal. Do not automatically retry or approve permission requests.", observation["connected"]),
+                            &attempt.task_id, attempt.revision))?;
+                    }
+                }
+            }
+            Ok(())
+        })
+    }
+
     pub fn has_work(&self, actor: &Agent) -> Result<bool> {
         if self.count(
             "SELECT COUNT(*) AS count FROM tasks WHERE issuer = ? OR assignee = ? OR reviewer = ?",
@@ -1350,15 +1382,26 @@ impl Store {
             .bind::<Text, _>(&task.id).bind::<Text, _>(&task.project).bind::<Integer, _>(task.revision as i32)
             .get_result::<EventRow>(&mut *self.connection.borrow_mut()).optional()?.map(EventRow::event);
         let last = event.as_ref().and_then(|event| event.observed_at);
+        let observation = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE resource=? AND project=? AND json_extract(payload, '$.revision')=? AND kind='task_observed' ORDER BY sequence DESC LIMIT 1")
+            .bind::<Text, _>(&task.id).bind::<Text, _>(&task.project).bind::<Integer, _>(task.revision as i32)
+            .get_result::<EventRow>(&mut *self.connection.borrow_mut()).optional()?.map(EventRow::event);
+        let observed_at = observation.as_ref().and_then(|event| event.observed_at).max(last);
+        let active = matches!(task.state.as_str(), "running" | "cancel_requested");
+        let disconnected = active && observation.as_ref().is_some_and(|event| event.payload["observation"]["connected"] == false);
+        let native = observation.as_ref().map(|event| &event.payload["observation"]);
         let waiting_reason = event.as_ref().filter(|_| matches!(task.state.as_str(), "running" | "cancel_requested"))
             .and_then(|event| event.payload["waiting_reason"].as_str());
         let questions = self.count("SELECT COUNT(*) AS count FROM messages WHERE task_id=? AND kind='question' AND acknowledged=0", &[&task.id])?;
         Ok(json!({"last_progress_at":last,"progress_age_ms":last.map(|at| now().saturating_sub(at)),
+            "last_observed_at":observed_at,"observation_age_ms":observed_at.map(|at| now().saturating_sub(at)),
+            "last_observation":native,"disconnected":disconnected,
+            "waiting_for_permission":active && !disconnected && native.is_some_and(|value| value["activity"] == "waiting_approval"),
+            "waiting_for_permission_or_input":active && !disconnected && native.is_some_and(|value| value["blocked"] == true),
             "last_progress":event.as_ref().map(|event| &event.payload),"waiting_reason":waiting_reason,
             "waiting_for_answer":questions > 0,"open_questions":questions,
             "execution_overdue":task.execution_deadline.is_some_and(|at| now() >= at),
             "review_overdue":task.review_deadline.is_some_and(|at| now() >= at),
-            "execution_uncertain":self.unresolved_attempts(&task.id, Some(task.revision))?.iter().any(|attempt| attempt.certainty == "unknown"),
+            "execution_uncertain":disconnected || self.count("SELECT COUNT(*) AS count FROM attempts WHERE task_id=? AND certainty IN ('unknown','interrupted') AND finished_at IS NULL", &[&task.id])? > 0,
             "automatic_retry":false}))
     }
 
@@ -1880,9 +1923,13 @@ impl Store {
                 ensure!(parent.to == actor.id, unauthorized("Only the recipient can return a result"));
                 ensure!(matches!(parent.kind.as_str(), "message" | "request"),
                     invalid_state("Only peer instructions can receive processing results"));
-                if !matches!(outcome, crate::ReplyOutcome::Blocked) {
+                if matches!(outcome, crate::ReplyOutcome::Succeeded) {
                     ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind='question' AND acknowledged=0", &[reply_to])? == 0,
-                        invalid_state("Resolve outstanding questions before returning a final result"));
+                        invalid_state("Resolve outstanding questions before reporting success"));
+                }
+                if matches!(outcome, crate::ReplyOutcome::Failed) {
+                    diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE reply_to=? AND kind='question' AND acknowledged=0")
+                        .bind::<Text, _>(reply_to).execute(&mut *self.connection.borrow_mut())?;
                 }
                 ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[reply_to])? == 0,
                     invalid_state("This instruction already has a final result"));
@@ -5479,6 +5526,28 @@ mod tests {
     }
 
     #[test]
+    fn failed_instruction_retires_unanswered_questions_without_waiting_for_a_decision() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let instruction = store.execute(&issuer, "issuer-run", &send(&issuer, "worker", "Inspect contract", &Uuid::new_v4().to_string())).unwrap();
+        let parent = instruction["id"].as_str().unwrap();
+        let question = store.execute(&worker, "worker-run", &Operation::AgentAsk { task_id:None, reply_to:Some(parent.into()),
+            question:"Which contract?".into(), request_id:Uuid::new_v4().to_string() }).unwrap();
+        let success = Operation::AgentReply { reply_to:parent.into(), body:"Done".into(), outcome:crate::ReplyOutcome::Succeeded,
+            request_id:Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&worker, "worker-run", &success).unwrap_err()), "invalid_state");
+        let failure = Operation::AgentReply { reply_to:parent.into(), body:"Execution failed before the decision arrived".into(),
+            outcome:crate::ReplyOutcome::Failed, request_id:Uuid::new_v4().to_string() };
+        let result = store.execute(&worker, "worker-run", &failure).unwrap();
+        assert_eq!(result["to"], issuer.id);
+        assert_eq!(store.execute(&worker, "worker-run", &failure).unwrap(), result);
+        assert!(store.execute(&issuer, "issuer-run", &Operation::AgentQuestions { task_id:None, cursor:None, limit:None }).unwrap()["questions"].as_array().unwrap().is_empty());
+        assert!(store.execute(&issuer, "issuer-run", &Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+            answer:"Obsolete decision".into(), request_id:Uuid::new_v4().to_string() }).is_err());
+    }
+
+    #[test]
     fn attempts_versions_and_events_commit_with_transitions() {
         let store = Store::open(":memory:").unwrap();
         let issuer = actor(&store, "issuer");
@@ -5723,6 +5792,7 @@ mod tests {
             diesel::sql_query("UPDATE attempts SET certainty='unknown' WHERE task_id=?")
                 .bind::<Text,_>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
             let task = store.task(&worker, task_id).unwrap();
+            assert_eq!(store.execute(&issuer, "issuer-run", &Operation::TaskGet { task_id:task_id.into() }).unwrap()["supervision"]["execution_uncertain"], true);
             let attempt_id = Some(task.attempts[0].id.clone());
             let request_id = Uuid::new_v4().to_string();
             let operation = match outcome {
@@ -5750,6 +5820,7 @@ mod tests {
             assert_eq!(finished.attempts[0].certainty, "finished");
             assert_eq!(finished.attempts[0].outcome.as_deref(), Some(outcome));
             assert!(finished.attempts[0].finished_at.is_some());
+            assert_eq!(store.execute(&issuer, "issuer-run", &Operation::TaskGet { task_id:task_id.into() }).unwrap()["supervision"]["execution_uncertain"], false);
         }
     }
 
@@ -5776,6 +5847,7 @@ mod tests {
         assert_eq!(task.state, "running");
         assert_eq!(task.version, 3);
         assert_eq!(task.attempts[0].certainty, "interrupted");
+        assert_eq!(store.execute(&issuer, "run-issuer", &Operation::TaskGet { task_id:task_id.clone() }).unwrap()["supervision"]["execution_uncertain"], true);
         assert!(task.attempts[0].finished_at.is_none());
         let pending = store.pending(&worker).unwrap();
         assert_eq!(pending.len(), 1);
@@ -7707,6 +7779,7 @@ mod tests {
                 .execute(&mut *store.connection.borrow_mut()).unwrap();
         }
         assert!(store.operator_task("/project", id).unwrap().attempts.iter().all(|a| a.finished_at.is_some()));
+        assert_eq!(store.execute(&issuer, "run-issuer", &Operation::TaskGet { task_id:id.into() }).unwrap()["supervision"]["execution_uncertain"], true);
         let error = store.execute_controller("/project", &ControllerOperation::TaskArchive {
             task_id: id.into(), request_id: Uuid::new_v4().to_string(),
         }).unwrap_err();

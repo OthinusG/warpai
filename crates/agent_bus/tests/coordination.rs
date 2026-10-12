@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::{path::PathBuf, thread, time::Duration};
 use uuid::Uuid;
 use warp_agent_bus::{
+    readiness::Activity,
     transport::{self, Broker, Request, RunningBroker},
     Operation, Store,
 };
@@ -105,7 +106,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 expected_version: None,
                 request_id: request_id(),
             };
-            assert!(store.execute(&worker, "worker-run", &review).is_err());
+            assert!(store.execute(&stranger, "stranger-run", &review).is_err());
             let rework = store.execute(&reviewer, "review-run", &review).unwrap();
             assert_eq!(rework["revision"], 2);
             assert!(
@@ -941,7 +942,7 @@ fn competing_task_controls_preserve_versions_in_both_orders() {
             assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1,
                 "{scenario}, reverse={reverse}");
             issuer.operation = Operation::TaskGet { task_id: id.as_str().unwrap().into() };
-            let current = transport::call(&server.broker.endpoint, &issuer).unwrap();
+            let mut current = transport::call(&server.broker.endpoint, &issuer).unwrap();
             assert_eq!(current["version"].as_u64(), Some(version.as_u64().unwrap() + 1));
             let expected = match (scenario, reverse) {
                 ("start_cancel", false) => "running",
@@ -955,7 +956,13 @@ fn competing_task_controls_preserve_versions_in_both_orders() {
             for request in requests {
                 let _ = transport::call(&server.broker.endpoint, request);
             }
-            assert_eq!(transport::call(&server.broker.endpoint, &issuer).unwrap(), current);
+            let mut replayed = transport::call(&server.broker.endpoint, &issuer).unwrap();
+            for snapshot in [&mut current, &mut replayed] {
+                for age in ["progress_age_ms", "observation_age_ms"] {
+                    snapshot["supervision"].as_object_mut().unwrap().remove(age);
+                }
+            }
+            assert_eq!(replayed, current);
         }
     }
 }
@@ -1402,4 +1409,77 @@ fn submitted_unacknowledged_head_does_not_hide_later_mail() {
     lead.operation = Operation::AgentInbox { cursor: None, limit: None };
     let inbox = transport::call(&server.broker.endpoint, &lead).unwrap();
     assert_eq!(inbox["messages"].as_array().unwrap().len(), 2, "Submission must not consume results");
+}
+
+#[test]
+fn cooperative_wait_delivers_later_results_without_discarding_the_head() {
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let mut lead = register(&server.broker, "lead", "codex");
+    let mut worker = register(&server.broker, "worker", "claude");
+    let mut ids = Vec::new();
+    for body in ["first result", "second result"] {
+        worker.operation = Operation::AgentSend { expects_result:false, to:"lead".into(), body:body.into(),
+            subject:None, thread_id:None, reply_to:None, task_id:None, request_id:request_id() };
+        ids.push(transport::call(&server.broker.endpoint, &worker).unwrap()["id"].clone());
+    }
+    lead.operation = Operation::AgentWait;
+    for id in ids {
+        assert_eq!(transport::call(&server.broker.endpoint, &lead).unwrap()["message"]["id"], id);
+    }
+    lead.operation = Operation::AgentInbox { cursor:None, limit:None };
+    assert_eq!(transport::call(&server.broker.endpoint, &lead).unwrap()["messages"].as_array().unwrap().len(), 2);
+    worker.operation = Operation::AgentSend { expects_result:true, to:"lead".into(), body:"Inspect contract".into(),
+        subject:None, thread_id:None, reply_to:None, task_id:None, request_id:request_id() };
+    let instruction = transport::call(&server.broker.endpoint, &worker).unwrap();
+    lead.operation = Operation::AgentAsk { task_id:None, reply_to:Some(instruction["id"].as_str().unwrap().into()),
+        question:"Which contract?".into(), request_id:request_id() };
+    let question = transport::call(&server.broker.endpoint, &lead).unwrap();
+    worker.operation = Operation::AgentAnswer { question_id:question["id"].as_str().unwrap().into(),
+        answer:"Use v2".into(), request_id:request_id() };
+    let answer = transport::call(&server.broker.endpoint, &worker).unwrap();
+    lead.operation = Operation::AgentWait;
+    assert_eq!(transport::call(&server.broker.endpoint, &lead).unwrap()["message"]["id"], answer["id"]);
+}
+
+#[test]
+fn native_permission_and_disconnect_observations_survive_broker_restart() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("observations.sqlite");
+    let server = RunningBroker::start(&path).unwrap();
+    let mut issuer = register(&server.broker, "issuer", "codex");
+    let mut worker = register(&server.broker, "worker", "claude");
+    let mut peer = register(&server.broker, "peer", "gemini");
+    issuer.operation = serde_json::from_value(serde_json::json!({"op":"task_assign", "to":"worker",
+        "description":"Inspect contract", "acceptance":"Return evidence", "request_id":request_id()})).unwrap();
+    let task = transport::call(&server.broker.endpoint, &issuer).unwrap();
+    let id = task["id"].as_str().unwrap().to_owned();
+    worker.operation = Operation::TaskStart { task_id:id.clone(), revision:1, expected_version:None, request_id:request_id() };
+    transport::call(&server.broker.endpoint, &worker).unwrap();
+    server.broker.activity("worker", Activity::WaitingApproval);
+    server.broker.input_bytes("worker", b"unsent private draft");
+    server.broker.input_guard("worker", true, true);
+    peer.operation = Operation::TaskGet { task_id:id.clone() };
+    let detail = transport::call(&server.broker.endpoint, &peer).unwrap();
+    assert_eq!(detail["supervision"]["waiting_for_permission"], true);
+    assert_eq!(detail["supervision"]["waiting_for_permission_or_input"], true);
+    assert!(detail["supervision"]["last_observed_at"].is_number());
+    issuer.operation = Operation::AgentInbox { cursor:None, limit:None };
+    assert!(transport::call(&server.broker.endpoint, &issuer).unwrap()["messages"].as_array().unwrap().iter()
+        .any(|message| message["kind"] == "observation" && message["task_id"] == id));
+    server.broker.end("worker");
+    let disconnected = transport::call(&server.broker.endpoint, &peer).unwrap();
+    assert_eq!(disconnected["supervision"]["disconnected"], true);
+    assert_eq!(disconnected["supervision"]["execution_uncertain"], true);
+    assert_eq!(disconnected["supervision"]["waiting_for_permission"], false);
+    drop(server);
+    let reopened = RunningBroker::start(&path).unwrap();
+    let mut peer = register(&reopened.broker, "peer", "gemini");
+    peer.operation = Operation::TaskGet { task_id:id.clone() };
+    let restored = transport::call(&reopened.broker.endpoint, &peer).unwrap();
+    assert_eq!(restored["supervision"]["last_observed_at"], disconnected["supervision"]["last_observed_at"]);
+    assert_eq!(restored["supervision"]["execution_uncertain"], true);
+    peer.operation = Operation::TaskHistory { task_id:id, cursor:None, limit:None };
+    let history = transport::call(&reopened.broker.endpoint, &peer).unwrap();
+    assert!(history["events"].as_array().unwrap().iter().any(|event| event["kind"] == "task_observed"));
+    assert!(!history.to_string().contains("unsent private draft"));
 }

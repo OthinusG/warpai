@@ -107,3 +107,13 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   SSH/WSL decision fixtures and independent focused-environment enablement.
   Rustfmt parsing, Python AST, strict locale coverage and diff checks pass locally;
   cloud compilation and native acceptance remain required.
+- Source cc8b9b16 passed the checkout identity regression. Subsequent runs
+  38199890573 / 38199893051 found outdated Project privacy/reviewer assertions,
+  a comparison of dynamic progress age, and a Windows fixture receipt exceeding
+  console line width. Tests now assert shared visibility, stable task data and
+  bounded fixture fields, retaining attempt identity.
+- Follow-up persists native permission/cancellation/disconnect observations and
+  issuer attention notices without draft/output content; cooperative waits skip
+  prior receipts while retaining the durable inbox. Failed ordinary replies
+  retire unresolved questions atomically. Remote forms use the same focused
+  environment gate as the panel, covered by native WSL fixture assertions.

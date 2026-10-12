@@ -227,12 +227,12 @@ pub fn tools() -> Vec<Tool> {
             "agent_ask" => "Persist a blocking question linked to task_id or an original instruction reply_to. Reuse request_id on retries, retain the returned question ID, and wait for its correlated answer. Submission is refused while task questions remain unresolved.",
             "agent_answer" => "Answer a durable question by question_id. The answer returns to its asker. Project peers may decide; Worktree questions remain scoped to their recipient and the current Coordinator. Identical retries replay; an already answered or retired question is rejected.",
             "agent_questions" => "List open questions in arrival order with cursor pagination. Project peers see project questions; Worktree peers see their own questions and the Coordinator sees task decisions. Answer with warp_agent_answer rather than ordinary messages.",
-            "agent_reply" => "Return a succeeded, failed or blocked result for an inbox instruction. reply_to identifies the original message; its sender is the automatic destination. A final result consumes the request atomically; blocked leaves it outstanding. Do not reply to results.",
+            "agent_reply" => "Return a succeeded, failed or blocked result for an inbox instruction. reply_to identifies the original message; its sender is the automatic destination. Success requires answering its open questions; failure retires them. A final result consumes the request atomically; blocked leaves it outstanding. Do not reply to results.",
             "agent_send" => "Send a message to a registered peer in this project.",
             "agent_inbox" => "Read pending messages without acknowledging them.",
             "agent_ack" => "Acknowledge an ordinary message addressed to this agent.",
             "agent_ready" => "Announce that you have finished working and will return to your empty input prompt. Call as your final action before ending the turn; Warp automatically submits an inbox notification when work arrives.",
-            "agent_wait" => "Wait up to 20 seconds for available work. On timeout, poll all outstanding task states, then wait again until all are reviewed or the user stops collaboration.",
+            "agent_wait" => "Wait up to 20 seconds for the next notification not yet delivered in this run. Delivered messages remain available in inbox until acknowledged. On timeout, poll outstanding task states, then wait again until all are reviewed or the user stops collaboration.",
             "task_assign" => "Assign a task with acceptance criteria. Reviewer defaults to the assigner; self-review is refused. By default, keep polling every delegated task and wait for actual results; queue admission is not completion.",
             "task_get" => "Read task details and supervision (last progress, open questions, deadlines and execution uncertainty). Project peers can inspect every project task; Worktree reads retain participant/Coordinator scope.",
             "task_history" => "Read ordered task events, including prior submitted results and reviews, visible only to this task's participants. Page with cursor; task detail contains recent history only.",
@@ -258,7 +258,10 @@ pub fn tools() -> Vec<Tool> {
             "file_reservations" => "List coordination metadata for reservations in this workspace, optionally filtered by path.",
             _ => unreachable!("All operations have a description"),
         };
-        let description = format!("{description} Before finishing your turn, call warp_agent_ready as your final tool action. Never announce readiness while working or waiting for approval. Sending only queues work; report completion only after a receiver result.");
+        let mut description = format!("{description} Before finishing your turn, call warp_agent_ready as your final tool action. Never announce readiness while working or waiting for approval.");
+        if matches!(operation.as_str(), "agent_send" | "task_assign" | "task_create_pool") {
+            description.push_str(" Sending only queues work; report completion only after a receiver result.");
+        }
         Tool::new(format!("warp_{operation}"), description, Arc::new(input))
     }).collect();
 

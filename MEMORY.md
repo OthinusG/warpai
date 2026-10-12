@@ -134,7 +134,10 @@ consult it only when a specific historical question requires it.
   Local/SSH/WSL enablement follows the focused terminal independently, including
   command-entered remote sessions. Worktree allocation remains Coordinator-only. Final
   ordinary replies atomically queue results and consume requests; blocked reports
-  remain unresolved. Notifications never establish execution or result handling.
+  remain unresolved. Native permissions/cancellation/disconnect observations persist
+  with the exact task attempt; no drafts/output are stored. Wait receipts advance
+  without deleting unacknowledged inbox entries. Notifications never establish
+  execution or result handling.
 - Wake polls until idle; manual input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.

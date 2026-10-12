@@ -240,3 +240,21 @@ last-output timestamps and whether the observation is confirmed. None of these
 observations authorizes automatic re-execution. Decisions retain version/run
 fences and history. Capabilities: `correlated_results`, `decision_questions`,
 `project_supervision`; protocol major is unchanged.
+
+Cooperative `agent_wait` uses the same per-run notification receipt as native
+wake: delivering an unacknowledged head does not hide later mail. It returns
+each notification once per run; `agent_inbox` retains the full pending history.
+Asking about an instruction records that instruction's notification as delivered,
+so waiting for its answer does not repeatedly return the original request.
+
+Native lifecycle and permission-guard changes append `task_observed` events to
+the current task/attempt run, without storing draft or output text. Disconnect
+records loss of observation, not a stopped execution. Supervision combines these
+durable observations with progress and keeps unknown/interrupted attempts visible
+even outside the bounded detail history. These events never grant execution.
+
+Successful ordinary replies require all associated questions to be resolved.
+Failed replies atomically retire those questions with the final result; blocked
+replies retain them. Native cancellation records an observation, not proof that
+the execution stopped. Attention notices wake the issuer through the existing
+queue; full inboxes retain the observation in task history for shared polling.

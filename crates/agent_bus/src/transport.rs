@@ -294,7 +294,11 @@ impl Broker {
                         .is_some_and(|programs| !programs.contains(&live.program))
                 }) {
                     if let Some(live) = &binding.live {
-                        if let Some(actor) = &live.agent { let _ = store.worktree_offline(&actor.id, &live.run); }
+                        if let Some(actor) = &live.agent {
+                            store.observe_tasks(actor, &live.run, json!({"activity":live.activity,"blocked":live.blocked,"connected":false,"source":"native_disconnect"}))
+                                .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+                            let _ = store.worktree_offline(&actor.id, &live.run);
+                        }
                         if live.origin_agent.is_some() { binding.workspace = None; }
                     }
                     binding.live = None;
@@ -498,7 +502,11 @@ impl Broker {
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref())
                 .filter(|live| run.is_none() || run == Some(live.run.as_str())) {
-                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
+                if let Some(actor) = &live.agent {
+                    state.store.observe_tasks(actor, &live.run, json!({"activity":live.activity,"blocked":live.blocked,"connected":false,"source":"native_disconnect"}))
+                        .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+                    let _ = state.store.worktree_offline(&actor.id, &live.run);
+                }
             }
             if state.terminals.get(terminal).is_some_and(|binding|
                 run.is_none() || binding.live.as_ref().is_some_and(|live|
@@ -512,7 +520,11 @@ impl Broker {
         if let Some(broker) = self.forwarded(terminal) { broker.end(terminal); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             if let Some(live) = state.terminals.get(terminal).and_then(|binding| binding.live.as_ref()) {
-                if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
+                if let Some(actor) = &live.agent {
+                    state.store.observe_tasks(actor, &live.run, json!({"activity":live.activity,"blocked":live.blocked,"connected":false,"source":"native_disconnect"}))
+                        .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+                    let _ = state.store.worktree_offline(&actor.id, &live.run);
+                }
             }
             if let Some(binding) = state.terminals.get_mut(terminal) {
                 if binding.automatic_workspace || binding.live.as_ref().is_some_and(|live| live.origin_agent.is_some()) {
@@ -547,11 +559,15 @@ impl Broker {
     pub fn activity(&self, terminal: &str, activity: Activity) {
         if let Some(broker) = self.forwarded(terminal) { broker.activity(terminal, activity); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            let mut observation = None;
             if let Some(live) = state
                 .terminals
                 .get_mut(terminal)
                 .and_then(|binding| binding.live.as_mut())
             {
+                if live.activity != activity {
+                    observation = live.agent.clone().map(|actor| (actor, live.run.clone(), live.blocked));
+                }
                 live.generation += 1;
                 live.activity = activity;
                 live.readiness_source = "native"; live.observed = Instant::now();
@@ -563,18 +579,27 @@ impl Broker {
                     }
                 }
             }
+            if let Some((actor, run, blocked)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
         }
+        self.shared.changed.notify_all();
     }
     /// User input always wins over automatic submission, including an Enter timer already scheduled.
     pub fn user_input(&self, terminal: &str, submitted_or_cancelled: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.user_input(terminal, submitted_or_cancelled); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            let mut observation = None;
             if let Some(live) = state
                 .terminals
                 .get_mut(terminal)
                 .and_then(|binding| binding.live.as_mut())
             {
                 if submitted_or_cancelled {
+                    if live.activity != Activity::Working {
+                        observation = live.agent.clone().map(|actor| (actor, live.run.clone(), Activity::Working, live.blocked));
+                    }
                     live.draft.clear();
                     live.activity = Activity::Working;
                     live.paused = false;
@@ -589,15 +614,24 @@ impl Broker {
                     live.delivered.remove(&wake.message_id);
                 }
             }
+            if let Some((actor, run, activity, blocked)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"user_input"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
         }
+        self.shared.changed.notify_all();
     }
     /// Track actual native edits while retaining the lifecycle's idle evidence.
     pub fn input_bytes(&self, terminal: &str, bytes: &[u8]) {
         if let Some(broker) = self.forwarded(terminal) { broker.input_bytes(terminal, bytes); return; }
         if bytes.is_empty() { return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 if let Some(activity) = live.draft.input(bytes) {
+                    if live.activity != activity {
+                        observation = live.agent.clone().map(|actor| (actor, live.run.clone(), activity, live.blocked));
+                    }
                     live.activity = activity;
                     live.paused = activity == Activity::Cancelled;
                     live.readiness_source = "user_input"; live.observed = Instant::now();
@@ -608,14 +642,23 @@ impl Broker {
                 live.last_input = Instant::now(); live.observed = live.last_input;
                 if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
             }
+            if let Some((actor, run, activity, blocked)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"user_input"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
         }
+        self.shared.changed.notify_all();
     }
     /// App-owned rich drafts/attachments and permission overlays affect delivery, not idle evidence.
     pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.input_guard(terminal, rich_draft, blocked); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 if live.rich_draft != rich_draft || live.blocked != blocked {
+                    if live.blocked != blocked {
+                        observation = live.agent.clone().map(|actor| (actor, live.run.clone(), live.activity));
+                    }
                     live.rich_draft = rich_draft;
                     live.blocked = blocked;
                     live.generation += 1;
@@ -623,14 +666,24 @@ impl Broker {
                     live.last_input = Instant::now(); live.observed = live.last_input;
                 }
             }
+            if let Some((actor, run, activity)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native_guard"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
         }
+        self.shared.changed.notify_all();
     }
     /// Remote editors send edit epochs and guards, never their draft text.
     #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
     pub fn native_input(&self, terminal: &str, submitted: bool, cancelled: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.native_input(terminal, submitted, cancelled); return; }
         if let Ok(mut state) = self.shared.state.lock() {
+            let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
+                let next_activity = if cancelled { Activity::Cancelled } else if submitted { Activity::Working } else { live.activity };
+                if live.activity != next_activity {
+                    observation = live.agent.clone().map(|actor| (actor, live.run.clone(), next_activity, live.blocked));
+                }
                 live.generation += 1;
                 live.initial_prompt = false;
                 live.last_input = Instant::now();
@@ -638,7 +691,12 @@ impl Broker {
                 else if submitted { live.paused = false; live.activity = Activity::Working; live.ready = None; }
                 if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
             }
+            if let Some((actor, run, activity, blocked)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"user_input"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
         }
+        self.shared.changed.notify_all();
     }
     pub fn output(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.output(terminal); return; }
@@ -899,6 +957,7 @@ impl Broker {
         let run = live.run.clone();
         if let Some(activity) = request.native_activity {
             let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
+            let observation = (live.native_activity != Some(activity)).then(|| live.agent.clone().map(|actor| (actor, live.run.clone(), live.blocked))).flatten();
             live.native_activity = Some(activity);
             live.activity = activity;
             live.readiness_source = "native"; live.observed = Instant::now();
@@ -906,8 +965,13 @@ impl Broker {
             live.generation += 1;
             live.initial_prompt = false;
             if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+            let response = json!({"activity": live.activity, "ready": live.ready.is_some()});
+            if let Some((actor, run, blocked)) = observation {
+                state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native"}))
+                    .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+            }
             self.shared.changed.notify_all();
-            return Ok(json!({"activity": live.activity, "ready": live.ready.is_some()}));
+            return Ok(response);
         }
         let live = state.terminals.get(&request.terminal).unwrap().live.as_ref().unwrap();
         if let Operation::AgentRegister { name } = &request.operation {
@@ -1074,15 +1138,11 @@ impl Broker {
                     coordinator_unavailable("Broker stopped")
                 );
                 authenticate(&state, request, false)?;
-                if let Some(message) = state.store.next_work(&actor, &run)? {
-                    state
-                        .terminals
-                        .get_mut(&request.terminal)
-                        .unwrap()
-                        .live
-                        .as_mut()
-                        .unwrap()
-                        .waiting = false;
+                let live = state.terminals[&request.terminal].live.as_ref().unwrap();
+                if let Some(message) = state.store.next_unnotified(&actor, &run, &live.delivered)? {
+                    let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
+                    live.waiting = false;
+                    live.delivered.insert(message.id.clone());
                     return Ok(json!({"message": message, "idle": false}));
                 }
                 if Instant::now() >= deadline {
@@ -1122,6 +1182,9 @@ impl Broker {
             _ => false,
         };
         let mut result = state.store.execute(&actor, &run, &request.operation)?;
+        if let Operation::AgentAsk { reply_to:Some(parent), .. } = &request.operation {
+            state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap().delivered.insert(parent.clone());
+        }
         // A replay returns its historical response; it must not rewrite current lifecycle state.
         let current_transition = match &request.operation {
             Operation::TaskStart { task_id, .. }
@@ -1188,7 +1251,7 @@ impl Broker {
                     agent["readiness_source"] = json!(live.readiness_source);
                     agent["last_observed_ms"] = json!(live.observed.elapsed().as_millis() as u64);
                     agent["last_output_ms"] = json!(live.last_output.elapsed().as_millis() as u64);
-                    agent["observation_confirmed"] = json!(live.native_activity.is_some());
+                    agent["observation_confirmed"] = json!(live.readiness_source == "native");
                     agent["paused"] = json!(live.paused);
                     agent["has_draft"] = json!(!live.draft.is_empty() || live.rich_draft);
                     agent["draft_state"] = json!(if live.rich_draft { "present" } else { live.draft.state() });

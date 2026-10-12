@@ -91,7 +91,7 @@ fn managed_agent_child() {
                 use warp_agent_bus::transport::*;
                 operation_sequence += 1;
                 let operation: warp_agent_bus::Operation = serde_json::from_str(value).unwrap();
-                let mut result = call(
+                let result = call(
                     &std::env::var(ENDPOINT).unwrap(),
                     &Request {
                         protocol_major: PROTOCOL_MAJOR,
@@ -105,8 +105,11 @@ fn managed_agent_child() {
                     },
                 )
                 .unwrap();
-                result["has_message"] = serde_json::json!(result["messages"].as_array().is_some_and(|messages|
-                    messages.iter().any(|message| message["body"] == "Remote fixture message")));
+                // Keep fixture receipts below the native console line width.
+                let result = serde_json::json!({"id":result["id"],"state":result["state"],
+                    "attempt_id":result["attempt_id"],
+                    "has_message":result["messages"].as_array().is_some_and(|messages|
+                        messages.iter().any(|message| message["body"] == "Remote fixture message"))});
                 println!("FIXTURE_RESULT_{operation_sequence}={result}");
             }
         }

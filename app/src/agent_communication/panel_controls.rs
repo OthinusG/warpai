@@ -788,9 +788,7 @@ impl CollaborationPanel {
     pub(super) fn confirm_control(&mut self, ctx: &mut ViewContext<Self>) {
         if !self.connected
             || self.current_context(ctx) != self.context
-            || !crate::agent_communication::AgentCommunication::as_ref(ctx)
-                .preferences
-                .enabled
+            || !self.communication_enabled(ctx)
         {
             return;
         }
