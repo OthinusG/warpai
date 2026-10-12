@@ -281,3 +281,10 @@ repeat uninstall, corrupt both binary/runtime metadata, uninstall, reinstall,
 verify guest setup, remove the installed binary, uninstall, reinstall and uninstall
 again. Verify the SSH fixture and empty WSL component directory after this cycle.
 The progress modal must expose cleanup and waiting-for-disconnect stages.
+
+Intermediate source f4426455 passed both OS protocol suites, all three Companion
+platforms and macOS default/platform checks plus focused application tests
+(runs 38246317180 / 38246318731). Windows stopped on the progress view's Timer::new
+call; the pinned async-io Timer uses Timer::after, now corrected. WSL installation
+acceptance was skipped behind that compile failure and remains mandatory on the
+final source. Native macOS capture was still running at the 30-minute review.

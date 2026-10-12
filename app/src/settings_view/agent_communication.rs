@@ -402,7 +402,7 @@ impl InstallationProgressView {
     fn tick(&mut self, ctx: &mut ViewContext<Self>) {
         if self.timer.is_some() || !AgentCommunication::as_ref(ctx).wsl.busy { return; }
         self.timer = Some(ctx.spawn(async {
-            warpui::r#async::Timer::new(std::time::Duration::from_secs(1)).await;
+            warpui::r#async::Timer::after(std::time::Duration::from_secs(1)).await;
         }, |view, _, ctx| {
             view.timer = None;
             ctx.notify();
