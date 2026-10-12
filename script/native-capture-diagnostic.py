@@ -30,7 +30,7 @@ def main() -> None:
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
     panic_records = "\n".join(checkpoint.read_text(errors="replace") for checkpoint in args.output.parent.rglob("checkpoint-panic.txt"))
-    for name in ["checkpoint-panic.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
+    for name in ["checkpoint-panic.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-creation.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
         for checkpoint in args.output.parent.rglob(name):
             log += "\n" + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", panic_records.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
@@ -42,6 +42,7 @@ def main() -> None:
         "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),
         "remote_trees": [dict(zip(["active", "current", "selected", "attached", "error", "roots", "entries"], [value == "true" for value in values[:5]] + [int(value) for value in values[5:]])) for values in re.findall(r"Native SSH tree: active=(true|false), current=(true|false), selected=(true|false), attached=(true|false), error=(true|false), roots=(\d{1,6}), entries=(\d{1,6})\b", log)],
         "worktree_states": [dict(zip(["connected", "form", "joined", "team", "main", "submitting", "query_error", "git_rev_parse", "git_registry"], [value == "true" for value in values[:6]] + [int(value) for value in values[6:]])) for values in re.findall(r"Native Worktree: connected=(true|false), form=(true|false), joined=(true|false), team=(true|false), main=(true|false), submitting=(true|false), query_error=(\d{1,2}), git_rev_parse=(-?\d{1,3}), git_registry=(-?\d{1,3})\b", log)],
+        "worktree_creation": [dict(zip(["snapshot", "child", "coordinator", "roles", "candidates", "tabs", "modal"], [value == "true" for value in values[:3]] + [int(value) for value in values[3:6]] + [values[6] == "true"])) for values in re.findall(r"Native Worktree creation: snapshot=(true|false), child=(true|false), coordinator=(true|false), roles=(\d{1,6}), candidates=(\d{1,6}), tabs=(\d{1,6}), modal=(true|false)\b", log)],
         "worktree_read_errors": sorted(set(int(value) for value in re.findall(r"Native Worktree read error: category=(\d{1,2})\b", log))),
         "private_git_errors": sorted(set(int(value) for value in re.findall(r"Native private Git error: code=(\d{1,3})\b", log))),
         "private_git_runner": [dict(stage=int(stage), exit=int(exit_code)) for stage, exit_code in re.findall(r"Native private Git runner: stage=([123]), exit=(-?\d{1,3})\b", log)],

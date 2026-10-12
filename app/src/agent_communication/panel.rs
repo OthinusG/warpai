@@ -5714,7 +5714,22 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     }
                 }
             }
-            if data.get("failed_assertion_name").is_some_and(|name| name == "team projection is active" || name == "join request was submitted") {
+            if data.get("failed_assertion_name").is_some_and(|name| name == "native tab and persistent Coordinator") {
+                let tabs = app.root_view::<RootView>(window).and_then(|root| root.read(app, |root, _| root.workspace_view().cloned()))
+                    .map(|workspace| workspace.read(app, |workspace, _| workspace.tabs.len())).unwrap_or(0);
+                let modal = !app.views_of_type::<crate::tab_configs::NewWorktreeModal>(window).unwrap_or_default().is_empty();
+                for panel in app.views_of_type::<CollaborationPanel>(window).unwrap_or_default() {
+                    panel.read(app, |panel, _| {
+                        let snapshot = panel.snapshot.as_ref();
+                        let diagnostic = format!("Native Worktree creation: snapshot={}, child={}, coordinator={}, roles={}, candidates={}, tabs={}, modal={}",
+                            snapshot.is_some(), snapshot.is_some_and(|snapshot| snapshot.worktree_branch.as_deref() == Some("ui-worker")),
+                            snapshot.is_some_and(|snapshot| snapshot.coordinator_online), snapshot.map_or(0, |snapshot| snapshot.roles.len()),
+                            snapshot.map_or(0, |snapshot| snapshot.candidates.len()), tabs, modal);
+                        let _ = std::fs::write(directory.join("checkpoint-worktree-creation.txt"), diagnostic);
+                    });
+                }
+            }
+            if data.get("failed_assertion_name").is_some_and(|name| name == "team projection is active" || name == "join request was submitted" || name == "native tab and persistent Coordinator") {
                 for panel in app.views_of_type::<CollaborationPanel>(window).unwrap_or_default() {
                     panel.read(app, |panel, _| {
                         let snapshot = panel.snapshot.as_ref();

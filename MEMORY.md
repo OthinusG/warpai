@@ -14,7 +14,7 @@ for specific historical questions.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   A user-reported error permits immediate diagnosis. Use focused retries while
   debugging, then one complete source-matched acceptance run before delivery.
-- CI dispatch is not acceptance; report running/failed gates accurately and finish
+- CI dispatch is not acceptance; retain sanitized failure predicates and finish
   authorized fixes without repeated permission questions.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.

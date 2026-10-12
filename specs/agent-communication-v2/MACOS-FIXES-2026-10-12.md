@@ -297,3 +297,11 @@ default/platform/release checks, both protocol suites and all Companion platform
 Windows application test compilation found four test-only App/AppContext mismatches
 in the two-terminal guest regression. Those reads now use App::update's AppContext.
 Real WSL installation/removal acceptance remains gated on the next Windows run.
+
+Run 38249733951 also failed the Traditional Chinese native assertion `native tab
+and persistent Coordinator`; English and Simplified Chinese passed that step.
+The prior source completed the same assertions in all three languages. Preserve
+the assertion and its timeout. Failure diagnostics now record each creation
+predicate, tab count and modal presence as bounded counts/booleans, plus existing
+Git exit categories. The diagnostic self-check rejects runtime payloads. A new
+receipt is required before assigning a root cause to this native failure.
