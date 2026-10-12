@@ -4745,7 +4745,10 @@ impl GetSingletonModelHandle for AppContext {
                 .downcast()
                 .expect("a registered singleton model should never have a refcount of 0"),
             None => {
-                unregistered_singleton_model::<T>();
+                panic!(
+                    "Cannot get singleton model of type {:?} that was never registered",
+                    std::any::type_name::<T>()
+                );
             }
         }
     }
@@ -4756,25 +4759,24 @@ impl AppContext {
         match self.singleton_models.get(&std::any::TypeId::of::<T>()) {
             Some(model_handle) => model_handle
                 .downcast_ref(self)
-                .expect("downcast should be type safe"),
+                .unwrap_or_else(|| {
+                    #[cfg(debug_assertions)]
+                    if let Some(directory) = std::env::var_os(crate::integration::ARTIFACTS_DIR_ENV_VAR) {
+                        // A model under update is absent; publish only its static type and guards.
+                        let _ = std::fs::write(
+                            std::path::PathBuf::from(directory).join("checkpoint-singleton.txt"),
+                            format!("Native unavailable singleton: {} present={} matching={}",
+                                std::any::type_name::<T>(), self.models.contains_key(&model_handle.id()), model_handle.is::<T>()),
+                        );
+                    }
+                    panic!("downcast should be type safe");
+                }),
             None => {
-                unregistered_singleton_model::<T>();
+                panic!(
+                    "Cannot get singleton model of type {:?} that was never registered",
+                    std::any::type_name::<T>()
+                );
             }
         }
     }
-}
-
-fn unregistered_singleton_model<T: SingletonEntity>() -> ! {
-    #[cfg(debug_assertions)]
-    if let Some(directory) = std::env::var_os(crate::integration::ARTIFACTS_DIR_ENV_VAR) {
-        // GUI panic payloads are unavailable in some capture builds; this name is static.
-        let _ = std::fs::write(
-            std::path::PathBuf::from(directory).join("checkpoint-singleton.txt"),
-            format!("Native missing singleton: {}", std::any::type_name::<T>()),
-        );
-    }
-    panic!(
-        "Cannot get singleton model of type {:?} that was never registered",
-        std::any::type_name::<T>()
-    );
 }

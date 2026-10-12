@@ -48,6 +48,7 @@ def main() -> None:
         "private_git_runner": [dict(stage=int(stage), exit=int(exit_code)) for stage, exit_code in re.findall(r"Native private Git runner: stage=([123]), exit=(-?\d{1,3})\b", log)],
         "panic_locations": locations,
         "missing_singletons": sorted(set(re.findall(r"^Native missing singleton: ([A-Za-z_][A-Za-z0-9_]*::[A-Za-z0-9_:<>, &\[\]();]{1,1000})$", log, re.MULTILINE))),
+        "singleton_references": [dict(model=model, present=present == "true", matching=matching == "true") for model, present, matching in re.findall(r"^Native unavailable singleton: ([A-Za-z_][A-Za-z0-9_]*::[A-Za-z0-9_:<>, &\[\]();]{1,1000}) present=(true|false) matching=(true|false)$", log, re.MULTILINE)],
         "agent_projection": [dict(zip(["connected", "remote", "project_uuid", "fixture", "online", "renamed", "run_uuid"], [value == "true" for value in values])) for values in re.findall(r"Native Agent projection: connected=(true|false), remote=(true|false), project_uuid=(true|false), fixture=(true|false), online=(true|false), renamed=(true|false), run_uuid=(true|false)\b", log)],
         "deadline_exceeded": bool(re.search(r"Native collaboration capture exceeded its \d+-second deadline", log)),
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],

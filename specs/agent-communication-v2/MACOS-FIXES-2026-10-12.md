@@ -363,3 +363,10 @@ standard payload representations. Remove payload extraction and record the stati
 type directly at the framework's shared missing-singleton failure, debug-only
 and only in the existing integration-artifact directory. Preserve the panic.
 Native UI and a final full-source run remain required.
+
+Correction after run 38290825256: the source-matched panic is the downcast expect
+for an already registered singleton, not the adjacent unregistered-model branch.
+Earlier missing-singleton attribution was incorrect. Remove that instrumentation
+and record only the static type, instance-present and handle-matching guards at
+the failing read. An instance temporarily removed during model update is one
+possible cause; require the receipt before assigning the affected callback.
