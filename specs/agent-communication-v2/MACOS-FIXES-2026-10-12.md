@@ -379,3 +379,11 @@ WslSettings borrow from the scheduler instead of re-reading or cloning it. Keep
 asynchronous completion/permission reads against current settings and preserve
 generation, busy and target guards. Add a native model-update regression to the
 existing Windows WSL test group. Full both-desktop/real-WSL acceptance is required.
+
+Full run 38298013214 and three-platform Companion run 38298017813 pass at
+eb27ab45. The circular-update regression and real WSL damaged/missing install
+recovery pass. Final Windows Traditional Chinese screenshot review shows readable
+native glyphs and the installation progress dialog, but the alias-expansion
+banner still renders its English button despite an existing translation. Translate
+the banner's button and Warpai-branded title at their display boundary. Repeat
+final source-matched acceptance before tagging; prior passing gates are retained.

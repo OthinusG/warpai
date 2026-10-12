@@ -3839,8 +3839,12 @@
     "啟用 終端機輸入中的智慧體提示自動偵測"
   ],
   "Enable alias expansion": [
-    "启用 别名展开",
-    "啟用 別名展開"
+    "启用别名展开",
+    "啟用別名展開"
+  ],
+  "Warpai can auto-expand aliases.": [
+    "Warpai 可以自动展开别名。",
+    "Warpai 可以自動展開別名。"
   ],
   "Enable app analytics": [
     "启用 应用分析",
