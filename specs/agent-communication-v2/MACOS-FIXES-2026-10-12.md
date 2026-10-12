@@ -324,3 +324,13 @@ missing-singleton panic; macOS at remote Agent projection. The capture parser ha
 omitted existing projection receipts. Include those booleans and only the static
 Rust type name from the exact framework panic; never publish arbitrary payloads.
 Retain projection/Coordinator assertions and require another native acceptance.
+
+Run 38264904379 repeated both capture failures, while protocol, desktop build/test
+and real WSL installation/removal gates passed; Companion run 38264909535 passed
+all platforms. macOS projection receipt shows disconnected with no snapshot.
+The debug attachment helper called refresh before installing its transport;
+context normalization cleared its failed/waiting latch, allowing a competing SSH
+connection. Hold the existing in-flight guard during normalization and restore the
+waiting latch until the explicit native transport is attached. Preserve assertions.
+Windows's static type receipt must also accept workspace-library model types,
+not only the main application crate. Keep exact framework-panic matching.

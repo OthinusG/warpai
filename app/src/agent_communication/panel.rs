@@ -2454,7 +2454,11 @@ impl CollaborationPanel {
         // Suppress polling until the real checkpoint transport is installed.
         self.remote_failed = true;
         self.remote_client = Default::default();
+        // Context normalization clears the latch; hold polling until transport attachment.
+        self.in_flight = true;
         self.refresh(ctx);
+        self.in_flight = false;
+        self.remote_failed = true;
         let generation = self.generation;
         ctx.spawn(
             async move {
@@ -2571,7 +2575,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     if let Some(model) = info.payload().downcast_ref::<String>()
                         .and_then(|message| message.strip_prefix("Cannot get singleton model of type \""))
                         .and_then(|message| message.strip_suffix("\" that was never registered"))
-                        .filter(|model| model.starts_with("warpai::") && model.len() <= 256
+                        .filter(|model| model.contains("::") && model.len() <= 256
                             && model.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':'))) {
                         // This panic contains only the framework's static Rust type name.
                         let _ = std::fs::write(panic_directory.join("checkpoint-singleton.txt"), format!("Native missing singleton: {model}"));

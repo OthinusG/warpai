@@ -14,7 +14,7 @@ for specific historical questions.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   A user-reported error permits immediate diagnosis. Use focused retries while
   debugging, then one complete source-matched acceptance run before delivery.
-- CI requires native UI acceptance; retain sanitized diagnostics.
+- CI requires native UI acceptance; keep sanitized diagnostics.
 - Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
