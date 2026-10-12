@@ -159,6 +159,8 @@ impl InstallationProgress {
             "warpai-install:extract" => Some("Extracting the Companion bundle…"),
             "warpai-install:install" => Some("Installing Companion and its Git runtime…"),
             "warpai-install:verify" => Some("Verifying the installed Companion…"),
+            "warpai-install:cleanup" => Some("Removing guest MCP configuration…"),
+            "warpai-install:stop" => Some("Waiting for Companion connections to close…"),
             _ => None,
         }
     }
@@ -193,6 +195,15 @@ impl AgentCommunication {
         }
         self.wsl.targets = targets;
         if self.wsl.selected_target().is_none() {
+            if self.wsl.busy {
+                if let Some(progress) = &self.wsl.installation {
+                    let mut progress = progress.lock().unwrap();
+                    if progress.result.is_none() {
+                        progress.elapsed = Some(progress.started.elapsed());
+                        progress.result = Some("The WSL account disconnected. Installation may be partial; reconnect and rescan.".into());
+                    }
+                }
+            }
             self.wsl.generation = self.wsl.generation.wrapping_add(1);
             self.wsl.busy = false;
             self.wsl.agents.clear();
@@ -240,6 +251,10 @@ impl AgentCommunication {
     }
 
     pub(crate) fn install_wsl_companion(&mut self, ctx: &mut ModelContext<Self>) {
+        self.change_wsl_companion(self.wsl.companion_installed != Some(true), ctx);
+    }
+
+    pub(crate) fn change_wsl_companion(&mut self, install: bool, ctx: &mut ModelContext<Self>) {
         if !self.wsl.preferences.enabled || self.wsl.selected_target().is_none() {
             return;
         }
@@ -247,7 +262,7 @@ impl AgentCommunication {
             None,
             None,
             None,
-            Some(self.wsl.companion_installed != Some(true)),
+            Some(install),
             ctx,
         );
     }
@@ -324,10 +339,7 @@ impl AgentCommunication {
                 if install { install_companion_with_progress(&target, progress.as_ref()).await?; }
                 else {
                     if let Some(progress) = &progress { progress.lock().unwrap().phase("Removing Companion from the selected WSL account…"); }
-                    guest_setup(&target, warp_agent_bus::wsl_setup::Request {
-                        action: warp_agent_bus::wsl_setup::Action::RemoveAll, commands: commands.clone(),
-                    }).await.context("Could not remove guest MCP configuration. Rescan this account before retrying.")?;
-                    uninstall_companion(&target).await?;
+                    uninstall_companion(&target, progress.as_ref()).await?;
                     return Ok((None, None));
                 }
             }
@@ -432,6 +444,13 @@ async fn install_companion(target: &Target) -> Result<()> {
 }
 
 async fn install_companion_with_progress(target: &Target, progress: Option<&Arc<Mutex<InstallationProgress>>>) -> Result<()> {
+    if let Some(progress) = progress { progress.lock().unwrap().phase("Verifying the bundled archive checksum…"); }
+    let payload = bundled_companion_payload().await?;
+    const SCRIPT: &str = "set -eu; echo warpai-install:identity; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; test \"$(uname -m)\" = x86_64; directory=$(mktemp -d); trap 'rm -rf \"$directory\"' EXIT HUP INT TERM; echo warpai-install:extract; tar -xz -C \"$directory\"; echo warpai-install:install; sh \"$directory/install-unix.sh\" >/dev/null 2>&1; echo warpai-install:verify; \"$2/.config/.warpai/wsl/bin/warpai-wsl-companion\" --check-runtime >/dev/null 2>&1";
+    run_installation(target, SCRIPT, Some(payload), progress).await
+}
+
+async fn bundled_companion_payload() -> Result<Vec<u8>> {
     use sha2::Digest;
     let resources = std::env::current_exe()?
         .parent()
@@ -449,21 +468,20 @@ async fn install_companion_with_progress(target: &Target, progress: Option<&Arc<
         payload.len() <= 128 * 1024 * 1024,
         "WSL payload limit exceeded"
     );
-    if let Some(progress) = progress { progress.lock().unwrap().phase("Verifying the bundled archive checksum…"); }
     let digest = tokio::fs::read_to_string(resources.join("wsl-companion.tar.gz.sha256")).await
         .context("Bundled WSL Companion checksum file is missing or unreadable.")?;
     ensure!(
         format!("{:x}", sha2::Sha256::digest(&payload)) == digest.trim(),
         "WSL payload checksum mismatch"
     );
-    const SCRIPT: &str = "set -eu; echo warpai-install:identity; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; test \"$(uname -m)\" = x86_64; directory=$(mktemp -d); trap 'rm -rf \"$directory\"' EXIT HUP INT TERM; echo warpai-install:extract; tar -xz -C \"$directory\"; echo warpai-install:install; sh \"$directory/install-unix.sh\" >/dev/null 2>&1; echo warpai-install:verify; \"$2/.config/.warpai/wsl/bin/warpai-wsl-companion\" --check-runtime >/dev/null 2>&1";
-    run_installation(target, SCRIPT, Some(payload), progress).await
+    Ok(payload)
 }
 
-async fn uninstall_companion(target: &Target) -> Result<()> {
+async fn uninstall_companion(target: &Target, progress: Option<&Arc<Mutex<InstallationProgress>>>) -> Result<()> {
     // Leave guest settings/history and the original SSH installation intact.
-    const SCRIPT: &str = "set -eu; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; directory=\"$2/.config/.warpai/wsl/bin\"; for path in \"$2/.config\" \"$2/.config/.warpai\" \"$2/.config/.warpai/wsl\" \"$directory\"; do test ! -L \"$path\"; done; test ! -L \"$directory/warpai-wsl-companion\"; exec \"$directory/warpai-wsl-companion\" uninstall";
-    run_installation(target, SCRIPT, None, None).await
+    // Recovery uses the trusted bundle, never the potentially damaged installed binary.
+    const SCRIPT: &str = "set -eu; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; directory=$(mktemp -d); trap 'rm -rf \"$directory\"' EXIT HUP INT TERM; tar -xz -C \"$directory\"; printf '%s' '{\"action\":{\"action\":\"remove_all\"},\"commands\":[]}' | \"$directory/warpai-wsl-companion\" recover-uninstall";
+    run_installation(target, SCRIPT, Some(bundled_companion_payload().await?), progress).await
 }
 
 async fn run_installation(target: &Target, script: &str, payload: Option<Vec<u8>>, progress: Option<&Arc<Mutex<InstallationProgress>>>) -> Result<()> {
@@ -694,13 +712,45 @@ mod tests {
             action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
         }).await.unwrap();
         assert_eq!(response.account, target.user);
-        uninstall_companion(&target).await.unwrap();
+        uninstall_companion(&target, None).await.unwrap();
+        uninstall_companion(&target, None).await.unwrap();
         assert!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {
             action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
         }).await.err().unwrap().is::<MissingCompanion>());
         let mut verify = wsl_command(&target).unwrap();
         assert!(verify.args(["--exec", "sh", "-lc",
             "set -eu; test \"$(cat \"$HOME/.config/.warpai/bin/warpai-companion\")\" = 'Owned SSH Companion fixture'; test -z \"$(find \"$HOME/.config/.warpai/wsl/bin\" -mindepth 1 -print -quit)\""]).status().await.unwrap().success());
+        install_companion(&target).await.unwrap();
+        let mut damage = wsl_command(&target).unwrap();
+        assert!(damage.args(["--exec", "sh", "-c",
+            "set -eu; directory=\"$HOME/.config/.warpai/wsl/bin\"; printf broken > \"$directory/warpai-wsl-companion\"; for path in \"$directory\"/companion-runtime-*/SHA256SUMS; do printf broken > \"$path\"; done"]).status().await.unwrap().success());
+        assert!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {
+            action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
+        }).await.is_err());
+        uninstall_companion(&target, None).await.unwrap();
+        install_companion(&target).await.unwrap();
+        assert_eq!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {
+            action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
+        }).await.unwrap().account, target.user);
+        let mut missing = wsl_command(&target).unwrap();
+        assert!(missing.args(["--exec", "sh", "-c", "rm -f \"$HOME/.config/.warpai/wsl/bin/warpai-wsl-companion\""]).status().await.unwrap().success());
+        uninstall_companion(&target, None).await.unwrap();
+        install_companion(&target).await.unwrap();
+        uninstall_companion(&target, None).await.unwrap();
+        let mut preserved = wsl_command(&target).unwrap();
+        assert!(preserved.args(["--exec", "sh", "-c",
+            "set -eu; test \"$(cat \"$HOME/.config/.warpai/bin/warpai-companion\")\" = 'Owned SSH Companion fixture'; test -z \"$(find \"$HOME/.config/.warpai/wsl/bin\" -mindepth 1 -print -quit)\""]).status().await.unwrap().success());
+        let mut linked = wsl_command(&target).unwrap();
+        assert!(linked.args(["--exec", "sh", "-c",
+            "set -eu; ln -s \"$HOME/.config/.warpai/bin/warpai-companion\" \"$HOME/.config/.warpai/wsl/bin/warpai-wsl-companion\""]).status().await.unwrap().success());
+        assert!(uninstall_companion(&target, None).await.is_err());
+        let mut retained = wsl_command(&target).unwrap();
+        assert!(retained.args(["--exec", "sh", "-c",
+            "set -eu; test \"$(cat \"$HOME/.config/.warpai/bin/warpai-companion\")\" = 'Owned SSH Companion fixture'; rm \"$HOME/.config/.warpai/wsl/bin/warpai-wsl-companion\"; printf preserve > \"$HOME/.config/.warpai/wsl/bin/unrelated.txt\""]).status().await.unwrap().success());
+        uninstall_companion(&target, None).await.unwrap();
+        let mut unrelated = wsl_command(&target).unwrap();
+        assert!(unrelated.args(["--exec", "sh", "-c",
+            "set -eu; test \"$(cat \"$HOME/.config/.warpai/wsl/bin/unrelated.txt\")\" = preserve; rm \"$HOME/.config/.warpai/wsl/bin/unrelated.txt\""]).status().await.unwrap().success());
     }
     #[test]
     fn guest_discovery_rejects_unrequested_commands_and_invalid_paths() {

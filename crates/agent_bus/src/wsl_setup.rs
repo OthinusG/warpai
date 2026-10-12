@@ -75,6 +75,18 @@ pub struct Response {
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 pub fn uninstall() -> Result<()> {
+    uninstall_inner(false)
+}
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+pub fn recover_uninstall() -> Result<()> {
+    println!("warpai-install:cleanup");
+    run_setup(true)?;
+    uninstall_inner(true)
+}
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+fn uninstall_inner(recovery: bool) -> Result<()> {
     use sha2::Digest;
     let executable = std::env::current_exe()?;
     let expected = std::path::PathBuf::from(crate::installation::wsl_companion_path(
@@ -83,33 +95,69 @@ pub fn uninstall() -> Result<()> {
             .as_deref()
             .ok_or_else(|| anyhow::anyhow!("Linux home unavailable"))?,
     )?);
-    ensure!(executable == expected, "Unexpected WSL installation");
-    for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
-        ensure!(count < 16384, "Process limit exceeded");
-        let entry = entry?;
-        let Some(pid) = entry
-            .file_name()
-            .to_str()
-            .and_then(|name| name.parse::<u32>().ok())
-        else {
-            continue;
-        };
-        if pid == std::process::id() {
-            continue;
-        }
-        if let Ok(path) = std::fs::read_link(entry.path().join("exe")) {
-            ensure!(
-                path.to_str()
-                    .map(|path| path.trim_end_matches(" (deleted)"))
-                    != expected.to_str(),
-                "WSL Companion is active"
-            );
-        }
-    }
-    let directory = executable
+    ensure!(
+        recovery || executable == expected,
+        "Unexpected WSL installation"
+    );
+    let directory = expected
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Missing installation"))?;
-    for (count, entry) in std::fs::read_dir(directory)?.enumerate() {
+    for path in directory.ancestors().take(4) {
+        ensure!(
+            !path
+                .symlink_metadata()
+                .is_ok_and(|metadata| metadata.file_type().is_symlink()),
+            "Installation directory cannot be a link"
+        );
+    }
+    ensure!(
+        !expected
+            .symlink_metadata()
+            .is_ok_and(|metadata| metadata.file_type().is_symlink()),
+        "Companion cannot be a link"
+    );
+    let deadline =
+        std::time::Instant::now() + std::time::Duration::from_secs(if recovery { 65 } else { 0 });
+    if recovery {
+        println!("warpai-install:stop");
+    }
+    loop {
+        let mut active = false;
+        for (count, entry) in std::fs::read_dir("/proc")?.enumerate() {
+            ensure!(count < 16384, "Process limit exceeded");
+            let entry = entry?;
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            if pid == std::process::id() {
+                continue;
+            }
+            if let Ok(path) = std::fs::read_link(entry.path().join("exe")) {
+                active |= path
+                    .to_str()
+                    .map(|path| path.trim_end_matches(" (deleted)"))
+                    == expected.to_str();
+            }
+        }
+        if !active {
+            break;
+        }
+        ensure!(
+            std::time::Instant::now() < deadline,
+            "WSL Companion is active"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if recovery && error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    for (count, entry) in entries.enumerate() {
         ensure!(count < 256, "Installation entry limit exceeded");
         let entry = entry?;
         let name = entry.file_name();
@@ -123,19 +171,21 @@ pub fn uninstall() -> Result<()> {
             continue;
         }
         ensure!(entry.file_type()?.is_dir(), "Runtime must be a directory");
-        let sums_path = entry.path().join("SHA256SUMS");
-        ensure!(
-            !sums_path.symlink_metadata()?.file_type().is_symlink(),
-            "Runtime metadata cannot be a link"
-        );
-        let mut sums = Vec::new();
-        std::fs::File::open(sums_path)?
-            .take(512 * 1024 + 1)
-            .read_to_end(&mut sums)?;
-        ensure!(
-            sums.len() <= 512 * 1024 && format!("{:x}", sha2::Sha256::digest(&sums)) == hash,
-            "Unrecognized runtime directory"
-        );
+        if !recovery {
+            let sums_path = entry.path().join("SHA256SUMS");
+            ensure!(
+                !sums_path.symlink_metadata()?.file_type().is_symlink(),
+                "Runtime metadata cannot be a link"
+            );
+            let mut sums = Vec::new();
+            std::fs::File::open(sums_path)?
+                .take(512 * 1024 + 1)
+                .read_to_end(&mut sums)?;
+            ensure!(
+                sums.len() <= 512 * 1024 && format!("{:x}", sha2::Sha256::digest(&sums)) == hash,
+                "Unrecognized runtime directory"
+            );
+        }
         std::fs::remove_dir_all(entry.path())?;
     }
     let manifest = directory.join("companion-manifest.json");
@@ -150,16 +200,26 @@ pub fn uninstall() -> Result<()> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
         Err(error) => return Err(error.into()),
     }
-    std::fs::remove_file(executable)?;
+    match std::fs::remove_file(expected) {
+        Ok(()) => (),
+        Err(error) if recovery && error.kind() == std::io::ErrorKind::NotFound => (),
+        Err(error) => return Err(error.into()),
+    }
     Ok(())
 }
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 pub fn run() -> Result<()> {
+    run_setup(false)
+}
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+fn run_setup(removing: bool) -> Result<()> {
     let mut bytes = Vec::new();
     std::io::stdin().take(65537).read_to_end(&mut bytes)?;
     ensure!(bytes.len() <= 65536, "Setup request too large");
     let request: Request = serde_json::from_slice(&bytes)?;
+    ensure!(!removing || matches!(request.action, Action::RemoveAll), "Recovery only removes WSL integration");
     ensure!(
         request.commands.len() <= 128
             && request.commands.iter().all(|(program, command)| {
@@ -192,6 +252,7 @@ pub fn run() -> Result<()> {
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect(),
     );
     let failed = apply_action(&request.action, &mut preferences, &mut available, &path)?;
+    ensure!(!removing || !failed, "Guest MCP removal did not complete; settings were preserved");
     for row in &mut available {
         if row.program == "codex"
             && !preferences
@@ -222,7 +283,7 @@ pub fn run() -> Result<()> {
     };
     let bytes = serde_json::to_vec(&response)?;
     ensure!(bytes.len() <= 512 * 1024, "Setup response too large");
-    std::io::stdout().write_all(&bytes)?;
+    if !removing { std::io::stdout().write_all(&bytes)?; }
     Ok(())
 }
 

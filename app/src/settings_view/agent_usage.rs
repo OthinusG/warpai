@@ -311,7 +311,7 @@ impl View for UsageSettingsView {
                     .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Toggle5h(id.clone()))).finish())
                 .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
             if let Some(Err(error)) = model.readings.get(&account.id) {
-                body.add_child(builder.span(*error).with_soft_wrap().build().finish());
+                body.add_child(builder.span(warpui::localization::text(error)).with_soft_wrap().build().finish());
             }
         }
         body.add_child(builder.paragraph(warpui::localization::text("Other agents: usage unsupported. Qoder CN has no verified background usage interface.").to_owned())

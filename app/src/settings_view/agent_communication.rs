@@ -41,6 +41,8 @@ pub enum Action {
     #[cfg(windows)]
     WslCompanion,
     #[cfg(windows)]
+    WslUninstallCompanion,
+    #[cfg(windows)]
     WslProgress,
 }
 pub struct CommunicationSettingsView {
@@ -53,7 +55,7 @@ pub struct CommunicationSettingsView {
     #[cfg(windows)]
     wsl_distribution: ViewHandle<crate::view_components::Dropdown<Action>>,
     #[cfg(windows)]
-    wsl_maintenance: [MouseStateHandle; 2],
+    wsl_maintenance: [MouseStateHandle; 3],
     #[cfg(windows)]
     wsl_companion: MouseStateHandle,
     #[cfg(windows)]
@@ -162,10 +164,12 @@ impl TypedActionView for CommunicationSettingsView {
             #[cfg(windows)]
             Action::WslCompanion => model.install_wsl_companion(ctx),
             #[cfg(windows)]
+            Action::WslUninstallCompanion => model.change_wsl_companion(false, ctx),
+            #[cfg(windows)]
             Action::WslProgress => {},
         });
         #[cfg(windows)]
-        if matches!(action, Action::WslCompanion | Action::WslProgress)
+        if matches!(action, Action::WslCompanion | Action::WslUninstallCompanion | Action::WslProgress)
             && AgentCommunication::as_ref(ctx).wsl.installation.is_some() {
             self.wsl_progress.open();
             ctx.focus(&self.wsl_progress.view);
@@ -329,7 +333,7 @@ impl View for CommunicationSettingsView {
                 if model.wsl.selected_target().is_some() {
                     let checkbox = builder.checkbox(self.wsl_companion.clone(), None)
                         .check(model.wsl.companion_installed == Some(true));
-                    let checkbox = if model.wsl.busy || model.wsl.companion_installed.is_none() { checkbox.disabled() } else { checkbox };
+                    let checkbox = if model.wsl.busy { checkbox.disabled() } else { checkbox };
                     body.add_child(build_toggle_element(
                         render_body_item_label_with_icon::<Action>(warpui::localization::text("Install WSL Companion").into(), crate::agent_usage::agent_icon("custom"), None, None,
                             LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
@@ -365,7 +369,7 @@ impl View for CommunicationSettingsView {
                         .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslProgress)).finish());
                 }
                 if model.wsl.selected_target().is_some() {
-                    for (index, label, action) in [(0, "Rescan agents", Action::WslRefresh), (1, "Remove Warpai MCP from all agents", Action::WslRemoveAll)] {
+                    for (index, label, action) in [(0, "Rescan agents", Action::WslRefresh), (1, "Remove Warpai MCP from all agents", Action::WslRemoveAll), (2, "Uninstall WSL Companion", Action::WslUninstallCompanion)] {
                         let button = builder.button(ButtonVariant::Secondary, self.wsl_maintenance[index].clone())
                             .with_text_label(warpui::localization::text(label).into());
                         let button = if model.wsl.busy { button.disabled() } else { button };

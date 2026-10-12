@@ -256,3 +256,28 @@ it now shares their style. Native projection acceptance remains a required gate.
 WSL delivery completion also checks the configuration generation and exact client
 before clearing connection state. A failed Finish request latches unavailable just
 like a failed observation; stale completions cannot overwrite an explicit retry.
+
+### Installation failure recovery acceptance
+
+The user identified installation failure followed by an unusable uninstall path as
+blocking all real-machine validation. An unknown installation state must leave both
+install and explicit uninstall available when the confirmed account is not busy.
+Uninstall extracts the checksum-verified bundled helper instead of executing the
+possibly missing/corrupt installed binary. Its private `recover-uninstall` operation
+accepts only a RemoveAll setup request, revokes/removes recorded guest MCP bindings
+through existing adapters, and removes only the fixed account-owned WSL component
+namespace. No arbitrary target path is accepted. Preserve SSH, projects, task data,
+shell profiles and unrelated installation entries; reject symlinked directories,
+executables, manifests and runtime roots. Recovery may remove damaged recognized
+runtime metadata, while ordinary self-uninstall retains its checksum requirement.
+
+Release native clients during settings mutations and allow at most 65 seconds for
+Companion's existing idle shutdown. Active sessions remain protected; no process is
+forcibly terminated. Report failure and retain progress rather than pretending that
+configuration cleanup or removal succeeded. All subprocesses remain bounded.
+
+Expand real bundled Windows/WSL acceptance to install, reinstall, uninstall,
+repeat uninstall, corrupt both binary/runtime metadata, uninstall, reinstall,
+verify guest setup, remove the installed binary, uninstall, reinstall and uninstall
+again. Verify the SSH fixture and empty WSL component directory after this cycle.
+The progress modal must expose cleanup and waiting-for-disconnect stages.

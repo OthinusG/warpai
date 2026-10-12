@@ -217,7 +217,7 @@ impl TerminalView {
             self.wsl_peer.client = None;
             return;
         }
-        if crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.busy { return; }
+        if crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.busy { self.wsl_peer.client = None; return; }
         if self.wsl_peer.unavailable || self.wsl_peer.busy
             || self
                 .wsl_peer

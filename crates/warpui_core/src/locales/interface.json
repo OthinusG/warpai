@@ -1,4 +1,8 @@
 {
+  "Hide": ["隐藏", "隱藏"],
+  "Removing guest MCP configuration…": ["正在清理 WSL 中的 MCP 配置…", "正在清理 WSL 中的 MCP 設定…"],
+  "Waiting for Companion connections to close…": ["正在等待 Companion 连接关闭…", "正在等待 Companion 連線關閉…"],
+  "Uninstall WSL Companion": ["卸载 WSL Companion", "解除安裝 WSL Companion"],
   "succeeded": ["已成功", "已成功"],
   "You": ["你", "你"],
   "Unassigned": ["未分配", "未指派"],

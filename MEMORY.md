@@ -98,9 +98,9 @@ for specific historical questions.
   opt-outs and input/block guards. Account detection needs no Companion; never
   infer account authority from a launch command alone. Background SSH/WSL/SFTP
   processes hide Windows consoles; failed WSL connections wait for explicit settings
-  retry or context change. Installation progress must expose phases without guest logs.
+  retry/context change. Progress exposes phases. Recovery uses the trusted bundle.
   Explorer uses confirmed remote selection and respects the WSL switch; settings
-  mutations suspend guest polling. Install archive stdin uses a non-login shell.
+  Mutations release guest clients; failed/unknown installs remain removable. Use sh -c.
   Steps 60s/process 420s; clear static polling fence before live WSL (CI-DIAGNOSIS.md).
   Check Windows rlto/release_bundle; debug-only WSL helpers share callee cfg.
   Accept WSL package 3.x previews; no wrapper or Windows host MCP injection.
