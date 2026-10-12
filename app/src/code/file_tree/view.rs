@@ -508,6 +508,12 @@ impl FileTreeView {
                     return;
                 }
                 view.ssh_poll = None;
+                let current = crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
+                    .map(|(profile, connection)| crate::remote_server::selected_session::selection_key(&profile, &connection));
+                if current != view.ssh_selection {
+                    view.refresh_ssh(ctx);
+                    return;
+                }
                 if !view.is_active {
                     return;
                 }
@@ -1039,6 +1045,10 @@ impl FileTreeView {
             show_hidden_files: *CodeSettings::as_ref(ctx).show_hidden_files,
         };
 
+        #[cfg(all(feature = "local_fs", feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+        ctx.observe(&crate::agent_communication::AgentCommunication::handle(ctx), |view, _, ctx| {
+            if view.is_active { view.refresh_ssh(ctx); }
+        });
         #[cfg(feature = "local_fs")]
         ctx.subscribe_to_model(
             &crate::workspace::ActiveSession::handle(ctx),

@@ -374,6 +374,19 @@ impl WarpifySettings {
         false
     }
 
+    #[cfg(windows)]
+    pub(crate) fn is_interactive_wsl_command(command: &str) -> bool {
+        if command.chars().any(|c| c.is_control() || "$`;|&<>()".contains(c)) { return false; }
+        let Some(words) = shlex::split(command) else { return false; };
+        if !words.first().is_some_and(|word| word.eq_ignore_ascii_case("wsl") || word.eq_ignore_ascii_case("wsl.exe")) { return false; }
+        let mut arguments = words[1..].iter();
+        while let Some(option) = arguments.next() {
+            if !matches!(option.as_str(), "-d" | "--distribution" | "-u" | "--user" | "--cd")
+                || !arguments.next().is_some_and(|value| !value.is_empty() && !value.starts_with('-')) { return false; }
+        }
+        true
+    }
+
     /// This function determines if we should ask the user whether they want to bootstrap a subshell.
     /// It determines this by matching their command against some hardcoded regexes and those added
     /// manually by the user.

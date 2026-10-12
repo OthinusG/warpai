@@ -350,6 +350,11 @@ fn load_script(file_path: &str, assets: &dyn AssetProvider) -> String {
         &format!(r#"\"session_id\": $WARP_SESSION_ID, \"shell_pid\": {}"#,
             if file_path.contains("fish_") { "$fish_pid" } else { "$$" }),
     );
+    #[cfg(windows)]
+    let script = if file_path == "bundled/bootstrap/bash_init_subshell.sh" {
+        // Identify command-entered WSL before the full guest bootstrap completes.
+        script.replace(r#"\"is_subshell\": true"#, r#"\"is_subshell\": true, \"wsl_name\": \"${WSL_DISTRO_NAME:-}\""#)
+    } else { script };
     script
 }
 

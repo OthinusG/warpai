@@ -10538,9 +10538,16 @@ impl TerminalView {
                     .agent_interaction_metadata()
                     .is_some();
 
+                #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+                let automatic_wsl = is_compatible_subshell_command && !command_is_denylisted && !has_ai_metadata
+                    && self.schedule_wsl_integration(warpify_command, ctx);
+                #[cfg(not(all(windows, feature = "local_tty", not(feature = "remote_tty"))))]
+                let automatic_wsl = false;
                 if is_compatible_subshell_command {
                     if command_is_denylisted || has_ai_metadata {
                         // Don't auto-warpify or surface warpification for these commands.
+                    } else if automatic_wsl {
+                        // The native WSL bootstrap is already scheduled with input guards.
                     } else if let Some(shell_type) = self.pending_auto_bootstrap_shell_type.take() {
                         // If there is a subshell we're waiting to bootstrap until we receive
                         // the preexec hook, now we can bootstrap it.

@@ -38,7 +38,13 @@ pub(crate) fn selected_ssh(
     let session = active.session(window)?;
     let connection = session_connection(&session)?;
     #[cfg(windows)]
-    if let SshConnection::Wsl { distribution, .. } = &connection {
+    if let SshConnection::Wsl { distribution, user } = &connection {
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty")))]
+        {
+        let settings = &crate::agent_communication::AgentCommunication::as_ref(app).wsl;
+        if !settings.preferences.enabled || settings.busy || !settings.targets.iter().any(|target|
+            target.distribution == *distribution && target.user == *user) { return None; }
+        }
         if !crate::terminal::wsl::WslInfo::as_ref(app).distributions()
             .any(|entry| entry.name == *distribution && entry.supports_communication()) { return None; }
     }

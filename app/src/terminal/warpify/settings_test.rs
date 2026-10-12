@@ -56,3 +56,10 @@ fn test_wsl_subshell_detection_fail() {
         )
     });
 }
+
+#[cfg(windows)]
+    #[test]
+    fn automatic_wsl_integration_accepts_only_literal_interactive_launches() {
+        for command in ["wsl", "wsl.exe -d Ubuntu -u guest", "wsl --distribution 'Custom Linux' --cd /home/guest"] { assert!(WarpifySettings::is_interactive_wsl_command(command)); }
+        for command in ["wsl --status", "wsl --exec codex", "wsl -e bash", "wsl --system", "wsl -d", "wsl -u -root", "wsl; codex", "wsl -d $name", "wsl -d $(whoami)", "ssh host wsl", "wslfetch"] { assert!(!WarpifySettings::is_interactive_wsl_command(command)); }
+    }

@@ -5476,7 +5476,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }));
     #[cfg(windows)]
     if std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
-        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "settings-wsl-communication.png"].map(str::to_owned));
+        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "settings-wsl-communication.png", "fixture-wsl-installation-running.png", "fixture-wsl-installation-failed.png"].map(str::to_owned));
         driver = driver.with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, _| {
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
@@ -5591,7 +5591,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }));
         }).add_named_assertion("focused WSL uses only its own switch", |app, window| {
             let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-            warpui::async_assert!(panel.read(app, |panel, ctx| !panel.communication_enabled(ctx) && panel.context.is_none()))
+            warpui::async_assert!(panel.read(app, |panel, ctx| !panel.communication_enabled(ctx) && panel.context.is_none()
+                && crate::remote_server::selected_session::selected_ssh(ctx, window).is_none()))
         }))
         .with_step(TestStep::new("restore independent WSL communication").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, _, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
@@ -5666,10 +5667,44 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && settings.selected_target().is_some_and(|target| target.user == "warpai-test")
             }))
         }).with_take_screenshot("settings-wsl-communication.png"));
+        for failed in [false, true] {
+            driver = driver.with_step(TestStep::new(if failed { "show failed installation receipt fixture" } else { "show live installation progress fixture" })
+                .with_action(move |app, window, _| {
+                    app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                        let target = model.wsl.selected_target().unwrap();
+                        model.wsl.installation = Some(Arc::new(std::sync::Mutex::new(super::wsl_settings::InstallationProgress {
+                            account: target.label(), started: std::time::Instant::now(),
+                            elapsed: failed.then_some(std::time::Duration::from_secs(12)),
+                            phases: vec!["Preparing Companion installation…", "Verifying the bundled archive checksum…", "Verifying the WSL account…", "Extracting the Companion bundle…", "Installing Companion and its Git runtime…"],
+                            transferred: 1048576, total: 1048576,
+                            result: failed.then(|| "Companion service verification failed. Rescan this account before retrying.".into()),
+                        })));
+                        model.wsl.busy = !failed;
+                        ctx.notify();
+                    }));
+                    let view = app.views_of_type::<crate::settings_view::agent_communication::CommunicationSettingsView>(window).unwrap()[0].clone();
+                    view.update(app, |view, ctx| view.handle_action(&crate::settings_view::agent_communication::Action::WslProgress, ctx));
+                }).add_named_assertion("installation modal exposes phase history", |app, window| {
+                    warpui::async_assert!(app.views_of_type::<crate::settings_view::agent_communication::CommunicationSettingsView>(window)
+                        .is_some_and(|views| views.iter().any(|view| view.read(app, |view, _| view.get_modal_content().is_some()))))
+                }).with_take_screenshot(if failed { "fixture-wsl-installation-failed.png" } else { "fixture-wsl-installation-running.png" }));
+        }
     }
     let driver = driver.with_on_finish(move |app, window, data| {
         // Keep the original failing step; missing later screenshots must not mask it.
         if data.contains_key(warpui::integration::RUNTIME_TAG_FAILURE_REASON) {
+            for panel in app.views_of_type::<CollaborationPanel>(window).unwrap_or_default() {
+                panel.read(app, |panel, _| {
+                    let snapshot = panel.snapshot.as_ref();
+                    let fixture = snapshot.and_then(|snapshot| snapshot.agents.iter().find(|row| row.agent.program == "fixture"));
+                    let diagnostic = format!("Native Agent projection: connected={}, remote={}, project_uuid={}, fixture={}, online={}, renamed={}, run_uuid={}",
+                        panel.connected, panel.remote.is_some(),
+                        snapshot.is_some_and(|snapshot| uuid::Uuid::parse_str(&snapshot.project).is_ok()), fixture.is_some(),
+                        fixture.is_some_and(|row| row.online), fixture.is_some_and(|row| row.agent.name == format!("fixture-{}", row.agent.terminal)),
+                        fixture.is_some_and(|row| row.run.as_ref().is_some_and(|run| uuid::Uuid::parse_str(run).is_ok())));
+                    let _ = std::fs::write(directory.join("checkpoint-agent-projection.txt"), diagnostic);
+                });
+            }
             if let Some(assertion) = data.get("failed_assertion_name") {
                 for name in ["interface language loaded from isolated preferences", "requested interface settings section is selected", "live detail scroll reaches lower controls", "native main branch is selected", "native tab and persistent Coordinator", "Coordinator owns its original run", "worker candidate observed", "automatic Worktree participant", "two roles and preserved terminal draft", "worker becomes Coordinator", "project Coordinator persists", "join request was submitted", "unjoined Worktree projection is loaded", "team projection is active", "private checkout and draft retained", "hidden panel is fenced and draft retained", "SSH banner belongs to a visible command block", "Code Review toolbar entry is supported", "remote Review has one changed file", "owned remote tree populated", "original local terminal selection restored", "confirmed WSL selection carries guest user", "owned WSL tree populated", "native editor retains WSL save source", "WSL collaboration uses guest Companion", "WSL Markdown and guest image loaded", "original Review retains WSL project authority", "WSL settings detect installed bundled component for logged-in account"] {
                     if assertion == name {

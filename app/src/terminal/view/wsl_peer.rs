@@ -32,6 +32,8 @@ pub(super) struct State {
     submitted: bool,
     cancelled: bool,
     observed_run: Option<String>,
+    unavailable: bool,
+    configuration_generation: u64,
 }
 
 impl State {
@@ -47,6 +49,16 @@ impl State {
         self.epoch = self.epoch.wrapping_add(1);
         self.submitted = false;
         self.cancelled = false;
+        self.unavailable = false;
+    }
+    fn select_configuration(&mut self, generation: u64) {
+        if self.configuration_generation == generation { return; }
+        self.configuration_generation = generation;
+        self.client = None;
+        self.busy = false;
+        self.attempted = None;
+        self.unavailable = false;
+        self.epoch = self.epoch.wrapping_add(1);
     }
     pub(super) fn user_input(&mut self, bytes: &[u8]) {
         if bytes.is_empty() {
@@ -93,6 +105,27 @@ async fn request(
 }
 
 impl TerminalView {
+    pub(super) fn schedule_wsl_integration(&mut self, command: &str, ctx: &mut ViewContext<Self>) -> bool {
+        if !crate::terminal::warpify::settings::WarpifySettings::is_interactive_wsl_command(command) { return false; }
+        let Some(session) = self.active_block_session_id().and_then(|id| self.sessions_model().as_ref(ctx).get(id)) else { return false; };
+        if session.is_wsl() || session.ssh_arguments().is_some() || session.is_legacy_ssh_session()
+            || matches!(session.session_type(), crate::terminal::model::session::SessionType::WarpifiedRemote { .. }) { return false; }
+        let program = command.split_whitespace().next().unwrap();
+        if session.alias_value(program).is_some() || session.abbreviation_value(program).is_some()
+            || session.function_names().any(|name| name.eq_ignore_ascii_case(program)) { return false; }
+        self.wsl_peer.select_configuration(crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.generation);
+        let epoch = self.wsl_peer.epoch;
+        let block = self.model.lock().block_list().active_block_id().clone();
+        let future = ctx.spawn_abortable(Timer::after(Duration::from_millis(AUTO_WARPIFY_DELAY)), move |view, _, ctx| {
+            // User input, cancellation or a replaced block invalidates delayed bootstrap.
+            if view.wsl_peer.epoch != epoch || view.model.lock().block_list().active_block_id() != &block { return; }
+            if view.active_block_session_id().and_then(|id| view.sessions_model().as_ref(ctx).get(id)).is_some_and(|session| session.is_wsl()) { return; }
+            view.trigger_subshell_bootstrap(None, false, ctx);
+        }, |_, _| ());
+        self.warpify_state.add_auto_warpify_abort_handle(future);
+        true
+    }
+
     fn clear_observed_wsl_agent(&mut self, ctx: &mut ViewContext<Self>) {
         let Some(run) = self.wsl_peer.observed_run.take() else { return; };
         let id = self.view_id;
@@ -174,6 +207,8 @@ impl TerminalView {
     ) {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context.clone());
+        let configuration_generation = crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.generation;
+        self.wsl_peer.select_configuration(configuration_generation);
         let Some(context) = context else {
             self.clear_observed_wsl_agent(ctx);
             return;
@@ -182,7 +217,8 @@ impl TerminalView {
             self.wsl_peer.client = None;
             return;
         }
-        if self.wsl_peer.busy
+        if crate::agent_communication::AgentCommunication::as_ref(ctx).wsl.busy { return; }
+        if self.wsl_peer.unavailable || self.wsl_peer.busy
             || self
                 .wsl_peer
                 .attempted
@@ -236,10 +272,10 @@ impl TerminalView {
             };
             Ok::<_, anyhow::Error>((client, state))
         }, move |view, result, ctx| {
-            if view.wsl_peer.context.as_ref() != Some(&context) { return; }
+            if view.wsl_peer.context.as_ref() != Some(&context) || view.wsl_peer.configuration_generation != configuration_generation { return; }
             let (client, state) = match result {
                 Ok(value) => value,
-                Err(_) => { view.wsl_peer.client = None; view.wsl_peer.busy = false; return; }
+                Err(_) => { view.wsl_peer.client = None; view.wsl_peer.busy = false; view.wsl_peer.unavailable = true; return; }
             };
             view.wsl_peer.client = Some(client.clone());
             view.observe_wsl_agent(&context, state.as_ref(), ctx);
@@ -291,6 +327,20 @@ impl TerminalView {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn unavailable_service_requires_configuration_retry_without_losing_drafts() {
+        let mut state = State::default();
+        state.user_input(b"unsent draft");
+        let epoch = state.epoch;
+        state.unavailable = true;
+        state.select_configuration(0);
+        assert!(state.unavailable);
+        assert_eq!(state.epoch, epoch);
+        state.select_configuration(1);
+        assert!(!state.unavailable);
+        assert!(!state.draft.is_empty());
+        assert_ne!(state.epoch, epoch);
+    }
     #[test]
     fn guest_observations_detect_agents_without_wakes_and_keep_terminals_independent() {
         use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};

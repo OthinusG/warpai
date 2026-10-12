@@ -21,6 +21,7 @@ fn windows_bootstrap_reports_native_shell_pid() {
         let script = load_script(&format!("bundled/bootstrap/{shell}_init_subshell.sh"), &Assets);
         let pid = if shell == "fish" { "$fish_pid" } else { "$$" };
         assert!(script.contains(&format!(r#"\"shell_pid\": {pid}"#)));
+        assert!(script.contains(r#"\"wsl_name\""#), "Guest identity must precede the full bootstrap for {shell}");
         assert!(!script.contains("export WARP_SESSION_ID"));
     }
 }

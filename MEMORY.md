@@ -9,15 +9,15 @@ for specific historical questions.
 - Rust compilation/tests and native desktop acceptance run on GitHub, not locally.
   Batch 1–17 fixes before full acceptance. Protocol jobs and desktop jobs run
   independently; both desktops cache Cargo outputs and reuse native capture builds.
-  Local Rustfmt syntax parsing, diff checks and script/document checks are allowed.
+  Local Rustfmt parsing, diff and script/document checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   A user-reported error permits immediate diagnosis. Use focused retries while
   debugging, then one complete source-matched acceptance run before delivery.
-- Starting CI is not acceptance. Report uninspected/running/failed gates accurately;
-  finish authorized fixes and delivery without repeated permission questions.
-- Keep historical assets/receipts and active gh-pages; remove only authorized,
-  merged, clean, unused branches/worktrees. Retain four validation/release workflows.
+- CI dispatch is not acceptance; report running/failed gates accurately and finish
+  authorized fixes without repeated permission questions.
+- Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
+  unused branches/worktrees. Retain four workflows.
 - Release immutable tags through existing workflows; both desktops build the same
   source. Follow [release gates](specs/RELEASE.md), including five installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
@@ -26,11 +26,9 @@ for specific historical questions.
 
 - Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
   never move; historical acceptance receipts remain in their owning specs.
-- Prior maintenance acceptance: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees.
-- Remove private upstream setup/routing, not shared terminal compatibility or
-  pinned dependencies. Keep four workflows and the independent gh-pages branch.
-  GitHub fork detachment requires a supported operation; never delete/recreate
-  this repository or claim detachment without verifying fork=false.
+- Prior acceptance: specs/1.6.2/POST-RELEASE.md. Preserve dirty worktrees, terminal
+  compatibility and pinned dependencies. Fork detachment must verify fork=false;
+  never delete/recreate the repository.
 
 ## Project, worktree and Agent ownership
 
@@ -59,9 +57,8 @@ for specific historical questions.
 - Remove local worktrees via native Git: confirm/recheck exact registered path;
   protect main/open/locked/dirty/untracked/ignored checkouts; never force/delete
   branches. SSH removal is outside this patch.
-- Sidebar owns sessions; panel owns project messages/tasks/reviews/history. Reuse
-  native widgets, prominent modes and 8px spacing. Default closed; events must
-  preserve focus/drafts and never open the panel automatically.
+- Sidebar owns sessions; panel owns project messages/tasks/reviews/history.
+  Reuse native widgets/8px spacing. Default closed; preserve focus/drafts.
 - Derive Agent coverage/icons from managed CLIAgent, preserving aliases and custom
   native-MCP-capable sessions. No duplicate vendor allowlist or shell-tool fallback.
 
@@ -97,6 +94,13 @@ for specific historical questions.
 
 - WSL uses its separate Windows-bundled guest binary and confirmed WSL 2 accounts;
   retain distro/user-scoped setup. Contract: specs/wsl-1.6.0/TECH.md.
+  Plain interactive WSL launches default to native terminal integration, respecting
+  opt-outs and input/block guards. Account detection needs no Companion; never
+  infer account authority from a launch command alone. Background SSH/WSL/SFTP
+  processes hide Windows consoles; failed WSL connections wait for explicit settings
+  retry or context change. Installation progress must expose phases without guest logs.
+  Explorer uses confirmed remote selection and respects the WSL switch; settings
+  mutations suspend guest polling. Install archive stdin uses a non-login shell.
   Steps 60s/process 420s; clear static polling fence before live WSL (CI-DIAGNOSIS.md).
   Check Windows rlto/release_bundle; debug-only WSL helpers share callee cfg.
   Accept WSL package 3.x previews; no wrapper or Windows host MCP injection.
@@ -118,16 +122,15 @@ for specific historical questions.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (17 issues).
+- Active fixes: MACOS-FIXES-2026-10-12.md (17 issues).
   Local/SSH/WSL share correlated results and durable decision questions. Project
   peers all observe and decide retry/reassignment/review; execution stays run-fenced.
   Local/SSH/WSL enablement follows the focused terminal independently, including
-  command-entered remote sessions. Worktree allocation remains Coordinator-only. Final
-  ordinary replies atomically queue results and consume requests; blocked reports
-  remain unresolved. Native permissions/cancellation/disconnect observations persist
-  with the exact task attempt; no drafts/output are stored. Wait receipts advance
-  without deleting unacknowledged inbox entries. Notifications never establish
-  execution or result handling.
+  command-entered sessions. Worktree allocation remains Coordinator-only. Final
+  replies atomically queue results/consume requests; blocked reports stay unresolved.
+  Permissions/cancellation/disconnect observations persist with exact attempts;
+  never store drafts/output. Wait receipts retain unacknowledged messages;
+  notifications never prove execution or result handling.
 - Wake polls until idle; manual input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.
@@ -167,10 +170,9 @@ for specific historical questions.
   or Releases fallback. Startup check defaults off/runs once; no installation writes.
 - Docs are bilingual and Agent-first; update existing README sections, not a
   changelog. Keep native screenshots/provenance and approved bundled SVG branding.
-- Website: https://othinusg.github.io/warpai/ from independent gh-pages branch,
-  EN / and ZH /zh/. Preserve its worktree and app branding assets. Jekyll pages
-  assign their own translated strings; self-hosted font subsets must be updated
-  and cmap-checked when copy changes. Use configured /warpai baseurl in production.
+- Website: https://othinusg.github.io/warpai/ on gh-pages, EN / and ZH /zh/.
+  Preserve worktree/branding; update and cmap-check font subsets when copy changes.
+  Jekyll pages own translated strings; production baseurl is /warpai.
 
 ## Memory maintenance
 

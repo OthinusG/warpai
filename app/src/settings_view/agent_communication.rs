@@ -40,6 +40,8 @@ pub enum Action {
     WslRemoveAll,
     #[cfg(windows)]
     WslCompanion,
+    #[cfg(windows)]
+    WslProgress,
 }
 pub struct CommunicationSettingsView {
     switch: SwitchStateHandle,
@@ -54,6 +56,10 @@ pub struct CommunicationSettingsView {
     wsl_maintenance: [MouseStateHandle; 2],
     #[cfg(windows)]
     wsl_companion: MouseStateHandle,
+    #[cfg(windows)]
+    wsl_progress: crate::modal::ModalViewState<crate::modal::Modal<InstallationProgressView>>,
+    #[cfg(windows)]
+    wsl_progress_button: MouseStateHandle,
 }
 impl CommunicationSettingsView {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
@@ -68,6 +74,14 @@ impl CommunicationSettingsView {
             _view.update_wsl_dropdown(ctx);
             ctx.notify();
         });
+        #[cfg(windows)]
+        let wsl_progress = {
+            let body = ctx.add_typed_action_view(InstallationProgressView::new);
+            let modal = ctx.add_typed_action_view(|ctx| crate::modal::Modal::new(
+                Some(warpui::localization::text("WSL Companion installation").into()), body, ctx));
+            ctx.subscribe_to_view(&modal, |view, _, _, ctx| { view.wsl_progress.close(); ctx.emit(()); ctx.notify(); });
+            crate::modal::ModalViewState::new(modal)
+        };
         #[cfg(windows)]
         {
             AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
@@ -88,10 +102,19 @@ impl CommunicationSettingsView {
             wsl_maintenance: Default::default(),
             #[cfg(windows)]
             wsl_companion: Default::default(),
+            #[cfg(windows)]
+            wsl_progress,
+            #[cfg(windows)]
+            wsl_progress_button: Default::default(),
         };
         #[cfg(windows)]
         view.update_wsl_dropdown(ctx);
         view
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn get_modal_content(&self) -> Option<Box<dyn Element>> {
+        self.wsl_progress.is_open().then(|| self.wsl_progress.render())
     }
 
     #[cfg(windows)]
@@ -138,7 +161,17 @@ impl TypedActionView for CommunicationSettingsView {
             Action::WslRemoveAll => model.maintain_wsl(true, ctx),
             #[cfg(windows)]
             Action::WslCompanion => model.install_wsl_companion(ctx),
+            #[cfg(windows)]
+            Action::WslProgress => {},
         });
+        #[cfg(windows)]
+        if matches!(action, Action::WslCompanion | Action::WslProgress)
+            && AgentCommunication::as_ref(ctx).wsl.installation.is_some() {
+            self.wsl_progress.open();
+            ctx.focus(&self.wsl_progress.view);
+            ctx.emit(());
+            ctx.notify();
+        }
     }
 }
 impl View for CommunicationSettingsView {
@@ -326,6 +359,11 @@ impl View for CommunicationSettingsView {
                 if !model.wsl.status.is_empty() {
                     body.add_child(secondary_text(appearance, warpui::localization::text(&model.wsl.status).to_owned(), None));
                 }
+                if model.wsl.installation.is_some() {
+                    body.add_child(builder.button(ButtonVariant::Secondary, self.wsl_progress_button.clone())
+                        .with_text_label(warpui::localization::text("View installation progress").into()).build()
+                        .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslProgress)).finish());
+                }
                 if model.wsl.selected_target().is_some() {
                     for (index, label, action) in [(0, "Rescan agents", Action::WslRefresh), (1, "Remove Warpai MCP from all agents", Action::WslRemoveAll)] {
                         let button = builder.button(ButtonVariant::Secondary, self.wsl_maintenance[index].clone())
@@ -341,6 +379,65 @@ impl View for CommunicationSettingsView {
         Container::new(body.finish())
             .with_margin_bottom(16.)
             .finish()
+    }
+}
+
+#[cfg(windows)]
+struct InstallationProgressView {
+    timer: Option<warpui::r#async::SpawnedFutureHandle>,
+}
+#[cfg(windows)]
+impl InstallationProgressView {
+    fn new(ctx: &mut ViewContext<Self>) -> Self {
+        ctx.observe(&AgentCommunication::handle(ctx), |view, _, ctx| {
+            view.tick(ctx);
+            ctx.notify();
+        });
+        Self { timer: None }
+    }
+    fn tick(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.timer.is_some() || !AgentCommunication::as_ref(ctx).wsl.busy { return; }
+        self.timer = Some(ctx.spawn(async {
+            warpui::r#async::Timer::new(std::time::Duration::from_secs(1)).await;
+        }, |view, _, ctx| {
+            view.timer = None;
+            ctx.notify();
+            view.tick(ctx);
+        }));
+    }
+}
+#[cfg(windows)]
+impl Entity for InstallationProgressView { type Event = (); }
+#[cfg(windows)]
+impl TypedActionView for InstallationProgressView {
+    type Action = ();
+    fn handle_action(&mut self, _: &(), _: &mut ViewContext<Self>) {}
+}
+#[cfg(windows)]
+impl View for InstallationProgressView {
+    fn ui_name() -> &'static str { "WslCompanionInstallationProgress" }
+    fn render(&self, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let mut body = Flex::column();
+        if let Some(progress) = &AgentCommunication::as_ref(app).wsl.installation {
+            let progress = progress.lock().unwrap();
+            body.add_child(secondary_text(appearance, progress.account.clone(), None));
+            let seconds = progress.elapsed.unwrap_or_else(|| progress.started.elapsed()).as_secs().to_string();
+            body.add_child(secondary_text(appearance, warpui::localization::format_text("Elapsed: {seconds}s", &[("seconds", &seconds)]), None));
+            for phase in &progress.phases {
+                body.add_child(Container::new(secondary_text(appearance, warpui::localization::text(phase).into(), None)).with_margin_top(8.).finish());
+            }
+            if progress.total > 0 {
+                body.add_child(secondary_text(appearance, warpui::localization::format_text("Archive transferred: {bytes} / {total} bytes", &[
+                    ("bytes", &progress.transferred.to_string()), ("total", &progress.total.to_string())]), None));
+            }
+            if let Some(result) = &progress.result {
+                body.add_child(Container::new(secondary_text(appearance, warpui::localization::text(result).into(), None)).with_margin_top(12.).finish());
+            } else {
+                body.add_child(Container::new(secondary_text(appearance, warpui::localization::text("Closing this window keeps installation running. Reopen progress from Settings.").into(), None)).with_margin_top(12.).finish());
+            }
+        }
+        body.finish()
     }
 }
 pub struct CommunicationWidget(pub ViewHandle<CommunicationSettingsView>);

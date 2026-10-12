@@ -1,9 +1,9 @@
 //! Windows selection is persisted independently; discovery executes only in the selected guest.
 use super::{setup, AgentCommunication};
-use anyhow::{ensure, Result};
+use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, time::Duration};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::{path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -128,8 +128,40 @@ pub(crate) struct WslSettings {
     pub busy: bool,
     pub companion_installed: Option<bool>,
     pub targets: Vec<Target>,
-    generation: u64,
+    pub installation: Option<Arc<Mutex<InstallationProgress>>>,
+    pub(crate) generation: u64,
     path: PathBuf,
+}
+
+pub(crate) struct InstallationProgress {
+    pub account: String,
+    pub started: Instant,
+    pub elapsed: Option<Duration>,
+    pub phases: Vec<&'static str>,
+    pub transferred: usize,
+    pub total: usize,
+    pub result: Option<String>,
+}
+
+impl InstallationProgress {
+    fn new(target: &Target) -> Self {
+        Self { account: target.label(), started: Instant::now(), elapsed: None,
+            phases: vec!["Preparing Companion installation…"], transferred: 0, total: 0, result: None }
+    }
+    fn phase(&mut self, phase: &'static str) {
+        if self.phases.last().copied() != Some(phase) && self.phases.len() < 10 {
+            self.phases.push(phase);
+        }
+    }
+    fn guest_phase(line: &str) -> Option<&'static str> {
+        match line {
+            "warpai-install:identity" => Some("Verifying the WSL account…"),
+            "warpai-install:extract" => Some("Extracting the Companion bundle…"),
+            "warpai-install:install" => Some("Installing Companion and its Git runtime…"),
+            "warpai-install:verify" => Some("Verifying the installed Companion…"),
+            _ => None,
+        }
+    }
 }
 
 impl WslSettings {
@@ -284,20 +316,27 @@ impl AgentCommunication {
         };
         settings.busy = true;
         settings.status = "Checking agents in the selected WSL distribution…".into();
+        let progress = install.map(|_| Arc::new(Mutex::new(InstallationProgress::new(&target))));
+        if let Some(progress) = &progress { settings.installation = Some(progress.clone()); }
         let selected = target.clone();
         ctx.spawn(async move {
             if let Some(install) = install {
-                if install { install_companion(&target).await?; }
+                if install { install_companion_with_progress(&target, progress.as_ref()).await?; }
                 else {
+                    if let Some(progress) = &progress { progress.lock().unwrap().phase("Removing Companion from the selected WSL account…"); }
                     guest_setup(&target, warp_agent_bus::wsl_setup::Request {
                         action: warp_agent_bus::wsl_setup::Action::RemoveAll, commands: commands.clone(),
-                    }).await?;
+                    }).await.context("Could not remove guest MCP configuration. Rescan this account before retrying.")?;
                     uninstall_companion(&target).await?;
                     return Ok((None, None));
                 }
             }
+            if let Some(progress) = &progress {
+                progress.lock().unwrap().phase("Checking Companion service and agent configuration…");
+            }
             match guest_setup(&target, warp_agent_bus::wsl_setup::Request { action, commands: commands.clone() }).await {
                 Ok(response) => Ok((Some(response), None)),
+                Err(_) if install == Some(true) => Err(anyhow::anyhow!("Companion service verification failed. Rescan this account before retrying.")),
                 Err(error) if error.is::<MissingCompanion>() => {
                     let commands: Vec<_> = commands.into_iter().map(|(_, command)| command).collect();
                     discover(&target, &commands).await.map(|fallback| (None, Some(fallback)))
@@ -308,7 +347,17 @@ impl AgentCommunication {
             model.refresh_wsl_targets(ctx);
             let settings = &mut model.wsl;
             if settings.generation != generation { return; }
-            if !settings.targets.contains(&selected) { settings.busy = false; ctx.notify(); return; }
+            if !settings.targets.contains(&selected) {
+                settings.busy = false;
+                if install.is_some() {
+                    if let Some(progress) = &settings.installation {
+                        let mut progress = progress.lock().unwrap();
+                        progress.elapsed = Some(progress.started.elapsed());
+                        progress.result = Some("The WSL account disconnected. Installation may be partial; reconnect and rescan.".into());
+                    }
+                }
+                ctx.notify(); return;
+            }
             settings.busy = false;
             match result {
                 Ok((Some(response), _)) if response.account == selected.user => {
@@ -331,7 +380,21 @@ impl AgentCommunication {
                     settings.status = "WSL Companion removed from this account. SSH and project data were preserved.".into();
                 }
                 Ok(_) => settings.status = "WSL MCP setup unavailable.".into(),
-                Err(_) => settings.status = "WSL setup did not complete. Its result may be partial; rescan this account before retrying changes.".into(),
+                Err(error) => {
+                    settings.status = "WSL setup did not complete. Its result may be partial; rescan this account before retrying changes.".into();
+                    if install.is_some() {
+                        if let Some(progress) = &settings.installation {
+                            progress.lock().unwrap().result = Some(error.to_string());
+                        }
+                    }
+                },
+            }
+            if install.is_some() {
+                if let Some(progress) = &settings.installation {
+                    let mut progress = progress.lock().unwrap();
+                    progress.elapsed = Some(progress.started.elapsed());
+                    if progress.result.is_none() { progress.result = Some(settings.status.clone()); }
+                }
             }
             ctx.notify();
         });
@@ -363,7 +426,12 @@ fn wsl_command(target: &Target) -> Result<tokio::process::Command> {
     Ok(command)
 }
 
+#[cfg(test)]
 async fn install_companion(target: &Target) -> Result<()> {
+    install_companion_with_progress(target, None).await
+}
+
+async fn install_companion_with_progress(target: &Target, progress: Option<&Arc<Mutex<InstallationProgress>>>) -> Result<()> {
     use sha2::Digest;
     let resources = std::env::current_exe()?
         .parent()
@@ -373,7 +441,7 @@ async fn install_companion(target: &Target) -> Result<()> {
     let resources = std::env::var_os("WARP_TEST_WSL_BUNDLE").map(PathBuf::from).unwrap_or(resources);
     let path = resources.join("wsl-companion.tar.gz");
     let mut file = tokio::fs::File::open(&path)
-        .await?
+        .await.context("Bundled WSL Companion is missing or unreadable. Repair the Windows installation.")?
         .take(128 * 1024 * 1024 + 1);
     let mut payload = Vec::new();
     file.read_to_end(&mut payload).await?;
@@ -381,22 +449,24 @@ async fn install_companion(target: &Target) -> Result<()> {
         payload.len() <= 128 * 1024 * 1024,
         "WSL payload limit exceeded"
     );
-    let digest = tokio::fs::read_to_string(resources.join("wsl-companion.tar.gz.sha256")).await?;
+    if let Some(progress) = progress { progress.lock().unwrap().phase("Verifying the bundled archive checksum…"); }
+    let digest = tokio::fs::read_to_string(resources.join("wsl-companion.tar.gz.sha256")).await
+        .context("Bundled WSL Companion checksum file is missing or unreadable.")?;
     ensure!(
         format!("{:x}", sha2::Sha256::digest(&payload)) == digest.trim(),
         "WSL payload checksum mismatch"
     );
-    const SCRIPT: &str = "set -eu; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; test \"$(uname -m)\" = x86_64; directory=$(mktemp -d); trap 'rm -rf \"$directory\"' EXIT HUP INT TERM; tar -xz -C \"$directory\"; sh \"$directory/install-unix.sh\"";
-    run_installation(target, SCRIPT, Some(payload)).await
+    const SCRIPT: &str = "set -eu; echo warpai-install:identity; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; test \"$(uname -m)\" = x86_64; directory=$(mktemp -d); trap 'rm -rf \"$directory\"' EXIT HUP INT TERM; echo warpai-install:extract; tar -xz -C \"$directory\"; echo warpai-install:install; sh \"$directory/install-unix.sh\" >/dev/null 2>&1; echo warpai-install:verify; \"$2/.config/.warpai/wsl/bin/warpai-wsl-companion\" --check-runtime >/dev/null 2>&1";
+    run_installation(target, SCRIPT, Some(payload), progress).await
 }
 
 async fn uninstall_companion(target: &Target) -> Result<()> {
     // Leave guest settings/history and the original SSH installation intact.
     const SCRIPT: &str = "set -eu; test \"$(id -un)\" = \"$1\"; test \"$HOME\" = \"$2\"; directory=\"$2/.config/.warpai/wsl/bin\"; for path in \"$2/.config\" \"$2/.config/.warpai\" \"$2/.config/.warpai/wsl\" \"$directory\"; do test ! -L \"$path\"; done; test ! -L \"$directory/warpai-wsl-companion\"; exec \"$directory/warpai-wsl-companion\" uninstall";
-    run_installation(target, SCRIPT, None).await
+    run_installation(target, SCRIPT, None, None).await
 }
 
-async fn run_installation(target: &Target, script: &str, payload: Option<Vec<u8>>) -> Result<()> {
+async fn run_installation(target: &Target, script: &str, payload: Option<Vec<u8>>, progress: Option<&Arc<Mutex<InstallationProgress>>>) -> Result<()> {
     static MUTATIONS: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
     let _mutation = MUTATIONS.get_or_init(|| tokio::sync::Mutex::new(())).try_lock()
         .map_err(|_| anyhow::anyhow!("Another WSL installation is active"))?;
@@ -405,28 +475,49 @@ async fn run_installation(target: &Target, script: &str, payload: Option<Vec<u8>
         .args([
             "--exec",
             "sh",
-            "-lc",
+            "-c",
             script,
             "warpai-wsl-installation",
             &target.user,
             &target.home,
         ])
         .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true);
-    let mut child = command.spawn()?;
+    let mut child = command.spawn().context("Could not start the selected WSL distribution.")?;
+    let output = child.stdout.take().ok_or_else(|| anyhow::anyhow!("Missing installation output"))?;
     let mut input = child
         .stdin
         .take()
         .ok_or_else(|| anyhow::anyhow!("Missing installation input"))?;
     tokio::time::timeout(Duration::from_secs(180), async {
-        if let Some(payload) = payload { input.write_all(&payload).await?; }
-        input.shutdown().await?;
-        drop(input);
-        ensure!(child.wait().await?.success(), "WSL installation did not complete; active service or partial changes require inspection");
+        let transfer = async {
+            if let Some(payload) = payload {
+                if let Some(progress) = progress { progress.lock().unwrap().total = payload.len(); }
+                for chunk in payload.chunks(64 * 1024) {
+                    input.write_all(chunk).await.context("Could not transfer the Companion archive into WSL.")?;
+                    if let Some(progress) = progress { progress.lock().unwrap().transferred += chunk.len(); }
+                }
+            }
+            input.shutdown().await?;
+            drop(input);
+            let status = child.wait().await?;
+            ensure!(status.success(), "{}", warpui::localization::format_text("WSL installer exited with status {status}. Inspect the last phase and rescan before retrying.", &[("status", &status.code().map_or_else(|| "unknown".into(), |code| code.to_string()))]));
+            Ok::<_, anyhow::Error>(())
+        };
+        let observe = async {
+            let mut lines = tokio::io::BufReader::new(output.take(8192)).lines();
+            while let Some(line) = lines.next_line().await? {
+                if let Some(phase) = InstallationProgress::guest_phase(&line) {
+                    if let Some(progress) = progress { progress.lock().unwrap().phase(phase); }
+                }
+            }
+            Ok::<_, anyhow::Error>(())
+        };
+        tokio::try_join!(transfer, observe)?;
         Ok(())
-    }).await?
+    }).await.context("WSL installation timed out after 180 seconds. Changes may be partial; rescan before retrying.")?
 }
 
 #[derive(Debug)]
@@ -562,6 +653,24 @@ fn parse(bytes: &[u8], commands: &[String]) -> Result<(String, Vec<(String, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn installation_progress_accepts_only_fixed_phases_and_bounds_history() {
+        let target = Target::new("Ubuntu Test", "guest", "/home/guest").unwrap();
+        let mut progress = InstallationProgress::new(&target);
+        for line in ["token=hidden", "warpai-install:unknown", "warpai-install:identity\n"] {
+            assert!(InstallationProgress::guest_phase(line).is_none());
+        }
+        let phase = InstallationProgress::guest_phase("warpai-install:install").unwrap();
+        progress.phase(phase);
+        progress.phase(phase);
+        assert_eq!(progress.phases.len(), 2);
+        for _ in 0..20 {
+            progress.phase("Verifying the installed Companion…");
+            progress.phase(phase);
+        }
+        assert_eq!(progress.phases.len(), 10);
+        assert_eq!(progress.account, "Ubuntu Test · guest");
+    }
     #[tokio::test]
     #[ignore = "requires the bundled payload and disposable Windows WSL guest"]
     async fn bundled_wsl_install_reinstall_uninstall_preserves_ssh() {
@@ -572,7 +681,14 @@ mod tests {
         let status = fixture.args(["--exec", "sh", "-lc",
             "set -eu; mkdir -p \"$HOME/.config/.warpai/bin\"; printf '%s' 'Owned SSH Companion fixture' > \"$HOME/.config/.warpai/bin/warpai-companion\""]).status().await.unwrap();
         assert!(status.success());
-        install_companion(&target).await.unwrap();
+        let progress = Arc::new(Mutex::new(InstallationProgress::new(&target)));
+        install_companion_with_progress(&target, Some(&progress)).await.unwrap();
+        {
+            let progress = progress.lock().unwrap();
+            assert!(progress.total > 0);
+            assert_eq!(progress.transferred, progress.total);
+            assert!(progress.phases.contains(&"Verifying the installed Companion…"));
+        }
         install_companion(&target).await.unwrap();
         let response = guest_setup(&target, warp_agent_bus::wsl_setup::Request {
             action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],

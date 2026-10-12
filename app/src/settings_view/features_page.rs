@@ -1226,6 +1226,8 @@ enum KeybindingEditorState {
 
 pub struct FeaturesPageView {
     page: PageType<Self>,
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    communication: ViewHandle<super::agent_communication::CommunicationSettingsView>,
 
     global_resource_handles: GlobalResourceHandles,
 
@@ -1286,6 +1288,8 @@ pub struct FeaturesPageView {
 pub enum FeaturesSettingsPageEvent {
     SearchForKeybinding(String),
     FocusModal,
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    CompanionProgressChanged,
 }
 
 impl Entity for FeaturesPageView {
@@ -2450,13 +2454,25 @@ impl FeaturesPageView {
 
         ctx.subscribe_to_model(&GPUState::handle(ctx), |me, _, event, ctx| {
             if matches!(event, GPUStateEvent::LowPowerGPUAvailable) {
-                me.page = Self::build_page(ctx);
+                me.page = Self::build_page(ctx,
+                    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+                    &me.communication);
                 ctx.notify();
             }
         });
 
+        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        let communication = ctx.add_typed_action_view(super::agent_communication::CommunicationSettingsView::new);
+        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        ctx.subscribe_to_view(&communication, |_, _, _, ctx| {
+            ctx.emit(FeaturesSettingsPageEvent::CompanionProgressChanged);
+        });
         let mut features_page_view = FeaturesPageView {
-            page: Self::build_page(ctx),
+            page: Self::build_page(ctx,
+                #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+                &communication),
+            #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+            communication,
             global_resource_handles,
             button_mouse_states: Default::default(),
             activation_hotkey_keybinding_editor_state: KeybindingEditorState::Idle,
@@ -2526,7 +2542,14 @@ impl FeaturesPageView {
         features_page_view
     }
 
-    fn build_page(ctx: &mut ViewContext<Self>) -> PageType<Self> {
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    pub(crate) fn get_modal_content(&self, app: &AppContext) -> Option<Box<dyn Element>> {
+        self.communication.as_ref(app).get_modal_content()
+    }
+
+    fn build_page(ctx: &mut ViewContext<Self>,
+        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        communication: &ViewHandle<super::agent_communication::CommunicationSettingsView>) -> PageType<Self> {
         let mut general_widgets: Vec<Box<dyn SettingsWidget<View = Self>>> =
             vec![Box::new(DefaultSessionModeWidget::default())];
         #[cfg(all(
@@ -2535,6 +2558,9 @@ impl FeaturesPageView {
             not(target_family = "wasm")
         ))]
         general_widgets.push(Box::new(super::agent_communication::CommunicationWidget(
+            #[cfg(windows)]
+            communication.clone(),
+            #[cfg(not(windows))]
             ctx.add_typed_action_view(super::agent_communication::CommunicationSettingsView::new),
         )));
         #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]

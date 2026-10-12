@@ -26,6 +26,10 @@ Status: implementation in progress. Requested 2026-10-12; no release requested.
 14. Windows WSL settings discover confirmed logged-in WSL 2 accounts even when
     the distribution was installed/upgraded after Warpai started. Refresh registry
     metadata without logging into arbitrary accounts or weakening guest identity.
+    A literal interactive WSL command defaults to the existing native terminal
+    integration flow, then discovers its confirmed account without Companion.
+    Do not inject bootstrap into background commands or automatically assert an
+    account from process names, launch flags or cached preferences.
 15. Communication follows the focused terminal, including command-entered SSH
     and WSL sessions. Local, SSH and WSL enablement are independent; pending
     remote integration cannot fall back to the local project or local toggle.
@@ -167,3 +171,46 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   two real PTYs sharing one WSL distribution/user/project. No new WSL desktop
   code is active on macOS. Usage footer statuses/tooltips and provider errors
   now translate at display boundaries, preserving account names and quota data.
+
+- Source 376b17ba passed both protocol suites and all three Companion platforms
+  (runs 38220306904 / 38220310879). Desktop application checks passed; Windows
+  test compilation stopped on two stale GPU AdapterInfo fixtures, now aligned
+  with locked wgpu fields. macOS native capture timed out at Agent projection;
+  cached hashed test executables could shadow the current fixture. Native jobs
+  now delete only the two small fixture outputs before rebuilding them, retaining
+  application/dependency caches. Projection acceptance remains unverified.
+- The user confirmed account/Agent discovery works after manually enabling WSL
+  terminal integration and requested automatic entry. Literal interactive WSL
+  launches now reuse native bootstrap by default, respecting the existing denylist
+  and Agent-requested-command exclusion. User input/cancellation, block replacement
+  and an already confirmed WSL session invalidate delayed bootstrap. Administrative,
+  exec, operator, shadowed and SSH commands cannot trigger it. Windows Bash InitShell
+  now reports WSL identity before full bootstrap, matching Zsh/Fish. Added focused
+  parser/bootstrap regressions; account installation still needs confirmed identity.
+- The user reported recurring Linux console flashes after WSL integration. Native
+  background Companion/SSH/SFTP commands lacked CREATE_NO_WINDOW; it now applies
+  only on Windows, preserving actual Agent PTYs. Failed WSL connections remain
+  unavailable until an explicit settings retry or context change; live connections
+  retain normal 1s observation polling.
+  The automatic-entry and console corrections still need cloud/native acceptance.
+
+### Transparent WSL installation and remote file enablement
+
+- Show a native modal when installing/removing the selected account's Companion.
+  Display the account, elapsed time, actual phase history and transferred archive
+  bytes; retain the final receipt after success/failure. Closing the modal leaves
+  the operation running and its progress can be reopened. No invented percentage,
+  guest logs, credentials or additional dependencies.
+- Bound installation to 180 seconds. Use a non-login shell so account startup
+  scripts cannot consume archive stdin or wait for interactive input. Verify the
+  bundled checksum and guest identity before installation, then verify guest setup.
+  Report timeout/exit status and failed phase; do not retry partial mutations.
+- File Explorer and Collaborate must use the same confirmed remote selection.
+  WSL communication off prevents Companion connection/polling, including pending
+  callbacks. SSH remains independently scoped to confirmed SSH integration.
+- Verify controlled phase parsing, package reinstall/corruption/SSH isolation,
+  Windows bundled installation and native progress/error/closed-toggle captures.
+- Local checks passed: changed Rust sources parse, workflow YAML parses, Unix/WSL
+  disposable package installation/reinstallation/corruption/isolation checks pass.
+  UI captures and Rust compile/tests remain cloud gates; representative progress
+  screenshots are explicitly fixtures, separate from real bundled WSL installation.

@@ -84,6 +84,8 @@ impl SshProfile {
         self.validate()?;
         let mut command = Command::new("ssh");
         crate::session::without_terminal_binding(&mut command);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         command.env_remove("VIBE_MCP_SERVERS");
         // Keep system authentication agent/config; never forward native terminal capabilities.
         command.args([
@@ -168,6 +170,8 @@ impl SshProfile {
             }
             let mut command = Command::new("wsl");
             crate::session::without_terminal_binding(&mut command);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
             command.env_remove("VIBE_MCP_SERVERS");
             command.args(["--distribution", distribution, "--exec", "ssh"]);
             command.args(native.as_std().get_args());
@@ -242,6 +246,8 @@ impl HostClient {
         }
         let mut command = Command::new("wsl.exe");
         crate::session::without_terminal_binding(&mut command);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         command.env_remove("VIBE_MCP_SERVERS");
         command.args(["--distribution", distribution, "--user", user, "--exec", &profile.companion_path]);
         command.kill_on_drop(true);
@@ -367,6 +373,8 @@ impl HostClient {
         }
         let mut command = Command::new(executable);
         crate::session::without_terminal_binding(&mut command);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         command.env_remove("VIBE_MCP_SERVERS");
         let child = command
             .stdin(Stdio::piped())

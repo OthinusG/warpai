@@ -135,8 +135,7 @@ fn test_is_unsupported_intel_uhd_adapter() {
         device_pci_bus_id: "01:00.0".to_owned(),
         subgroup_min_size: wgpu::MINIMUM_SUBGROUP_MIN_SIZE,
         subgroup_max_size: wgpu::MAXIMUM_SUBGROUP_MAX_SIZE,
-        transient_saves_memory: Some(false),
-        limit_bucket: None,
+        transient_saves_memory: false,
     }));
     assert!(!is_older_vulkan_intel_uhd_adapter(&wgpu::AdapterInfo {
         name: String::from("Intel(R) Xe Graphics (TGL GT2)"),
@@ -150,7 +149,6 @@ fn test_is_unsupported_intel_uhd_adapter() {
         device_pci_bus_id: "01:00.0".to_owned(),
         subgroup_min_size: wgpu::MINIMUM_SUBGROUP_MIN_SIZE,
         subgroup_max_size: wgpu::MAXIMUM_SUBGROUP_MAX_SIZE,
-        transient_saves_memory: Some(false),
-        limit_bucket: None,
+        transient_saves_memory: false,
     }));
 }

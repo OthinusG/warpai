@@ -112,6 +112,8 @@ jobs:
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked
+          # Cached hashed fixtures must not shadow the executable built from this source.
+          find target/debug/deps -maxdepth 1 -type f \( -name 'managed_agent-*' -o -name 'readiness-*' \) -delete
           cargo test -p warp-agent-bus --test managed_agent --test readiness --no-run --locked
       - name: Upload tested native bridge
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -151,6 +153,7 @@ jobs:
           cargo test -p warpai --lib wsl_selection_ --locked
           cargo test -p warpai --lib agent_communication::wsl_settings::tests --locked
           cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
+          cargo test -p warpai --lib automatic_wsl_integration --locked
           cargo test -p warpai --lib windows_bootstrap_reports_native_shell_pid --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
           cargo test -p warpai --lib user_data_migration::tests --locked
@@ -259,7 +262,7 @@ jobs:
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
           $expectedImages = $fixtureCount * 8 + 221
-          if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 6 }
+          if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 8 }
           $expectedImages *= 3
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs" }
       - name: Upload Windows native UI captures
@@ -305,6 +308,8 @@ jobs:
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked
+          # Cached hashed fixtures must not shadow the executable built from this source.
+          find target/debug/deps -maxdepth 1 -type f \( -name 'managed_agent-*' -o -name 'readiness-*' \) -delete
           cargo test -p warp-agent-bus --test managed_agent --test readiness --no-run --locked
       - name: Diagnose native build tools on failure
         if: failure()

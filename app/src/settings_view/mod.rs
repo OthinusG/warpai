@@ -1732,6 +1732,8 @@ impl SettingsView {
                 self.search_for_keybinding(query, ctx);
             }
             FeaturesSettingsPageEvent::FocusModal => ctx.focus(&self.search_editor),
+            #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+            FeaturesSettingsPageEvent::CompanionProgressChanged => ctx.notify(),
         }
     }
 
@@ -2247,6 +2249,10 @@ impl SettingsView {
         app: &AppContext,
     ) -> Option<Box<dyn Element>> {
         match page_handle {
+            #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+            SettingsPageViewHandle::Features(view) => {
+                view.read(app, |view, _| view.get_modal_content(app))
+            }
             #[cfg(feature = "warp_platform")]
             SettingsPageViewHandle::BillingAndUsage(view) => {
                 view.read(app, |view, _| view.get_modal_content())

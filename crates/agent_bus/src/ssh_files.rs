@@ -65,6 +65,8 @@ impl SshConnection {
             _ => Command::new("sftp"),
         };
         crate::session::without_terminal_binding(&mut command);
+        #[cfg(windows)]
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         command.env_remove("VIBE_MCP_SERVERS");
         command.args([
             "-b",
@@ -104,8 +106,10 @@ impl SshConnection {
         } = self
         {
             use tokio::io::AsyncReadExt;
-            let mut child = Command::new("wsl")
-                .args([
+            let mut command = Command::new("wsl");
+            #[cfg(windows)]
+            command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+            let mut child = command.args([
                     "--distribution",
                     distribution,
                     "--exec",
