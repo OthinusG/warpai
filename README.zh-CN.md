@@ -213,7 +213,7 @@ Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Compani
 空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
 
 本地桌面的 Git 功能需要 PATH 中可用的系统 Git。请安装 Git 并重启 Warpai，
-再使用本地仓库协作、工作树或 Git Review。SSH／WSL 的依赖见
+再使用本地工作树协作、工作树管理或 Git Review。SSH／WSL 的依赖见
 [功能依赖记录](docs/FEATURE-DEPENDENCIES.md)。
 
 | 远程主机 | 下载 |

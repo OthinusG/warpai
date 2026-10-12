@@ -781,7 +781,7 @@ impl CollaborationPanel {
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
                     if code == "git_unavailable" {
-                        panel.status = "Git is unavailable in this environment. Install Git, then restart Warpai. Repository collaboration and worktrees require Git.".into();
+                        panel.status = "Git is unavailable in this environment. Install Git, then restart Warpai to use Worktree collaboration and Git operations.".into();
                     } else if panel.remote.is_some() {
                         panel.remote_failed = error.downcast_ref::<warp_agent_bus::DomainError>().is_none();
                         panel.status = if panel.remote_failed {
