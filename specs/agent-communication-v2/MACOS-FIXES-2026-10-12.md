@@ -342,3 +342,16 @@ without tagging or publishing before the native gates pass. Review of source
 bottom, API entry with Back and no Sign in, and Simplified Chinese native worktree
 creation preserving the Coordinator without starting a worker. This is partial
 visual evidence, not final-source or Windows/Traditional Chinese acceptance.
+
+Run 38279380108 at 64760bfb passes both protocol suites, both desktop build/test
+gates, real Windows-to-WSL communication and bundled install/removal recovery.
+macOS native acceptance passes all three languages with 981 nonempty screenshots
+and no failed assertions. Windows still fails before its first native step at
+the missing-singleton panic, with no captured model name. Accept both Rust panic
+payload representations and bounded static generic type names in the exact
+framework receipt; reject arbitrary payloads. Require a focused Windows diagnosis
+before another full source-matched acceptance.
+
+Companion 5.0.0 run 38283752563 passes Linux and Windows, including installers;
+macOS passes tests but hdiutil image creation reports Resource busy. Retry that
+job once on a fresh runner without changing packaging or relaxing its gates.
