@@ -1,6 +1,7 @@
 # macOS collaboration and usage corrections
 
-Status: implementation in progress. Requested 2026-10-12; no release requested.
+Status: native acceptance in progress. Requested 2026-10-12; release 1.6.3 with
+Companion 5.0.0 authorized 2026-10-13 after full verification.
 
 ## Scope and acceptance
 
