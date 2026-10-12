@@ -288,3 +288,12 @@ platforms and macOS default/platform checks plus focused application tests
 call; the pinned async-io Timer uses Timer::after, now corrected. WSL installation
 acceptance was skipped behind that compile failure and remains mandatory on the
 final source. Native macOS capture was still running at the 30-minute review.
+That capture subsequently completed all native assertions, including real Agent
+projection, for all three languages. Artifact inspection found 327 nonempty PNGs
+per language (981 total); the workflow expected 325 and rejected a complete run.
+The exact expected count now includes the two omitted shared captures on both OSes,
+and failure messages report the observed count. Source 4f424260 passed Windows
+default/platform/release checks, both protocol suites and all Companion platforms;
+Windows application test compilation found four test-only App/AppContext mismatches
+in the two-terminal guest regression. Those reads now use App::update's AppContext.
+Real WSL installation/removal acceptance remains gated on the next Windows run.

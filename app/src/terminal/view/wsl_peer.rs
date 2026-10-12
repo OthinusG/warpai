@@ -359,8 +359,10 @@ mod tests {
             first.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&state), ctx));
             let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false };
             second.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&other), ctx));
-            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(first.id()).unwrap().agent, CLIAgent::Codex);
-            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(second.id()).unwrap().agent, CLIAgent::Claude);
+            app.update(|ctx| {
+                assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(first.id()).unwrap().agent, CLIAgent::Codex);
+                assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(second.id()).unwrap().agent, CLIAgent::Claude);
+            });
             first.update(&mut app, |view, ctx| {
                 let mut saved = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap().clone();
                 assert_eq!(saved.remote_host.as_deref(), Some("wsl:guest@Ubuntu Test"));
@@ -371,8 +373,10 @@ mod tests {
                 assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap().draft_text.as_deref(), Some("unsent prompt"));
                 view.observe_wsl_agent(&context, None, ctx);
             });
-            assert!(CLIAgentSessionsModel::as_ref(&app).session(first.id()).is_none());
-            assert_eq!(CLIAgentSessionsModel::as_ref(&app).session(second.id()).unwrap().session_context.session_id.as_deref(), Some("second-run"));
+            app.update(|ctx| {
+                assert!(CLIAgentSessionsModel::as_ref(ctx).session(first.id()).is_none());
+                assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(second.id()).unwrap().session_context.session_id.as_deref(), Some("second-run"));
+            });
         });
     }
 
