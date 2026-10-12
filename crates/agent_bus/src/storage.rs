@@ -838,11 +838,12 @@ impl Store {
             .map(AgentRow::agent))
     }
 
-    fn agent_by_terminal(&self, terminal: &str, program: &str, project: &str) -> Result<Option<Agent>> {
-        Ok(diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE terminal = ? AND program = ? AND project = ?")
+    fn agent_by_terminal(&self, terminal: &str, program: &str, project: &str, workspace: Option<&str>) -> Result<Option<Agent>> {
+        Ok(diesel::sql_query("SELECT id, terminal, name, program, project FROM agents WHERE terminal = ? AND program = ? AND project = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM agent_workspace_bindings AS b WHERE b.agent=agents.id AND b.workspace_id=?))")
             .bind::<Text, _>(terminal)
             .bind::<Text, _>(program)
             .bind::<Text, _>(project)
+            .bind::<Nullable<Text>, _>(workspace).bind::<Nullable<Text>, _>(workspace)
             .get_result::<AgentRow>(&mut *self.connection.borrow_mut())
             .optional()?
             .map(AgentRow::agent))
@@ -946,7 +947,7 @@ impl Store {
                 ensure!(self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=? AND workspace_id=? AND space_id=?", &[&existing.id, &binding.id, &binding.space])? == 1,
                     scope_denied("Identity belongs to another workspace"));
             }
-            let agent = self.register_inner(terminal, program, &domain, name)?;
+            let agent = self.register_inner(terminal, program, &domain, name, Some(&binding.id))?;
             let prior = self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=?", &[&agent.id])?;
             ensure!(prior == 0 || self.count("SELECT COUNT(*) AS count FROM agent_workspace_bindings WHERE agent=? AND workspace_id=? AND space_id=?", &[&agent.id, &binding.id, &binding.space])? == 1,
                 scope_denied("Identity belongs to another workspace"));
@@ -969,10 +970,10 @@ impl Store {
             !project.starts_with("space:"),
             scope_denied("Shared registration requires an app-selected workspace")
         );
-        self.register_inner(terminal, program, project, name)
+        self.register_inner(terminal, program, project, name, None)
     }
 
-    fn register_inner(&self, terminal: &str, program: &str, project: &str, name: &str) -> Result<Agent> {
+    fn register_inner(&self, terminal: &str, program: &str, project: &str, name: &str, workspace: Option<&str>) -> Result<Agent> {
         ensure!(
             !program.is_empty() && program.len() <= 64 && program != OPERATOR_PROGRAM,
             invalid_input("Invalid managed program")
@@ -991,7 +992,7 @@ impl Store {
         );
         let id = match self.agent_by_name(project, name)? {
             Some(agent) => agent.id,
-            None => match self.agent_by_terminal(terminal, program, project)? {
+            None => match self.agent_by_terminal(terminal, program, project, workspace)? {
                 Some(agent) => agent.id,
                 None => Uuid::new_v4().to_string(),
             },

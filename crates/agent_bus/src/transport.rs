@@ -936,7 +936,7 @@ impl Broker {
                 Some(workspace) if state.store.worktree_domain(&workspace.root).ok().flatten().as_deref() == Some(project.as_str())
                     && state.store.agent(&project, &name).ok()
                     .is_some_and(|existing| state.store.physical_root(&existing).ok().as_deref() != Some(workspace.root.as_str())) => {
-                    format!("{}-{}", name.chars().take(55).collect::<String>(), request.terminal.chars().take(8).collect::<String>())
+                    format!("{}-{}", name.chars().take(55).collect::<String>(), workspace.id.chars().take(8).collect::<String>())
                 }
                 _ => name,
             };

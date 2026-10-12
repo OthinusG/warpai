@@ -374,7 +374,8 @@ mod tests {
         let broker = &owner.broker;
         let terminal = id();
         let capability = broker.prepare(&terminal).unwrap();
-        for root in [&fixture.linked, &fixture.main] {
+        let mut identities = std::collections::HashMap::new();
+        for root in [&fixture.linked, &fixture.main, &fixture.linked] {
             broker.activate_project(&terminal, "codex", root.to_str().unwrap(), true).unwrap();
             let request = Request { protocol_major:PROTOCOL_MAJOR, terminal:terminal.clone(),
                 capability:capability.clone(), run:None, directory:Some(root.to_str().unwrap().into()),
@@ -383,10 +384,14 @@ mod tests {
             let actor = call(broker, &request, request.operation.clone()).unwrap();
             let panel = broker.operator_panel(&PanelQuery { project:root.to_str().unwrap().into(),
                 terminal:Some(terminal.clone()), ..Default::default() }).unwrap();
-            assert!(panel["agents"].as_array().unwrap().iter().any(|row| row["agent"]["id"] == actor["agent"]["id"]));
-            assert_eq!(panel["agents"][0]["workspace"], root.to_str().unwrap());
+            let row = panel["agents"].as_array().unwrap().iter().find(|row| row["agent"]["id"] == actor["agent"]["id"]).unwrap();
+            assert_eq!(row["workspace"], root.to_str().unwrap());
+            if let Some(previous) = identities.insert(root.to_path_buf(), actor["agent"]["id"].clone()) {
+                assert_eq!(previous, actor["agent"]["id"], "Returning to a checkout preserves its own identity");
+            }
             broker.end(&terminal);
         }
+        assert_ne!(identities[&fixture.main], identities[&fixture.linked]);
     }
 
     #[test]

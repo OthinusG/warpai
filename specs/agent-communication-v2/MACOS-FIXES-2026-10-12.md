@@ -96,3 +96,14 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   exception termination without a symbolicated application fault frame.
 - Footer currently uses Shrinkable, which cannot fill unused viewport height.
 - Existing durable messages, reply_to/task_id and FIFO inbox queries are reused.
+- First source 88acea81 compiled the communication crate on all three platforms.
+  Runs 38197712881 and 38197714902 stopped on the new checkout-change regression:
+  registration reused a terminal identity bound to the previous checkout.
+  Main-only and multi-program registration passed; UI acceptance was not reached.
+  Registration now scopes terminal reuse to workspace identity, preserving old
+  tasks/history instead of moving them. The regression also returns to the first
+  checkout and verifies that its original identity is restored.
+- Source 2a11a387 adds shared Project supervision, durable questions/answers,
+  SSH/WSL decision fixtures and independent focused-environment enablement.
+  Rustfmt parsing, Python AST, strict locale coverage and diff checks pass locally;
+  cloud compilation and native acceptance remain required.

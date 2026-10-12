@@ -47,6 +47,9 @@ consult it only when a specific historical question requires it.
 - Canonical Git common-directory identity joins registered checkouts/subdirectories,
   including empty tabs and worktrees outside main. Ancestry, basename, branch and
   remote URL cannot establish membership.
+- Reusing a terminal after changing checkout must scope identity lookup to the
+  current workspace. Preserve the previous checkout's tasks and history; never
+  move its durable identity or reuse its Coordinator authority.
 - Non-Git folders are independent canonical-root projects with Worktree unavailable.
   They neither inherit nor clear a Git project's Coordinator. Preserve separate
   clones and SSH host/account/service authorities.
