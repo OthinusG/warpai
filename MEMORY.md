@@ -122,8 +122,8 @@ for specific historical questions.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Active fixes: MACOS-FIXES-2026-10-12.md (17 issues).
-  Local/SSH/WSL share correlated results and durable decision questions. Project
+- Fix audit: MACOS-FIXES-2026-10-12.md (1–17 + extras).
+  Local/SSH/WSL share results and durable questions. Project
   peers all observe and decide retry/reassignment/review; execution stays run-fenced.
   Local/SSH/WSL enablement follows the focused terminal independently, including
   command-entered sessions. Worktree allocation remains Coordinator-only. Final
@@ -144,7 +144,7 @@ for specific historical questions.
 - Keep WARP_* compatibility. Data/settings live in ~/.config/warpai; retain
   sources/profiles/new values.
   English/zh-Hans/zh-Hant UI; restart to apply language.
-  Inspect menus/Review/loading/toasts and dynamic/helper labels; keep IDs.
+  Translate menus/Review/toasts, dynamic roles/participants/outcomes; keep IDs/content.
   Windows text shaping loads native glyph fallbacks before caching UI lines;
   Simplified/Traditional use their regional font fallback. No cfg(test) drivers.
   Each capture locale owns one SSH master; close before the next process.

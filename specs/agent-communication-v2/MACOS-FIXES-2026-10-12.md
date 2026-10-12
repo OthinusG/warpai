@@ -201,7 +201,7 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   bytes; retain the final receipt after success/failure. Closing the modal leaves
   the operation running and its progress can be reopened. No invented percentage,
   guest logs, credentials or additional dependencies.
-- Bound installation to 180 seconds. Use a non-login shell so account startup
+- Bound each installation and guest-verification process to 180 seconds. Use a non-login shell so account startup
   scripts cannot consume archive stdin or wait for interactive input. Verify the
   bundled checksum and guest identity before installation, then verify guest setup.
   Report timeout/exit status and failed phase; do not retry partial mutations.
@@ -214,3 +214,42 @@ run source-matched GitHub desktop/Companion tests and native acceptance.
   disposable package installation/reinstallation/corruption/isolation checks pass.
   UI captures and Rust compile/tests remain cloud gates; representative progress
   screenshots are explicitly fixtures, separate from real bundled WSL installation.
+
+## Final requirement audit
+
+Implementation is present for the following requirements. Completion still requires
+source-matched desktop builds, focused tests and native capture review; a prior
+commit's passing checks do not certify later changes. No personal vendor accounts
+or paid model calls are used in acceptance.
+
+| Requirement | Implementation | Required verification |
+| --- | --- | --- |
+| 1. Restart after language change | Appearance language widget uses existing cancellable restart action | Native language selection/restart capture and both desktop feature checks |
+| 2. Fixed usage footer | `panel_usage.rs` expanded viewport with independent bounded scroll and fixed heading | Empty/full/scrolled usage captures at narrow/wide sizes and zoom levels |
+| 3. API entry and Back | Usage account form reuses existing Sign in/API operations, hiding Sign in during API entry | Native API entry and Back captures |
+| 4. Antigravity pools | Provider parsing retains Gemini and third-party pools separately | `antigravity_keeps_gemini_and_third_party_pools_separate` |
+| 5. Detect 5h | Persistent per-account option, backward-compatible default and pool filtering | Usage account/provider regressions and settings captures |
+| 6. Result routing and busy FIFO | Shared Store correlated replies, durable arrival-order inbox, native guarded wake and cooperative wait | Result correlation/reopen/FIFO, duplicate reply, blocked/failed and readiness suites on both OSes; controlled SSH/WSL |
+| 7. Main-only Worktree mode | Repository-scoped enrollment accepts the main checkout without linked worktrees | `main_only_checkout_registers_each_program_and_switches_modes` and native mode selection |
+| 8. Manually launched agents | Execution adapters and checkout-scoped terminal identity retain all supported CLI programs | Multi-program main-checkout registration, checkout-switch and native activity regressions |
+| 9. Coordinator crash | Dropdown callback defers Coordinator mutation through existing action dispatch | Inline native dropdown selection, same-process survival and scoped handoff regressions |
+| 10. Unified Send to Agent | One entry with Track as task dispatches existing message/task operations; task replies retain IDs | Native ordinary/tracked Send captures and task correlation tests |
+| 11. History button style | History Back and paging reuse Secondary controls | Expanded History capture review |
+| 12. Worktree removal | Workspace passes only terminals in open tabs; Git helper preserves checkout/branch protections | `remove_worktree_preserves_protected_checkouts_and_branch`; audit open-tab enumeration |
+| 13. Worktree indentation | Existing native containers use 16px indentation beneath heading | Expanded worktree capture review |
+| 14. WSL account discovery | Confirmed guest account and refreshed WSL registry metadata; automatic integration for literal interactive launches | Account/registry/bootstrap regressions and real WSL settings capture |
+| 15. Focused remote enablement | Shared confirmed session selection; independent local/SSH/WSL gates, including command-entered contexts | Native local/remote disabled-toggle assertions and remote form/file selection |
+| 16. Chinese and Windows glyphs | Display-boundary translations, helper-aware strict catalog audit and native Windows fallback before shaping/cache | Strict locale coverage, Hans/Hant glyph regressions and three-language native capture review |
+| 17. Guest WSL agent management | Verified guest observations populate native sessions; terminal/run identities remain independent | Guest observation regressions and two real PTYs in one WSL account/project |
+| Project peer supervision | Durable task observations/progress/questions/answers and shared versioned retry/reassignment/review decisions | Peer visibility, exact asker, UUID replay, retired questions, uncertainty/deadline and run-fence suites |
+| Primary-agent delegation | Immediate issuer receives nested results; detailed existing instruction schema and reviewer acceptance preserve delivery ownership | Coordinator/worker/peer-review/integration and independent Project issuer fixtures |
+| Local/SSH/WSL parity | Existing shared Broker/Store/MCP contract rather than separate dispatchers | Both desktop protocol suites and three-platform Companion suites, controlled SSH and real WSL acceptance |
+| WSL console flashes/relaunch | Windows background CREATE_NO_WINDOW and unavailable-service latch until explicit retry/context change | Windows build, unavailable-service regression and real guest lifecycle fixtures |
+| Transparent Companion installation | Native progress modal, fixed phases, real bytes/elapsed time, bounded child processes and persistent final receipt | Fixed-phase parser, disposable package install/reinstall/corruption/SSH isolation, real bundled WSL installation and progress/error captures |
+| Remote File Explorer | Same confirmed communication selection as Collaborate; disabled/stale callbacks cannot reconnect; failed SSH/WSL connections require explicit retry | Native disabled-toggle and live SSH/WSL file/editor acceptance |
+| Cloud errors | Locked GPU AdapterInfo fixtures corrected; rebuild only small hashed native fixture binaries; preserve diagnostic projection assertions | Final-source Windows test build and macOS/Windows native Agent projection acceptance |
+
+The final audit also localized participant fallbacks, the inline Coordinator role,
+attempt outcomes and local evidence controls. Agent names and message content are
+preserved. Existing History Back used Text style despite Secondary paging controls;
+it now shares their style. Native projection acceptance remains a required gate.

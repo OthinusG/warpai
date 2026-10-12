@@ -1,4 +1,9 @@
 {
+  "succeeded": ["已成功", "已成功"],
+  "You": ["你", "你"],
+  "Unassigned": ["未分配", "未指派"],
+  "Unavailable agent": ["不可用的智能体", "無法使用的智慧體"],
+  "Open local file evidence {id}": ["打开本地文件证据 {id}", "開啟本機檔案證據 {id}"],
   "WSL payload limit exceeded": ["WSL 安装包超过大小限制", "WSL 安裝套件超過大小限制"],
   "WSL payload checksum mismatch": ["WSL 安装包校验失败", "WSL 安裝套件校驗失敗"],
   "Another WSL installation is active": ["另一个 WSL 安装正在进行", "另一個 WSL 安裝正在進行"],

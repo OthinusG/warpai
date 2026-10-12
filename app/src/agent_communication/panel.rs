@@ -282,10 +282,10 @@ struct WorktreeCheckout {
 impl Snapshot {
     fn participant_label(&self, id: &str) -> String {
         if id.is_empty() {
-            return "Unassigned".into();
+            return warpui::localization::text("Unassigned").into();
         }
         if id.starts_with("warp:") {
-            return "You".into();
+            return warpui::localization::text("You").into();
         }
         if let Some(row) = self.agents.iter().find(|row| row.agent.id == id) {
             return row.agent.name.clone();
@@ -294,7 +294,7 @@ impl Snapshot {
             return name.clone();
         }
         if uuid::Uuid::parse_str(id).is_ok() {
-            "Unavailable agent".into()
+            warpui::localization::text("Unavailable agent").into()
         } else {
             id.into()
         }
@@ -918,7 +918,7 @@ impl CollaborationPanel {
                 title: if self.query.selected_thread.is_some() { "Conversation".into() } else { "Messages".into() },
                 rows: if snapshot.messages.is_empty() { vec![warpui::localization::text("No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.").into()] }
                     else { snapshot.messages.iter().flat_map(|message| [
-                        format!("{} → {} · {} · {}", message.from, message.to, message.subject.as_deref().unwrap_or(warpui::localization::text("Message")), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
+                        format!("{} → {} · {} · {}", snapshot.participant_label(&message.from), snapshot.participant_label(&message.to), message.subject.as_deref().unwrap_or(warpui::localization::text("Message")), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
                         message.body.clone(),
                     ]).collect() },
             });
@@ -1084,7 +1084,7 @@ impl CollaborationPanel {
                                 "{} · owner {} · outcome {}",
                                 &[("0", warpui::localization::text(&attempt.certainty)),
                                   ("1", &snapshot.participant_label(&attempt.owner)),
-                                  ("2", attempt.outcome.as_deref().unwrap_or(warpui::localization::text("unknown")))],
+                                  ("2", warpui::localization::text(attempt.outcome.as_deref().unwrap_or("unknown")))],
                             )
                         })
                         .chain(
@@ -1858,7 +1858,7 @@ impl View for CollaborationPanel {
                     if !hide_navigation {
                         navigation.add_child(
                             builder
-                                .button(ButtonVariant::Text, self.page_buttons[0].clone())
+                                .button(if self.query.history { ButtonVariant::Secondary } else { ButtonVariant::Text }, self.page_buttons[0].clone())
                                 .with_text_label(warpui::localization::text("Back").into())
                                 .build()
                                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
@@ -2012,9 +2012,9 @@ impl View for CollaborationPanel {
                     body.add_child(
                         builder
                             .button(ButtonVariant::Text, self.evidence_buttons[&id].clone())
-                            .with_text_label(format!(
-                                "Open local file evidence {}",
-                                id.chars().take(8).collect::<String>()
+                            .with_text_label(warpui::localization::format_text(
+                                "Open local file evidence {id}",
+                                &[("id", &id.chars().take(8).collect::<String>())]
                             ))
                             .build()
                             .on_click(move |ctx, _, _| {
