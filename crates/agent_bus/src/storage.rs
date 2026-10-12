@@ -687,7 +687,7 @@ impl Store {
     }
 
     fn queue(&self, project: &str, mut message: Message) -> Result<Message> {
-        let control = !matches!(message.kind.as_str(), "message" | "assignment" | "available");
+        let control = !matches!(message.kind.as_str(), "message" | "request" | "assignment" | "available");
         let limit = MAX_PENDING_PER_AGENT + if control { CONTROL_MESSAGE_RESERVE } else { 0 };
         ensure!(
             self.inbox_count(&message.to)? < limit,
@@ -1121,6 +1121,14 @@ impl Store {
         self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
         let executing = self.execution_in_run(&actor.id, run)?;
         self.first_pending(actor, executing)
+    }
+
+    /// Submission is not consumption; later mail must remain eligible for notification.
+    pub(crate) fn next_unnotified(&self, actor: &Agent, run: &str, delivered: &std::collections::HashSet<String>) -> Result<Option<Message>> {
+        self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
+        let executing = self.execution_in_run(&actor.id, run)?;
+        Ok(self.pending(actor)?.into_iter().find(|message| !delivered.contains(&message.id)
+            && (!executing || !matches!(message.kind.as_str(), "assignment" | "available"))))
     }
 
     pub(crate) fn first_pending(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
@@ -1749,7 +1757,38 @@ impl Store {
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         match operation {
             Operation::TaskIntegrate { task_id, commit, .. } => self.integrate_task(actor, task_id, commit.as_deref()),
+            Operation::AgentReply { reply_to, body, outcome, .. } => {
+                self.budget_available()?;
+                text(body)?;
+                let parent = self.visible_message(actor, reply_to)?;
+                ensure!(parent.to == actor.id, unauthorized("Only the recipient can return a result"));
+                ensure!(matches!(parent.kind.as_str(), "message" | "request"),
+                    invalid_state("Only peer instructions can receive processing results"));
+                ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[reply_to])? == 0,
+                    invalid_state("This instruction already has a final result"));
+                let kind = match outcome {
+                    crate::ReplyOutcome::Succeeded => "result_succeeded",
+                    crate::ReplyOutcome::Failed => "result_failed",
+                    crate::ReplyOutcome::Blocked => "result_blocked",
+                };
+                // Original participation authorizes this return even after a Coordinator handoff.
+                let result = self.queue(&actor.project, Message {
+                    id: String::new(), from: actor.id.clone(), to: parent.from,
+                    body: body.clone(), subject: Some("Processing result".into()),
+                    thread_id: parent.thread_id.or_else(|| Some(parent.id.clone())),
+                    reply_to: Some(parent.id.clone()), task_id: parent.task_id,
+                    revision: parent.revision, kind: kind.into(), acknowledged: false, sequence: 0,
+                })?;
+                if !matches!(outcome, crate::ReplyOutcome::Blocked) {
+                    diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE id=?")
+                        .bind::<Text, _>(&parent.id).execute(&mut *self.connection.borrow_mut())?;
+                    self.record(&actor.project, "instruction_completed", &actor.id, Some(&parent.id), None,
+                        json!({"result_message_id":result.id,"outcome":outcome,"run":run}))?;
+                }
+                Ok(json!(result))
+            }
             Operation::AgentSend {
+                expects_result,
                 to,
                 body,
                 subject,
@@ -1767,7 +1806,7 @@ impl Store {
                 if let Some(task_id) = task_id {
                     self.actor_task(actor, task_id)?;
                 }
-                let (thread, reply) = match reply_to {
+                let (thread, reply, linked_task) = match reply_to {
                     Some(reply_id) => {
                         let parent = self.visible_message(actor, reply_id)?;
                         let inherited = parent.thread_id.clone().or_else(|| Some(parent.id.clone()));
@@ -1777,13 +1816,15 @@ impl Store {
                                 invalid_input("reply_to does not belong to thread_id")
                             );
                         }
-                        (inherited, Some(parent.id))
+                        let linked_task = task_id.clone().or(parent.task_id);
+                        if let Some(task_id) = &linked_task { self.actor_task(actor, task_id)?; }
+                        (inherited, Some(parent.id), linked_task)
                     }
                     None => {
                         if let Some(explicit) = thread_id {
                             self.visible_thread(actor, explicit)?;
                         }
-                        (thread_id.clone(), None)
+                        (thread_id.clone(), None, task_id.clone())
                     }
                 };
                 let message = Message {
@@ -1794,9 +1835,9 @@ impl Store {
                     subject: subject.clone(),
                     thread_id: thread,
                     reply_to: reply,
-                    task_id: task_id.clone(),
+                    task_id: linked_task,
                     revision: None,
-                    kind: "message".into(),
+                    kind: if *expects_result { "request" } else { "message" }.into(),
                     acknowledged: false,
                     sequence: 0,
                 };
@@ -1804,6 +1845,15 @@ impl Store {
             }
             Operation::AgentAck { message_id } => {
                 let message = self.visible_message(actor, message_id)?;
+                ensure!(message.to == actor.id, unauthorized("Only the recipient can acknowledge a message"));
+                ensure!(message.kind != "request" || message.acknowledged,
+                    invalid_state("Return a final processing result before acknowledging this request"));
+                if message.kind.starts_with("result_") {
+                    let earlier = diesel::sql_query("SELECT COUNT(*) AS count FROM messages WHERE recipient=? AND acknowledged=0 AND kind IN ('result_succeeded','result_failed','result_blocked') AND sequence<?")
+                        .bind::<Text, _>(&actor.id).bind::<BigInt, _>(message.sequence as i64)
+                        .get_result::<CountRow>(&mut *self.connection.borrow_mut())?.count;
+                    ensure!(earlier == 0, invalid_state("Process earlier results before acknowledging this result"));
+                }
                 ensure!(
                     !matches!(
                         message.kind.as_str(),
@@ -2087,6 +2137,13 @@ impl Store {
                         task.revision,
                     ),
                 )?;
+                if task.issuer != task.reviewer {
+                    self.queue(&task.project, task_message(
+                        &actor.id, &task.issuer, "result",
+                        "Result submitted. Read the task's result and verification evidence; its designated reviewer will review it.".into(),
+                        &task.id, task.revision,
+                    ))?;
+                }
                 let task = self.assemble(task)?;
                 let mut value = serde_json::to_value(&task)?;
                 value["attempt_id"] = json!(attempt.id);
@@ -2377,6 +2434,10 @@ impl Store {
                     Some(&attempt.id),
                     json!({"revision": task.revision, "note": note, "waiting_reason": waiting_reason}),
                 )?;
+                if let Some(reason) = waiting_reason {
+                    self.queue(&task.project, task_message(&actor.id, &task.issuer, "blocked",
+                        format!("Task needs your input: {reason}\n{note}"), &task.id, task.revision))?;
+                }
                 let mut value = serde_json::to_value(&self.assemble(task)?)?;
                 value["attempt_id"] = json!(attempt.id);
                 Ok(value)
@@ -3185,7 +3246,7 @@ impl Store {
 
     /// Task notifications end through their transition; this clears every outstanding one.
     fn ack_task_notification(&self, task_id: &str, agent: &str) -> Result<()> {
-        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND acknowledged = 0")
+        diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE recipient = ? AND task_id = ? AND acknowledged = 0 AND kind NOT IN ('request','message','result_succeeded','result_failed','result_blocked')")
             .bind::<Text, _>(agent)
             .bind::<Text, _>(task_id)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -5080,7 +5141,7 @@ mod tests {
     }
 
     fn send(_from: &Agent, to: &str, body: &str, request_id: &str) -> Operation {
-        Operation::AgentSend {
+        Operation::AgentSend { expects_result: false,
             to: to.into(),
             body: body.into(),
             subject: None,
@@ -5089,6 +5150,87 @@ mod tests {
             task_id: None,
             request_id: request_id.into(),
         }
+    }
+
+    #[test]
+    fn request_results_are_correlated_idempotent_and_consumed_after_processing() {
+        let store = Store::open(":memory:").unwrap();
+        let lead = actor(&store, "lead");
+        let worker = actor(&store, "worker");
+        let helper = actor(&store, "helper");
+        let request = |to: &Agent| Operation::AgentSend {
+            expects_result: true, to: to.id.clone(), body: "Implement the bounded change".into(),
+            subject: None, thread_id: None, reply_to: None, task_id: None,
+            request_id: Uuid::new_v4().to_string(),
+        };
+        let original = store.execute(&lead, "lead-run", &request(&worker)).unwrap();
+        let message = original["id"].as_str().unwrap().to_owned();
+        let ack = Operation::AgentAck { message_id: message.clone() };
+        assert!(store.execute(&worker, "worker-run", &ack).is_err());
+        assert!(store.execute(&lead, "lead-run", &ack).is_err());
+        let blocked = Operation::AgentReply {
+            reply_to: message.clone(), body: "Need an interface decision".into(),
+            outcome: crate::ReplyOutcome::Blocked, request_id: Uuid::new_v4().to_string(),
+        };
+        assert!(store.execute(&helper, "helper-run", &blocked).is_err());
+        assert_eq!(store.execute(&worker, "worker-run", &blocked).unwrap()["kind"], "result_blocked");
+        assert_eq!(store.pending(&worker).unwrap().len(), 1);
+        let child = store.execute(&worker, "worker-run", &request(&helper)).unwrap();
+        let child_reply = Operation::AgentReply {
+            reply_to: child["id"].as_str().unwrap().into(), body: "Child checks passed".into(),
+            outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
+        };
+        let nested = store.execute(&helper, "helper-run", &child_reply).unwrap();
+        assert_eq!(nested["to"], worker.id);
+        let reply = Operation::AgentReply {
+            reply_to: message.clone(), body: "Changed the file; checks passed".into(),
+            outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
+        };
+        let result = store.execute(&worker, "worker-run", &reply).unwrap();
+        assert_eq!(result["to"], lead.id);
+        assert_eq!(result["reply_to"], message);
+        assert_eq!(result["thread_id"], message);
+        assert_eq!(result, store.execute(&worker, "worker-run", &reply).unwrap());
+        assert!(!store.pending(&worker).unwrap().iter().any(|m| m.id == message));
+        let duplicate = Operation::AgentReply { reply_to: message, body: "Duplicate".into(),
+            outcome: crate::ReplyOutcome::Failed, request_id: Uuid::new_v4().to_string() };
+        assert!(store.execute(&worker, "worker-run", &duplicate).is_err());
+        let pending = store.pending(&lead).unwrap();
+        assert_eq!(pending.len(), 2);
+        assert!(pending[0].sequence < pending[1].sequence);
+        assert!(store.execute(&lead, "lead-run", &Operation::AgentAck { message_id: pending[1].id.clone() }).is_err());
+        for received in pending {
+            store.execute(&lead, "lead-run", &Operation::AgentAck { message_id: received.id }).unwrap();
+        }
+        assert!(store.pending(&lead).unwrap().is_empty());
+        assert!(store.execute(&lead, "lead-run", &Operation::AgentReply {
+            reply_to: result["id"].as_str().unwrap().into(), body: "No reply loops".into(),
+            outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
+        }).is_err());
+    }
+
+    #[test]
+    fn completed_results_survive_reopen_and_keep_arrival_order() {
+        let path = std::env::temp_dir().join(format!("warpai-results-{}.sqlite", Uuid::new_v4()));
+        let lead_id;
+        {
+            let store = Store::open(path.to_str().unwrap()).unwrap();
+            let lead = actor(&store, "lead");
+            lead_id = lead.id.clone();
+            for name in ["first", "second"] {
+                let worker = actor(&store, name);
+                let message = store.execute(&lead, "lead-run", &send(&lead, &worker.id, "Work", &Uuid::new_v4().to_string())).unwrap();
+                store.execute(&worker, "worker-run", &Operation::AgentReply {
+                    reply_to: message["id"].as_str().unwrap().into(), body: name.into(),
+                    outcome: crate::ReplyOutcome::Failed, request_id: Uuid::new_v4().to_string(),
+                }).unwrap();
+            }
+        }
+        let store = Store::open(path.to_str().unwrap()).unwrap();
+        let lead = store.agent("/project", &lead_id).unwrap();
+        let messages = store.pending(&lead).unwrap();
+        assert_eq!(messages.iter().map(|m| m.body.as_str()).collect::<Vec<_>>(), ["first", "second"]);
+        assert!(messages.iter().all(|m| m.kind == "result_failed"));
     }
 
     fn assign(_from: &Agent, to: &str, reviewer: Option<&str>, request_id: &str) -> Operation {
@@ -5169,6 +5311,8 @@ mod tests {
             .unwrap();
         assert_eq!(submitted["state"], "submitted");
         assert_eq!(submitted["version"], 3);
+        assert!(store.pending(&issuer).unwrap().iter().any(|m| m.kind == "result" && m.task_id.as_deref() == Some(task_id.as_str())));
+        assert!(store.pending(&reviewer).unwrap().iter().any(|m| m.kind == "review" && m.task_id.as_deref() == Some(task_id.as_str())));
         let task = store.task(&reviewer, &task_id).unwrap();
         assert_eq!(task.attempts.len(), 1);
         assert_eq!(task.attempts[0].certainty, "finished");
@@ -5486,7 +5630,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "reply".into(),
                     subject: Some("Re: root".into()),
@@ -5503,7 +5647,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "sneak".into(),
                     subject: None,
@@ -5519,7 +5663,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "hijack".into(),
                     subject: None,
@@ -5535,7 +5679,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "fresh thread".into(),
                     subject: None,
@@ -5551,7 +5695,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "wrong thread".into(),
                     subject: None,
@@ -5567,7 +5711,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "bob".into(),
                     body: "body".into(),
                     subject: Some("s".repeat(crate::MAX_SUBJECT + 1)),
@@ -5583,7 +5727,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "bob".into(),
                     body: "link".into(),
                     subject: None,
@@ -7181,7 +7325,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "bob".into(),
                     body: "please run under_score checks".into(),
                     subject: None,
@@ -7198,7 +7342,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: "alice".into(),
                     body: "acknowledged".into(),
                     subject: None,
@@ -7220,7 +7364,7 @@ mod tests {
                 .execute(
                     from,
                     "run-sender",
-                    &Operation::AgentSend {
+                    &Operation::AgentSend { expects_result: false,
                         to: "bob".into(),
                         body: body.into(),
                         subject: None,
@@ -7393,18 +7537,20 @@ mod tests {
         let bob = actor(&store, "bob");
         let assigned = store.execute(&alice, "run-alice", &assign(&alice, "bob", None, &Uuid::new_v4().to_string())).unwrap();
         let task_id = assigned["id"].as_str().unwrap();
-        let root = store.execute(&alice, "run-alice", &Operation::AgentSend {
+        let root = store.execute(&alice, "run-alice", &Operation::AgentSend { expects_result: false,
             to: "bob".into(), body: "original task context".into(), subject: None,
             thread_id: None, reply_to: None, task_id: Some(task_id.into()),
             request_id: Uuid::new_v4().to_string(),
         }).unwrap();
         let root_id = root["id"].as_str().unwrap();
-        let reply = store.execute(&bob, "run-bob", &Operation::AgentSend {
+        let reply = store.execute(&bob, "run-bob", &Operation::AgentSend { expects_result: false,
             to: "alice".into(), body: "retained correction".into(), subject: None,
             thread_id: None, reply_to: Some(root_id.into()), task_id: None,
             request_id: Uuid::new_v4().to_string(),
         }).unwrap();
         // Model a legacy archived task with acknowledged parents and an unread standalone reply.
+        diesel::sql_query("UPDATE messages SET task_id = NULL WHERE id = ?")
+            .bind::<Text, _>(reply["id"].as_str().unwrap()).execute(&mut *store.connection.borrow_mut()).unwrap();
         diesel::sql_query("UPDATE tasks SET archived = 1, state = 'cancelled' WHERE id = ?")
             .bind::<Text, _>(task_id).execute(&mut *store.connection.borrow_mut()).unwrap();
         diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE task_id = ?")

@@ -71,6 +71,7 @@ impl CommunicationSettingsView {
         #[cfg(windows)]
         {
             AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.refresh_wsl_targets(ctx);
                 if model.wsl.preferences.enabled { model.configure_wsl(None, None, ctx); }
             });
         }

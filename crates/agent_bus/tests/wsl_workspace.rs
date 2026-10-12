@@ -117,7 +117,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert_eq!(refreshed["value"]["coordinator_online"], true);
     let scope = refreshed["value"]["collaboration_scope"].as_str().unwrap().to_owned();
     let message = observer.project_tasks(&TaskCommand::Scoped { scope, command: Box::new(TaskCommand::Operator(
-        warp_agent_bus::Operation::AgentSend { to: agent_id, body: "Native fixture work".into(), subject: None,
+        warp_agent_bus::Operation::AgentSend { expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }
     )) }, 5).await.unwrap();
     assert!(message.get("error").is_none(), "{message}");

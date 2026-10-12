@@ -42,8 +42,8 @@ pub(crate) enum Kind {
 impl Kind {
     pub(super) fn label(self) -> &'static str {
         match self {
-            Self::Send => "Message",
-            Self::Assign => "Assign",
+            Self::Send => "Send to Agent",
+            Self::Assign => "Send to Agent",
             Self::Pool => "Create pool task",
             Self::Search => "Search",
             Self::Cancel => "Request cancellation",
@@ -143,6 +143,8 @@ pub(super) struct Form {
     pub(super) submitting: bool,
     error: String,
     pub(super) submitted_fields: Option<Vec<String>>,
+    pub(super) track_task: bool,
+    track_button: MouseStateHandle,
     buttons: [MouseStateHandle; 2],
 }
 
@@ -177,13 +179,13 @@ fn command(
         "Complete every field using plain text (up to 8192 bytes)"
     );
     if kind == Kind::Send {
-        return Ok(Command::Agent(Operation::AgentSend {
+        return Ok(Command::Agent(Operation::AgentSend { expects_result: true,
             to: fields[0].trim().into(),
             body: fields[1].clone(),
             subject: (!fields[2].trim().is_empty()).then(|| fields[2].clone()),
             thread_id: None,
             reply_to: None,
-            task_id: None,
+            task_id: task.map(|task| task.id.clone()),
             request_id,
         }));
     }
@@ -474,6 +476,7 @@ impl CollaborationPanel {
             body.add_child(note(appearance, warpui::localization::text("Start an Agent in this project.")));
         }
         body.add_child(heading(appearance, warpui::localization::text("Worktrees")));
+        let mut entries = Flex::column().with_spacing(GAP_SECTION);
         for checkout in &snapshot.worktrees {
             let branch = checkout.branch.as_deref().unwrap_or(warpui::localization::text("detached HEAD"));
             let mut summary: String = branch.chars().take(48).collect();
@@ -481,31 +484,31 @@ impl CollaborationPanel {
             let root = checkout.root.clone();
             let expanded = self.expanded_worker.as_ref() == Some(&root);
             if let Some(state) = self.checkout_buttons.get(&root) {
-                body.add_child(builder.button(ButtonVariant::Secondary, state.clone())
+                entries.add_child(builder.button(ButtonVariant::Secondary, state.clone())
                     .with_text_label(format!("{} {summary}", if expanded { "▾" } else { "▸" }))
                     .build().on_click(move |ctx, _, _|
                         ctx.dispatch_typed_action(Action::ExpandWorker(root.clone()))).finish());
             }
             let agents: Vec<_> = snapshot.candidates.iter().filter(|candidate| candidate.root == checkout.root).collect();
-            if agents.is_empty() { body.add_child(note(appearance, warpui::localization::text("No online Agents"))); }
+            if agents.is_empty() { entries.add_child(note(appearance, warpui::localization::text("No online Agents"))); }
             for candidate in agents {
                 let selected = coordinator.is_some_and(|role| role.agent == candidate.agent.id);
-                body.add_child(Flex::row().with_spacing(super::GAP_ROW)
+                entries.add_child(Flex::row().with_spacing(super::GAP_ROW)
                     .with_child(warpui::elements::ConstrainedBox::new(crate::agent_usage::agent_icon(&candidate.agent.program).to_warpui_icon(appearance.theme().foreground()).finish()).with_width(16.).with_height(16.).finish())
                     .with_child(super::Shrinkable::new(1., detail(appearance, format!("{}{}", candidate.agent.name,
                         if selected { " · Coordinator" } else { "" }))).finish()).finish());
                 if expanded {
                     for task in snapshot.tasks.iter().filter(|task| task.assignee == candidate.agent.id) {
-                        body.add_child(note(appearance, format!("{} · {}", warpui::localization::text(&task.state), task.description)));
+                        entries.add_child(note(appearance, format!("{} · {}", warpui::localization::text(&task.state), task.description)));
                     }
                 }
             }
             if expanded {
-                body.add_child(detail(appearance, format!("{branch}\n{}", checkout.root)));
+                entries.add_child(detail(appearance, format!("{branch}\n{}", checkout.root)));
                 if self.remote.is_none() && snapshot.worktrees.first().is_some_and(|main| main.root != checkout.root) {
                     let repository = std::path::PathBuf::from(&snapshot.worktree_root);
                     let root = std::path::PathBuf::from(&checkout.root);
-                    body.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[0].clone())
+                    entries.add_child(builder.button(ButtonVariant::Secondary, self.team_buttons[0].clone())
                         .with_text_label(warpui::localization::text("Remove worktree").into()).build().on_click(move |ctx, _, _|
                             ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::RemoveLocalWorktree {
                                 repository: repository.clone(), checkout: root.clone(),
@@ -513,6 +516,7 @@ impl CollaborationPanel {
                 }
             }
         }
+        body.add_child(warpui::elements::Container::new(entries.finish()).with_padding_left(16.).finish());
         body.finish()
     }
 
@@ -576,11 +580,7 @@ impl CollaborationPanel {
         let project = snapshot
             .map(|snapshot| snapshot.project.clone())
             .unwrap_or_default();
-        let task = if kind == Kind::Send {
-            None
-        } else {
-            snapshot.and_then(|snapshot| snapshot.task.clone())
-        };
+        let task = snapshot.and_then(|snapshot| snapshot.task.clone());
         let fields: Vec<_> = kind
             .labels()
             .iter()
@@ -610,13 +610,15 @@ impl CollaborationPanel {
                     }
                     Event::Navigate(warp_editor::editor::NavigationKey::Tab) => {
                         if let Some(form) = &panel.form {
-                            ctx.focus(&form.fields[(index + 1) % form.fields.len()]);
+                            let count = if form.kind == Kind::Assign && !form.track_task { 2 } else { form.fields.len() };
+                            ctx.focus(&form.fields[(index + 1) % count]);
                         }
                     }
                     Event::Navigate(warp_editor::editor::NavigationKey::ShiftTab) => {
                         if let Some(form) = &panel.form {
+                            let count = if form.kind == Kind::Assign && !form.track_task { 2 } else { form.fields.len() };
                             ctx.focus(
-                                &form.fields[(index + form.fields.len() - 1) % form.fields.len()],
+                                &form.fields[(index + count - 1) % count],
                             );
                         }
                     }
@@ -651,6 +653,8 @@ impl CollaborationPanel {
             submitting: false,
             error: String::new(),
             submitted_fields: None,
+            track_task: true,
+            track_button: Default::default(),
             buttons: Default::default(),
         });
         self.build_form_selectors(ctx);
@@ -834,11 +838,15 @@ impl CollaborationPanel {
             Command::Controller(if form.kind == Kind::JoinWorktree {
                 ControllerOperation::WorktreeJoin { root, request_id }
             } else { ControllerOperation::WorktreeLeave { root, request_id } })
-        } else { match command(
-            form.kind,
+        } else {
+            let (kind, command_fields) = if form.kind == Kind::Assign && !form.track_task {
+                (Kind::Send, vec![fields[0].clone(), fields[1].clone(), String::new()])
+            } else { (form.kind, fields.clone()) };
+            match command(
+            kind,
             &form.project,
             form.task.as_ref(),
-            &fields,
+            &command_fields,
             form.request_id.clone(),
         ) {
             Ok(operation) => operation,
@@ -972,6 +980,13 @@ impl CollaborationPanel {
                 return body.finish();
             }
             body.add_child(heading(appearance, warpui::localization::text(form.kind.label())));
+            if form.kind == Kind::Assign {
+                let checkbox = builder.checkbox(form.track_button.clone(), None).check(form.track_task);
+                let checkbox = if form.submitting || form.submitted_fields.is_some() { checkbox.disabled() } else { checkbox };
+                body.add_child(Flex::row().with_spacing(super::GAP_ROW)
+                    .with_child(checkbox.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::ToggleTrackTask)).finish())
+                    .with_child(builder.span(warpui::localization::text("Track as task")).build().finish()).finish());
+            }
             if let Some(task) = &form.task {
                 body.add_child(note(
                     appearance,
@@ -1070,6 +1085,7 @@ impl CollaborationPanel {
 
             }
             for (index, (label, field)) in form.kind.labels().iter().zip(&form.fields).enumerate() {
+                if form.kind == Kind::Assign && !form.track_task && index >= 2 { continue; }
                 let value = if form.submitting || form.submitted_fields.is_some() {
                     let text = field.as_ref(app).buffer_text(app);
                     detail(appearance, form.choices.get(&index).map(|choices| text.split(',').filter_map(|id|
@@ -1138,7 +1154,7 @@ impl CollaborationPanel {
             } else if self.worktree_mode && self.snapshot.as_ref().is_none_or(|snapshot| snapshot.roles.is_empty() || !snapshot.worktree_available) {
                 vec![]
             } else {
-                vec![Kind::Assign, Kind::Send]
+                vec![if self.query.selected_task.is_some() { Kind::Send } else { Kind::Assign }]
             };
             if self.show_spaces
                 && self

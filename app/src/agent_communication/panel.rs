@@ -356,6 +356,7 @@ pub(crate) enum Action {
     Mode(bool),
     SelectFormField { request: String, index: usize, value: String },
     ChooseCoordinator { project: String, agent: String, run: String },
+    ApplyCoordinator { project: String, agent: String, run: String },
     SelectParticipant(String),
     ExpandWorker(String),
     NextFixture,
@@ -373,6 +374,7 @@ pub(crate) enum Action {
     FirstAgents,
     OpenControl(controls::Kind),
     ConfirmControl,
+    ToggleTrackTask,
     CancelControl,
     FocusAgent(String),
     Spaces,
@@ -1275,6 +1277,13 @@ impl TypedActionView for CollaborationPanel {
         }
         if !self.preview {
             match action {
+                Action::ToggleTrackTask => {
+                    if let Some(form) = self.form.as_mut().filter(|form| !form.submitting && form.submitted_fields.is_none()) {
+                        form.track_task = !form.track_task;
+                    }
+                    ctx.notify();
+                    return;
+                }
                 Action::SelectFormField { request, index, value } => {
                     self.select_form_field(request, *index, value, ctx);
                     return;
@@ -1294,6 +1303,13 @@ impl TypedActionView for CollaborationPanel {
                     return;
                 }
                 Action::ChooseCoordinator { project, agent, run } => {
+                    // The dropdown must finish closing before its parent changes it.
+                    ctx.dispatch_typed_action_deferred(Action::ApplyCoordinator {
+                        project: project.clone(), agent: agent.clone(), run: run.clone(),
+                    });
+                    return;
+                }
+                Action::ApplyCoordinator { project, agent, run } => {
                     if self.form.is_some() || !self.worktree_mode || !self.connected
                         || self.snapshot.as_ref().is_none_or(|snapshot| snapshot.project != *project
                             || !snapshot.candidates.iter().any(|candidate| candidate.agent.id == *agent && candidate.run == *run)) {
@@ -2005,7 +2021,7 @@ impl View for CollaborationPanel {
                 ),
             ] {
                 let button = builder
-                    .button(ButtonVariant::Text, self.history_buttons[index].clone())
+                    .button(ButtonVariant::Secondary, self.history_buttons[index].clone())
                     .with_text_label(warpui::localization::text(label).into());
                 if let Some(action) = action.filter(|_| self.connected) {
                     buttons.push(
@@ -2203,7 +2219,7 @@ impl View for CollaborationPanel {
                 Flex::column()
                     .with_spacing(GAP_SECTION)
                     .with_child(header.finish())
-                    .with_child(Shrinkable::new(1.0, scroll).finish())
+                    .with_child(Expanded::new(1.0, scroll).finish())
                     .with_child(self.render_usage(app))
                     .finish(),
             )
@@ -2365,7 +2381,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     transport::call(&broker.endpoint, &request)?;
     let thread = broker.operator(
         &project,
-        &Operation::AgentSend {
+        &Operation::AgentSend { expects_result: false,
             to: "capture-worker".into(),
             body: "Native thread checkpoint literal _% text".into(),
             subject: Some("Native checkpoint".into()),
@@ -2375,7 +2391,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
             request_id: uuid::Uuid::new_v4().to_string(),
         },
     )?;
-    request.operation = Operation::AgentSend {
+    request.operation = Operation::AgentSend { expects_result: false,
         to: "capture-worker".into(),
         body: "Follow-up native checkpoint".into(),
         subject: Some("Native correction".into()),
@@ -4138,7 +4154,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .unwrap()
                             .operator(
                                 &project,
-                                &warp_agent_bus::Operation::AgentSend {
+                                &warp_agent_bus::Operation::AgentSend { expects_result: false,
                                     to: "capture-worker".into(),
                                     body: "Preserve work arriving after purge preview".into(),
                                     subject: None,
@@ -5289,6 +5305,18 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     .is_some_and(|views| !views.is_empty()))
             }).with_take_screenshot(filename));
         }
+    }
+    for (name, action) in [
+        ("settings-usage-api-input.png", crate::settings_view::agent_usage::Action::ApiInput),
+        ("settings-usage-api-back.png", crate::settings_view::agent_usage::Action::Back),
+    ] {
+        filenames.push(name.into());
+        driver = driver.with_step(TestStep::new(name).with_action(move |app, window, _| {
+            if let Some(view) = app.views_of_type::<crate::settings_view::agent_usage::UsageSettingsView>(window)
+                .and_then(|views| views.into_iter().next()) {
+                view.update(app, |view, ctx| view.handle_action(&action, ctx));
+            }
+        }).with_take_screenshot(name));
     }
     for (theme, theme_name) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
         for width in [800, 1200] {

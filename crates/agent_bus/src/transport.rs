@@ -64,6 +64,7 @@ pub struct Response {
     pub error: Option<DomainError>,
 }
 struct Terminal {
+    automatic_workspace: bool,
     capability: String,
     workspace: Option<crate::storage::WorkspaceBinding>,
     physical_root: Option<(std::path::PathBuf, std::fs::File)>,
@@ -388,6 +389,7 @@ impl Broker {
         state.terminals.insert(
             terminal.into(),
             Terminal {
+                automatic_workspace: false,
                 capability: capability.clone(),
                 workspace,
                 physical_root: None,
@@ -513,8 +515,10 @@ impl Broker {
                 if let Some(actor) = &live.agent { let _ = state.store.worktree_offline(&actor.id, &live.run); }
             }
             if let Some(binding) = state.terminals.get_mut(terminal) {
-                if binding.live.as_ref().is_some_and(|live| live.origin_agent.is_some()) {
+                if binding.automatic_workspace || binding.live.as_ref().is_some_and(|live| live.origin_agent.is_some()) {
                     binding.workspace = None;
+                    binding.physical_root = None;
+                    binding.automatic_workspace = false;
                 }
                 binding.live = None;
             }
@@ -673,10 +677,7 @@ impl Broker {
                     return None;
                 }
                 let actor = live.agent.as_ref()?;
-                let message = state.store.next_work(actor, &live.run).ok()??;
-                if live.delivered.contains(&message.id) {
-                    return None;
-                }
+                let message = state.store.next_unnotified(actor, &live.run, &live.delivered).ok()??;
                 let pool = (message.kind == "available").then_some(message.task_id.clone()).flatten();
                 if pool.as_ref().is_some_and(|task| dispatched_pools.contains(task)) {
                     return None;
@@ -757,7 +758,7 @@ impl Broker {
         let Some(actor) = live.agent.as_ref() else {
             return false;
         };
-        let Ok(Some(message)) = state.store.next_work(actor, &live.run) else {
+        let Ok(Some(message)) = state.store.next_unnotified(actor, &live.run, &live.delivered) else {
             return false;
         };
         if message.id != wake.message_id
@@ -1225,10 +1226,13 @@ impl Broker {
         }
         if matches!(
             request.operation,
-            Operation::AgentSend { .. } | Operation::TaskAssign { .. }
+            Operation::AgentSend { .. } | Operation::AgentReply { .. } | Operation::TaskAssign { .. }
         ) {
             result["delivery"] = json!("queued");
             result["instruction"] = json!("Work is queued, not completed or acknowledged. The receiver is notified and will process it once ready. By default, monitor every task you delegated: poll warp_agent_list for peer task states, use warp_task_get for results, and warp_agent_wait between polls. Keep coordinating until all delegated tasks are reviewed or the user stops. For ordinary instructions, wait for the recipient's reply before reporting completion.");
+        }
+        if matches!(request.operation, Operation::AgentReply { .. }) {
+            result["instruction"] = json!("Your correlated result is durably queued for the original sender. Its handling is separate from your completion; do not wait for a reply to this result. Finish any remaining owned work, then announce readiness as your final action.");
         }
         self.shared.changed.notify_all();
         Ok(result)

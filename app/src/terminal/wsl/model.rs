@@ -11,6 +11,7 @@ const RANCHER_DESKTOP_WSL_DISTRO_PREFIX: &str = "rancher-desktop";
 /// Contains information about WSL distributions available on the user's Windows machine.
 pub(crate) struct WslInfo {
     distributions: Vec<Distribution>,
+    last_checked: std::time::Instant,
 }
 
 impl Entity for WslInfo {
@@ -46,11 +47,23 @@ impl WslInfo {
                 }
             })
             .unwrap_or_default();
-        Self { distributions }
+        Self { distributions, last_checked: std::time::Instant::now() }
     }
 
     pub(crate) fn distributions(&self) -> impl Iterator<Item = &Distribution> {
         self.distributions.iter()
+    }
+
+    /// WSL may be installed or upgraded after Warpai starts; startup metadata is not permanent.
+    pub(crate) fn refresh(&mut self, ctx: &mut ModelContext<Self>) {
+        if self.last_checked.elapsed() < std::time::Duration::from_secs(5) { return; }
+        self.last_checked = std::time::Instant::now();
+        if let Ok(distributions) = Self::find_available_distributions() {
+            if self.distributions != distributions {
+                self.distributions = distributions;
+                ctx.notify();
+            }
+        }
     }
 
     /// Finds available WSL distributions available on the local machine.

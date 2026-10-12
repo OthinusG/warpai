@@ -1085,7 +1085,7 @@ impl RelaunchModel {
     ///
     /// When terminating the app, we check this state to know whether to launch the updated version
     /// or quit the app normally.
-    fn request_relaunch(&mut self, ctx: &mut ModelContext<Self>) {
+    pub(crate) fn request_relaunch(&mut self, ctx: &mut ModelContext<Self>) {
         self.relaunch_status = RelaunchStatus::Requested;
         ctx.notify();
     }

@@ -249,10 +249,10 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         }), 9).await.unwrap().get("value").is_some());
     }
     let receiver = format!("fixture-{}", second.session_id);
-    ssh_fixture_operation(
+    let instruction = ssh_fixture_operation(
         &mut one,
         &mut first,
-        Operation::AgentSend {
+        Operation::AgentSend { expects_result: true,
             to: receiver.clone(),
             body: "Remote fixture message".into(),
             subject: None,
@@ -275,6 +275,22 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         .await["has_message"],
         true
     );
+    let returned = ssh_fixture_operation(
+        &mut two, &mut second,
+        Operation::AgentReply {
+            reply_to: instruction["id"].as_str().unwrap().into(),
+            body: "Remote work finished; fixture checks passed".into(),
+            outcome: warp_agent_bus::ReplyOutcome::Succeeded,
+            request_id: Uuid::new_v4().to_string(),
+        },
+    ).await;
+    assert_eq!(returned["kind"], "result_succeeded");
+    assert_eq!(returned["reply_to"], instruction["id"]);
+    let collected = ssh_fixture_operation(&mut one, &mut first,
+        Operation::AgentInbox { cursor: None, limit: None }).await;
+    assert!(collected["messages"].as_array().unwrap().iter().any(|m| m["id"] == returned["id"]));
+    ssh_fixture_operation(&mut one, &mut first,
+        Operation::AgentAck { message_id: returned["id"].as_str().unwrap().into() }).await;
     let assigned = ssh_fixture_operation(
         &mut one,
         &mut first,

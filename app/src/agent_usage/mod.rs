@@ -21,7 +21,10 @@ pub(crate) struct Account {
     pub(crate) context: String,
     pub(crate) visible: bool,
     pub(crate) cli_login: bool,
+    #[serde(default = "detect_5h_default")]
+    pub(crate) detect_5h: bool,
 }
+fn detect_5h_default() -> bool { true }
 #[derive(Default)]
 pub(crate) struct AgentUsage {
     pub(crate) accounts: Vec<Account>,
@@ -105,6 +108,7 @@ impl AgentUsage {
         label: String,
         context: String,
         token: String,
+        detect_5h: bool,
         ctx: &mut ModelContext<Self>,
     ) -> bool {
         if provider == Provider::OpenCodeZen && context.is_empty() {
@@ -120,6 +124,7 @@ impl AgentUsage {
             context,
             visible: true,
             cli_login,
+            detect_5h,
         };
         if !self.configuration_error
             && self.accounts.len() < 64
@@ -176,6 +181,22 @@ impl AgentUsage {
         let mut next = self.accounts.clone();
         if let Some(account) = next.iter_mut().find(|a| a.id == id) {
             account.visible = !account.visible;
+        }
+        match Self::persist(&next) {
+            Ok(()) => {
+                self.accounts = next;
+                self.generation += 1;
+                self.refresh(ctx);
+            }
+            Err(error) => self.status = error.into(),
+        }
+        ctx.notify();
+    }
+    pub(crate) fn toggle_5h(&mut self, id: &str, ctx: &mut ModelContext<Self>) {
+        if self.configuration_error { return; }
+        let mut next = self.accounts.clone();
+        if let Some(account) = next.iter_mut().find(|account| account.id == id) {
+            account.detect_5h = !account.detect_5h;
         }
         match Self::persist(&next) {
             Ok(()) => {
@@ -250,7 +271,10 @@ impl AgentUsage {
                             .unwrap_or(Err("Usage query timed out"))
                     }
                     .compat()
-                    .await;
+                    .await.map(|mut reading| {
+                        reading.windows.retain(|window| account.detect_5h || !window.is_5h());
+                        reading
+                    });
                     (account.id, reading)
                 }))
                 .await
@@ -300,6 +324,7 @@ impl AgentUsage {
                     context: String::new(),
                     visible: true,
                     cli_login: false,
+                    detect_5h: true,
                 });
                 if state != "loading" {
                     self.readings.insert(
@@ -536,9 +561,15 @@ mod tests {
             context: String::new(),
             visible: true,
             cli_login: true,
+            detect_5h: true,
         };
         assert!(valid_account(&account));
         let json = serde_json::to_value(&account).unwrap();
+        let mut legacy = json.clone();
+        legacy.as_object_mut().unwrap().remove("detect_5h");
+        assert!(serde_json::from_value::<Account>(legacy).unwrap().detect_5h);
+        account.detect_5h = false;
+        assert!(!serde_json::from_value::<Account>(serde_json::to_value(&account).unwrap()).unwrap().detect_5h);
         assert!(json.get("token").is_none());
         assert!(json.get("credential").is_none());
         account.label = "bad\nlabel".into();

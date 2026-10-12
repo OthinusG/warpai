@@ -120,7 +120,10 @@ impl Worktree {
             Path::new(top).canonicalize()? == Path::new(&root),
             scope_denied("Git checkout does not match the selected directory")
         );
-        let common = Path::new(common).canonicalize()?;
+        let common = Path::new(&root).join(common).canonicalize()?;
+        // Git's verified top level and common directory already identify the main checkout.
+        let main_checkout = Path::new(&root).join(".git").canonicalize().ok().as_ref() == Some(&common);
+        if !main_checkout {
         let registered = crate::companion::files::git_metadata(
             Path::new(&root),
             &["worktree", "list", "--porcelain", "-z"],
@@ -135,6 +138,7 @@ impl Worktree {
                 ),
             scope_denied("Checkout is not a registered worktree")
         );
+        }
         Ok(Self {
             repository: directory_identity(&common)?,
             checkout: directory_identity(Path::new(&root))?,

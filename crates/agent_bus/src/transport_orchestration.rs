@@ -35,7 +35,9 @@ impl Broker {
                     })?;
                 }
                 let workspace = state.store.worktree_binding(root)?;
-                state.terminals.get_mut(terminal).unwrap().workspace = workspace;
+                let binding = state.terminals.get_mut(terminal).unwrap();
+                binding.workspace = workspace;
+                binding.automatic_workspace = true;
             }
             if let Some(workspace) = &state.terminals[terminal].workspace {
                 state.store.initialize_project_mode(&workspace.domain())?;
@@ -305,7 +307,7 @@ impl Broker {
             target.store.execute(
                 &Store::operator(&actor.project),
                 crate::storage::OPERATOR_EPOCH,
-                &Operation::AgentSend {
+                &Operation::AgentSend { expects_result: false,
                     to: actor.name.clone(),
                     body: message.into(),
                     subject: Some("Worktree role".into()),
@@ -325,6 +327,67 @@ impl Broker {
 mod tests {
     use super::*;
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
+
+    #[test]
+    fn main_only_checkout_registers_each_program_and_switches_modes() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("main only");
+        std::fs::create_dir(&root).unwrap();
+        git(&root, &["init", "--initial-branch=main"]);
+        let root = crate::project_root(&root).unwrap();
+        let owner = RunningBroker::start(&directory.path().join("main-only.sqlite")).unwrap();
+        let broker = &owner.broker;
+        assert_eq!(crate::worktrees::list(&root).unwrap().len(), 1);
+        broker.control(&root, &ControllerOperation::WorktreeMode { worktree:true, request_id:id() }).unwrap();
+        assert_eq!(broker.operator_panel(&PanelQuery { project:root.clone(), worktree:true, ..Default::default() }).unwrap()["worktree_mode"], true);
+        broker.control(&root, &ControllerOperation::WorktreeMode { worktree:false, request_id:id() }).unwrap();
+        let mut lead = None;
+        let mut project = None;
+        for program in ["codex", "claude", "gemini", "qoder", "cursor-agent", "custom"] {
+            let terminal = id();
+            let capability = broker.prepare(&terminal).unwrap();
+            broker.activate_project(&terminal, program, &root, true).unwrap();
+            let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal, capability,
+                run:None, directory:Some(root.clone()), defer_initial_ready:false, native_activity:None,
+                operation:Operation::AgentRegister { name:program.into() } };
+            let actor = call(broker, &request, request.operation.clone()).unwrap();
+            assert_eq!(actor["agent"]["program"], program);
+            if let Some(project) = &project { assert_eq!(&actor["agent"]["project"], project); }
+            else { project = Some(actor["agent"]["project"].clone()); }
+            request.run = actor["run"].as_str().map(str::to_owned);
+            if lead.is_none() { lead = Some((request, actor["agent"].clone())); }
+        }
+        let panel = broker.operator_panel(&PanelQuery { project:root.clone(), ..Default::default() }).unwrap();
+        assert_eq!(panel["agents"].as_array().unwrap().len(), 6);
+        let (lead, actor) = lead.unwrap();
+        broker.control(&root, &ControllerOperation::WorktreeCoordinator { root:root.clone(),
+            agent:actor["id"].as_str().unwrap().into(), run:lead.run.unwrap(), request_id:id() }).unwrap();
+        let panel = broker.operator_panel(&PanelQuery { project:root, worktree:true, ..Default::default() }).unwrap();
+        assert_eq!(panel["coordinator_online"], true);
+        assert_eq!(panel["candidates"].as_array().unwrap().len(), 6);
+    }
+
+    #[test]
+    fn automatic_workspace_follows_new_run_after_changing_checkout() {
+        let fixture = Fixture::new();
+        let owner = RunningBroker::start(&fixture.directory.path().join("change-checkout.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let terminal = id();
+        let capability = broker.prepare(&terminal).unwrap();
+        for root in [&fixture.linked, &fixture.main] {
+            broker.activate_project(&terminal, "codex", root.to_str().unwrap(), true).unwrap();
+            let request = Request { protocol_major:PROTOCOL_MAJOR, terminal:terminal.clone(),
+                capability:capability.clone(), run:None, directory:Some(root.to_str().unwrap().into()),
+                defer_initial_ready:false, native_activity:None,
+                operation:Operation::AgentRegister { name:String::new() } };
+            let actor = call(broker, &request, request.operation.clone()).unwrap();
+            let panel = broker.operator_panel(&PanelQuery { project:root.to_str().unwrap().into(),
+                terminal:Some(terminal.clone()), ..Default::default() }).unwrap();
+            assert!(panel["agents"].as_array().unwrap().iter().any(|row| row["agent"]["id"] == actor["agent"]["id"]));
+            assert_eq!(panel["agents"][0]["workspace"], root.to_str().unwrap());
+            broker.end(&terminal);
+        }
+    }
 
     #[test]
     fn native_project_identity_mode_and_busy_coordinator_handoff_preserve_tasks() {
@@ -384,7 +447,7 @@ mod tests {
         assert_eq!(plain_panel["worktree_available"], false);
         assert_eq!(plain_panel["coordinator_online"], false);
         assert_eq!(plain_panel["agents"].as_array().unwrap().len(), 1);
-        assert!(call(broker, &plain_request, Operation::AgentSend { to:"lead".into(),
+        assert!(call(broker, &plain_request, Operation::AgentSend { expects_result: false, to:"lead".into(),
             body:"Separate project".into(), subject:None, thread_id:None, reply_to:None,
             task_id:None, request_id:id() }).is_err());
         let unavailable = broker.operator_panel(&PanelQuery { project:plain_root,
@@ -399,7 +462,7 @@ mod tests {
                 && message["body"].as_str().unwrap().contains("18 unfinished project tasks")
                 && message["body"].as_str().unwrap().len() <= crate::MAX_TEXT));
         let mode = |worktree| broker.control(fixture.main.to_str().unwrap(), &ControllerOperation::WorktreeMode { worktree, request_id:id() }).unwrap();
-        let send = || call(broker, &lead, Operation::AgentSend { to:"other".into(), body:"Check".into(),
+        let send = || call(broker, &lead, Operation::AgentSend { expects_result: false, to:"other".into(), body:"Check".into(),
             subject:None, thread_id:None, reply_to:None, task_id:None, request_id:id() });
         assert!(send().is_err());
         mode(false);
@@ -447,7 +510,7 @@ mod tests {
                 run: request.run.clone().unwrap(), request_id: id(),
             }).unwrap()
         };
-        let send = |request: &Request, to: &str| call(broker, request, Operation::AgentSend {
+        let send = |request: &Request, to: &str| call(broker, request, Operation::AgentSend { expects_result: false,
             to: to.into(), body: "Scope check".into(), subject: None, thread_id: None,
             reply_to: None, task_id: None, request_id: id(),
         });

@@ -643,7 +643,7 @@ mod tests {
                 .await
                 .unwrap();
                 let client = ().serve(stream).await.unwrap();
-                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 31);
+                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 32);
                 let peer = server
                     .broker
                     .peers("issuer")
@@ -651,7 +651,7 @@ mod tests {
                     .find(|peer| peer.terminal == terminal)
                     .unwrap();
                 let mut send = issuer.clone();
-                send.operation = Operation::AgentSend {
+                send.operation = Operation::AgentSend { expects_result: false,
                     to: peer.name,
                     body: terminal.clone(),
                     subject: None,
@@ -703,7 +703,7 @@ mod tests {
             assert!(serde_json::to_string(&premature.content)
                 .unwrap()
                 .contains("\\\"ready\\\":false"));
-            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 31);
+            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 32);
             assert!(
                 server.broker.wakeups().is_empty(),
                 "Rediscovery cannot replay an old idle notification"

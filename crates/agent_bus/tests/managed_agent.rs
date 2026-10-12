@@ -42,7 +42,7 @@ fn managed_agent_child() {
             assert_eq!(response["id"], id);
             assert!(response.get("error").is_none());
             if id == 2 {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 31);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 32);
             }
         }
         drop(input);
@@ -552,7 +552,7 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
     fixture_operation(
         &mut attachment,
         &mut agents[0],
-        Operation::AgentSend {
+        Operation::AgentSend { expects_result: false,
             to: receiver.clone(),
             body: "Remote fixture message".into(),
             subject: None,

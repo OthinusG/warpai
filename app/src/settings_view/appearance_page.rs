@@ -436,6 +436,7 @@ impl FontType {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppearancePageAction {
     SetLanguage(warpui::localization::Language),
+    RestartForLanguage,
     LineHeightEditorResetRatio,
     SetNewWindowsCustomColumns,
     SetNewWindowsCustomRows,
@@ -498,6 +499,7 @@ pub enum AppearancePageAction {
 
 pub struct AppearanceSettingsPageView {
     language_dropdown: ViewHandle<Dropdown<AppearancePageAction>>,
+    language_restart_button: MouseStateHandle,
     page: PageType<Self>,
     window_id: WindowId,
     local_only_icon_tooltip_states: RefCell<HashMap<String, MouseStateHandle>>,
@@ -570,6 +572,12 @@ impl TypedActionView for AppearanceSettingsPageView {
                 crate::settings::LanguageSettings::handle(ctx).update(ctx, |settings, ctx| {
                     report_if_error!(settings.language.set_value(*language, ctx));
                 });
+                ctx.notify();
+            }
+            RestartForLanguage => {
+                crate::autoupdate::RelaunchModel::handle(ctx)
+                    .update(ctx, crate::autoupdate::RelaunchModel::request_relaunch);
+                ctx.terminate_app(warpui::platform::TerminationMode::Cancellable, None);
             }
             SetFontFamily(name) => self.set_font_family(name, ctx),
             SetAIFontFamily(name) => {
@@ -1188,6 +1196,7 @@ impl AppearanceSettingsPageView {
             ctx.add_typed_action_view(HeaderToolbarInlineEditor::new);
 
         AppearanceSettingsPageView {
+            language_restart_button: Default::default(),
             language_dropdown: ctx.add_typed_action_view(|ctx| {
                 let mut dropdown = Dropdown::new(ctx);
                 dropdown.add_items(warpui::localization::Language::ALL.into_iter().map(|language| {
@@ -2470,8 +2479,8 @@ impl SettingsWidget for LanguageWidget {
         "language english chinese simplified traditional 语言 語言 中文 简体 繁體"
     }
 
-    fn render(&self, view: &Self::View, appearance: &Appearance, _app: &AppContext) -> Box<dyn Element> {
-        render_dropdown_item(
+    fn render(&self, view: &Self::View, appearance: &Appearance, app: &AppContext) -> Box<dyn Element> {
+        let mut body = Flex::column().with_spacing(8.).with_child(render_dropdown_item(
             appearance,
             warpui::localization::text("Language"),
             Some(warpui::localization::text("Restart Warpai to apply this language.")),
@@ -2479,7 +2488,16 @@ impl SettingsWidget for LanguageWidget {
             LocalOnlyIconState::Hidden,
             None,
             &view.language_dropdown,
-        )
+        ));
+        if *crate::settings::LanguageSettings::as_ref(app).language.value()
+            != warpui::localization::language()
+        {
+            body.add_child(appearance.ui_builder()
+                .button(ButtonVariant::Secondary, view.language_restart_button.clone())
+                .with_text_label(warpui::localization::text("Restart Warpai").into())
+                .build().on_click(|ctx, _, _| ctx.dispatch_typed_action_deferred(AppearancePageAction::RestartForLanguage)).finish());
+        }
+        body.finish()
     }
 }
 

@@ -98,6 +98,11 @@ pub(crate) struct Window {
     pub(crate) used: f64,
     pub(crate) reset: Option<String>,
 }
+impl Window {
+    pub(crate) fn is_5h(&self) -> bool {
+        self.name.split(" · ").any(|part| part == "5h")
+    }
+}
 #[derive(Clone, Default, Debug)]
 pub(crate) struct Reading {
     pub(crate) windows: Vec<Window>,
@@ -550,6 +555,19 @@ pub(crate) fn safe_agy_version(text: &str) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn antigravity_keeps_gemini_and_third_party_pools_separate() {
+        let reading = parse(Provider::Antigravity, &json!({"status":"SUCCESS", "command":{"name":"usage", "data":{"groups":[
+            {"name":"Gemini", "buckets":[{"name":"5h", "remaining_fraction":0.8}]},
+            {"name":"Third party", "buckets":[{"name":"5h", "remaining_fraction":0.3}]}
+        ]}}})).unwrap();
+        assert_eq!(reading.windows.len(), 2);
+        assert_eq!(reading.windows[0].name, "Gemini · 5h");
+        assert_eq!(reading.windows[1].name, "Third party · 5h");
+        assert!(reading.windows.iter().all(Window::is_5h));
+        assert!((reading.windows[0].used - 20.).abs() < 0.001);
+        assert!((reading.windows[1].used - 70.).abs() < 0.001);
+    }
     #[test]
     fn native_requests_match_provider_transport_contracts() {
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();

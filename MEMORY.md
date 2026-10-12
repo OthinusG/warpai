@@ -125,6 +125,11 @@ consult it only when a specific historical question requires it.
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
+- Delivery corrections are in progress in MACOS-FIXES-2026-10-12.md (14 issues).
+  Local/SSH/WSL share correlated request/result operations. Project delegation
+  belongs to each issuer; Worktree allocation remains Coordinator-only. Final
+  ordinary replies atomically queue results and consume requests; blocked reports
+  remain unresolved. Notifications never establish execution or result handling.
 - Wake polls until idle; manual input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.

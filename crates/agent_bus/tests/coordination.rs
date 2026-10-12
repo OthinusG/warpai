@@ -281,7 +281,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
             };
             let registered = transport::call(&server.broker.endpoint, &native_issuer).unwrap();
             native_issuer.run = registered["run"].as_str().map(str::to_owned);
-            native_issuer.operation = Operation::AgentSend {
+            native_issuer.operation = Operation::AgentSend { expects_result: false,
                 to: state.into(),
                 body: "weekday".into(),
                 subject: None,
@@ -304,7 +304,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
                 .all(|peer| peer.terminal != state));
             continue;
         }
-        issuer.operation = Operation::AgentSend {
+        issuer.operation = Operation::AgentSend { expects_result: false,
             to: state.into(),
             body: "weekday".into(),
             subject: None,
@@ -397,7 +397,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     };
     assert!(transport::call(&server.broker.endpoint, &worker).is_err());
     let schema = warp_agent_bus::mcp::tools();
-    assert_eq!(schema.len(), 31);
+    assert_eq!(schema.len(), 32);
     for tool in schema {
         assert_eq!(
             tool.input_schema.get("additionalProperties"),
@@ -435,7 +435,7 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
             .env(CAPABILITY, capability)
             .env(TERMINAL, &terminal);
         let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
-        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 31);
+        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 32);
         let native = server
             .broker
             .peers("live-reviewer")
@@ -522,7 +522,7 @@ async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization
             } else if expected_id == 2 {
                 assert!(response["result"]["protocolVersion"].is_string());
             } else {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 31);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 32);
             }
         }
         assert_eq!(server.broker.peers("probe-reviewer").len(), 1);
@@ -618,7 +618,7 @@ fn dormant_agents_wake_without_an_open_wait_call() {
         request_id: request_id(),
     };
     transport::call(&server.broker.endpoint, &worker).unwrap();
-    issuer.operation = Operation::AgentSend {
+    issuer.operation = Operation::AgentSend { expects_result: false,
         to: worker.terminal.clone(),
         body: "Review follow-up".into(),
         subject: None,
@@ -698,7 +698,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     let peers = transport::call(&broker.endpoint, &left).unwrap();
     assert_eq!(peers.as_array().unwrap().len(), 2);
     for recipient in ["right", "third"] {
-        left.operation = Operation::AgentSend {
+        left.operation = Operation::AgentSend { expects_result: false,
             to: recipient.into(),
             body: "No pairing required".into(),
             subject: None,
@@ -752,7 +752,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     let registered = transport::call(&broker.endpoint, &outside).unwrap();
     outside.run = registered["run"].as_str().map(str::to_owned);
     for to in ["outside", registered["agent"]["id"].as_str().unwrap()] {
-        left.operation = Operation::AgentSend {
+        left.operation = Operation::AgentSend { expects_result: false,
             to: to.into(),
             body: "Must stay isolated".into(),
             subject: None,
@@ -763,7 +763,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         };
         assert!(transport::call(&broker.endpoint, &left).is_err());
     }
-    outside.operation = Operation::AgentSend {
+    outside.operation = Operation::AgentSend { expects_result: false,
         to: "left".into(),
         body: "Must stay isolated".into(),
         subject: None,
@@ -1115,7 +1115,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 };
                 transport::call(&broker.endpoint, &worker).unwrap();
             }
-            issuer.operation = Operation::AgentSend {
+            issuer.operation = Operation::AgentSend { expects_result: false,
                 to: name.clone(),
                 body: "Execute in your existing terminal and reply".into(),
                 subject: None,
@@ -1159,7 +1159,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
     let name = "not-discovered";
     broker.prepare(name).unwrap();
     broker.activate(name, "codex", "/project", true).unwrap();
-    issuer.operation = Operation::AgentSend {
+    issuer.operation = Operation::AgentSend { expects_result: false,
         to: name.into(),
         body: "Cannot bypass discovery".into(),
         subject: None,
@@ -1342,7 +1342,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
             .activate("starting", "codex", "/project", true)
             .unwrap();
     });
-    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 31);
+    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 32);
     activation.await.unwrap();
     server.broker.end("starting");
     server
@@ -1375,4 +1375,31 @@ async fn retired_remote_stdio_refuses_with_a_bounded_nonretryable_frame() {
     assert_eq!(frame["error"]["code"], "feature_unavailable");
     assert!(!frame["error"]["retryable"].as_bool().unwrap());
     assert!(!frame.to_string().contains("credential"));
+}
+
+#[test]
+fn submitted_unacknowledged_head_does_not_hide_later_mail() {
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let mut lead = register(&server.broker, "lead", "codex");
+    let mut worker = register(&server.broker, "worker", "claude");
+    let mut ids = Vec::new();
+    for body in ["first result", "second result"] {
+        worker.operation = Operation::AgentSend {
+            expects_result: false, to: "lead".into(), body: body.into(), subject: None,
+            thread_id: None, reply_to: None, task_id: None, request_id: request_id(),
+        };
+        ids.push(transport::call(&server.broker.endpoint, &worker).unwrap()["id"].as_str().unwrap().to_owned());
+    }
+    for message in &ids {
+        lead.operation = Operation::AgentReady;
+        transport::call(&server.broker.endpoint, &lead).unwrap();
+        thread::sleep(Duration::from_millis(850));
+        let wake = server.broker.wakeups().into_iter().find(|wake| wake.terminal == "lead").unwrap();
+        assert_eq!(&wake.message_id, message);
+        assert!(server.broker.claim_wake(&wake));
+        server.broker.finish_wake(&wake, true);
+    }
+    lead.operation = Operation::AgentInbox { cursor: None, limit: None };
+    let inbox = transport::call(&server.broker.endpoint, &lead).unwrap();
+    assert_eq!(inbox["messages"].as_array().unwrap().len(), 2, "Submission must not consume results");
 }

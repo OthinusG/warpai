@@ -154,6 +154,7 @@ impl WslSettings {
 
 impl AgentCommunication {
     pub(crate) fn refresh_wsl_targets(&mut self, ctx: &mut ModelContext<Self>) {
+        crate::terminal::wsl::WslInfo::handle(ctx).update(ctx, |model, ctx| model.refresh(ctx));
         let targets = logged_in_targets(ctx);
         if self.wsl.targets == targets {
             return;

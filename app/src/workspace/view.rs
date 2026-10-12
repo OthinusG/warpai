@@ -22206,7 +22206,10 @@ impl TypedActionView for Workspace {
                         let Some(workspace) = workspace.upgrade(app) else { return; };
                         workspace.update(app, |workspace, ctx| {
                             let open_directories: Vec<_> = ctx.window_ids().flat_map(|window| {
-                                ctx.views_of_type::<TerminalView>(window).unwrap_or_default()
+                                ctx.views_of_type::<Workspace>(window).unwrap_or_default()
+                            }).flat_map(|workspace| {
+                                workspace.as_ref(ctx).tab_views().flat_map(|group|
+                                    group.as_ref(ctx).terminal_views(ctx)).collect::<Vec<_>>()
                             }).filter_map(|terminal| terminal.as_ref(ctx).pwd_if_local(ctx).map(PathBuf::from)).collect();
                             let repository = repository.clone();
                             let checkout = checkout.clone();

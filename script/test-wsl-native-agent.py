@@ -75,7 +75,7 @@ def main():
     rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "owned-native-wsl", "version": "1"}})
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
-    assert len(rpc("tools/list", {})["tools"]) == 31
+    assert len(rpc("tools/list", {})["tools"]) == 32
     assert tool("warp_agent_ready", {})["ready"]
     def publish(wakes):
         temporary = root / "native-session.tmp"
@@ -92,7 +92,16 @@ def main():
             uuid.UUID(line.split("(message ", 1)[1].split(")", 1)[0])
             inbox = tool("warp_agent_inbox", {})
             for message in inbox["messages"]:
-                tool("warp_agent_ack", {"message_id": message["id"]})
+                if message["kind"] == "request":
+                    returned = tool("warp_agent_reply", {
+                        "reply_to": message["id"], "body": "Guest processing finished; native fixture passed",
+                        "outcome": "succeeded", "request_id": str(uuid.uuid4()),
+                    })
+                    assert returned["reply_to"] == message["id"]
+                    assert returned["to"] == message["from"]
+                    assert returned["kind"] == "result_succeeded"
+                else:
+                    tool("warp_agent_ack", {"message_id": message["id"]})
             wakes += 1
             assert tool("warp_agent_ready", {})["ready"]
             publish(wakes)

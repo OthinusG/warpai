@@ -1,5 +1,23 @@
 # SSH Agent Communication API
 
+## Result delivery (2026-10-12)
+
+Local, SSH and native WSL share the Operation contract. `agent_send` optionally
+sets `expects_result` (default false); true queues a `request`. `agent_reply`
+requires `reply_to`, `body`, `outcome` (`succeeded`, `failed`, `blocked`) and a UUID
+`request_id`. The destination is the original sender, never supplied by the
+caller. Only the original recipient can reply. Thread/task associations persist.
+Final outcomes atomically queue the result and acknowledge the original request;
+blocked leaves it outstanding. A second final outcome is rejected; identical
+request retries return their saved receipt. Results have kinds `result_succeeded`,
+`result_failed`, `result_blocked` and are acknowledged by their recipient after
+processing. Request acknowledgement without a final result is refused.
+Task submission separately notifies issuer and reviewer when different. Project
+issuers collect their own delegated results; Worktree orchestration remains
+Coordinator-only. Busy queues preserve arrival order across all three transports.
+Native notification submission is not handling: wake selection skips previously
+submitted messages, while inbox/wait retains unacknowledged history for recovery.
+
 ## Native WSL terminal delivery
 
 Windows and the opt-in Linux WSL service support `GuestNative` on the existing

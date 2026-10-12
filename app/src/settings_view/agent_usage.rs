@@ -24,6 +24,10 @@ pub(crate) enum Action {
     Provider(Provider),
     Add,
     Login,
+    ApiInput,
+    Back,
+    Detect5h,
+    Toggle5h(String),
     Refresh,
     Toggle(String),
     Remove(String),
@@ -34,8 +38,10 @@ pub(crate) struct UsageSettingsView {
     label: ViewHandle<EditorView>,
     credential: ViewHandle<EditorView>,
     context: ViewHandle<EditorView>,
-    buttons: [MouseStateHandle; 3],
-    rows: RefCell<HashMap<String, [MouseStateHandle; 2]>>,
+    api_input: bool,
+    detect_5h: bool,
+    buttons: [MouseStateHandle; 6],
+    rows: RefCell<HashMap<String, [MouseStateHandle; 3]>>,
 }
 impl UsageSettingsView {
     pub(crate) fn new(ctx: &mut ViewContext<Self>) -> Self {
@@ -79,6 +85,8 @@ impl UsageSettingsView {
             credential: editor("Access token / API key / cookie", true, 16 * 1024),
             context: editor("Account / project / workspace ID (optional)", false, 200),
             buttons: Default::default(),
+            api_input: false,
+            detect_5h: true,
             rows: Default::default(),
         }
     }
@@ -90,8 +98,20 @@ impl TypedActionView for UsageSettingsView {
     type Action = Action;
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         match action {
+            Action::ApiInput => { self.api_input = true; ctx.notify(); }
+            Action::Back => {
+                self.api_input = false;
+                self.credential.update(ctx, |editor, ctx| editor.clear_buffer_and_reset_undo_stack(ctx));
+                self.context.update(ctx, |editor, ctx| editor.clear_buffer_and_reset_undo_stack(ctx));
+                ctx.notify();
+            }
+            Action::Detect5h => { self.detect_5h = !self.detect_5h; ctx.notify(); }
+            Action::Toggle5h(id) => {
+                AgentUsage::handle(ctx).update(ctx, |model, ctx| model.toggle_5h(id, ctx));
+            }
             Action::Provider(provider) => {
                 if self.provider != *provider {
+                    self.api_input = false;
                     self.credential.update(ctx, |editor, ctx| {
                         editor.clear_buffer_and_reset_undo_stack(ctx)
                     });
@@ -122,8 +142,9 @@ impl TypedActionView for UsageSettingsView {
                     .trim()
                     .to_owned();
                 let provider = self.provider;
+                let detect_5h = self.detect_5h;
                 let added = AgentUsage::handle(ctx).update(ctx, |model, ctx| {
-                    model.add(provider, label, context, credential, ctx)
+                    model.add(provider, label, context, credential, detect_5h, ctx)
                 });
                 if added {
                     self.credential.update(ctx, |editor, ctx| {
@@ -181,30 +202,37 @@ impl View for UsageSettingsView {
         body.add_child(render_sub_header(appearance, warpui::localization::text("Data usage"), None));
         body.add_child(ChildView::new(&self.selector).finish());
         body.add_child(ChildView::new(&self.label).finish());
-        if self.provider != Provider::Antigravity {
+        if self.api_input && self.provider != Provider::Antigravity {
             body.add_child(ChildView::new(&self.credential).finish());
         }
-        if matches!(
+        if self.api_input && matches!(
             self.provider,
             Provider::Codex | Provider::Gemini | Provider::OpenCodeZen | Provider::Grok
         ) {
             body.add_child(ChildView::new(&self.context).finish());
         }
-        body.add_child(
-            builder
-                .paragraph(self.provider.credential_hint().to_owned())
-                .build()
-                .finish(),
-        );
+        if self.api_input {
+            body.add_child(builder.paragraph(self.provider.credential_hint().to_owned()).build().finish());
+        }
+        body.add_child(Flex::row().with_spacing(8.)
+            .with_child(builder.checkbox(self.buttons[5].clone(), None).check(self.detect_5h)
+                .build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Detect5h)).finish())
+            .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
         let mut buttons = Flex::row().with_spacing(8.);
         for (index, label, action) in [
             (0, "Connect", Action::Add),
             (1, "Sign in", Action::Login),
             (2, "Refresh", Action::Refresh),
+            (3, "API input", Action::ApiInput),
+            (4, "Back", Action::Back),
         ] {
             if index == 1 && self.provider.login().is_none() {
                 continue;
             }
+            if (self.api_input && matches!(index, 1 | 3))
+                || (!self.api_input && index == 4)
+                || (index == 3 && self.provider == Provider::Antigravity)
+            { continue; }
             let button = builder
                 .button(ButtonVariant::Secondary, self.buttons[index].clone())
                 .with_text_label(label.to_owned());
@@ -275,6 +303,11 @@ impl View for UsageSettingsView {
                 );
             }
             body.add_child(row.finish());
+            let id = account.id.clone();
+            body.add_child(Flex::row().with_spacing(8.)
+                .with_child(builder.checkbox(states[2].clone(), None).check(account.detect_5h)
+                    .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Toggle5h(id.clone()))).finish())
+                .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
             if let Some(Err(error)) = model.readings.get(&account.id) {
                 body.add_child(builder.span(*error).with_soft_wrap().build().finish());
             }

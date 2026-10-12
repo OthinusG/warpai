@@ -194,6 +194,14 @@ pub fn project_root(path: &Path) -> Result<String> {
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReplyOutcome {
+    Succeeded,
+    Failed,
+    Blocked,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Operation {
     TaskIntegrate {
@@ -207,6 +215,8 @@ pub enum Operation {
     },
     AgentList,
     AgentSend {
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        expects_result: bool,
         to: String,
         body: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -217,6 +227,12 @@ pub enum Operation {
         reply_to: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         task_id: Option<String>,
+        request_id: String,
+    },
+    AgentReply {
+        reply_to: String,
+        body: String,
+        outcome: ReplyOutcome,
         request_id: String,
     },
     AgentInbox {
@@ -480,6 +496,7 @@ impl Operation {
         match self {
             Self::TaskIntegrate { request_id, .. }
             | Self::AgentSend { request_id, .. }
+            | Self::AgentReply { request_id, .. }
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }

@@ -1,4 +1,9 @@
 {
+  "Track as task": ["作为任务跟踪", "作為任務追蹤"],
+  "5h usage detection is disabled": ["已关闭 5 小时用量探测", "已關閉 5 小時用量偵測"],
+  "Detect 5h usage": ["探测 5 小时用量", "偵測 5 小時用量"],
+  "API input": ["输入 API 凭据", "輸入 API 憑證"],
+  "Restart Warpai": ["重启 Warpai", "重新啟動 Warpai"],
   "\nThe YAML file is saved to ": [
     "\nYAML 文件已保存到 ",
     "\nYAML 檔案已儲存至 "

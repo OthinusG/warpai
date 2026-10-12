@@ -298,7 +298,7 @@ mod tests {
         request.directory = Some(base.path().to_str().unwrap().into());
         assert!(call(&binding.broker.endpoint, &request).is_err());
         request.directory = None;
-        request.operation = Operation::AgentSend {
+        request.operation = Operation::AgentSend { expects_result: false,
             to: "worker".into(),
             body: "Bound original intent".into(),
             subject: None,

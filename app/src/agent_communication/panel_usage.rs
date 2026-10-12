@@ -48,70 +48,77 @@ impl CollaborationPanel {
         }
         let mut rows = Flex::column();
         let accounts: Vec<_> = usage.accounts.iter().filter(|a| a.visible).collect();
+        let mut row_count = 0;
         for account in &accounts {
             let reading = usage.readings.get(&account.id);
-            let window = reading
-                .and_then(|r| r.as_ref().ok())
-                .and_then(|r| r.windows.iter().max_by(|a, b| a.used.total_cmp(&b.used)));
-            let status = match reading {
-                Some(Ok(r)) => {
-                    if let Some(window) = window {
-                        {
-                            let __warpai_locale_argument_0 = &(window.name);
-                            let __warpai_locale_argument_1 = &(window.used);
-                            warpui::localization::format_text(
-                                "{} · {:.0}% used",
-                                &[
-                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
-                                    ("1:.0", format!("{__warpai_locale_argument_1:.0}").as_str()),
-                                ],
-                            )
-                        }
-                    } else {
-                        {
-                            let __warpai_locale_argument_0 = &(r.balance.unwrap_or_default());
-                            warpui::localization::format_text(
-                                "Balance ${:.2}",
-                                &[("0:.2", format!("{__warpai_locale_argument_0:.2}").as_str())],
-                            )
+            let windows: Vec<_> = reading.and_then(|reading| reading.as_ref().ok())
+                .map(|reading| reading.windows.iter()
+                    .filter(|window| account.detect_5h || !window.is_5h()).map(Some).collect())
+                .unwrap_or_default();
+            let windows = if windows.is_empty() { vec![None] } else { windows };
+            for window in windows {
+                row_count += 1;
+                let status = match reading {
+                    Some(Ok(r)) => {
+                        if let Some(window) = window {
+                            {
+                                let __warpai_locale_argument_0 = &(window.name);
+                                let __warpai_locale_argument_1 = &(window.used);
+                                warpui::localization::format_text(
+                                    "{} · {:.0}% used",
+                                    &[
+                                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                        ("1:.0", format!("{__warpai_locale_argument_1:.0}").as_str()),
+                                    ],
+                                )
+                            }
+                        } else if let Some(balance) = r.balance {
+                            {
+                                let __warpai_locale_argument_0 = &(balance);
+                                warpui::localization::format_text(
+                                    "Balance ${:.2}",
+                                    &[("0:.2", format!("{__warpai_locale_argument_0:.2}").as_str())],
+                                )
+                            }
+                        } else {
+                            warpui::localization::text("5h usage detection is disabled").into()
                         }
                     }
-                }
-                Some(Err(error)) => (*error).to_owned(),
-                None => if usage.checking {
-                    "Checking…"
-                } else {
-                    "Refresh to check usage"
-                }
-                .into(),
-            };
-            let mut tooltip = format!("{} · {}\n{status}", account.provider.name(), account.label);
-            if let Some(Ok(reading)) = reading {
-                for window in &reading.windows {
-                    tooltip.push_str(&{
-                        let __warpai_locale_argument_0 = &(window.name);
-                        let __warpai_locale_argument_1 = &(window.used);
-                        let __warpai_locale_argument_2 = &(window
-                            .reset
-                            .as_ref()
-                            .map(|time| {
-                                warpui::localization::format_text(
-                                    " · resets {time}",
-                                    &[("time", format!("{time}").as_str())],
-                                )
-                            })
-                            .unwrap_or_default());
-                        warpui::localization::format_text(
-                            "\n{}: {:.1}% used{}",
-                            &[
-                                ("0", format!("{__warpai_locale_argument_0}").as_str()),
-                                ("1:.1", format!("{__warpai_locale_argument_1:.1}").as_str()),
-                                ("2", format!("{__warpai_locale_argument_2}").as_str()),
-                            ],
-                        )
-                    });
-                }
-            }
+                    Some(Err(error)) => (*error).to_owned(),
+                    None => if usage.checking {
+                        "Checking…"
+                    } else {
+                        "Refresh to check usage"
+                    }
+                    .into(),
+                };
+                let mut tooltip = format!("{} · {}\n{status}", account.provider.name(), account.label);
+                if let Some(Ok(reading)) = reading {
+                    for window in reading.windows.iter().filter(|window| account.detect_5h || !window.is_5h()) {
+                        tooltip.push_str(&{
+                            let __warpai_locale_argument_0 = &(window.name);
+                            let __warpai_locale_argument_1 = &(window.used);
+                            let __warpai_locale_argument_2 = &(window
+                                .reset
+                                .as_ref()
+                                .map(|time| {
+                                    warpui::localization::format_text(
+                                        " · resets {time}",
+                                        &[("time", format!("{time}").as_str())],
+                                    )
+                                })
+                                .unwrap_or_default());
+                            warpui::localization::format_text(
+                                "\n{}: {:.1}% used{}",
+                                &[
+                                    ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                    ("1:.1", format!("{__warpai_locale_argument_1:.1}").as_str()),
+                                    ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                                ],
+                            )
+                        });
+                    }
+        }
             if usage.checking && reading.is_some() {
                 tooltip.push_str("\nRefreshing; showing the previous reading");
             }
@@ -171,7 +178,7 @@ impl CollaborationPanel {
             let state = self
                 .usage_rows
                 .borrow_mut()
-                .entry(account.id.clone())
+                .entry(format!("{}:{}", account.id, window.map_or("status", |window| window.name.as_str())))
                 .or_default()
                 .clone();
             rows.add_child(
@@ -187,6 +194,7 @@ impl CollaborationPanel {
                 ),
             );
         }
+            }
         if accounts.is_empty() {
             rows.add_child(note(appearance, warpui::localization::text("Connect accounts in Settings")));
         }
@@ -209,12 +217,13 @@ impl CollaborationPanel {
                         .with_height(if accounts.is_empty() {
                             24.
                         } else {
-                            accounts.len().min(4) as f32 * 64.
+                            row_count.min(4) as f32 * 64.
                         })
                         .finish(),
                 )
                 .finish(),
         )
+        .with_background(theme.surface_1())
         .with_padding(Padding::uniform(GAP_ROW))
         .with_border(Border::all(1.).with_border_fill(theme.outline()))
         .with_corner_radius(CornerRadius::with_all(Radius::Pixels(6.)))

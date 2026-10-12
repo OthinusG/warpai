@@ -1141,7 +1141,7 @@ impl View for LeftPanelView {
 
         let content_area: Box<dyn Element> = match self.active_view.get() {
             ToolPanelView::Collaboration => {
-                Shrinkable::new(1.0, ChildView::new(&self.collaboration_view).finish()).finish()
+                ChildView::new(&self.collaboration_view).finish()
             }
             ToolPanelView::ProjectExplorer => {
                 if let Some(file_tree_view) = self.active_file_tree_view(app) {
@@ -1209,7 +1209,9 @@ impl View for LeftPanelView {
 
             column
                 .with_child(header_row)
-                .with_child(Shrinkable::new(1.0, content_area).finish())
+                .with_child(if self.active_view.get() == ToolPanelView::Collaboration {
+                    warpui::elements::Expanded::new(1.0, content_area).finish()
+                } else { Shrinkable::new(1.0, content_area).finish() })
                 .with_main_axis_size(MainAxisSize::Max)
                 .finish()
         })
