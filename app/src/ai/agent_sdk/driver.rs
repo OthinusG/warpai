@@ -2091,6 +2091,7 @@ impl AgentDriver {
                     );
                 }
                 CLIAgentSessionsModelEvent::Started { .. }
+                | CLIAgentSessionsModelEvent::NativeActivityObserved { .. }
                 | CLIAgentSessionsModelEvent::InputSessionChanged { .. }
                 | CLIAgentSessionsModelEvent::Ended { .. } => {}
             },

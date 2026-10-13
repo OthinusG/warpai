@@ -326,3 +326,7 @@ personal-machine configuration mutations from development tools.
 Validation: Unix and generated WSL staged installers pass with spaces/Unicode,
 repeat install, old-root preservation, symlink isolation and corruption rejection.
 Rust/cloud desktop and remote acceptance must use the final corrected source.
+
+Source-consumer audit: the retained SDK driver explicitly ignores native activity
+events in its exhaustive match; these cannot stop a legacy harness or claim a
+legacy task completion. Workspace redraw already consumes SessionUpdated.
