@@ -145,7 +145,10 @@ fn run(executable: &Path, args: &[String], search_paths: &[PathBuf]) -> Result<(
                             &std::env::var_os("PATH").unwrap_or_default(),
                         )),
                 )?;
-                let mut child = tokio::process::Command::new(executable)
+                let mut command = tokio::process::Command::new(executable);
+                #[cfg(windows)]
+                command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+                let mut child = command
                     .args(args)
                     .env("PATH", path)
                     .stdin(Stdio::null())
@@ -1063,6 +1066,37 @@ fn listed_entry(text: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn background_configuration_has_no_console() {
+        let (success, text) = run(
+            &std::env::current_exe().unwrap(),
+            &[
+                "--exact".into(),
+                "setup::tests::background_configuration_console_child".into(),
+                "--ignored".into(),
+                "--nocapture".into(),
+            ],
+            &[],
+        )
+        .unwrap();
+        assert!(success, "{text}");
+        assert!(text.contains("console-free configuration child"), "{text}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "Invoked only through the background configuration runner"]
+    fn background_configuration_console_child() {
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetConsoleCP() -> u32;
+        }
+        // A console process launched without a window must have no attached console.
+        assert_eq!(unsafe { GetConsoleCP() }, 0);
+        println!("console-free configuration child");
+    }
+
     #[test]
     fn legacy_remote_profiles_are_read_only_metadata_and_preserve_local_selection() {
         let profile = serde_json::json!({

@@ -77,3 +77,21 @@ argument. Never require an updater installer or mark a language restart as an up
 
 Public release packaging remains outside this fix. Record cloud verification
 receipts after source-matched desktop, WSL and SSH tests complete.
+
+## Windows background console audit
+
+Owner reports brief console flashes during WSL/Agent background operations.
+The shared setup runner (`setup.rs`, used by CLI discovery and MCP configuration)
+and Companion Git runtime / Codex capability probes used raw process commands
+without CREATE_NO_WINDOW. Apply that existing platform flag at these three sites.
+Windows-to-WSL, SSH/SFTP, usage polling, shell metadata, Node and LSP commands
+already use the hidden-window wrappers or explicit flags. Foreground Agent launch
+and ConPTY creation remain interactive; detached Companion services already run
+without an attached console. No process dependency or launch abstraction is added.
+
+Acceptance: run an actual Windows configuration child through the shared runner
+and assert GetConsoleCP is zero, preserving captured output and exit status. Run
+the setup suite in remote validation as well as the complete protocol suite.
+Existing readiness regression must observe the worker from a second registered
+peer: AgentList deliberately excludes the caller itself. This corrects the failing
+test fixture without changing the production visibility contract.

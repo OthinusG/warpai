@@ -54,6 +54,7 @@ jobs:
         run: cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
       - name: Verify private project communication and standalone companion
         run: |
+          cargo test -p warp-agent-bus --lib setup::tests --locked
           cargo test -p warp-agent-bus --lib companion:: --locked
           cargo test -p warp-agent-bus --test companion --locked
           cargo test -p warp-agent-bus --test native_pty --locked

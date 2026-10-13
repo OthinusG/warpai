@@ -86,7 +86,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   noise; stop subsequent polling if a model turn is detected. Other refreshes
   preserve that guard and hidden caches. Update agy/restart to restore eligibility.
 - Background CLI processes prepend the resolved binary directory to PATH and
-  suppress Windows console windows. Qoder CN remains without a verified safe
+  suppress Windows consoles, including setup/MCP probes and Companion Git/Codex
+  checks; preserve foreground PTY and detached services. Qoder CN has no verified safe
   background usage adapter; do not submit a potentially billed model prompt.
 
 ## SSH, task integrity and files

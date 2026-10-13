@@ -345,7 +345,15 @@ async fn initial_user_submission_cannot_be_overridden_by_mcp_discovery() {
     };
     worker.run = call(&server, &worker).await["run"].as_str().map(str::to_owned);
     assert_eq!(server.broker.terminal_activity("worker"), Some(Activity::Working));
-    let peer = status(&server, &worker, "worker").await;
+    let capability = server.broker.prepare("observer").unwrap();
+    server.broker.activate("observer", "codex", "/project", true).unwrap();
+    let mut observer = Request {
+        protocol_major: transport::PROTOCOL_MAJOR, terminal: "observer".into(), capability,
+        run: None, defer_initial_ready: false, native_activity: None, directory: None,
+        operation: Operation::AgentRegister { name: "observer".into() },
+    };
+    observer.run = call(&server, &observer).await["run"].as_str().map(str::to_owned);
+    let peer = status(&server, &observer, "worker").await;
     assert_eq!(peer["ready"], false);
     assert_eq!(peer["activity"], "working");
 }

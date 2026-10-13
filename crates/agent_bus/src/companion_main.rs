@@ -9,7 +9,15 @@ pub(crate) async fn run() {
         && std::env::args().nth(1).as_deref() == Some("--check-runtime")
     {
         let result = warp_agent_bus::installation::git_executable()
-            .and_then(|git| std::process::Command::new(git).arg("--version").output());
+            .and_then(|git| {
+                let mut command = std::process::Command::new(git);
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+                }
+                command.arg("--version").output()
+            });
         match result {
             Ok(output) if output.status.success() => println!("Companion Git runtime ready"),
             _ => {
@@ -51,9 +59,12 @@ pub(crate) async fn run() {
                 );
                 warp_agent_bus::mcp::Bridge::from_env()?;
                 let options = if program == "codex" {
+                    let mut command = tokio::process::Command::new(&executable);
+                    #[cfg(windows)]
+                    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
                     let help = tokio::time::timeout(
                         std::time::Duration::from_secs(8),
-                        tokio::process::Command::new(&executable)
+                        command
                             .arg("--help")
                             .kill_on_drop(true)
                             .output(),
