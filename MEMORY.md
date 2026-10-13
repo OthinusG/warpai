@@ -87,7 +87,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   preserve that guard and hidden caches. Update agy/restart to restore eligibility.
 - Background CLI processes prepend the resolved binary directory to PATH and
   suppress Windows consoles, including setup/MCP probes and Companion Git/Codex
-  checks; preserve foreground PTY and detached services. Qoder CN has no verified safe
+  checks; test window visibility, not code pages. Preserve PTY/detached services.
+  Qoder CN has no verified safe
   background usage adapter; do not submit a potentially billed model prompt.
 
 ## SSH, task integrity and files

@@ -1090,10 +1090,14 @@ mod tests {
     fn background_configuration_console_child() {
         #[link(name = "kernel32")]
         extern "system" {
-            fn GetConsoleCP() -> u32;
+            fn GetConsoleWindow() -> *mut std::ffi::c_void;
         }
-        // A console process launched without a window must have no attached console.
-        assert_eq!(unsafe { GetConsoleCP() }, 0);
+        #[link(name = "user32")]
+        extern "system" {
+            fn IsWindowVisible(window: *mut std::ffi::c_void) -> i32;
+        }
+        // CREATE_NO_WINDOW may retain a console code page, so test actual window visibility.
+        assert_eq!(unsafe { IsWindowVisible(GetConsoleWindow()) }, 0);
         println!("console-free configuration child");
     }
 

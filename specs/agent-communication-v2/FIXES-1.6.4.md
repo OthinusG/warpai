@@ -90,8 +90,12 @@ and ConPTY creation remain interactive; detached Companion services already run
 without an attached console. No process dependency or launch abstraction is added.
 
 Acceptance: run an actual Windows configuration child through the shared runner
-and assert GetConsoleCP is zero, preserving captured output and exit status. Run
+and assert its console window is not visible, preserving captured output and exit status. Run
 the setup suite in remote validation as well as the complete protocol suite.
 Existing readiness regression must observe the worker from a second registered
 peer: AgentList deliberately excludes the caller itself. This corrects the failing
 test fixture without changing the production visibility contract.
+
+Cloud Windows regression initially rejected code page 437 despite CREATE_NO_WINDOW:
+console code pages do not establish window visibility. Check GetConsoleWindow with
+IsWindowVisible instead, including null or invisible message-only window handles.
