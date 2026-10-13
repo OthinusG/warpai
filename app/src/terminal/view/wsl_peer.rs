@@ -237,7 +237,8 @@ impl TerminalView {
             });
         let epoch = self.wsl_peer.epoch;
         let action = NativeAction::Observe {
-            draft: !self.wsl_peer.draft.is_empty(),
+            // The host owns clearing; older guest services still block when this flag is true.
+            draft: false,
             blocked,
             input_epoch: epoch,
             submitted: self.wsl_peer.submitted,

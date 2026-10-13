@@ -30,6 +30,9 @@ readiness. Native draft presence does not block a queued wake; the owner authori
 clearing unsent native input at the idle prompt before task submission. Composer
 drafts stay in the app. Clearing never grants readiness or bypasses an input epoch,
 approval, cancellation or run fence. No draft text is added to the wire.
+The Windows host tracks native draft presence locally for clearing and sends
+draft=false so an already-running older guest service cannot reintroduce a draft
+delivery gate. Approval and edit/cancel epochs continue to cross the wire.
 Never transfer draft text or credentials. A settings selection is not authority
 to access another guest account. No scoped wrapper or nested command is accepted.
 Validate precedes delayed Enter; finish records submission, not acknowledgement.
