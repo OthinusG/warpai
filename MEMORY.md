@@ -22,6 +22,10 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Published releases and maintenance
 
+- Windows run 38378106900 failed at checkout of nonexistent v1.6.4 because the
+  default workflow missed artifact-only macOS handoffs. Guard synced from the
+  maintenance branch; Bash fixture confirms test handoffs skip release checkout.
+
 - Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
   never move; historical acceptance receipts remain in their owning specs.
 - 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
