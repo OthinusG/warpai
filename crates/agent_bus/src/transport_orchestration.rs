@@ -360,6 +360,11 @@ mod tests {
             std::fs::create_dir(&main).unwrap();
             git(&main, &["init", "--initial-branch=main"]);
             assert!(call(broker, &old, Operation::AgentList).is_err());
+            let empty = broker.operator_panel(&PanelQuery { project:root.clone(), ..Default::default() }).unwrap();
+            assert_eq!(empty["worktree_available"], true);
+            assert!(empty["agents"].as_array().unwrap().is_empty());
+            broker.control(&root, &ControllerOperation::WorktreeMode { worktree:true, request_id:id() }).unwrap();
+            assert_eq!(broker.operator_panel(&PanelQuery { project:root.clone(), ..Default::default() }).unwrap()["worktree_mode"], true);
             let (fresh, current) = register(broker, "codex");
             register(broker, "agy");
             assert_ne!(actor["agent"]["project"], current["agent"]["project"]);

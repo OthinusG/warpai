@@ -187,12 +187,19 @@ impl WslSettings {
 }
 
 impl AgentCommunication {
+    #[cfg(debug_assertions)]
+    pub(super) fn reload_wsl_settings_checkpoint(&mut self, ctx: &mut ModelContext<Self>) {
+        self.wsl = WslSettings::load(self.wsl.path.clone());
+        self.refresh_wsl_targets(ctx);
+    }
+
     pub(crate) fn refresh_wsl_targets(&mut self, ctx: &mut ModelContext<Self>) {
         crate::terminal::wsl::WslInfo::handle(ctx).update(ctx, |model, ctx| model.refresh(ctx));
         let targets = logged_in_targets(ctx);
         if self.wsl.targets == targets {
             return;
         }
+        let previous = self.wsl.selected_target().cloned();
         self.wsl.targets = targets;
         if self.wsl.selected_target().is_none() {
             if self.wsl.busy {
@@ -212,6 +219,17 @@ impl AgentCommunication {
             self.wsl.companion_installed = None;
             self.wsl.status =
                 "Log into WSL in a Warpai terminal before configuring communication.".into();
+        } else if self.wsl.preferences.enabled && previous.is_none() && !self.wsl.busy {
+            let generation = self.wsl.generation;
+            let selected = self.wsl.selected_target().cloned();
+            // Defer so an explicit settings action can supersede startup discovery.
+            ctx.spawn(async_io::Timer::after(Duration::ZERO), move |model, _, ctx| {
+                if model.wsl.generation == generation && !model.wsl.busy
+                    && model.wsl.preferences.enabled && model.wsl.companion_installed.is_none()
+                    && model.wsl.selected_target() == selected.as_ref() {
+                    model.configure_wsl_inner(None, None, Some(warp_agent_bus::wsl_setup::Action::Rescan), None, ctx);
+                }
+            });
         }
         ctx.notify();
     }
@@ -718,6 +736,14 @@ mod tests {
         }).await.unwrap();
         assert_eq!(response.account, target.user);
         assert!(response.available.iter().any(|agent| agent.command == "warpai-fixture"));
+        let workspace = "/home/warpai-other";
+        let profile = warp_agent_bus::ssh_remote::SshProfile { target:"wsl".into(), config_file:None,
+            remote_root:workspace.into(), companion_path:warp_agent_bus::installation::wsl_companion_path(&target.home).unwrap(),
+            remote_shell:warp_agent_bus::ssh_remote::RemoteShell::Posix };
+        for _ in 0..2 {
+            let mut client = warp_agent_bus::ssh_remote::HostClient::connect_wsl(&profile, &target.distribution, &target.user).await.unwrap();
+            client.disconnect();
+        }
         uninstall_companion(&target, None).await.unwrap();
         uninstall_companion(&target, None).await.unwrap();
         assert!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {

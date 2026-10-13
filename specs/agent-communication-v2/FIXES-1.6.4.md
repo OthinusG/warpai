@@ -39,6 +39,65 @@ official Stop hook includes `fullyIdle` (background work may remain); Codex
 References: https://antigravity.google/docs/hooks and
 https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/tui/src/chatwidget/status_surfaces.rs.
 
+### Additional acceptance: every managed Agent and WSL restart
+
+Owner requires lifecycle repairs for every managed Agent, on both desktops;
+warnings/errors must not leave a completed or failed turn permanently starting or
+working. Use verified native idle evidence, preserving permission, background
+task, user input and exact-run fences. Do not infer idle from error keywords,
+silence, or successful MCP queries. Audit per-Agent native lifecycle coverage and
+make unsupported observations explicit rather than claiming universal detection.
+
+Windows reproduction uses test installer from run 38368976431. After successful
+WSL installation, collaboration reports workspace unavailable, files report lost
+connection, and restart shows Companion uninstalled. Two source defects:
+guest setup creates the service namespace with default directory permissions
+while the account service requires 0700; restoring a saved logged-in selection
+does not trigger a read-only installation rescan.
+
+1. Create the selected guest's setup namespace with 0700 and safely harden
+   previous owned directories created by setup; reject symlinks/foreign owners.
+   Preserve settings/history and separate SSH/distribution/account namespaces.
+2. Rescan once when an enabled saved account becomes live. Preserve explicit
+   retry after failure, and never continuously rescan a failed account.
+3. Test setup-before-first-service connection and reconnect with the installed
+   guest payload, plus fresh/reloaded desktop selection and non-selected accounts.
+   Existing installation acceptance must connect the workspace after a nonempty
+   setup scan rather than only test executable/runtime presence.
+4. Run Windows application checks, real WSL capture and three-platform remote
+   regressions. Do not replace the permission checks with permissive defaults.
+
+### Revised lifecycle implementation: reuse open-source observation
+
+Owner explicitly rejects further ad-hoc status patches. Research checkpoints:
+Orca 38a4958cad8cc75331a8a0a1e7d28b4674b212f7 (MIT), Agent of Empires
+aa02052f5cf2f12c3972fcd7569e0b650f8e2aa1 (MIT), and cmux
+cfb20940f5ca643ed68d70b80ce59a88e9b5a1ec (mixed licensing; research only).
+Orca separates actual idle evidence from its display-only name-title fallback;
+AoE's pure Rust manifest engine supplies bounded screen-region/priority rules and
+native permission/busy fixtures, including Antigravity. cmux's hook-loss issues
+confirm that a hook-only replacement is insufficient.
+
+- Reuse the MIT screen detector and verified Orca Codex/Antigravity ready-screen
+  predicates. Read the reconstructed current terminal grid, not raw PTY chunks or
+  historical output; Codex redraws its header/composer by cell diffs.
+- Poll every managed native session independently of MCP registration. Native
+  busy/permission/input overlays veto delivery; bare process names and missing
+  rules do not establish an automatic idle lease. Keep screen text memory-only,
+  bounded and secret-obfuscated; never send it over IPC or retain it in logs.
+- Fuse observations in the shared Broker with native run/input-generation guards.
+  Do not repeatedly reset stable idle timestamps or invalidate claimed wakes.
+  MCP and panel must report the same resulting lifecycle.
+- WSL uses the host's same grid detector and its authenticated guest-native route,
+  transmitting only the derived activity and exact guest run, with capability
+  negotiation and old-service fallback. Preserve default SSH service behavior.
+- Validate every CLIAgent mapping, ready/busy/permission/error-return fixtures,
+  stale run/input rejection, draft preservation and actual auto-wake behavior.
+  Retain upstream licenses in desktop and Companion packages.
+- Git main-only/no-Agent and active-Agent cases must both switch collaboration
+  mode without creating a linked worktree. Regress persisted stale admission,
+  subdirectory roots and separate-clone isolation alongside lifecycle detection.
+
 - Antigravity shows only Gemini and shared Claude/GPT quotas. Each pool shows
   its five-hour window when detection is enabled, otherwise its weekly window.
   Other providers with five-hour windows use the same exclusive setting;

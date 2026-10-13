@@ -289,11 +289,16 @@ fn run_setup(removing: bool) -> Result<()> {
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 fn lock_preferences(path: &std::path::Path) -> Result<std::fs::File> {
-    use std::os::{fd::AsRawFd, unix::fs::OpenOptionsExt};
+    use std::os::{fd::AsRawFd, unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt}};
     let parent = path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid guest preferences path"))?;
-    std::fs::create_dir_all(parent)?;
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(parent)?;
+    let metadata = std::fs::symlink_metadata(parent)?;
+    ensure!(metadata.is_dir() && metadata.uid() == unsafe { libc::geteuid() },
+        "Guest setup directory must be owned and cannot be a link");
+    // Older setup scans created this service namespace with the default umask.
+    std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))?;
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -400,6 +405,25 @@ fn apply_action(
 mod tests {
     use super::*;
     use crate::setup::{Adapter, Installed, SERVER};
+
+    #[test]
+    fn setup_namespace_can_start_service_and_hardens_previous_scan_directories() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        for legacy in [false, true] {
+            let parent = directory.path().join(if legacy { "legacy" } else { "fresh" });
+            if legacy {
+                std::fs::create_dir(&parent).unwrap();
+                std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+            let _lock = lock_preferences(&parent.join("mcp-settings.json")).unwrap();
+            assert_eq!(parent.metadata().unwrap().permissions().mode() & 0o777, 0o700);
+            assert!(crate::companion::Companion::new(&parent).is_ok());
+        }
+        let linked = directory.path().join("linked");
+        std::os::unix::fs::symlink(directory.path().join("legacy"), &linked).unwrap();
+        assert!(lock_preferences(&linked.join("mcp-settings.json")).is_err());
+    }
 
     #[test]
     fn account_lock_rejects_concurrent_setup_and_symlinks() {

@@ -5681,6 +5681,20 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && settings.selected_target().is_some_and(|target| target.user == "warpai-test")
             }))
         }).with_take_screenshot("settings-wsl-communication.png"));
+        driver = driver.with_step(TestStep::new("restore saved WSL account without reinstalling Companion")
+            .set_timeout(std::time::Duration::from_secs(60))
+            .with_action(|app, _, _| {
+                app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.reload_wsl_settings_checkpoint(ctx);
+                }));
+            }).add_named_assertion("restored WSL settings rescan the installed account automatically", |app, _| {
+                warpui::async_assert!(app.read(|ctx| {
+                    let settings = &super::AgentCommunication::as_ref(ctx).wsl;
+                    !settings.busy && settings.account.as_deref() == Some("warpai-test")
+                        && settings.companion_installed == Some(true)
+                        && settings.selected_target().is_some_and(|target| target.user == "warpai-test")
+                }))
+            }));
         for failed in [false, true] {
             driver = driver.with_step(TestStep::new(if failed { "show failed installation receipt fixture" } else { "show live installation progress fixture" })
                 .with_action(move |app, window, _| {

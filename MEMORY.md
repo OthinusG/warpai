@@ -1,12 +1,12 @@
 # Project Memory
 
-Updated 2026-10-13. Read with [AGENTS.md](AGENTS.md) and [README.md](README.md).
-Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as needed.
+Updated 2026-10-13. Read AGENTS.md and README.md.
+Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 
 ## Working and delivery rules
 
 - Rust/native acceptance runs on GitHub. Batch 1–17 before full acceptance.
-  Protocol/desktop jobs run independently; reuse Cargo caches and capture builds.
+  Protocol/desktop jobs are independent; reuse build caches.
   Local Rustfmt parsing, diff and script/document checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
@@ -22,12 +22,9 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Published releases and maintenance
 
-- Owner authorized 1.6.4 / Companion 5.1.0 packaging/publication on 2026-10-13.
-  Preserve immutable historical tags; acceptance and delivery: specs/RELEASE.md.
-- 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
-  38323390269 passed. Release packaging: 38333613421. See specs/RELEASE.md.
-  Main integrated; merged milestone/1.6.2 and milestone/1.6.3 branches removed.
-  Active maintenance: milestone/1.6.4. Preserve terminal compatibility and pins.
+- 1.6.4 / Companion 5.1.0 publication authorized 2026-10-13; immutable tags
+  and delivery gates: specs/RELEASE.md. Active branch: milestone/1.6.4.
+- Previous release receipts: specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
 
@@ -46,9 +43,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   pagination. Worktree mode permits same-checkout direct messages; cross-checkout
   communication goes through the selected Coordinator. File authority stays local
   to each checkout. Panel reads must not change admission/permissions.
-- Mode belongs to the project independently of Coordinator. Any eligible online
-  Agent can become Coordinator; switching demotes the previous one without ending
-  its process or changing task ownership.
+- Mode is project-owned. Any eligible online Agent may replace the Coordinator;
+  demote its predecessor without stopping its process or changing task ownership.
 - Coordinator belongs to the project and exact native run, surviving pane/tab/
   project/focus changes; only process termination/revocation or app shutdown clears
   it. A same-name restart cannot inherit authority. Handoffs remain bounded and
@@ -63,66 +59,48 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Usage accounts and native Orca port
 
-- Orca source: https://github.com/stablyai/orca at
-  `3e0b82835856dde57f43a47661cf736e3e3dd90d`. Preserve MIT notices in both bundles.
-  [Support and compatibility matrix](specs/agent-communication-v2/USAGE-PROVIDERS.md)
-  owns provider/auth details; do not invent unsupported adapters or quota values.
-- Port to native reqwest/TLS roots/system proxy, secure storage, CLI discovery and
-  widgets; no Electron/Node/preload/React or temporary-clone runtime dependency.
-- Accounts/visibility persist application-wide; manually connected credentials
-  use OS secure storage, never account metadata/IPC/logs. Readings are cached in
-  the application singleton. Project/worktree/tab/pane/focus changes do not reset
-  them. Restart restores accounts and queries fresh readings.
-- CLI login means desktop vendor login; expired OAuth requires vendor sign-in.
-  Use synthetic fixtures, never personal credentials; they do not prove live
-  authenticated vendor availability.
-- Data usage is pinned outside main scrolling: fixed header, independent scroll,
-  at most four visible account rows, native Agent icons and percentage bars.
-  Unknown limits stay unavailable; verified Zen USD balance stays a balance.
-- Preserve request parity, fixed HTTPS hosts, sensitive headers, bounded IO and
-  generation guards. Tests cover twelve HTTP contracts and representative payloads.
-- Antigravity uses the plain resolved agy executable, version >=1.1.11 and the
-  exact free /usage metadata flags. Accept successful usage envelopes with log
-  noise; stop subsequent polling if a model turn is detected. Other refreshes
-  preserve that guard and hidden caches. Update agy/restart to restore eligibility.
-- Background CLI processes prepend the resolved binary directory to PATH and
-  suppress Windows consoles, including setup/MCP probes and Companion Git/Codex
-  checks; test window visibility, not code pages. Preserve PTY/detached services.
-  Qoder CN has no verified safe
-  background usage adapter; do not submit a potentially billed model prompt.
+- Native Orca port: https://github.com/stablyai/orca at
+  3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices in both bundles.
+  Provider/auth contracts: specs/agent-communication-v2/USAGE-PROVIDERS.md.
+  Use native TLS/proxy/storage/widgets; no Electron/Node runtime or invented quotas.
+- Accounts/visibility and OS-secure credentials persist application-wide; never
+  put credentials in metadata/IPC/logs. Cache readings across project/focus changes;
+  restart restores accounts and queries fresh readings.
+- Vendor CLI login owns OAuth refresh/sign-in. Synthetic fixtures cannot prove
+  authenticated availability; never use personal credentials for tests.
+- Usage footer: fixed header, independent scroll, four visible rows, native icons
+  and quota bars. Unknown limits remain unavailable; Zen USD balance stays a balance.
+- Preserve fixed HTTPS hosts, sensitive headers, bounded IO, generations and all
+  twelve provider HTTP contracts in USAGE-PROVIDERS.md.
+- agy >=1.1.11 uses only verified free /usage flags via its resolved executable;
+  tolerate log noise, stop polling after model-turn detection, preserve that guard
+  and hidden caches across refreshes; update/restart restores eligibility.
+- Background CLI children prepend resolved binary directory to PATH and hide
+  Windows consoles. Test window visibility, not code pages; preserve PTY/detached
+  services. Qoder CN has no safe usage adapter; never send a billed polling prompt.
 
 ## SSH, task integrity and files
 
-- WSL 1.6.3 install failure confirmed by owner v4 diagnostics: installed binary,
-  runtime and empty scan pass; installed-Agent scan exits 101 at setup.rs:136.
-  WSL setup/recovery must run on spawn_blocking; empty scans miss this fault.
-  SSH control/MCP/broker routes already use blocking workers; audit in FIXES-1.6.4.md.
-- Language restart uses ordinary relaunch with cancellation, not updater installation.
-  macOS waits for old PID exit and quotes paths through positional arguments;
-  Windows reuses the command wrapper's parent-job isolation.
-- Owner correction 2026-10-13: diagnose reported installation failures from
-  actual failed-stage exit/stderr before production fixes; do not infer missing
-  files or a runtime panic from an unsuccessful diagnostic launcher.
-  Diagnostic launcher: script/diagnose-wsl-companion.bat + .ps1. Confirm direct
-  Linux account/HOME first; redact credentials and setup configuration JSON,
-  preserve ordinary stderr, and reproduce the actual application command.
-- WSL uses its separate Windows-bundled guest binary and confirmed WSL 2 accounts;
-  retain distro/user-scoped setup. Contract: specs/wsl-1.6.0/TECH.md.
-  Plain interactive WSL launches default to native terminal integration, respecting
-  opt-outs and input/block guards. Account detection needs no Companion; never
-  infer account authority from a launch command alone. Background SSH/WSL/SFTP
-  processes hide Windows consoles; failed WSL connections wait for explicit settings
-  retry/context change. Progress exposes phases. Recovery uses the trusted bundle.
-  Explorer uses confirmed remote selection and respects the WSL switch; settings
-  Mutations release guest clients; failed/unknown installs remain removable. Use sh -c.
-  Steps 60s/process 420s; clear static polling fence before live WSL (CI-DIAGNOSIS.md).
-  Check Windows rlto/release_bundle; debug-only WSL helpers share callee cfg.
-  Accept WSL package 3.x previews; no wrapper or Windows host MCP injection.
-- Active scope: [PLAN](specs/agent-communication-v2/PLAN.md),
-  [API](specs/agent-communication-v2/API.md),
-  [Worktree contract](specs/agent-communication-v2/WORKTREE-COLLABORATION.md).
-  Archived enrollment designs are historical. Cross-host task federation is not
-  a goal/acceptance/follow-up item; do not call out its absence in product copy.
+- WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
+  discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
+  cannot verify installed-Agent discovery.
+- Diagnose actual failed-stage exit/stderr, not failed diagnostic launchers.
+  script/diagnose-wsl-companion.bat + .ps1 confirms account/HOME and preserves
+  nonsecret stderr; redact configuration JSON/credentials.
+- Language restart is cancelable ordinary relaunch: macOS waits for old PID and
+  passes paths positionally; Windows preserves parent-job isolation.
+- WSL contract: specs/wsl-1.6.0/TECH.md. Use the Windows-bundled guest binary,
+  confirmed WSL 2 distro/user and native integration; preserve opt-outs and guards.
+  Account detection needs no Companion; launch text cannot grant account authority.
+  Failed connections await explicit retry/context change; recovery uses the trusted
+  bundle. Explorer respects the WSL switch; mutations release clients; uncertain
+  installs remain removable. Use sh -c and hidden background consoles.
+  Native capture: 60s steps/420s process; clear static polling fence (CI-DIAGNOSIS.md).
+  Check Windows rlto/release_bundle and matching debug cfg. Accept package 3.x
+  previews; no wrapper or Windows-host MCP injection into the guest.
+- Active scope: specs/agent-communication-v2/{PLAN,API,WORKTREE-COLLABORATION}.md.
+  Archived enrollment is historical; cross-host federation is outside scope and
+  must not appear as missing functionality in product copy.
 - Native SSH/cd selects the confirmed remote project; opening files must not
   change project context. Pending/unconfirmed SSH never falls back to a local root.
   Same selected remote project shares one account-owned Companion Broker/Store.
@@ -136,29 +114,31 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   PTY submission is not Agent acknowledgement or execution. Disconnect/view loss
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
-- Fix audit: MACOS-FIXES-2026-10-12.md (1–17 + extras).
-  Local/SSH/WSL share results and durable questions. Project
-  peers all observe and decide retry/reassignment/review; execution stays run-fenced.
-  Local/SSH/WSL enablement follows the focused terminal independently, including
-  command-entered sessions. Worktree allocation remains Coordinator-only. Final
-  replies atomically queue results/consume requests; blocked reports stay unresolved.
-  Permissions/cancellation/disconnect observations persist with exact attempts;
-  never store drafts/output. Wait receipts retain unacknowledged messages;
-  notifications never prove execution or result handling.
+- Audit: MACOS-FIXES-2026-10-12.md. Local/SSH/WSL share results/questions and
+  focused-terminal enablement, including command-entered sessions. Project peers
+  supervise retries/reassignment/review; Worktree allocation is Coordinator-only.
+  Final replies atomically queue results/consume requests; blocked stays unresolved.
+  Persist permission/cancel/disconnect evidence with exact attempts, never drafts
+  or output. Wait receipts retain unacknowledged messages; notifications prove
+  neither execution nor result handling.
 - 1.6.4 fixes: specs/agent-communication-v2/FIXES-1.6.4.md. Usage selects
   five-hour OR weekly windows; Antigravity retains Gemini and Claude/GPT pools.
   Composer drafts/attachments stay in memory; owner authorized clearing native PTY
   drafts before peer submission on 2026-10-13. Startup retains MCP idle evidence;
   sidebar lifecycle projections never manufacture completion notifications.
-- 1.6.4 follow-up: existing same-path main-checkout admissions can refer to a
-  replaced repository. New repository identities need fresh admission, preserving
-  old history and rejecting old capabilities; same-repository checkout replacement
-  still requires explicit rejoin. Codex opaque notifications and Antigravity's lack
-  of native completion observations can leave error-terminated turns busy; never
-  infer idle from warnings or silence. Native lifecycle repair remains pending.
-- Windows run 38378106900 failed before compilation: main's old workflow treated
-  the macOS test handoff as a release and checked out nonexistent v1.6.4. Existing
-  branch Windows test package 38368976431 passed. Sync handoff guard to main.
+- Same-path replacement repositories need fresh admission with old history/capabilities
+  isolated; same-repository checkout replacement requires explicit rejoin. b16ec81e
+  passed both desktop protocol suites (38390412725).
+- Owner requires mature open-source lifecycle detection for all managed Agents.
+  Codex opaque OSC 9 cannot prove completion; never infer idle from warnings or
+  silence. Welcome-only startup and always-working Codex need native observation;
+  vendor runtime acceptance remains pending.
+- Windows test package 38368976431 passed. Automatic release 38378106900 failed
+  before compilation at nonexistent v1.6.4; main 502b928a now skips test handoffs.
+- WSL setup-first discovery created 0755 service namespaces, rejected by the 0700
+  service guard. Harden only owned real directories, preserving SSH/account data.
+  Restore saved live accounts with one deferred read-only rescan; don't retry-loop
+  failures. Test installed workspace connection/reconnect and settings reload.
 - Wake polls until idle; native input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.
@@ -169,40 +149,32 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Product defaults, CLI integration and website
 
-- Keep WARP_* compatibility. Data/settings live in ~/.config/warpai; retain
-  sources/profiles/new values.
-  English/zh-Hans/zh-Hant UI; restart to apply language.
-  Translate menus/Review/toasts, dynamic roles/participants/outcomes; keep IDs/content.
-  Windows text shaping loads native glyph fallbacks before caching UI lines;
-  Simplified/Traditional use their regional font fallback. No cfg(test) drivers.
-  Each capture locale owns one SSH master; close before the next process.
-  Close dropdowns; selectors/defaults share localized labels.
-  UTF-8/POSIX locale tooling; verify/export PROTOC on Windows.
-  Themes: Claude Warm Light, Catppuccin Latte; Dark approved.
-- Preserve saved themes; baseline Claude Warm Light. Keep-awake is session-only
-  during tracked Agent activity and permits display/user sleep. No cloud AI/telemetry.
-- Ordinary Codex invocations (including --yolo/resume) adapt at Warpai's execution
-  event while communication is enabled: official per-session MCP and --no-daemon,
-  preserving original CLI/args/cwd/PATH and package-manager ownership. Do not proxy
-  its daemon, impersonate vendor commands or write persistent Codex configuration.
-  Explicit legacy MCP cleanup is the sole read/edit exception for reserved entries.
-- Legacy cleanup disables communication, removes only verified reserved bridge
-  entries, preserves other servers and reports failures. Ordinary disable/deselect
-  stops future Codex session injection without reading/removing its persistent MCP.
-- Keep native Windows argv tests; TOML Unicode escaping precedes shell quoting.
-  WSL guest commands stay native without Windows host bridge injection.
-  Verified guest observations seed Windows terminal Agent sessions before any wake;
-  each terminal/run remains independent. Retain plugin listeners and unsent drafts;
-  remote tracking keys include distribution/user. Desktop WSL code is Windows-only.
+- Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
+  English/zh-Hans/zh-Hant need restart; localize UI roles/outcomes, preserve IDs.
+  Windows glyph fallback precedes text caching; use regional Chinese fonts.
+  Native capture drivers cannot use cfg(test); each locale owns/closes one SSH
+  master. Close dropdowns; selectors/defaults share labels. UTF-8/POSIX tooling;
+  export/verify PROTOC on Windows. Claude Warm Light/Latte/Dark are approved.
+- Preserve saved themes; baseline Claude Warm Light. Session-only keep-awake tracks
+  Agent activity, permitting display/user sleep. No bundled cloud AI/telemetry.
+- Native Codex execution (including --yolo/resume) uses per-session MCP/--no-daemon
+  while enabled; preserve original CLI/args/cwd/PATH/package ownership. No daemon
+  proxy, impersonation or persistent Codex config edits. Only explicit reserved
+  legacy-MCP cleanup may read/edit persistent Codex configuration.
+- Legacy cleanup disables participation, preserves unrelated servers and reports
+  failures. Ordinary disable/deselect only stops future session injection.
+- Keep native Windows argv/TOML Unicode-before-shell-quoting tests. WSL stays native
+  without host MCP injection; verified guest observations seed sessions before wake.
+  Preserve per-run identity, listeners/drafts, distro/user keys and Windows-only UI.
 - About Update checks stable releases; Download opens the exact platform installer
   or Releases fallback. Startup check defaults off/runs once; no installation writes.
-- Docs are bilingual and Agent-first; update existing README sections, not a
-  changelog. Keep native screenshots/provenance and approved bundled SVG branding.
+- Bilingual Agent-first docs update existing READMEs; retain native screenshots,
+  provenance and approved SVG branding.
 - Website: https://othinusg.github.io/warpai/ on gh-pages, EN / and ZH /zh/.
   Preserve worktree/branding; update and cmap-check font subsets when copy changes.
   Jekyll pages own translated strings; production baseurl is /warpai.
 
 ## Memory maintenance
 
-Keep under 200 lines / 12 KB. Replace superseded facts; keep detailed receipts
-in owning specs. Archive useful evidence only; do not read all archives at startup.
+Keep under 200 lines / 12 KB; receipts belong in specs. Archive useful evidence,
+not all startup context; replace superseded facts.
