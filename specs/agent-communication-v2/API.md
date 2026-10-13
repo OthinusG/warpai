@@ -26,7 +26,11 @@ contains a confirmed Linux shell PID and observe/claim/validate/finish action.
 The service matches canonical checkout, shell/Agent PID start times and exact
 run. `NativeState` contains run/program and a serialized Broker wake claim.
 Observe carries only edit epochs, draft/approval flags and optional native
-readiness; never draft text or credentials. A settings selection is not authority
+readiness. Native draft presence does not block a queued wake; the owner authorizes
+clearing unsent native input at the idle prompt before task submission. Composer
+drafts stay in the app. Clearing never grants readiness or bypasses an input epoch,
+approval, cancellation or run fence. No draft text is added to the wire.
+Never transfer draft text or credentials. A settings selection is not authority
 to access another guest account. No scoped wrapper or nested command is accepted.
 Validate precedes delayed Enter; finish records submission, not acknowledgement.
 

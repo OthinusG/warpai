@@ -211,6 +211,7 @@ impl Guests {
             }
             NativeAction::Claim { wake } => {
                 state.valid = broker.claim_wake(&wake);
+                if state.valid { broker.discard_native_draft(&wake); }
                 state.wake = Some(wake);
             }
             NativeAction::Validate { wake } => {

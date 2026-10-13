@@ -193,7 +193,6 @@ impl TerminalView {
         settings.preferences.enabled
             && settings.targets.contains(&context.target)
             && self.wsl_peer.epoch == epoch
-            && self.wsl_peer.draft.is_empty()
             && !self.wsl_peer.cancelled
             && self.wsl_peer_context(ctx).as_ref() == Some(context)
             && self.peer_input_is_empty(ctx)
@@ -288,20 +287,28 @@ impl TerminalView {
                 view.finish_wsl_wake(client, context, wake, false, ctx);
                 return;
             }
-            let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
-            let delay = view.stage_wsl_peer_text(agent.unwrap(), text, ctx);
-            let connection = client.clone();
-            let claimed = wake.clone();
-            let shell_pid = context.shell_pid;
-            ctx.spawn(async move {
-                Timer::after(delay).await;
-                request(&connection, shell_pid, NativeAction::Validate { wake: claimed }).await
-            }, move |view, result, ctx| {
-                let valid = result.ok().flatten().is_some_and(|state| state.valid && state.run == wake.run);
-                let submitted = valid && view.wsl_peer_valid(&context, epoch, ctx);
-                if submitted { view.write_to_pty(b"\r".to_vec(), ctx); }
-                view.finish_wsl_wake(client, context, wake, submitted, ctx);
-            });
+            let discard = !view.wsl_peer.draft.is_empty();
+            view.wsl_peer.draft.clear();
+            view.clear_native_input_then(discard, move |view, ctx| {
+                if !view.wsl_peer_valid(&context, epoch, ctx) {
+                    view.finish_wsl_wake(client, context, wake, false, ctx);
+                    return;
+                }
+                let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
+                let delay = view.stage_wsl_peer_text(agent.unwrap(), text, ctx);
+                let connection = client.clone();
+                let claimed = wake.clone();
+                let shell_pid = context.shell_pid;
+                ctx.spawn(async move {
+                    Timer::after(delay).await;
+                    request(&connection, shell_pid, NativeAction::Validate { wake: claimed }).await
+                }, move |view, result, ctx| {
+                    let valid = result.ok().flatten().is_some_and(|state| state.valid && state.run == wake.run);
+                    let submitted = valid && view.wsl_peer_valid(&context, epoch, ctx);
+                    if submitted { view.write_to_pty(b"\r".to_vec(), ctx); }
+                    view.finish_wsl_wake(client, context, wake, submitted, ctx);
+                });
+            }, ctx);
         });
     }
 

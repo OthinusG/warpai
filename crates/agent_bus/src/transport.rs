@@ -614,7 +614,7 @@ impl Broker {
                 } else {
                     live.draft.invalidate();
                 }
-                live.initial_prompt = false;
+                if submitted_or_cancelled { live.initial_prompt = false; }
                 live.generation += 1;
                 if let Some(wake) = live.wake.take() {
                     live.delivered.remove(&wake.message_id);
@@ -741,7 +741,7 @@ impl Broker {
                 if live.waiting
                     || live.paused
                     || live.expired || live.started.elapsed() >= MUTATION_EPOCH
-                    || !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) || live.blocked
+                    || live.blocked
                     || live.wake.is_some()
                     || live.ready?.elapsed() < Duration::from_millis(750)
                     || live.last_output.elapsed() < Duration::from_millis(500)
@@ -820,7 +820,7 @@ impl Broker {
             || live.paused
             || live.expired || live.started.elapsed() >= MUTATION_EPOCH
             || live.generation != wake.generation
-            || !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) || live.blocked
+            || live.blocked
             || live.ready.is_none()
             || live.native_activity.is_some_and(|activity| !activity.is_idle())
             || live.waiting
@@ -867,10 +867,26 @@ impl Broker {
                 .get(&wake.terminal)
                 .and_then(|binding| binding.live.as_ref())
                 .is_some_and(|live| {
-                    live.agent.as_ref().is_some_and(|actor| state.store.authorize(actor).is_ok() && state.store.authorize_orchestration(actor, &live.run, &Operation::AgentReady).is_ok()) && live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.draft.is_empty() && !(live.rich_draft && live.rich_draft_is_native) && !live.blocked && live.wake.as_ref() == Some(wake)
+                    live.agent.as_ref().is_some_and(|actor| state.store.authorize(actor).is_ok() && state.store.authorize_orchestration(actor, &live.run, &Operation::AgentReady).is_ok()) && live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && !live.blocked && live.ready.is_some() && !live.waiting && live.native_activity.is_none_or(Activity::is_idle) && live.wake.as_ref() == Some(wake)
                 })
         })
     }
+    /// Discard native draft tracking only for a currently claimed idle delivery.
+    /// Returns whether the owner-authorized native editor clear is required.
+    pub fn discard_native_draft(&self, wake: &Wake) -> bool {
+        if let Some(broker) = self.forwarded(&wake.terminal) { return broker.discard_native_draft(wake); }
+        if !self.wake_valid(wake) { return false; }
+        let Ok(mut state) = self.shared.state.lock() else { return false; };
+        let Some(live) = state.terminals.get_mut(&wake.terminal).and_then(|binding| binding.live.as_mut())
+            .filter(|live| live.run == wake.run && live.wake.as_ref() == Some(wake)
+                && !live.blocked && !live.paused
+                && live.native_activity.is_none_or(Activity::is_idle)) else { return false; };
+        let discard = !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native);
+        live.draft.clear();
+        if live.rich_draft_is_native { live.rich_draft = false; }
+        discard
+    }
+
     pub fn finish_wake(&self, wake: &Wake, submitted: bool) {
         if let Some(broker) = self.forwarded(&wake.terminal) { broker.finish_wake(wake, submitted); return; }
         if let Ok(mut state) = self.shared.state.lock() {
@@ -1275,7 +1291,6 @@ impl Broker {
                     if live.ready.is_none() { blockers.push("lifecycle_not_idle"); }
                     if live.native_activity.is_some_and(|activity| !activity.is_idle()) { blockers.push("native_not_idle"); }
                     if live.paused { blockers.push("cancelled"); }
-                    if !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) { blockers.push("draft"); }
                     if live.blocked { blockers.push("permission_or_question"); }
                     if live.waiting { blockers.push("cooperative_wait"); }
                     if live.wake.is_some() { blockers.push("dispatching"); }

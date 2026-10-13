@@ -193,10 +193,11 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             );
         }
         server.broker.input_bytes(&terminal, "几个字".as_bytes());
+        tokio::time::sleep(Duration::from_millis(550)).await;
         let drafted = status(&server, &observer, &terminal).await;
         assert_eq!(drafted["ready"], true);
         assert_eq!(drafted["has_draft"], true);
-        assert_eq!(drafted["can_auto_submit"], false);
+        assert_eq!(drafted["can_auto_submit"], true);
         server.broker.input_bytes(&terminal, b"\x7f\x7f\x7f");
         let cleared = status(&server, &observer, &terminal).await;
         assert_eq!(cleared["ready"], true);
@@ -207,6 +208,8 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         );
 
         for turn in 0..2 {
+            server.broker.input_bytes(&terminal, b"\x1b[200~native draft\nsecond line\x1b[201~");
+            if turn == 1 { server.broker.input_bytes(&terminal, b"\x1b[A"); }
             observer.operation = serde_json::from_value(json!({"op":"agent_send","to":peer["id"],"body":"Report the weekday","request_id":Uuid::new_v4().to_string()})).unwrap();
             let message = call(&server, &observer).await;
             tokio::time::sleep(Duration::from_millis(800)).await;
@@ -218,7 +221,10 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
                 .into_iter()
                 .find(|wake| wake.terminal == terminal)
                 .unwrap();
+            assert!(!server.broker.discard_native_draft(&wake), "Unclaimed work cannot clear input");
             assert!(server.broker.claim_wake(&wake));
+            assert!(server.broker.discard_native_draft(&wake));
+            assert!(!server.broker.discard_native_draft(&wake), "Composer drafts must not be discarded");
             server.broker.composer_guard(&terminal, false, false);
             server.broker.composer_guard(&terminal, true, false);
             assert!(server.broker.wake_valid(&wake));

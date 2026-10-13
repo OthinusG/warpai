@@ -147,8 +147,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   notifications never prove execution or result handling.
 - 1.6.4 fixes: specs/agent-communication-v2/FIXES-1.6.4.md. Usage selects
   five-hour OR weekly windows; Antigravity retains Gemini and Claude/GPT pools.
-  Composer drafts/attachments stay in memory during peer submission; native PTY
-  drafts remain guarded. Startup acknowledgements retain MCP idle evidence;
+  Composer drafts/attachments stay in memory; owner authorized clearing native PTY
+  drafts before peer submission on 2026-10-13. Startup retains MCP idle evidence;
   sidebar lifecycle projections never manufacture completion notifications.
 - Wake polls until idle; native input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.

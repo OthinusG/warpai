@@ -4936,6 +4936,8 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 agent.command_prefix()
             };
             broker.activate(&name, program, "/project", true).unwrap();
+            broker.input_bytes(&name, b"\x1b[200~native private draft\nsecond line\x1b[201~");
+            broker.input_bytes(&name, b"\x1b[A");
             let mut request = Request {
                 protocol_major: warp_agent_bus::transport::PROTOCOL_MAJOR,
                 terminal: name.clone(),
@@ -4993,6 +4995,10 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 });
                 // Session replacement closes input; compose only after the permission fixture changes.
                 view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
+            });
+            // Opening restores the editor reactively, before the user's next input event.
+            warpui::r#async::Timer::after(std::time::Duration::from_millis(1)).await;
+            terminal.update(&mut app, |view, ctx| {
                 view.input.update(ctx, |input, ctx| {
                     input.replace_buffer_content("unfinished user draft", ctx)
                 });
@@ -5002,12 +5008,15 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             });
             // Invalidate the run between the paste and delayed Enter.
             if *agent == CLIAgent::Claude {
+                warpui::r#async::Timer::after(std::time::Duration::from_millis(75)).await;
                 broker.end(&requests[index].terminal);
             }
         }
         warpui::r#async::Timer::after(std::time::Duration::from_millis(450)).await;
         for (terminal, writes, agent) in &terminals {
             let written: Vec<u8> = writes.borrow().iter().flatten().copied().collect();
+            assert!(written.starts_with(b"\x03"), "Native draft must clear before paste for {agent:?}");
+            assert!(!String::from_utf8_lossy(&written).contains("native private draft"));
             assert!(
                 String::from_utf8_lossy(&written).contains("Warpai peer work is waiting"),
                 "No wake text for {agent:?}"

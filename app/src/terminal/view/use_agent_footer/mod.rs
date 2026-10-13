@@ -728,21 +728,40 @@ impl TerminalView {
             broker.finish_wake(&wake, false);
             return;
         };
-        // Peer-controlled text stays in MCP; only a fixed instruction and a broker UUID enter the PTY.
-        let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
-        let guard_broker = broker.clone();
-        let guard_wake = wake.clone();
-        self.write_cli_agent_text_then_submit(
-            text.into_bytes(),
-            rich_input_submit_strategy(agent),
-            Some(Box::new(move |view, ctx| {
-                guard_broker.wake_valid(&guard_wake) && view.peer_input_is_empty(ctx)
-            })),
-            Some(Box::new(move |submitted| {
-                broker.finish_wake(&wake, submitted)
-            })),
-            ctx,
-        );
+        let discard = broker.discard_native_draft(&wake);
+        self.clear_native_input_then(discard, move |view, ctx| {
+            // Peer-controlled text stays in MCP; only a fixed instruction and a broker UUID enter the PTY.
+            let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
+            let guard_broker = broker.clone();
+            let guard_wake = wake.clone();
+            view.write_cli_agent_text_then_submit(
+                text.into_bytes(),
+                rich_input_submit_strategy(agent),
+                Some(Box::new(move |view, ctx| {
+                    guard_broker.wake_valid(&guard_wake) && view.peer_input_is_empty(ctx)
+                })),
+                Some(Box::new(move |submitted| {
+                    broker.finish_wake(&wake, submitted)
+                })),
+                ctx,
+            );
+        }, ctx);
+    }
+
+    /// Clear the native editor outside bracketed paste and let it process the interrupt first.
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    pub(super) fn clear_native_input_then(
+        &mut self,
+        discard: bool,
+        submit: impl FnOnce(&mut Self, &mut ViewContext<Self>) + 'static,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        if discard {
+            self.write_to_pty(b"\x03".to_vec(), ctx);
+            ctx.spawn(Timer::after(CLI_AGENT_PTY_WRITE_DELAY), move |view, _, ctx| submit(view, ctx));
+        } else {
+            submit(self, ctx);
+        }
     }
 
     #[cfg(all(

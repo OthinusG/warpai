@@ -609,7 +609,7 @@ fn panel_pages_resume_and_keep_presence_separate_from_execution() {
     assert_eq!(worker_row["observation_source"], "local observation");
     assert_eq!(
         worker_row["draft"], "present",
-        "rich drafts protect delivery too"
+        "Draft presence stays visible while approvals independently protect delivery"
     );
     query.event_after = snapshot["event_cursor"].as_u64();
     assert!(query.event_after.is_some());

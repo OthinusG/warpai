@@ -15,8 +15,10 @@
   must not be represented as running work or generate completion notifications.
 - App-owned composer drafts and attachments remain in memory while queued peer
   work is submitted independently through the existing PTY pipeline. Automatic
-  submissions must not trigger composer auto-dismiss/clear. Unknown native PTY
-  edits remain guarded because the editor cannot be reconstructed safely.
+  submissions must not trigger composer auto-dismiss/clear. Owner correction:
+  native terminal drafts, including unknown history/cursor edits, must not block
+  queued work. On 2026-10-13 the owner explicitly authorized discarding native
+  unsent input. Clear it at the idle prompt before staging the wake instruction.
 - Preserve run/generation fences, delayed Enter cancellation, private draft data,
   task receipts and MCP acknowledgement semantics. No personal configuration edits.
 
@@ -104,5 +106,20 @@ The desktop wake fixture replaces the entire session to simulate permission
 states; set_session deliberately closes the composer and emits Ended. Compose the
 saved draft after these fixture replacements, immediately before automatic wake,
 so the draft preservation assertion tests delivery rather than session teardown.
+Wait for InputSessionChanged's reactive editor restoration before typing the
+fixture draft; inserting text in the same update as open races the opening clear.
 Limit this test's CI logger to errors so assertion output is not buried in per-window
 asset warnings. Preserve permission blocking and stale delayed-Enter assertions.
+
+## Native draft delivery correction
+
+Remove native draft presence from candidate/claim/validation and displayed delivery
+blockers. Keep draft contents private and memory-only; composer drafts remain intact.
+A claimed wake may discard its native draft tracking and sends one Ctrl+C to the
+idle native editor, waits for its input handler, then stages the fixed wake text.
+Do not clear an empty native prompt or inject Ctrl+C into bracketed paste. Recheck
+run, approval, cancellation and input epochs after clearing and before delayed
+Enter. WSL uses the same clearing path and retains its guest-owned claim/validation.
+The editing shortcuts of a third-party CLI are a native runtime dependency;
+validate default interactive modes, multiline/history input, and unchanged drafts
+in Warpai's composer. Do not use repeated interrupts or stop a working Agent.

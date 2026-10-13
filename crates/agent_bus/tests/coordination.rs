@@ -318,8 +318,9 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
     }
     thread::sleep(Duration::from_millis(850));
     let wakes = server.broker.wakeups();
-    assert_eq!(wakes.len(), 1);
-    assert_eq!(wakes[0].terminal, "empty");
+    assert_eq!(wakes.len(), 2);
+    assert!(wakes.iter().any(|wake| wake.terminal == "empty"));
+    assert!(wakes.iter().any(|wake| wake.terminal == "user-draft"));
     let legacy = serde_json::json!({"terminal":"legacy","capability":"placeholder","run":null,"operation":{"op":"agent_register","name":""}});
     let legacy: Request = serde_json::from_value(legacy).unwrap();
     assert_eq!(legacy.protocol_major, 0);
@@ -649,10 +650,7 @@ fn dormant_agents_wake_without_an_open_wait_call() {
     server.broker.user_input(&worker.terminal, false);
     transport::call(&server.broker.endpoint, &worker).unwrap();
     thread::sleep(Duration::from_millis(850));
-    assert!(
-        server.broker.wakeups().is_empty(),
-        "Readiness cannot override a user draft"
-    );
+    assert!(!server.broker.wakeups().is_empty(), "Native drafts must not block queued work");
     server.broker.user_input(&worker.terminal, true);
     transport::call(&server.broker.endpoint, &worker).unwrap();
     thread::sleep(Duration::from_millis(850));
@@ -868,9 +866,10 @@ fn pool_wake_selects_one_idle_candidate_and_fences_stale_candidates() {
     assert_eq!(candidates.len(), 1);
     let earlier = candidates[0].clone();
     assert_eq!(earlier.terminal, "left", "Use durable notification order, not HashMap order");
-    broker.user_input("left", false);
+    broker.input_guard("left", true, true);
     let fallback = broker.wakeups().pop().unwrap();
-    assert_eq!(fallback.terminal, "right", "Protected input must not block another eligible idle candidate");
+    assert_eq!(fallback.terminal, "right", "Approval blocks this candidate without blocking another idle receiver");
+    broker.input_guard("left", false, false);
     broker.user_input("left", true);
     transport::call(&broker.endpoint, &left).unwrap();
     thread::sleep(Duration::from_millis(850));
@@ -1099,7 +1098,8 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 .unwrap();
             match state {
                 "busy" => broker.readiness(&name, false),
-                "draft" | "cancelled" => broker.user_input(&name, false),
+                "draft" => broker.user_input(&name, false),
+                "cancelled" => broker.input_bytes(&name, b"\x03"),
                 _ => {}
             }
             let mut worker = Request {
@@ -1135,7 +1135,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 transport::call(&broker.endpoint, &issuer).unwrap()["delivery"],
                 "queued"
             );
-            if matches!(state, "fresh" | "active" | "rediscovered") {
+            if matches!(state, "fresh" | "draft" | "active" | "rediscovered") {
                 expected.push(name);
             }
             workers.push(worker);

@@ -145,7 +145,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     )) }, 5).await.unwrap();
     assert!(message.get("error").is_none(), "{message}");
     assert!(client.project_tasks(&observe(true, true, 1, false, false), 6).await.unwrap()["value"]["wake"].is_null());
-    client.project_tasks(&observe(false, false, 2, false, false), 7).await.unwrap();
+    client.project_tasks(&observe(true, false, 2, false, false), 7).await.unwrap();
     async fn next_wake(client: &mut HostClient, command: &TaskCommand) -> warp_agent_bus::transport::Wake {
         for generation in 8..108 {
             let value = client.project_tasks(command, generation).await.unwrap();
@@ -155,7 +155,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
         }
         panic!("Ready native Agent must receive queued work")
     }
-    let wake = next_wake(&mut client, &observe(false, false, 2, false, false)).await;
+    let wake = next_wake(&mut client, &observe(true, false, 2, false, false)).await;
     assert_eq!(client.project_tasks(&native_command(NativeAction::Claim { wake: wake.clone() }), 109).await.unwrap()["value"]["valid"], true);
     // Manual editing and cancellation invalidate an already claimed delayed Enter.
     client.project_tasks(&observe(true, false, 3, false, true), 110).await.unwrap();
