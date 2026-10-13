@@ -96,7 +96,7 @@ mod tests {
         warpui::App::test((), |mut app| async move {
             crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
             let profile = SshProfile { target:"wsl".into(), config_file:None,
-                remote_root:"/home/guest/project".into(), companion_path:"/home/guest/.config/.warpai/wsl/bin/warpai-wsl-companion".into(),
+                remote_root:"/home/guest/project".into(), companion_path:"/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion".into(),
                 remote_shell:warp_agent_bus::ssh_remote::RemoteShell::Posix };
             let wsl = SshConnection::Wsl { distribution:"Ubuntu".into(), user:"guest".into() };
             let ssh = SshConnection::Native { arguments:vec!["owned".into()], session:"owned".into() };

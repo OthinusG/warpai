@@ -100,7 +100,7 @@ def main():
                 print("Owned ProxyJump SSH/SFTP file acceptance passed")
                 if args.capture:
                     remote_home = fixture / "remote-home"
-                    installed = remote_home / ".config" / ".warpai" / "bin" / companion.name
+                    installed = remote_home / ".config" / "warpai" / "bin" / companion.name
                     installed.parent.mkdir(parents=True)
                     shutil.copy2(companion, installed)
                     env["WARP_TEST_REMOTE_HOME"] = str(remote_home)

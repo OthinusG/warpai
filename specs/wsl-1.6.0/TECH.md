@@ -23,7 +23,7 @@ Future Linux desktop work is separate.
 Build warpai-wsl-companion with the opt-in wsl_companion feature, reusing service
 code while default SSH builds exclude WSL-only handlers/capabilities. Default
 Companion stays 4.0.0; dedicated WSL builds report 4.0.0. Install at
-~/.config/.warpai/wsl/bin/warpai-wsl-companion. Use a separate service data namespace.
+~/.config/warpai/wsl/bin/warpai-wsl-companion. Use a separate service data namespace.
 Desktop WSL routing never points to the SSH binary. Retain SSH behavior and state.
 Windows app bundles the verified guest archive. The existing WSL MCP settings
 checkbox installs/removes only the currently selected logged-in account via

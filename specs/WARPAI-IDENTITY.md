@@ -16,8 +16,8 @@ Preserve upstream copyright, license notices, real provenance and external
 package identities. Historical release filenames and compatibility/migration
 inputs must describe the real old names rather than fabricate renamed history.
 
-All maintained desktop settings/data live below `~/.config/.warpai` on macOS and
-Linux, and `%USERPROFILE%\.config\.warpai` on Windows. This means the user's home,
+All maintained desktop settings/data live below `~/.config/warpai` on macOS and
+Linux, and `%USERPROFILE%\.config\warpai` on Windows. This means the user's home,
 not a literal `/home` directory. Keep state and caches in `state` and `cache`
 subdirectories; development profiles stay below this root and cannot escape it.
 Third-party agent settings remain in those agents' native locations.

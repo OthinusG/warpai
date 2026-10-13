@@ -1,7 +1,7 @@
 # Project Memory
 
-Updated 2026-10-14. Read AGENTS.md and README.md.
-Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
+Updated 2026-10-14.
+Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
 
@@ -130,7 +130,7 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
   Codex opaque OSC 9 cannot prove completion; never infer idle from warnings or
   silence. Welcome-only startup and always-working Codex need native observation;
   vendor runtime acceptance remains pending.
-- Main 502b928a skips artifact-only handoffs referencing nonexistent release tags.
+- Main 502b928a skips test handoffs to nonexistent release tags.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
 - Wake polls until idle; input/cancel/run replacement fences Enter. Cancel pauses
@@ -171,8 +171,9 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 - WSL package 38393839766/83c7274b still fails owner Ubuntu attachment despite
   successful account/home/version/runtime/setup and guest/Windows service probes. See
   FIXES-1.6.4.md Oct14 receipt; do not call it resolved from CI alone.
-- Filter imported Windows Agent installs through native WSL path mapping, including
-  saved participation. Verified rescans retain project selection and invalidate cached tool failures.
+- SSH/WSL Companion install/call/uninstall use `.config/warpai`, matching desktop
+  data; Windows installers must not reuse the former registered directory.
+- WSL path mapping excludes Windows Agents. Verified rescans clear cached failures.
 - MCP task observations, sidebar attention and keep awake share native activity;
   UI focus never acknowledges MCP work. Retained cloud task reporting is disabled
   for local-only sessions. Source-matched acceptance remains pending.

@@ -18,6 +18,9 @@ def main():
         account.mkdir()
         marker = account / ".profile"
         marker.write_text("# preserved\n")
+        former = account / ".config/.warpai/bin/warpai-companion"
+        former.parent.mkdir(parents=True)
+        former.write_text("Preserve former installation\n")
         binary = payload / "warpai-companion"
         binary.write_text('#!/bin/sh\ncase "$1" in --version) echo "warpai-companion 3.0.0 protocol 1";; --check-runtime) exit 0;; *) exit 1;; esac\n')
         binary.chmod(0o700)
@@ -40,11 +43,12 @@ def main():
             return subprocess.run(["sh", str(payload / "install-unix.sh")], env=environment,
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         assert install().returncode == 0
-        installed = account / ".config/.warpai/bin"
+        installed = account / ".config/warpai/bin"
         assert (installed / "warpai-companion").read_bytes() == binary.read_bytes()
         assert (installed / runtime_name / "git/bin/git").read_bytes() == git.read_bytes()
         assert install().returncode == 0
         assert marker.read_text() == "# preserved\n"
+        assert former.read_text() == "Preserve former installation\n"
         original = (installed / "warpai-companion").read_bytes()
         git.write_text("corrupt runtime")
         assert install().returncode != 0

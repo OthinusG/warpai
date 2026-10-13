@@ -24,7 +24,7 @@ else:
     else:
         command = ["sh", f"WarpaiCompanion-{component_version}-linux-x64.run"]
 
-installed = Path.home() / ".config/.warpai/bin" / binary_name
+installed = Path.home() / ".config/warpai/bin" / binary_name
 if sys.platform == "darwin":
     assert Path("companion-image/.VolumeIcon.icns").read_bytes() == Path("app/assets/branding/warpai-companion.icns").read_bytes()
     launcher = Path("companion-image/Install Warpai Companion.command")

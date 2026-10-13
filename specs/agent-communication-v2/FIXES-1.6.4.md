@@ -304,3 +304,25 @@ attachment remains open.
 Validation: syntax/diff/localization locally; source-matched protocol, desktop,
 real MCP and real WSL/native capture on GitHub. No vendor credentials or user
 Agent configuration are used in fixtures. Real owner WSL acceptance remains open.
+
+### Companion installation root correction
+
+Owner identified that desktop data moved to `.config/warpai` while SSH and WSL
+Companion paths still used `.config/.warpai`. All active native path resolution,
+Unix/Windows/WSL installation, uninstallation, recovery, runtime checks, diagnostic
+launches, remote fixture runners and current installation docs now use the new
+root. The retained remote-server setup path and native worktree template comments
+follow the same root. Historical release docs and explicit desktop migration
+sources keep their original paths.
+
+Windows Companion installers disable reuse of the previous installation directory;
+changing DefaultDirName alone would retain the old registered path. Installer
+fixtures verify new-root installation and preservation of former components.
+Owned guest TOML MCP entries migrate only when the entire old entry matches the
+expected server except for this exact root change; preserve user edits/other MCP
+servers. Current SSH/WSL installers own the replacement binary/runtime, with no
+personal-machine configuration mutations from development tools.
+
+Validation: Unix and generated WSL staged installers pass with spaces/Unicode,
+repeat install, old-root preservation, symlink isolation and corruption rejection.
+Rust/cloud desktop and remote acceptance must use the final corrected source.

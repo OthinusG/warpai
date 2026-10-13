@@ -13,10 +13,10 @@ import tempfile
 
 def installer_source():
     source = Path(__file__).with_name("install-unix.sh").read_text()
-    source = source.replace('install_dir="$HOME/.config/.warpai/bin"',
-                            'install_dir="$HOME/.config/.warpai/wsl/bin"')
-    source = source.replace('"$HOME/.config/.warpai" "$install_dir"',
-                            '"$HOME/.config/.warpai" "$HOME/.config/.warpai/wsl" "$install_dir"')
+    source = source.replace('install_dir="$HOME/.config/warpai/bin"',
+                            'install_dir="$HOME/.config/warpai/wsl/bin"')
+    source = source.replace('"$HOME/.config/warpai" "$install_dir"',
+                            '"$HOME/.config/warpai" "$HOME/.config/warpai/wsl" "$install_dir"')
     source = source.replace("warpai-companion", "warpai-wsl-companion")
     source = source.replace("Reconnect your SSH terminal in Warpai to detect it.",
                             "Return to WSL communication settings in Warpai.")

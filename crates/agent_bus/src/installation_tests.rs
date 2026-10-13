@@ -4,7 +4,7 @@ use super::*;
 fn wsl_installation_is_separate_from_ssh() {
     let home = "/home/Guest Person/多语言/";
     let path = wsl_companion_path(home).unwrap();
-    assert_eq!(path, "/home/Guest Person/多语言/.config/.warpai/wsl/bin/warpai-wsl-companion");
+    assert_eq!(path, "/home/Guest Person/多语言/.config/warpai/wsl/bin/warpai-wsl-companion");
     assert_ne!(path, companion_path(home, "Linux").unwrap().0);
     for home in ["relative", "C:\\Users\\Guest", "/home/user\n", ""] {
         assert!(wsl_companion_path(home).is_err());
@@ -54,17 +54,17 @@ fn default_locations_follow_remote_native_home() {
     let (path, shell) = companion_path("/Users/Remote Person/多语言", "Darwin").unwrap();
     assert_eq!(
         path,
-        "/Users/Remote Person/多语言/.config/.warpai/bin/warpai-companion"
+        "/Users/Remote Person/多语言/.config/warpai/bin/warpai-companion"
     );
     assert!(matches!(shell, RemoteShell::Posix));
     assert_eq!(
         companion_path("/home/remote/", "Linux").unwrap().0,
-        "/home/remote/.config/.warpai/bin/warpai-companion"
+        "/home/remote/.config/warpai/bin/warpai-companion"
     );
     let (path, shell) = companion_path(r"C:\Users\Remote Person\多语言", "Windows").unwrap();
     assert_eq!(
         path,
-        r"C:\Users\Remote Person\多语言\.config\.warpai\bin\warpai-companion.exe"
+        r"C:\Users\Remote Person\多语言\.config\warpai\bin\warpai-companion.exe"
     );
     assert!(matches!(shell, RemoteShell::PowerShell));
     for (home, os) in [

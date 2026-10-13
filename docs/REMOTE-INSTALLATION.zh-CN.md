@@ -27,8 +27,8 @@ Warpai 根据已确认的远端 shell 会话识别目录；仅安装组件不会
 安装包包含对应的运行组件、校验和、版本与源码清单及许可说明，无需手动解压或填写执行路径。
 Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。默认位置固定为：
 
-- Linux/macOS：`~/.config/.warpai/bin/warpai-companion`
-- Windows：`%USERPROFILE%\.config\.warpai\bin\warpai-companion.exe`
+- Linux/macOS：`~/.config/warpai/bin/warpai-companion`
+- Windows：`%USERPROFILE%\.config\warpai\bin\warpai-companion.exe`
 
 重复运行新版安装包可在原位置升级。桌面端和远端组件应来自同一个 release；绑定项目前会检查协议兼容性。
 
@@ -56,12 +56,12 @@ Companion 按需启动；所有连接和活动 Agent 结束后，空闲 60 秒�
 例如，在 Linux/macOS 中，原生 Codex 可执行文件位于 PATH 时：
 
 ```sh
-"$HOME/.config/.warpai/bin/warpai-companion" agent "$PWD" codex "$(command -v codex)"
+"$HOME/.config/warpai/bin/warpai-companion" agent "$PWD" codex "$(command -v codex)"
 ```
 
 参数顺序为 `agent <项目绝对路径> <程序名> <原厂可执行文件绝对路径> [原有参数...]`。
 项目路径须与 `cd` 选中的目录一致，使用原厂安装的可执行文件。
-Windows PowerShell 使用 `& "$env:USERPROFILE\.config\.warpai\bin\warpai-companion.exe" agent`，
+Windows PowerShell 使用 `& "$env:USERPROFILE\.config\warpai\bin\warpai-companion.exe" agent`，
 随后传入相同顺序的参数和 Windows 原生绝对路径。Agent 保持交互式终端输入输出，
 通过现有远端 MCP 适配器参与协作；不新增别名、不修改 PATH，也不替换原厂安装。
 
@@ -98,7 +98,7 @@ wsl.exe --distribution Ubuntu --user your-linux-user
 
 ```sh
 sh WarpaiCompanion-5.0.0-linux-x64.run
-"$HOME/.config/.warpai/bin/warpai-companion" --check-runtime
+"$HOME/.config/warpai/bin/warpai-companion" --check-runtime
 cd /absolute/path/to/project
 ```
 

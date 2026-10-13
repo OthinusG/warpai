@@ -30,8 +30,8 @@ trap 'rm -rf "$payload_directory"' EXIT
 tar -xzf "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" -C "$payload_directory"
 sh "$payload_directory/install-unix.sh"
 # Debug test executables must use the same pinned Git as the installed guest, not Ubuntu's old Git.
-runtime_directory=$(python3 -c 'import json; print(json.load(open("/home/warpai-test/.config/.warpai/wsl/bin/companion-manifest.json"))["runtime_directory"])')
-export PATH="/home/warpai-test/.config/.warpai/wsl/bin/$runtime_directory/git/bin:$PATH"
+runtime_directory=$(python3 -c 'import json; print(json.load(open("/home/warpai-test/.config/warpai/wsl/bin/companion-manifest.json"))["runtime_directory"])')
+export PATH="/home/warpai-test/.config/warpai/wsl/bin/$runtime_directory/git/bin:$PATH"
 git --version
 cargo test -p warp-agent-bus --test managed_agent --locked
 agent_fixture=$(find target/debug/deps -maxdepth 1 -type f -executable -name 'managed_agent-*' -print -quit)
@@ -61,10 +61,10 @@ git init -q
 git -c core.hooksPath= -c user.name='Owned WSL Fixture' -c user.email=fixture@example.invalid add binary.dat example.rs preview.md image.png
 git -c core.hooksPath= -c user.name='Owned WSL Fixture' -c user.email=fixture@example.invalid commit -qm 'Owned WSL fixture'
 printf 'outside' > /home/warpai-test/outside
-test "$(/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion --version)" = 'warpai-companion 5.1.0 protocol 1'
+test "$(/home/warpai-test/.config/warpai/wsl/bin/warpai-wsl-companion --version)" = 'warpai-companion 5.1.0 protocol 1'
 install -m 755 /home/warpai-test/warpai-source/script/test-wsl-native-agent.py /home/warpai-test/native-agent-fixture.py
 GUEST
-install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-wsl-companion /home/warpai-other/.config/.warpai/wsl/bin/warpai-wsl-companion
+install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-wsl-companion /home/warpai-other/.config/warpai/wsl/bin/warpai-wsl-companion
 install -d -o warpai-other -g warpai-other -m 700 /home/warpai-other/project
 chown -R warpai-other:warpai-other /home/warpai-other/.config
-chmod 700 /home/warpai-other/.config /home/warpai-other/.config/.warpai
+chmod 700 /home/warpai-other/.config /home/warpai-other/.config/warpai

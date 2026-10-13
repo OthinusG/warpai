@@ -9,7 +9,7 @@ The collaboration panel follows that confirmed remote session and working direct
 There are no required SSH alias, project-path or companion-path settings fields.
 
 Remote installers contain the source-matched companion and install into the remote
-account's stable `~/.config/.warpai/bin` directory (`%USERPROFILE%\.config\.warpai\bin`
+account's stable `~/.config/warpai/bin` directory (`%USERPROFILE%\.config\warpai\bin`
 on Windows). Detect the actual remote OS; derive the native executable from the remote
 home directory. Never search the local filesystem for a remote companion.
 Check installation and protocol compatibility before binding a project. Missing or

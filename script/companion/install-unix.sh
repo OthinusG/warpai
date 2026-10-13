@@ -20,9 +20,9 @@ if [ "$platform" = Darwin ]; then
 else
   (cd "$payload_dir" && sha256sum -c SHA256SUMS)
 fi
-install_dir="$HOME/.config/.warpai/bin"
+install_dir="$HOME/.config/warpai/bin"
 # Refuse symlinked installation directories rather than writing outside the account tree.
-for directory in "$HOME/.config" "$HOME/.config/.warpai" "$install_dir"; do
+for directory in "$HOME/.config" "$HOME/.config/warpai" "$install_dir"; do
   [ ! -L "$directory" ] || { echo 'Warpai installation directory must not be a symlink.' >&2; exit 1; }
   mkdir -p "$directory"
 done

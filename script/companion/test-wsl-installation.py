@@ -47,9 +47,12 @@ def main():
         payload.mkdir()
         account = root / "account spaces 多语言"
         account.mkdir()
-        ssh = account / ".config/.warpai/bin/warpai-companion"
+        ssh = account / ".config/warpai/bin/warpai-companion"
         ssh.parent.mkdir(parents=True)
         ssh.write_text("Preserve original SSH Companion 4.0.0\n")
+        former = account / ".config/.warpai/wsl/bin/warpai-wsl-companion"
+        former.parent.mkdir(parents=True)
+        former.write_text("Preserve former WSL installation\n")
         profile = account / ".profile"
         profile.write_text("# Preserve shell settings\n")
         binary = payload / "warpai-wsl-companion"
@@ -74,11 +77,12 @@ def main():
         def install():
             return subprocess.run(["sh", str(payload / "install-unix.sh")], env=environment,
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-        installed = account / ".config/.warpai/wsl/bin/warpai-wsl-companion"
+        installed = account / ".config/warpai/wsl/bin/warpai-wsl-companion"
         assert install() == 0
         assert installed.read_bytes() == binary.read_bytes()
         assert install() == 0
         assert ssh.read_text() == "Preserve original SSH Companion 4.0.0\n"
+        assert former.read_text() == "Preserve former WSL installation\n"
         assert profile.read_text() == "# Preserve shell settings\n"
         original = installed.read_bytes()
         original_git = git.read_bytes()
@@ -90,8 +94,8 @@ def main():
         other = root / "other-account"
         other.mkdir()
         isolated = root / "isolated-account"
-        (isolated / ".config/.warpai").mkdir(parents=True)
-        (isolated / ".config/.warpai/wsl").symlink_to(other, target_is_directory=True)
+        (isolated / ".config/warpai").mkdir(parents=True)
+        (isolated / ".config/warpai/wsl").symlink_to(other, target_is_directory=True)
         environment["HOME"] = str(isolated)
         assert install() != 0
         assert list(other.iterdir()) == []

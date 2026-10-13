@@ -52,7 +52,7 @@ pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), Con
     match os {
         "Linux" | "Darwin" | "MacOS" | "macos" | "linux" if home.starts_with('/') => Ok((
             format!(
-                "{}/.config/.warpai/bin/warpai-companion",
+                "{}/.config/warpai/bin/warpai-companion",
                 home.trim_end_matches('/')
             ),
             RemoteShell::Posix,
@@ -68,7 +68,7 @@ pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), Con
         {
             Ok((
                 format!(
-                    r"{}\.config\.warpai\bin\warpai-companion.exe",
+                    r"{}\.config\warpai\bin\warpai-companion.exe",
                     home.trim_end_matches(['\\', '/'])
                 ),
                 RemoteShell::PowerShell,
@@ -83,7 +83,7 @@ pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), Con
 pub fn wsl_companion_path(home: &str) -> Result<String, ConnectionError> {
     // Reuse the native home validation without pointing WSL to the SSH installation.
     companion_path(home, "Linux")?;
-    Ok(format!("{}/.config/.warpai/wsl/bin/warpai-wsl-companion", home.trim_end_matches('/')))
+    Ok(format!("{}/.config/warpai/wsl/bin/warpai-wsl-companion", home.trim_end_matches('/')))
 }
 
 /// A successful executable probe must also identify the supported control protocol.

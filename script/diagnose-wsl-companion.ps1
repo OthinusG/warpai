@@ -158,7 +158,7 @@ try {
         Write-Report 'STOP: Linux shell execution failed. Companion checks were not attempted.'
         exit 1
     }
-    $companion = $guestHome.TrimEnd('/') + '/.config/.warpai/wsl/bin/warpai-wsl-companion'
+    $companion = $guestHome.TrimEnd('/') + '/.config/warpai/wsl/bin/warpai-wsl-companion'
     $file = Invoke-Probe 'Installed Companion file' ($guest + @('/bin/ls', '-l', '--', $companion))
     if ($file.Exit -ne 0) {
         Write-Report 'STOP: Companion file is unavailable; installed-service verification cannot run in this state.'

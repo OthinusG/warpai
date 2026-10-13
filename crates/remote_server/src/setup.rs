@@ -112,7 +112,7 @@ pub fn parse_uname_output(output: &str) -> Result<RemotePlatform> {
 
 /// Returns the user-owned remote service directory inside the Warpai root.
 pub fn remote_server_dir() -> String {
-    "~/.config/.warpai/remote-server".to_owned()
+    "~/.config/warpai/remote-server".to_owned()
 }
 
 /// Returns the binary name, keyed by channel.

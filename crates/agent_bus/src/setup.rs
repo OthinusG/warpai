@@ -724,7 +724,13 @@ pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) 
         let text = read_text(path)?;
         let parsed: toml::Value = toml::from_str(&text)?;
         if let Some(existing) = parsed.get("mcp_servers").and_then(|servers| servers.get(SERVER)) {
-            ensure!(owned && serde_json::to_value(existing)? == *value,
+            let existing = serde_json::to_value(existing)?;
+            let mut former = value.clone();
+            if let Some(home) = installed.bridge.to_str().and_then(|bridge|
+                bridge.strip_suffix("/.config/warpai/wsl/bin/warpai-wsl-companion")) {
+                former["command"] = json!(format!("{home}/.config/.warpai/wsl/bin/warpai-wsl-companion"));
+            }
+            ensure!(owned && (existing == *value || existing == former),
                 "Communication configuration was changed or belongs to the user; preserved");
         }
         let mut document = text.parse::<toml_edit::DocumentMut>()?;
@@ -1661,13 +1667,38 @@ mod guest_tests {
     use super::*;
 
     #[test]
+    fn guest_root_migration_updates_only_the_exact_owned_mcp_entry() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.toml");
+        let old = "/home/guest/.config/.warpai/wsl/bin/warpai-wsl-companion";
+        let bridge = "/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion";
+        let original = format!("# User settings\n[mcp_servers.{SERVER}]\ncommand = '{old}'\nargs = ['mcp', 'grok']\n[mcp_servers.user_tool]\ncommand = 'user-tool'\n");
+        std::fs::write(&path, &original).unwrap();
+        let installed = Installed { active:true, program:"grok".into(), executable:"/bin/sh".into(),
+            adapter:Adapter::Toml { path:path.clone(), value:json!({"command":bridge,"args":["mcp","grok"]}) },
+            bridge:bridge.into(), search_paths:vec![], launch_options:Default::default() };
+        assert!(configure_guest(&installed, true, false).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+        configure_guest(&installed, true, true).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let value: toml::Value = toml::from_str(&text).unwrap();
+        assert_eq!(value["mcp_servers"][SERVER]["command"].as_str(), Some(bridge));
+        assert_eq!(value["mcp_servers"]["user_tool"]["command"].as_str(), Some("user-tool"));
+        assert!(text.contains("# User settings"));
+        std::fs::write(&path, original.replace("'grok'", "'user-edited'")).unwrap();
+        let changed = std::fs::read_to_string(&path).unwrap();
+        assert!(configure_guest(&installed, true, true).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), changed);
+    }
+
+    #[test]
     fn guest_codex_configuration_is_persistent_scoped_and_reversible() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("config.toml");
         let original = "# User settings\nmodel = \"fixture\"\n[mcp_servers.user_tool]\ncommand = \"user-tool\"\n";
         std::fs::write(&path, original).unwrap();
         let installed = Installed { active:true, program:"codex".into(), executable:"/bin/sh".into(),
-            adapter:Adapter::Codex(path.clone()), bridge:"/home/guest/.config/.warpai/wsl/bin/warpai-wsl-companion".into(),
+            adapter:Adapter::Codex(path.clone()), bridge:"/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion".into(),
             search_paths:vec![], launch_options:Default::default() };
         configure_guest(&installed, true, false).unwrap();
         let bytes = std::fs::read_to_string(&path).unwrap();

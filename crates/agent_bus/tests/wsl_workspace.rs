@@ -19,7 +19,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert!(!snapshot.entries.is_empty());
     let mut other_profile = profile.clone();
     other_profile.remote_root = "/home/warpai-other/project".into();
-    other_profile.companion_path = "/home/warpai-other/.config/.warpai/wsl/bin/warpai-wsl-companion".into();
+    other_profile.companion_path = "/home/warpai-other/.config/warpai/wsl/bin/warpai-wsl-companion".into();
     let mut other_account = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
     let original_account = connection.connect(&profile).await.unwrap();
     assert_ne!(other_account.account_id, original_account.account_id);
