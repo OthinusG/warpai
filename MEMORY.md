@@ -27,7 +27,7 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 - 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
   38323390269 passed. Release packaging: 38333613421. See specs/RELEASE.md.
   Main integrated; maintenance branch milestone/1.6.3; merged milestone/1.6.2
-  removed. Preserve terminal compatibility, pinned dependencies and repository.
+  removed. Preserve terminal compatibility, pinned dependencies and repo.
 
 ## Project, worktree and Agent ownership
 

@@ -24,6 +24,16 @@ Owner authorization 2026-10-13: check cloud results every 30 minutes, finish all
    and public links, then update website download/dependency notes and delivery
    receipts. No personal installation or local Rust compilation.
 
+Acceptance receipt: immutable v1.6.3 source 67057c0a2de9de96ec1d781661551a07d437215a.
+Run 38323386419 passed both desktop protocol, build and native UI gates, including
+real Windows WSL installation/reinstallation/uninstallation with SSH isolation.
+Run 38323390269 passed all three Companion platform gates. Capture diagnostics
+reported exit 0: macOS 981 PNGs (327 per language), Windows 1005 (335 per language),
+covering English, Simplified Chinese and Traditional Chinese. Formal packaging
+started in run 38333613421; publication and website receipts remain pending.
+Main includes the accepted source. Maintenance branch is milestone/1.6.3; the
+merged milestone/1.6.2 and former centipede-tepui remote names were removed.
+
 ## 1.6.0 delivery contract
 
 Owner authorization 2026-10-11: after acceptance passes, trigger both desktop
