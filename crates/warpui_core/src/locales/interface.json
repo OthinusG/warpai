@@ -1,4 +1,5 @@
 {
+  "Peer work received. It will start when this agent is ready.": ["已收到 Agent 消息，将在当前 Agent 就绪后开始处理。", "已收到 Agent 訊息，將在目前 Agent 就緒後開始處理。"],
   "Git is unavailable in this environment. Install Git, then restart Warpai to use Worktree collaboration and Git operations.": ["当前环境无法运行 Git。请安装 Git 后重启 Warpai，以使用工作树协作和 Git 操作。", "目前環境無法執行 Git。請安裝 Git 後重新啟動 Warpai，以使用工作樹協作和 Git 操作。"],
   "Hide": ["隐藏", "隱藏"],
   "Removing guest MCP configuration…": ["正在清理 WSL 中的 MCP 配置…", "正在清理 WSL 中的 MCP 設定…"],

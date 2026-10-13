@@ -535,7 +535,7 @@ impl AgentCommunication {
                         if let Some(view) = view.upgrade(ctx) {
                             view.update(ctx, |_, ctx| {
                                 ctx.emit(crate::terminal::view::Event::ShowToast {
-                                    message: "Peer work received. It will start when this agent is ready; drafts and permission requests are preserved.".into(),
+                                    message: warpui::localization::text("Peer work received. It will start when this agent is ready.").into(),
                                     flavor: crate::view_components::ToastFlavor::Default,
                                 });
                             });
