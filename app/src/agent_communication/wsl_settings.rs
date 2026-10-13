@@ -708,10 +708,16 @@ mod tests {
             assert!(progress.phases.contains(&"Verifying the installed Companion…"));
         }
         install_companion(&target).await.unwrap();
+        let mut agent_fixture = wsl_command(&target).unwrap();
+        assert!(agent_fixture.args(["--exec", "sh", "-c",
+            "set -eu; mkdir -p \"$HOME/.local/bin\"; printf '#!/bin/sh\\necho owned-fixture-help\\n' > \"$HOME/.local/bin/warpai-fixture\"; chmod 700 \"$HOME/.local/bin/warpai-fixture\""])
+            .status().await.unwrap().success());
         let response = guest_setup(&target, warp_agent_bus::wsl_setup::Request {
-            action: warp_agent_bus::wsl_setup::Action::Rescan, commands: vec![],
+            action: warp_agent_bus::wsl_setup::Action::Rescan,
+            commands: vec![("custom".into(), "warpai-fixture".into())],
         }).await.unwrap();
         assert_eq!(response.account, target.user);
+        assert!(response.available.iter().any(|agent| agent.command == "warpai-fixture"));
         uninstall_companion(&target, None).await.unwrap();
         uninstall_companion(&target, None).await.unwrap();
         assert!(guest_setup(&target, warp_agent_bus::wsl_setup::Request {

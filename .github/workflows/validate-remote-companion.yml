@@ -49,6 +49,9 @@ jobs:
         run: cargo test -p remote_protocol --locked
       - name: Lint shared control wire
         run: cargo clippy -p remote_protocol --all-targets --locked -- -D warnings
+      - name: Verify WSL setup and recovery with an installed Agent fixture
+        if: runner.os == 'Linux'
+        run: cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
       - name: Verify private project communication and standalone companion
         run: |
           cargo test -p warp-agent-bus --lib companion:: --locked

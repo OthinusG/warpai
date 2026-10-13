@@ -582,3 +582,41 @@ fn test_should_update() {
         });
     });
 }
+
+#[test]
+fn language_restart_is_independent_of_updates_and_can_be_cancelled() {
+    App::test((), |mut app| async move {
+        let handle = app.add_singleton_model(|_| RelaunchModel::new());
+        handle.update(&mut app, RelaunchModel::request_restart);
+        assert!(handle.read(&app, |model, _| model.relaunch_status == RelaunchStatus::RestartRequested));
+        let previous = handle.update(&mut app, RelaunchModel::cancel_relaunch);
+        assert!(previous == RelaunchStatus::RestartRequested);
+        assert!(handle.read(&app, |model, _| model.relaunch_status == RelaunchStatus::None));
+    });
+}
+
+#[test]
+fn language_restart_keeps_paths_literal_and_avoids_installer_flags() {
+    use std::{ffi::OsStr, path::Path};
+    let executable = if cfg!(windows) {
+        Path::new(r"C:\Program Files\Warpai\warpai.exe")
+    } else {
+        Path::new("/Applications/Warpai ' $HOME.app/Contents/MacOS/warpai")
+    };
+    let command = language_restart_command(executable, 12345);
+    let arguments: Vec<_> = command.get_args().collect();
+    assert!(!arguments.iter().any(|argument| *argument == OsStr::new(&warp_cli::finish_update_flag())));
+    #[cfg(target_os = "macos")]
+    {
+        assert_eq!(command.get_program(), OsStr::new("/bin/sh"));
+        assert_eq!(arguments[3], OsStr::new("12345"));
+        assert_eq!(arguments[4], OsStr::new("/Applications/Warpai ' $HOME.app"));
+        assert!(arguments[1].to_str().unwrap().contains("open -n \"$2\""));
+        assert!(!arguments[1].to_str().unwrap().contains("$HOME.app"));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        assert_eq!(command.get_program(), executable.as_os_str());
+        assert!(arguments.is_empty());
+    }
+}

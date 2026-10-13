@@ -8,17 +8,24 @@ compile_error!("The dedicated WSL Companion is a Linux guest binary");
 #[tokio::main]
 async fn main() {
     if std::env::args().nth(1).as_deref() == Some("recover-uninstall") {
-        if std::env::args_os().len() != 2 || warp_agent_bus::wsl_setup::recover_uninstall().is_err() {
+        if std::env::args_os().len() != 2
+            || !matches!(tokio::task::spawn_blocking(warp_agent_bus::wsl_setup::recover_uninstall).await, Ok(Ok(())))
+        {
             eprintln!("WSL Companion recovery did not complete; close active sessions and rescan");
             std::process::exit(1);
         }
     } else if std::env::args().nth(1).as_deref() == Some("uninstall") {
-        if std::env::args_os().len() != 2 || warp_agent_bus::wsl_setup::uninstall().is_err() {
+        if std::env::args_os().len() != 2
+            || !matches!(tokio::task::spawn_blocking(warp_agent_bus::wsl_setup::uninstall).await, Ok(Ok(())))
+        {
             eprintln!("Close active WSL Companion sessions before uninstalling");
             std::process::exit(1);
         }
     } else if std::env::args().nth(1).as_deref() == Some("setup") {
-        if std::env::args_os().len() != 2 || warp_agent_bus::wsl_setup::run().is_err() {
+        // Discovery owns a blocking runtime; keep it off the async entry thread.
+        if std::env::args_os().len() != 2
+            || !matches!(tokio::task::spawn_blocking(warp_agent_bus::wsl_setup::run).await, Ok(Ok(())))
+        {
             eprintln!("WSL MCP setup unavailable");
             std::process::exit(1);
         }

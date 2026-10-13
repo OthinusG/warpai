@@ -91,6 +91,19 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## SSH, task integrity and files
 
+- WSL 1.6.3 install failure confirmed by owner v4 diagnostics: installed binary,
+  runtime and empty scan pass; installed-Agent scan exits 101 at setup.rs:136.
+  WSL setup/recovery must run on spawn_blocking; empty scans miss this fault.
+  SSH control/MCP/broker routes already use blocking workers; audit in FIXES-1.6.4.md.
+- Language restart uses ordinary relaunch with cancellation, not updater installation.
+  macOS waits for old PID exit and quotes paths through positional arguments;
+  Windows reuses the command wrapper's parent-job isolation.
+- Owner correction 2026-10-13: diagnose reported installation failures from
+  actual failed-stage exit/stderr before production fixes; do not infer missing
+  files or a runtime panic from an unsuccessful diagnostic launcher.
+  Diagnostic launcher: script/diagnose-wsl-companion.bat + .ps1. Confirm direct
+  Linux account/HOME first; redact credentials and setup configuration JSON,
+  preserve ordinary stderr, and reproduce the actual application command.
 - WSL uses its separate Windows-bundled guest binary and confirmed WSL 2 accounts;
   retain distro/user-scoped setup. Contract: specs/wsl-1.6.0/TECH.md.
   Plain interactive WSL launches default to native terminal integration, respecting

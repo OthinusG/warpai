@@ -995,7 +995,20 @@ pub fn spawn_child_if_necessary(app: &mut AppContext) {
     // user restarts normally, the update won't be applied. However, finalize_update is async and
     // we don't necessarily want to block termination on it.
 
-    if status == RelaunchStatus::Requested {
+    if matches!(status, RelaunchStatus::Requested | RelaunchStatus::RestartRequested) {
+        if status == RelaunchStatus::RestartRequested {
+            let result = std::env::current_exe()
+                .map(|executable| language_restart_command(&executable, std::process::id()))
+                .and_then(|mut command| command.spawn());
+            if let Err(error) = result {
+                log::error!("Could not restart Warpai: {error}");
+                relaunch_handle.update(app, |model, ctx| {
+                    model.relaunch_status = RelaunchStatus::Failed;
+                    ctx.notify();
+                });
+            }
+            return;
+        }
         cfg_if::cfg_if! {
             if #[cfg(target_os = "macos")] {
                 let relaunch_status = mac::relaunch();
@@ -1018,6 +1031,29 @@ pub fn spawn_child_if_necessary(app: &mut AppContext) {
                 });
             }
         }
+    }
+}
+
+/// Ordinary restart never depends on an updater installer or an update-completion flag.
+fn language_restart_command(executable: &std::path::Path, pid: u32) -> command::blocking::Command {
+    #[cfg(target_os = "macos")]
+    {
+        let bundle = executable.ancestors().find(|path| path.extension().is_some_and(|extension| extension == "app"));
+        let script = if bundle.is_some() {
+            "while /bin/kill -0 \"$1\" 2>/dev/null; do /bin/sleep 0.2; done; exec /usr/bin/open -n \"$2\""
+        } else {
+            "while /bin/kill -0 \"$1\" 2>/dev/null; do /bin/sleep 0.2; done; exec \"$2\""
+        };
+        let mut command = command::blocking::Command::new("/bin/sh");
+        command.args(["-c", script, "warpai-language-restart", &pid.to_string()]);
+        command.arg(bundle.unwrap_or(executable));
+        command
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = pid;
+        // The existing command wrapper lets the new Windows process survive parent shutdown.
+        command::blocking::Command::new(executable)
     }
 }
 
@@ -1068,6 +1104,7 @@ pub enum RelaunchStatus {
     #[default]
     None,
     Requested,
+    RestartRequested,
     Failed,
 }
 
@@ -1087,6 +1124,11 @@ impl RelaunchModel {
     /// or quit the app normally.
     pub(crate) fn request_relaunch(&mut self, ctx: &mut ModelContext<Self>) {
         self.relaunch_status = RelaunchStatus::Requested;
+        ctx.notify();
+    }
+
+    pub(crate) fn request_restart(&mut self, ctx: &mut ModelContext<Self>) {
+        self.relaunch_status = RelaunchStatus::RestartRequested;
         ctx.notify();
     }
 

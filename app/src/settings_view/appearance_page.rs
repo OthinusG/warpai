@@ -576,7 +576,7 @@ impl TypedActionView for AppearanceSettingsPageView {
             }
             RestartForLanguage => {
                 crate::autoupdate::RelaunchModel::handle(ctx)
-                    .update(ctx, crate::autoupdate::RelaunchModel::request_relaunch);
+                    .update(ctx, crate::autoupdate::RelaunchModel::request_restart);
                 ctx.terminate_app(warpui::platform::TerminationMode::Cancellable, None);
             }
             SetFontFamily(name) => self.set_font_family(name, ctx),
