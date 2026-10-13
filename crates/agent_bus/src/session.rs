@@ -695,8 +695,10 @@ mod tests {
             }
             tokio::time::sleep(Duration::from_millis(850)).await;
             let wakes = server.broker.wakeups();
-            assert_eq!(wakes.len(), 1);
-            assert_eq!(wakes[0].terminal, panes[0].3);
+            assert_eq!(wakes.len(), panes.len(), "Native drafts do not exclude idle panes");
+            for pane in &panes {
+                assert!(wakes.iter().any(|wake| wake.terminal == pane.3));
+            }
             let busy = panes[0].1.clone();
             tokio::task::spawn_blocking(move || busy.native_activity(false).unwrap())
                 .await
@@ -714,7 +716,7 @@ mod tests {
                 .contains("\\\"ready\\\":false"));
             assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 35);
             assert!(
-                server.broker.wakeups().is_empty(),
+                server.broker.wakeups().iter().all(|wake| wake.terminal != panes[0].3),
                 "Rediscovery cannot replay an old idle notification"
             );
             for (_relay, bridge, client, terminal) in panes {
