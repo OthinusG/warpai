@@ -6,7 +6,7 @@
 mod manifest;
 mod observation;
 mod region;
-pub use observation::activity;
+pub use observation::{activity, activity_at_cursor};
 
 use std::collections::HashMap;
 use std::sync::OnceLock;

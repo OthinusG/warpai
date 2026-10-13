@@ -743,7 +743,10 @@ pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) 
         if enable {
             let entry = toml::Value::try_from(json!({"mcp_servers": {SERVER:value}}))?;
             let entry = toml::to_string(&entry)?.parse::<toml_edit::DocumentMut>()?;
-            servers.insert(SERVER, entry["mcp_servers"][SERVER].clone());
+            let decor = servers.get(SERVER).and_then(toml_edit::Item::as_table).map(|table| table.decor().clone());
+            let mut replacement = entry["mcp_servers"][SERVER].clone();
+            if let (Some(decor), Some(table)) = (decor, replacement.as_table_mut()) { *table.decor_mut() = decor; }
+            servers.insert(SERVER, replacement);
         } else { servers.remove(SERVER); }
         return atomic_write(path, document.to_string().as_bytes());
     }

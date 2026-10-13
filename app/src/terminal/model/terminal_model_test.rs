@@ -17,6 +17,20 @@ use warp_terminal::model::ansi::ClearMode;
 use warpui::text::str_to_byte_vec;
 use warpui::text::SelectionType;
 
+#[test]
+fn native_agent_screen_keeps_cursor_rows_for_multiline_drafts_and_hides_invisible_cursor() {
+    let mut terminal = TerminalModel::mock(None, None);
+    terminal.process_bytes("\x1b[?1049h\x1b[?25h\x1b[HOpenAI Codex\r\n\u{203a} first line\r\n  second line\r\n\r\ngpt-5.6 · ~/project\x1b[3;8H");
+    let (screen, cursor) = terminal.agent_screen();
+    assert_eq!(cursor, Some(2));
+    assert!(screen.lines().nth(1).unwrap().starts_with('›'));
+    assert!(screen.lines().nth(2).unwrap().contains("second line"));
+    assert_eq!(warp_agent_bus::screen_detection::activity_at_cursor("codex", &screen, "",
+        std::time::Duration::from_secs(2), cursor), Some(warp_agent_bus::readiness::Activity::Idle));
+    terminal.process_bytes("\x1b[?25l");
+    assert_eq!(terminal.agent_screen().1, None);
+}
+
 /// Helper function to create a SerializedBlock with default values,
 /// including the new is_local field.
 fn create_default_serialized_block() -> SerializedBlock {

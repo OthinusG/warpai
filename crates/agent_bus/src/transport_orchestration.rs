@@ -329,6 +329,71 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn every_agent_dispatches_idle_drafts_once_and_fences_cancelled_or_changed_runs() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("draft-transitions.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let programs = include_str!("../../../app/src/terminal/cli_agent.rs").lines()
+            .filter_map(|line| line.trim().strip_prefix("CLIAgent::"))
+            .filter(|line| line.contains("=> &[\""))
+            .filter_map(|line| line.split('"').nth(1));
+        for program in programs.chain(std::iter::once("custom")) {
+            for draft in [b"unsent draft".as_slice(), "几个字 👩‍🔬".as_bytes(),
+                b"\x1b[200~first\nsecond\x1b[201~", b"\x1b[A", b"/status\r"] {
+                let terminal = id();
+                let capability = broker.prepare(&terminal).unwrap();
+                broker.activate_project(&terminal, program, root.to_str().unwrap(), false).unwrap();
+                let mut worker = Request { protocol_major:PROTOCOL_MAJOR, terminal:terminal.clone(), capability,
+                    run:None, directory:Some(root.to_str().unwrap().into()), defer_initial_ready:true, native_activity:None,
+                    operation:Operation::AgentRegister { name:format!("worker-{}", id()) } };
+                let actor = call(broker, &worker, worker.operation.clone()).unwrap();
+                worker.run = actor["run"].as_str().map(str::to_owned);
+                broker.input_bytes(&terminal, draft);
+                let age = || {
+                    let mut state = broker.store().unwrap();
+                    let live = state.terminals.get_mut(&terminal).unwrap().live.as_mut().unwrap();
+                    live.last_input = Instant::now() - Duration::from_secs(2);
+                    live.last_output = live.last_input;
+                    live.observed = live.last_input;
+                    live.ready = Some(live.last_input);
+                };
+                age();
+                assert!(broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle));
+                age();
+                let task = call(broker, &issuer, assign(actor["agent"]["name"].as_str().unwrap())).unwrap();
+                let wake = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+                assert!(broker.claim_wake(&wake), "{program}: native draft is not execution");
+                assert!(!broker.claim_wake(&wake), "one claim per message");
+                assert!(broker.wake_valid(&wake));
+                let expected_discard = draft != b"/status\r";
+                assert_eq!(broker.discard_native_draft(&wake), expected_discard);
+                assert!(broker.wake_valid(&wake), "owner-authorized clearing preserves the claim");
+                broker.input_bytes(&terminal, b"changed during delayed Enter");
+                assert!(!broker.wake_valid(&wake), "new input fences delayed submission");
+                broker.input_bytes(&terminal, b"\x03");
+                age();
+                broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle);
+                assert!(broker.wakeups().iter().all(|wake| wake.terminal != terminal), "cancel does not auto-retry");
+                broker.input_bytes(&terminal, b"resumed\r");
+                age();
+                broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle);
+                age();
+                let retry = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+                assert_eq!(retry.message_id, wake.message_id, "retry retains the original task message");
+                assert!(broker.claim_wake(&retry));
+                broker.finish_wake(&retry, true);
+                let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+                assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["id"] == retry.message_id
+                    && message["task_id"] == task["id"]), "PTY submit cannot acknowledge MCP work");
+                broker.end(&terminal);
+                assert!(!broker.wake_valid(&retry));
+            }
+        }
+    }
+
+    #[test]
     fn screen_permission_observation_notifies_task_issuer_once() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

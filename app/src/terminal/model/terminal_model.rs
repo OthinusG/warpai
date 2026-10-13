@@ -1893,15 +1893,19 @@ impl TerminalModel {
     }
 
     /// Bounded current chrome for lifecycle detection; never expose unobfuscated secrets.
-    pub(crate) fn agent_screen(&self) -> String {
+    pub(crate) fn agent_screen(&self) -> (String, Option<usize>) {
         use super::grid::{Dimensions, RespectDisplayedOutput};
         let grid = if self.alt_screen_active { self.alt_screen.grid_handler() }
             else { self.block_list.active_block().grid_handler() };
         let rows = grid.total_rows();
         let columns = grid.columns();
-        if rows == 0 || columns == 0 || columns > 4096 { return String::new(); }
-        grid.bounds_to_string(Point::new(rows.saturating_sub(60), 0), Point::new(rows - 1, columns - 1),
-            false, RespectObfuscatedSecrets::Yes, true, RespectDisplayedOutput::No)
+        if rows == 0 || columns == 0 || columns > 4096 { return (String::new(), None); }
+        let start = rows.saturating_sub(60);
+        // Physical rows keep cursor evidence aligned even for wrapped multiline drafts.
+        let screen = (start..rows).map(|row| grid.bounds_to_string(Point::new(row, 0), Point::new(row, columns - 1),
+            false, RespectObfuscatedSecrets::Yes, true, RespectDisplayedOutput::No)).collect::<Vec<_>>().join("\n");
+        let cursor = grid.cursor_point().row;
+        (screen, (grid.is_mode_set(TermMode::SHOW_CURSOR) && cursor >= start && cursor < rows).then_some(cursor.saturating_sub(start)))
     }
 
     pub fn raw_grid_for_ref_tests(&self) -> &GridHandler {

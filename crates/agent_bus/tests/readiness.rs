@@ -750,7 +750,7 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         for _ in 0..3 {
             assert!(server.broker.observe_screen(&terminal, &server.broker.screen_context(&terminal).unwrap(), Activity::WaitingApproval));
         }
-        assert!(server.broker.pending_work().iter().any(|work| work.terminal == "issuer" && work.task_id.as_deref() == Some(task_id)));
+        assert!(server.broker.pending_work().iter().any(|work| work.terminal == "issuer" && serde_json::to_value(work).unwrap()["task_id"] == task_id));
         assert!(server.broker.wakeups().iter().all(|wake| wake.terminal != "issuer"), "busy issuer keeps queued MCP work");
         let inbox = tool!(issuer, "warp_agent_inbox", json!({}));
         let observations: Vec<_> = inbox["messages"].as_array().unwrap().iter()
@@ -763,7 +763,7 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         tool!(issuer, "warp_agent_ack", json!({"message_id":notice}));
         let inbox = tool!(issuer, "warp_agent_inbox", json!({}));
         assert!(inbox["messages"].as_array().unwrap().iter().all(|message| message["id"] != notice));
-        assert!(server.broker.pending_work().iter().all(|work| work.terminal != "issuer" || work.task_id.as_deref() != Some(task_id)));
+        assert!(server.broker.pending_work().iter().all(|work| work.terminal != "issuer" || serde_json::to_value(work).unwrap()["task_id"] != task_id));
         tool!(worker, "warp_task_fail", json!({"task_id":task_id,"revision":1,
             "reason":"Fixture stopped without granting permission", "request_id":Uuid::new_v4().to_string()}));
         worker.cancel().await.unwrap();

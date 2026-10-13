@@ -330,3 +330,28 @@ Rust/cloud desktop and remote acceptance must use the final corrected source.
 Source-consumer audit: the retained SDK driver explicitly ignores native activity
 events in its exhaustive match; these cannot stop a legacy harness or claim a
 legacy task completion. Workspace redraw already consumes SessionUpdated.
+
+### Expanded lifecycle/dispatch acceptance (owner 2026-10-14)
+
+Separate native editor state, agent activity, MCP delivery and durable task state.
+An unsent native draft must not block an otherwise idle run with no executing
+attempt; clear only during a claimed fenced peer delivery. Preserve app-owned
+rich drafts and attachments. Command text never proves completion: `/status`
+may run during a live Codex turn (upstream rust-v0.161.0 slash_command.rs).
+
+Acceptance matrix: startup -> idle; idle with ASCII/Unicode/multiline/history
+native draft -> one fenced task wake; idle /status,/help,/mcp,/model -> menu hold
+or idle when dismissed; working /status -> working; error/warning/quota notice ->
+blocked while interactive, idle once actual composer returns; approval -> hold ->
+working/idle; cancel -> no automatic wake until resumed user input; task assign ->
+start -> submit -> review/retry/cancel with unchanged IDs/revisions; delayed Enter
+must reject changed input, run, permission or disconnected transport. Repeated
+screens must preserve a claim and not duplicate MCP notices. Task failure and
+idle do not silently mark successful completion or release unfinished ownership.
+
+Research references are pinned in docs/AGENT-STATUS-SOURCES.md. Orca distinguishes
+its empty paste-ready composer from cursor-backed typed drafts; this product's
+owner-authorized clear-before-delivery contract requires both shapes. Adopt its
+cursor/frame evidence rather than classify arbitrary prompt-like text as idle.
+Verify pure detector sequences, Broker leases/tasks, real MCP and native UI/WSL
+on source-matched cloud runners. Credentials are not used by the fixtures.

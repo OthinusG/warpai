@@ -37,3 +37,19 @@ busy/permission evidence. Quiet alone is insufficient. Disabling native animatio
 status/title updates or changing vendor chrome can remove observable evidence;
 verify representative CLI versions before claiming live acceptance. The project
 never rewrites personal vendor configuration or installs wrappers to obtain it.
+
+## Draft and command transition follow-up
+
+Orca's `terminal-composer-draft.ts` at the same pinned revision binds drafts to
+visible cursor, prompt and footer/frame evidence. Its paste-ready predicate
+intentionally excludes drafts. Warpai instead follows the owner's authorized
+clear-before-peer-delivery contract: a cursor-backed composer containing text
+can be idle. Strip only that verified composer region from activity matching so
+words typed by the user cannot masquerade as approvals or work. Physical grid
+rows keep multiline drafts aligned with the cursor; no text crosses WSL IPC.
+
+Codex rust-v0.161.0 `slash_command.rs` permits `/status`, `/warnings`, `/mcp` and
+other commands during an active turn. Command text therefore cannot grant idle.
+Tests cover return-to-composer, live interrupt/spinner, palettes/approval menus,
+Unicode/history/multiline drafts, claimed delivery, changed input, cancellation,
+resumption, duplicate claims and unchanged MCP task/message receipts.

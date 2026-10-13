@@ -261,8 +261,9 @@ impl TerminalView {
         let epoch = self.wsl_peer.epoch;
         let screen_activity = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).and_then(|session| {
             let quiet = self.wsl_peer.output?.elapsed().min(self.wsl_peer.input?.elapsed());
-            warp_agent_bus::screen_detection::activity(session.agent.command_prefix(),
-                &self.model.lock().agent_screen(), &self.terminal_title, quiet)
+            let (screen, cursor) = self.model.lock().agent_screen();
+            warp_agent_bus::screen_detection::activity_at_cursor(session.agent.command_prefix(),
+                &screen, &self.terminal_title, quiet, cursor)
         });
         let action = NativeAction::Observe {
             // The host owns clearing; older guest services still block when this flag is true.

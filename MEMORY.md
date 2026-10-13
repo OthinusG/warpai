@@ -123,18 +123,14 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Composer drafts/attachments stay in memory; owner authorized clearing native PTY
   drafts before peer submission on 2026-10-13. Startup retains MCP idle evidence;
   sidebar lifecycle projections never manufacture completion notifications.
-- Same-path replacement repositories need fresh admission with old history/capabilities
-  isolated; same-repository checkout replacement requires explicit rejoin. b16ec81e
-  passed both desktop protocol suites (38390412725).
-- Owner requires mature open-source lifecycle detection for all managed Agents.
-  Codex opaque OSC 9 cannot prove completion; never infer idle from warnings or
-  silence. Welcome-only startup and always-working Codex need native observation;
-  vendor runtime acceptance remains pending.
+- Replacement repositories need fresh admission; isolate old history/capabilities.
+  Same-repository checkout replacement requires rejoin; receipt: FIXES-1.6.4.md.
+- Codex opaque OSC 9, warnings and silence cannot prove completion. Native
+  observations cover all managed Agents; vendor runtime acceptance stays pending.
 - Main 502b928a skips test handoffs to nonexistent release tags.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
-- Wake polls until idle; input/cancel/run replacement fences Enter. Cancel pauses
-  wake until resumed input; closing invalidates its run. Evidence is not authority.
+- Input/cancel/run replacement fences Enter; closing invalidates its run.
 - Back up schema migrations consistently; no downgrade or automatic legacy
   identity migration. Preserve read-only legacy metadata, uncertainty and receipts.
   macOS sockets require short private /tmp paths; Windows uses bounded asynchronous
@@ -175,8 +171,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   data; Windows installers must not reuse the former registered directory.
 - WSL path mapping excludes Windows Agents. Verified rescans clear cached failures.
 - MCP task observations, sidebar attention and keep awake share native activity;
-  UI focus never acknowledges MCP work. Retained cloud task reporting is disabled
-  for local-only sessions. Source-matched acceptance remains pending.
+  UI focus never acknowledges MCP work; local-only cloud reporting is disabled.
+- Owner requires cursor-backed native draft/slash-command transition tests and
+  structured task bodies plus reusable versioned context resources, shared by
+  local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
+  See FIXES-1.6.4.md; final source-matched acceptance remains pending.
 
 ## Memory maintenance
 

@@ -518,9 +518,9 @@ impl AgentCommunication {
                     if let Some(view) = view.upgrade(ctx) {
                         let observed = broker.screen_context(terminal).and_then(|context| {
                             let native = view.as_ref(ctx);
-                            let screen = native.model.lock().agent_screen();
+                            let (screen, cursor) = native.model.lock().agent_screen();
                             let title = native.terminal_title_text();
-                            let activity = warp_agent_bus::screen_detection::activity(&context.program, &screen, &title, context.quiet())?;
+                            let activity = warp_agent_bus::screen_detection::activity_at_cursor(&context.program, &screen, &title, context.quiet(), cursor)?;
                             broker.observe_screen(terminal, &context, activity).then_some(activity)
                         });
                         if let Some(activity) = broker.terminal_activity(terminal) {

@@ -6,6 +6,11 @@ use std::{sync::OnceLock, time::Duration};
 
 /// Unknown chrome is not evidence of completion. Text is never retained or logged.
 pub fn activity(program: &str, screen: &str, title: &str, quiet: Duration) -> Option<Activity> {
+    activity_at_cursor(program, screen, title, quiet, None)
+}
+
+/// The visible native cursor binds typed drafts to a composer, never a quoted prompt or menu.
+pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Duration, cursor: Option<usize>) -> Option<Activity> {
     if screen.len() > 128 * 1024 || title.len() > 4096 {
         return None;
     }
@@ -17,7 +22,11 @@ pub fn activity(program: &str, screen: &str, title: &str, quiet: Duration) -> Op
         "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" => "qoder",
         other => other,
     };
-    let detection = detect(agent, screen, title, None);
+    let composer = composer_rows(agent, screen, cursor);
+    // Draft words such as "approve" or "working" are not lifecycle signals.
+    let chrome = composer.as_ref().map(|range| screen.lines().enumerate()
+        .filter(|(row, _)| !range.contains(row)).map(|(_, line)| line).collect::<Vec<_>>().join("\n"));
+    let detection = detect(agent, chrome.as_deref().unwrap_or(screen), title, None);
     let title_activity = title_state(agent, title);
     if let Some(detection) = detection {
         match detection.status {
@@ -47,8 +56,8 @@ pub fn activity(program: &str, screen: &str, title: &str, quiet: Duration) -> Op
         return None;
     }
     let ready = match agent {
-        "codex" => codex_ready(screen) || detection.is_some_and(|d| d.status == Some(Status::Idle)),
-        "antigravity" => antigravity_ready(screen),
+        "codex" => codex_ready(screen, composer.as_ref().map(|range| range.start)) || detection.is_some_and(|d| d.status == Some(Status::Idle)),
+        "antigravity" => antigravity_ready(screen) || composer.is_some(),
         "qoder" => {
             let screen = screen.to_lowercase();
             screen.contains("type your message or @path/to/file")
@@ -147,12 +156,15 @@ fn title_state(agent: &str, title: &str) -> Option<Activity> {
     })
 }
 
-fn codex_ready(screen: &str) -> bool {
+fn codex_ready(screen: &str, cursor: Option<usize>) -> bool {
     let lower = screen.to_lowercase();
     let lines: Vec<_> = lower.lines().map(str::trim).collect();
     let Some(composer) = lines
         .iter()
-        .rposition(|line| *line == "› ask codex to do anything")
+        .enumerate().rfind(|(row, line)| **line == "› ask codex to do anything"
+            || cursor == Some(*row) && line.starts_with("› ")
+                && lines.iter().skip(*row + 1).any(|line| line.starts_with("gpt-") && line.contains('·')))
+        .map(|(row, _)| row)
     else {
         return false;
     };
@@ -187,6 +199,34 @@ fn codex_ready(screen: &str) -> bool {
     }
     true
 }
+
+fn composer_rows(agent: &str, screen: &str, cursor: Option<usize>) -> Option<std::ops::Range<usize>> {
+    let cursor = cursor?;
+    let lines: Vec<_> = screen.lines().map(str::trim).collect();
+    if cursor >= lines.len() { return None; }
+    if agent == "codex" {
+        let start = lines[..=cursor].iter().rposition(|line| line.starts_with("› "))?;
+        let end = lines.iter().enumerate().skip(cursor + 1)
+            .find(|(_, line)| line.starts_with("gpt-") && line.contains('·'))?.0;
+        if lines[cursor + 1..end].iter().any(|line| {
+            let lower = line.to_lowercase();
+            lower.contains("esc to cancel") || lower.contains("enter to select") || lower.contains("enter to submit answer")
+        }) { return None; }
+        return Some(start..end);
+    }
+    if agent != "antigravity" { return None; }
+    let frame = |line: &&str| line.chars().count() >= 8 && line.chars().all(|c| c == '─');
+    let end = lines.iter().rposition(frame)?;
+    let start = lines[..end].iter().rposition(frame)?;
+    (cursor > start && cursor < end && lines.get(start + 1).is_some_and(|line| line.starts_with('>'))
+        && lines.iter().skip(end + 1).find(|line| !line.is_empty())
+            .is_some_and(|line| line.to_lowercase().starts_with("? for shortcuts")))
+        .then_some(start + 1..end)
+}
+
+#[cfg(test)]
+#[path = "observation_transition_tests.rs"]
+mod transition_tests;
 
 fn antigravity_ready(screen: &str) -> bool {
     let lines: Vec<_> = screen
