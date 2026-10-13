@@ -304,3 +304,50 @@ not schedule recurring reconnect attempts or repeat uncertain file mutations.
 Agent discovery resolves symlinks and excludes Windows drive mappings through
 native WSL path translation; imported Windows PATH entries do not authorize
 Windows Agent configuration changes from the guest.
+
+## Structured bodies and reusable context (2026-10-14)
+
+All transports share `Operation` and `context::{Instruction,ContextRef,ContextContent}`
+from `warp-agent-bus`. Native panel Send, assignment and pool creation use these
+same DTOs. Existing textual input remains accepted; typed sends use
+`content: {objective, context_refs}` and may omit `body`. Supplying both requires
+an identical objective. Do not parse task instructions from notification prose.
+
+`warp_context_publish` accepts `title`, typed `content`, optional `source_revision`
+and a UUID `request_id`. New resources omit `resource_id`/`expected_revision`;
+updates require both and retain the same kind. Content kinds:
+
+| kind | content fields |
+| --- | --- |
+| repository_index | entries: [{path, symbols, summary?}] |
+| analysis | summary, findings: [string] |
+| code_snippet | path, language, start_line, code |
+| design_decision | decision, rationale, alternatives: [string] |
+
+Publication returns a compact summary with `reference: {id, revision, sha256}`.
+Content is limited to 32 KiB; paths must be workspace-relative. Publish explicitly
+supplied snapshots only; the server does not read source files or credentials.
+`warp_context_get({reference})` returns that exact immutable version and verifies
+project authority/digest. `warp_context_list({cursor?,limit?})` returns summaries
+and a continuation cursor; it never copies the resource payloads.
+MCP resources/list and resources/read expose the same authority through
+`warpai-context://<uuid>/<revision>/<sha256>`; external/file URIs are rejected.
+
+Task assignment/pool creation accept `context_refs`, limited to 16 unique
+references. Retry/reassignment retains pins; updating the resource head never
+changes existing work. A refreshed snapshot requires an explicit new assignment.
+Ordinary typed messages expose a body object:
+`{type:"instruction",schema_version:1,instruction:{objective,context_refs}}`.
+Task-linked notifications expose
+`{type:"task",schema_version:1,event,task_id,revision,objective,acceptance,context_refs,
+details:{instruction,state,result,evidence_ids}}`. Coordinator forwards retain
+the typed task snapshot without transferring task ownership. Legacy string bodies
+stay readable in inbox/history. PTY wake messages contain only notification IDs,
+not full resource content. Reading context never acknowledges or starts a task.
+
+SSH/WSL advertise `context_resources` and `structured_task_messages`; unsupported
+Companions reject typed/reference-bearing sends before transmission. No fallback
+copies resources into text. Panel projections carry compact resource summaries
+and `context_cursor`; native selectors show titles/kinds/revisions and pin the
+original selection while retrying the same request UUID. Local/remote stores
+remain independent per host/account/project, including matching repository URLs.

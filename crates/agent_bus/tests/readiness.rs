@@ -733,6 +733,10 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
     }
     let issuer = ().serve(spawn("issuer", "codex")).await.unwrap();
     issuer.list_tools(None).await.unwrap();
+    let published = tool!(issuer, "warp_context_publish", json!({"title":"Shared contract analysis",
+        "content":{"kind":"analysis","summary":"Reusable fixture context","findings":["Project authority is required"]},
+        "request_id":Uuid::new_v4().to_string()}));
+    let reference = published["reference"].clone();
     for (index, program) in programs().into_iter().enumerate() {
         let terminal = format!("supervised-{index}");
         let worker = ().serve(spawn(&terminal, program)).await.unwrap();
@@ -742,10 +746,16 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         server.broker.input_bytes("issuer", b"\r");
         let task = tool!(issuer, "warp_task_assign", json!({"to":peer["id"],
             "description":"Inspect the scoped contract", "acceptance":"Report verified outcome",
-            "request_id":Uuid::new_v4().to_string()}));
+            "context_refs":[reference.clone()], "request_id":Uuid::new_v4().to_string()}));
         let task_id = task["id"].as_str().unwrap();
         let assignment = tool!(worker, "warp_agent_inbox", json!({}));
         assert!(assignment["messages"].as_array().unwrap().iter().any(|message| message["task_id"] == task_id && message["kind"] == "assignment"));
+        let resource = tool!(worker, "warp_context_get", json!({"reference":reference.clone()}));
+        assert_eq!(resource["content"]["summary"], "Reusable fixture context", "{program}");
+        let assignment_body = &assignment["messages"][0]["body"];
+        assert_eq!(assignment_body["type"], "task");
+        assert_eq!(assignment_body["context_refs"][0], reference);
+        assert!(!assignment_body.to_string().contains("Reusable fixture context"));
         tool!(worker, "warp_task_start", json!({"task_id":task_id,"revision":1,"request_id":Uuid::new_v4().to_string()}));
         for _ in 0..3 {
             assert!(server.broker.observe_screen(&terminal, &server.broker.screen_context(&terminal).unwrap(), Activity::WaitingApproval));
@@ -766,6 +776,10 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         assert!(server.broker.pending_work().iter().all(|work| work.terminal != "issuer" || serde_json::to_value(work).unwrap()["task_id"] != task_id));
         tool!(worker, "warp_task_fail", json!({"task_id":task_id,"revision":1,
             "reason":"Fixture stopped without granting permission", "request_id":Uuid::new_v4().to_string()}));
+        let inbox = tool!(issuer, "warp_agent_inbox", json!({}));
+        for message in inbox["messages"].as_array().unwrap() {
+            tool!(issuer, "warp_agent_ack", json!({"message_id":message["id"]}));
+        }
         worker.cancel().await.unwrap();
         server.broker.end(&terminal);
     }

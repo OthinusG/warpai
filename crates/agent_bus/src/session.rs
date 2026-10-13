@@ -660,7 +660,7 @@ mod tests {
                     .find(|peer| peer.terminal == terminal)
                     .unwrap();
                 let mut send = issuer.clone();
-                send.operation = Operation::AgentSend { expects_result: false,
+                send.operation = Operation::AgentSend { content: None, expects_result: false,
                     to: peer.name,
                     body: terminal.clone(),
                     subject: None,

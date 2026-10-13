@@ -164,6 +164,8 @@ pub struct PanelQuery {
     pub terminal: Option<String>,
     pub agent_after: Option<String>,
     pub task_after: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_after: Option<u64>,
     pub selected_task: Option<String>,
     pub event_after: Option<u64>,
     pub wait: bool,
@@ -1641,6 +1643,7 @@ impl Broker {
             Some(json!({"capacity": state.store.capacity(&project)?, "preview": preview,
                 "records": page["records"], "cursor": page["cursor"]}))
         } else { None };
+        let contexts = state.store.execute(&Store::operator(&project), crate::storage::OPERATOR_EPOCH, &Operation::ContextList { cursor: same_scope.then_some(query.context_after).flatten(), limit: Some(50) })?;
         let roles = state.store.worktree_roles(&project)?;
         let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
         let worktree_mode = state.store.worktree_mode(&project)?;
@@ -1652,6 +1655,7 @@ impl Broker {
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,
             "worktree_available": Path::new(&query.project).join(".git").exists(),
+            "resources": contexts["resources"], "context_cursor": contexts["cursor"],
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "events": events["events"],
             "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))

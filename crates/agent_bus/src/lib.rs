@@ -1,5 +1,6 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod setup;
+pub mod context;
 #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
 pub mod wsl_setup;
 pub mod installation;
@@ -205,6 +206,24 @@ pub enum ReplyOutcome {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Operation {
+    ContextPublish {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resource_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        expected_revision: Option<u32>,
+        title: String,
+        content: context::ContextContent,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_revision: Option<String>,
+        request_id: String,
+    },
+    ContextGet { reference: context::ContextRef },
+    ContextList {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     TaskIntegrate {
         task_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -219,7 +238,10 @@ pub enum Operation {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         expects_result: bool,
         to: String,
+        #[serde(default)]
         body: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        content: Option<context::Instruction>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         subject: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -272,6 +294,8 @@ pub enum Operation {
         to: String,
         description: String,
         acceptance: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        context_refs: Vec<context::ContextRef>,
         reviewer: Option<String>,
         request_id: String,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -337,6 +361,8 @@ pub enum Operation {
     TaskCreatePool {
         description: String,
         acceptance: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        context_refs: Vec<context::ContextRef>,
         eligible: Vec<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reviewer: Option<String>,
@@ -535,6 +561,7 @@ impl Operation {
             | Self::TaskReassign { request_id, .. }
             | Self::TaskSetDependencies { request_id, .. }
             | Self::EvidenceAdd { request_id, .. }
+            | Self::ContextPublish { request_id, .. }
             | Self::FileReserve { request_id, .. }
             | Self::FileRenew { request_id, .. }
             | Self::FileRelease { request_id, .. } => Some(request_id),
@@ -711,6 +738,7 @@ pub struct Message {
     pub id: String,
     pub from: String,
     pub to: String,
+    #[serde(with = "context::message_body")]
     pub body: String,
     pub subject: Option<String>,
     pub thread_id: Option<String>,
@@ -720,6 +748,12 @@ pub struct Message {
     pub kind: String,
     pub acknowledged: bool,
     pub sequence: u64,
+}
+
+impl Message {
+    pub fn display_body(&self) -> String {
+        context::StructuredBody::decode(&self.body).map_or_else(|| self.body.clone(), |body| body.display())
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -744,6 +778,8 @@ pub struct Task {
     pub reviewer: String,
     pub description: String,
     pub acceptance: String,
+    #[serde(default)]
+    pub context_refs: Vec<context::ContextRef>,
     pub state: String,
     pub revision: u32,
     pub version: u64,

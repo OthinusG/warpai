@@ -307,7 +307,7 @@ impl Broker {
             target.store.execute(
                 &Store::operator(&actor.project),
                 crate::storage::OPERATOR_EPOCH,
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: actor.name.clone(),
                     body: message.into(),
                     subject: Some("Worktree role".into()),
@@ -483,7 +483,7 @@ mod tests {
             let peer = peers.as_array().unwrap().iter().find(|peer| peer["terminal"] == terminal).unwrap();
             assert_eq!(peer["activity"], "idle");
             assert_eq!(peer["readiness_source"], "native_screen");
-            call(broker, &sender, Operation::AgentSend { expects_result:false,
+            call(broker, &sender, Operation::AgentSend { content: None, expects_result:false,
                 to:actor["agent"]["name"].as_str().unwrap().into(), body:"Check".into(), subject:None,
                 thread_id:None, reply_to:None, task_id:None, request_id:id() }).unwrap();
             {
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(plain_panel["worktree_available"], false);
         assert_eq!(plain_panel["coordinator_online"], false);
         assert_eq!(plain_panel["agents"].as_array().unwrap().len(), 1);
-        assert!(call(broker, &plain_request, Operation::AgentSend { expects_result: false, to:"lead".into(),
+        assert!(call(broker, &plain_request, Operation::AgentSend { content: None, expects_result: false, to:"lead".into(),
             body:"Separate project".into(), subject:None, thread_id:None, reply_to:None,
             task_id:None, request_id:id() }).is_err());
         let unavailable = broker.operator_panel(&PanelQuery { project:plain_root,
@@ -699,7 +699,7 @@ mod tests {
                 && message["body"].as_str().unwrap().contains("18 unfinished project tasks")
                 && message["body"].as_str().unwrap().len() <= crate::MAX_TEXT));
         let mode = |worktree| broker.control(fixture.main.to_str().unwrap(), &ControllerOperation::WorktreeMode { worktree, request_id:id() }).unwrap();
-        let send = || call(broker, &lead, Operation::AgentSend { expects_result: false, to:"other".into(), body:"Check".into(),
+        let send = || call(broker, &lead, Operation::AgentSend { content: None, expects_result: false, to:"other".into(), body:"Check".into(),
             subject:None, thread_id:None, reply_to:None, task_id:None, request_id:id() });
         assert!(send().is_err());
         mode(false);
@@ -720,7 +720,7 @@ mod tests {
             attempt_id:None, expected_version:None, request_id:id() }).unwrap();
         let updates = call(broker, &other, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
         assert!(updates["messages"].as_array().unwrap().iter().any(|message|
-            message["subject"] == "Task update" && message["body"].as_str().unwrap().contains(task["id"].as_str().unwrap())));
+            message["subject"] == "Task update" && message["body"]["task_id"] == task["id"]));
         select(&worker, &worker_agent, &fixture.linked);
         broker.end(&worker.terminal);
         let (replacement, replacement_agent) = register(&fixture.linked, "worker");
@@ -747,7 +747,7 @@ mod tests {
                 run: request.run.clone().unwrap(), request_id: id(),
             }).unwrap()
         };
-        let send = |request: &Request, to: &str| call(broker, request, Operation::AgentSend { expects_result: false,
+        let send = |request: &Request, to: &str| call(broker, request, Operation::AgentSend { content: None, expects_result: false,
             to: to.into(), body: "Scope check".into(), subject: None, thread_id: None,
             reply_to: None, task_id: None, request_id: id(),
         });

@@ -18,7 +18,8 @@ async fn imported_windows_commands_are_not_guest_agents() {
             let path = directory.join(name);
             let origin = if directory == windows.path() { "host" } else { "native" };
             std::fs::write(&path, format!("#!/bin/sh\nprintf 'fixture help\\n'\n: > \"$HOME/probed-{origin}-{name}\"\n")).unwrap();
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+            // DrvFS may reject chmod; Windows shims are never executed by discovery.
+            if directory != windows.path() { std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap(); }
         }
     }
     // Both a Windows npm-style shim and a Linux install share the imported PATH.

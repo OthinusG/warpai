@@ -26,6 +26,8 @@ use uuid::Uuid;
 
 #[path = "storage_orchestration.rs"]
 mod orchestration;
+#[path = "context_storage.rs"]
+mod contexts;
 
 pub(crate) const SCHEMA_VERSION: &str = "9";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
@@ -348,6 +350,7 @@ impl Store {
                     reviewer: task.reviewer.clone(),
                     description: task.description.clone(),
                     acceptance: task.acceptance.clone(),
+                    context_refs: vec![],
                     state: task.state.clone(),
                     revision: task.revision,
                     version: 1,
@@ -690,6 +693,27 @@ impl Store {
     }
 
     fn queue(&self, project: &str, mut message: Message) -> Result<Message> {
+        if let Some(task_id) = &message.task_id {
+            use crate::context::{StructuredBody, TaskDetails};
+            let task = self.task(&Self::operator(project), task_id)?;
+            let mut references = task.context_refs.clone();
+            let instruction = match StructuredBody::decode(&message.body) {
+                Some(StructuredBody::Instruction { instruction, .. }) => {
+                    for reference in instruction.context_refs {
+                        if !references.contains(&reference) { references.push(reference); }
+                    }
+                    instruction.objective
+                }
+                Some(body) => body.display(),
+                None => message.body.clone(),
+            };
+            ensure!(references.len() <= 16, invalid_input("Too many combined context references"));
+            message.body = StructuredBody::Task { schema_version:1, event:message.kind.clone(),
+                task_id:task.id.clone(), revision:message.revision.unwrap_or(task.revision),
+                objective:task.description, acceptance:task.acceptance, context_refs:references,
+                details:TaskDetails { instruction, state:task.state, result:task.result,
+                    evidence_ids:task.evidence_records.into_iter().map(|evidence| evidence.id).collect() } }.encode()?;
+        }
         let control = !matches!(message.kind.as_str(), "message" | "request" | "assignment" | "available");
         let limit = MAX_PENDING_PER_AGENT + if control { CONTROL_MESSAGE_RESERVE } else { 0 };
         ensure!(
@@ -716,7 +740,13 @@ impl Store {
                     let mut update = message.clone();
                     update.from = Self::operator(project).id;
                     update.to = coordinator.agent;
-                    update.body = format!("Task {} · {}\n{}", message.task_id.as_deref().unwrap(), message.kind, message.body);
+                    if let Some(mut body) = crate::context::StructuredBody::decode(&update.body) {
+                        if let crate::context::StructuredBody::Task { event, details, .. } = &mut body {
+                            *event = "coordinator_update".into();
+                            details.instruction = "A project task changed. Inspect its structured task state and originating participant.".into();
+                        }
+                        update.body = body.encode()?;
+                    }
                     update.subject = Some("Task update".into());
                     update.kind = "message".into();
                     update.task_id = None;
@@ -1283,6 +1313,7 @@ impl Store {
     }
 
     fn assemble(&self, mut task: Task) -> Result<Task> {
+        task.context_refs = self.task_context_refs(&task.id)?;
         task.attempts = diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE task_id = ? ORDER BY rowid DESC LIMIT 16")
             .bind::<Text, _>(&task.id)
             .load::<AttemptRow>(&mut *self.connection.borrow_mut())?
@@ -1592,6 +1623,8 @@ impl Store {
         self.authorize_orchestration(actor, run, operation)?;
         self.sweep(&actor.project)?;
         match operation {
+            Operation::ContextGet { reference } => return Ok(json!(self.context_get(actor, reference)?)),
+            Operation::ContextList { cursor, limit } => return self.context_list(actor, *cursor, *limit),
             Operation::AgentList => {
                 let agents = self.agents(&actor.project)?.into_iter()
                     .filter_map(|peer| match self.can_communicate(actor, &peer) {
@@ -1685,7 +1718,7 @@ impl Store {
         if Uuid::parse_str(request_id).is_err() {
             return Err(invalid_input("request_id must be a UUID"));
         }
-        let control = !matches!(operation, Operation::AgentSend { .. } | Operation::TaskAssign { .. } | Operation::TaskCreatePool { .. } | Operation::FileReserve { .. } | Operation::EvidenceAdd { .. });
+        let control = !matches!(operation, Operation::AgentSend { .. } | Operation::TaskAssign { .. } | Operation::TaskCreatePool { .. } | Operation::FileReserve { .. } | Operation::EvidenceAdd { .. } | Operation::ContextPublish { .. });
         self.execute_mutation(&actor.id, run, request_id, &serialized, control, || {
             self.mutate(actor, run, operation)
         })
@@ -1865,6 +1898,8 @@ impl Store {
 
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         match operation {
+            Operation::ContextPublish { resource_id, expected_revision, title, content, source_revision, .. } =>
+                self.publish_context(actor, resource_id.as_deref(), *expected_revision, title, content, source_revision.as_deref()),
             Operation::TaskIntegrate { task_id, commit, .. } => self.integrate_task(actor, task_id, commit.as_deref()),
             Operation::AgentAsk { task_id, reply_to, question, .. } => {
                 text(question)?;
@@ -1964,6 +1999,7 @@ impl Store {
                 expects_result,
                 to,
                 body,
+                content,
                 subject,
                 thread_id,
                 reply_to,
@@ -1971,7 +2007,12 @@ impl Store {
                 ..
             } => {
                 self.budget_available()?;
-                text(body)?;
+                let body = if let Some(content) = content {
+                    text(&content.objective)?;
+                    ensure!(body.is_empty() || *body == content.objective, invalid_input("Instruction body differs from its structured objective"));
+                    self.validate_context_refs(actor, &content.context_refs)?;
+                    crate::context::StructuredBody::Instruction { schema_version:1, instruction:content.clone() }.encode()?
+                } else { text(body)?; body.clone() };
                 if let Some(subject) = subject {
                     validate_subject(subject)?;
                 }
@@ -2055,6 +2096,7 @@ impl Store {
                 to,
                 description,
                 acceptance,
+                context_refs,
                 reviewer,
                 dependencies,
                 start_deadline,
@@ -2064,6 +2106,7 @@ impl Store {
             } => {
                 text(description)?;
                 text(acceptance)?;
+                self.validate_context_refs(actor, context_refs)?;
                 self.budget_available()?;
                 ensure!(
                     self.active_task_count(&actor.project)? < MAX_ACTIVE_TASKS_PER_PROJECT,
@@ -2092,6 +2135,7 @@ impl Store {
                     reviewer: reviewer.id,
                     description: description.clone(),
                     acceptance: acceptance.clone(),
+                    context_refs: context_refs.clone(),
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -2115,6 +2159,7 @@ impl Store {
                     executing_run: None,
                 };
                 self.insert_task(&task)?;
+                self.save_task_context_refs(actor, &task.id, context_refs)?;
                 self.set_task_dependencies(&task.id, &dependencies)?;
                 let mut task = task;
                 if !self.blocking_dependencies(&task.id)?.is_empty() {
@@ -2405,6 +2450,7 @@ impl Store {
             Operation::TaskCreatePool {
                 description,
                 acceptance,
+                context_refs,
                 eligible,
                 reviewer,
                 dependencies,
@@ -2413,6 +2459,7 @@ impl Store {
                 review_timeout_seconds,
                 ..
             } => {
+                self.validate_context_refs(actor, context_refs)?;
                 text(description)?;
                 text(acceptance)?;
                 self.budget_available()?;
@@ -2454,6 +2501,7 @@ impl Store {
                     reviewer: reviewer.id,
                     description: description.clone(),
                     acceptance: acceptance.clone(),
+                    context_refs: context_refs.clone(),
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -2477,6 +2525,7 @@ impl Store {
                     executing_run: None,
                 };
                 self.insert_task(&task)?;
+                self.save_task_context_refs(actor, &task.id, context_refs)?;
                 self.set_task_eligibles(&task.id, &eligible_ids)?;
                 self.set_task_dependencies(&task.id, &dependencies)?;
                 let mut task = task;
@@ -4252,6 +4301,9 @@ impl Store {
                     .bind::<Text, _>(&task.id)
                     .execute(&mut *self.connection.borrow_mut())?;
             }
+            diesel::sql_query("DELETE FROM meta WHERE key = ?")
+                .bind::<Text, _>(format!("context/task/{}", task.id))
+                .execute(&mut *self.connection.borrow_mut())?;
             diesel::sql_query("DELETE FROM tasks WHERE id = ?")
                 .bind::<Text, _>(&task.id)
                 .execute(&mut *self.connection.borrow_mut())?;
@@ -4884,6 +4936,7 @@ impl TaskRow {
             reviewer: self.reviewer,
             description: self.description,
             acceptance: self.acceptance,
+            context_refs: vec![],
             state: self.state,
             revision: self.revision as u32,
             version: self.version as u64,
@@ -5320,7 +5373,7 @@ mod tests {
     }
 
     fn send(_from: &Agent, to: &str, body: &str, request_id: &str) -> Operation {
-        Operation::AgentSend { expects_result: false,
+        Operation::AgentSend { content: None, expects_result: false,
             to: to.into(),
             body: body.into(),
             subject: None,
@@ -5337,7 +5390,7 @@ mod tests {
         let lead = actor(&store, "lead");
         let worker = actor(&store, "worker");
         let helper = actor(&store, "helper");
-        let request = |to: &Agent| Operation::AgentSend {
+        let request = |to: &Agent| Operation::AgentSend { content: None,
             expects_result: true, to: to.id.clone(), body: "Implement the bounded change".into(),
             subject: None, thread_id: None, reply_to: None, task_id: None,
             request_id: Uuid::new_v4().to_string(),
@@ -5413,7 +5466,7 @@ mod tests {
     }
 
     fn assign(_from: &Agent, to: &str, reviewer: Option<&str>, request_id: &str) -> Operation {
-        Operation::TaskAssign {
+        Operation::TaskAssign { context_refs: vec![],
             to: to.into(),
             description: "work".into(),
             acceptance: "evidence".into(),
@@ -5906,7 +5959,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "reply".into(),
                     subject: Some("Re: root".into()),
@@ -5923,7 +5976,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "sneak".into(),
                     subject: None,
@@ -5939,7 +5992,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "hijack".into(),
                     subject: None,
@@ -5955,7 +6008,7 @@ mod tests {
             .execute(
                 &carol,
                 "run-carol",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "fresh thread".into(),
                     subject: None,
@@ -5971,7 +6024,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "wrong thread".into(),
                     subject: None,
@@ -5987,7 +6040,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "bob".into(),
                     body: "body".into(),
                     subject: Some("s".repeat(crate::MAX_SUBJECT + 1)),
@@ -6003,7 +6056,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "bob".into(),
                     body: "link".into(),
                     subject: None,
@@ -6053,7 +6106,7 @@ mod tests {
                     .execute(
                         &alice,
                         "run-alice",
-                        &Operation::TaskAssign {
+                        &Operation::TaskAssign { context_refs: vec![],
                             to: "bob".into(),
                             description: format!("task {index}"),
                             acceptance: "done".into(),
@@ -6587,7 +6640,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskAssign {
+                &Operation::TaskAssign { context_refs: vec![],
                     to: "worker".into(),
                     description: "dependent".into(),
                     acceptance: "evidence".into(),
@@ -6751,7 +6804,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskCreatePool {
+                &Operation::TaskCreatePool { context_refs: vec![],
                     description: "shared work".into(),
                     acceptance: "tests".into(),
                     eligible: vec!["worker".into(), "other".into()],
@@ -6822,7 +6875,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskCreatePool {
+                &Operation::TaskCreatePool { context_refs: vec![],
                     description: "only other".into(),
                     acceptance: "tests".into(),
                     eligible: vec!["other".into()],
@@ -6870,7 +6923,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskCreatePool {
+                &Operation::TaskCreatePool { context_refs: vec![],
                     description: "queued behind".into(),
                     acceptance: "tests".into(),
                     eligible: vec!["other".into()],
@@ -6907,7 +6960,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskAssign {
+                &Operation::TaskAssign { context_refs: vec![],
                     to: "worker".into(),
                     description: "work".into(),
                     acceptance: "evidence".into(),
@@ -6925,7 +6978,7 @@ mod tests {
             .execute(
                 &issuer,
                 "run-issuer",
-                &Operation::TaskAssign {
+                &Operation::TaskAssign { context_refs: vec![],
                     to: "worker".into(),
                     description: "work".into(),
                     acceptance: "evidence".into(),
@@ -7601,7 +7654,7 @@ mod tests {
             .execute(
                 &alice,
                 "run-alice",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "bob".into(),
                     body: "please run under_score checks".into(),
                     subject: None,
@@ -7618,7 +7671,7 @@ mod tests {
             .execute(
                 &bob,
                 "run-bob",
-                &Operation::AgentSend { expects_result: false,
+                &Operation::AgentSend { content: None, expects_result: false,
                     to: "alice".into(),
                     body: "acknowledged".into(),
                     subject: None,
@@ -7640,7 +7693,7 @@ mod tests {
                 .execute(
                     from,
                     "run-sender",
-                    &Operation::AgentSend { expects_result: false,
+                    &Operation::AgentSend { content: None, expects_result: false,
                         to: "bob".into(),
                         body: body.into(),
                         subject: None,
@@ -7814,13 +7867,13 @@ mod tests {
         let bob = actor(&store, "bob");
         let assigned = store.execute(&alice, "run-alice", &assign(&alice, "bob", None, &Uuid::new_v4().to_string())).unwrap();
         let task_id = assigned["id"].as_str().unwrap();
-        let root = store.execute(&alice, "run-alice", &Operation::AgentSend { expects_result: false,
+        let root = store.execute(&alice, "run-alice", &Operation::AgentSend { content: None, expects_result: false,
             to: "bob".into(), body: "original task context".into(), subject: None,
             thread_id: None, reply_to: None, task_id: Some(task_id.into()),
             request_id: Uuid::new_v4().to_string(),
         }).unwrap();
         let root_id = root["id"].as_str().unwrap();
-        let reply = store.execute(&bob, "run-bob", &Operation::AgentSend { expects_result: false,
+        let reply = store.execute(&bob, "run-bob", &Operation::AgentSend { content: None, expects_result: false,
             to: "alice".into(), body: "retained correction".into(), subject: None,
             thread_id: None, reply_to: Some(root_id.into()), task_id: None,
             request_id: Uuid::new_v4().to_string(),
@@ -7844,7 +7897,7 @@ mod tests {
         assert_eq!(store.history_purge("/project", &Store::operator("/project"), false, true).unwrap()["purged_messages"], 1);
         let thread = store.thread_get(&alice, root_id, None, None).unwrap();
         assert_eq!(thread["messages"].as_array().unwrap().len(), 1);
-        assert_eq!(thread["messages"][0]["body"], "original task context");
+        assert_eq!(thread["messages"][0]["body"]["details"]["instruction"], "original task context");
     }
 
     #[test]
@@ -8568,7 +8621,7 @@ mod tests {
         let store = Store::open(path).unwrap();
         let worker = store.register("legacy", "codex", "/legacy", "legacy-worker").unwrap();
         let local = store.register("local", "codex", "/local", "local-worker").unwrap();
-        let task = store.execute(&Store::operator("/legacy"), OPERATOR_EPOCH, &Operation::TaskAssign {
+        let task = store.execute(&Store::operator("/legacy"), OPERATOR_EPOCH, &Operation::TaskAssign { context_refs: vec![],
             to: worker.name.clone(), description: "Legacy work".into(), acceptance: "Preserve uncertainty".into(),
             reviewer: None, dependencies: vec![], start_deadline: None,
             execution_timeout_seconds: None, review_timeout_seconds: None, request_id: Uuid::new_v4().to_string(),

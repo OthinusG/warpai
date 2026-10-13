@@ -221,6 +221,10 @@ struct HistoryPage {
 #[derive(Default, Deserialize)]
 struct Snapshot {
     #[serde(default)]
+    resources: Vec<warp_agent_bus::context::ContextSummary>,
+    #[serde(default)]
+    context_cursor: Option<u64>,
+    #[serde(default)]
     worktree_mode: Option<bool>,
     #[serde(default)]
     candidates: Vec<WorktreeCandidate>,
@@ -355,6 +359,7 @@ pub(crate) enum Action {
     UsageSettings,
     RefreshUsage,
     Mode(bool),
+    SelectContext { request: String, value: String },
     SelectFormField { request: String, index: usize, value: String },
     ChooseCoordinator { project: String, agent: String, run: String },
     ApplyCoordinator { project: String, agent: String, run: String },
@@ -903,7 +908,7 @@ impl CollaborationPanel {
                             "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or(warpui::localization::text("Task")),
                                 warpui::localization::text(data["state"].as_str().unwrap_or("unknown")))),
                             "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
-                                snapshot.participant_label(data["to"].as_str().unwrap_or("")), data["body"].as_str().unwrap_or(""))),
+                                snapshot.participant_label(data["to"].as_str().unwrap_or("")), warp_agent_bus::context::display_wire_body(&data["body"]))),
                             _ => None,
                         }
                     }).collect(),
@@ -921,7 +926,7 @@ impl CollaborationPanel {
                 rows: if snapshot.messages.is_empty() { vec![warpui::localization::text("No messages on this page. Search another literal phrase or return to the first page. Original messages remain immutable; corrections are new replies.").into()] }
                     else { snapshot.messages.iter().flat_map(|message| [
                         format!("{} → {} · {} · {}", snapshot.participant_label(&message.from), snapshot.participant_label(&message.to), message.subject.as_deref().unwrap_or(warpui::localization::text("Message")), if message.acknowledged { warpui::localization::text("read") } else { warpui::localization::text("unread") }),
-                        message.body.clone(),
+                        message.display_body(),
                     ]).collect() },
             });
         } else if self.show_spaces {
@@ -1304,6 +1309,10 @@ impl TypedActionView for CollaborationPanel {
                         form.track_task = !form.track_task;
                     }
                     ctx.notify();
+                    return;
+                }
+                Action::SelectContext { request, value } => {
+                    self.select_context(request, value, ctx);
                     return;
                 }
                 Action::SelectFormField { request, index, value } => {
@@ -2379,7 +2388,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .and_then(|section| section.rows.first())
         .cloned()
         .unwrap_or_else(|| "Verify the native capture fixture".into());
-    let task = broker.operator(&project, &Operation::TaskAssign {
+    let task = broker.operator(&project, &Operation::TaskAssign { context_refs: vec![],
         to: "capture-worker".into(), description,
         acceptance: "The deterministic native IPC check passes and the unsent terminal draft remains intact.".into(),
         reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
@@ -2403,7 +2412,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     transport::call(&broker.endpoint, &request)?;
     let thread = broker.operator(
         &project,
-        &Operation::AgentSend { expects_result: false,
+        &Operation::AgentSend { content: None, expects_result: false,
             to: "capture-worker".into(),
             body: "Native thread checkpoint literal _% text".into(),
             subject: Some("Native checkpoint".into()),
@@ -2413,7 +2422,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
             request_id: uuid::Uuid::new_v4().to_string(),
         },
     )?;
-    request.operation = Operation::AgentSend { expects_result: false,
+    request.operation = Operation::AgentSend { content: None, expects_result: false,
         to: "capture-worker".into(),
         body: "Follow-up native checkpoint".into(),
         subject: Some("Native correction".into()),
@@ -3595,7 +3604,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     let task = broker
                         .operator(
                             &domain,
-                            &warp_agent_bus::Operation::TaskAssign {
+                            &warp_agent_bus::Operation::TaskAssign { context_refs: vec![],
                                 to: "shared-capture-worker".into(),
                                 description: "Inspect the owned evidence source".into(),
                                 acceptance: "Open its original producing file".into(),
@@ -4186,7 +4195,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             .unwrap()
                             .operator(
                                 &project,
-                                &warp_agent_bus::Operation::AgentSend { expects_result: false,
+                                &warp_agent_bus::Operation::AgentSend { content: None, expects_result: false,
                                     to: "capture-worker".into(),
                                     body: "Preserve work arriving after purge preview".into(),
                                     subject: None,

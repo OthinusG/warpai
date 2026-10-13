@@ -24,7 +24,6 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 - 1.6.4 / Companion 5.1.0 publication authorized 2026-10-13; immutable tags
   and delivery gates: specs/RELEASE.md. Active branch: milestone/1.6.4.
-- Previous release receipts: specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
 
@@ -175,7 +174,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Owner requires cursor-backed native draft/slash-command transition tests and
   structured task bodies plus reusable versioned context resources, shared by
   local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
-  See FIXES-1.6.4.md; final source-matched acceptance remains pending.
+  Shared context DTOs/tools and panel selectors use immutable version/digest pins;
+  legacy text stays readable. See CONTEXT-RESOURCES.md; cloud acceptance is pending.
 
 ## Memory maintenance
 

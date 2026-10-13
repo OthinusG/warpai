@@ -139,8 +139,19 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     let refreshed = observer.project_tasks(&panel, 4).await.unwrap();
     assert_eq!(refreshed["value"]["coordinator_online"], true);
     let scope = refreshed["value"]["collaboration_scope"].as_str().unwrap().to_owned();
+    let published = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ContextPublish { resource_id:None, expected_revision:None,
+            title:"Shared WSL analysis".into(), content:warp_agent_bus::context::ContextContent::Analysis {
+                summary:"Reusable WSL findings".into(), findings:vec![] }, source_revision:None, request_id:uuid::Uuid::new_v4().to_string() }
+    )) }, 5).await.unwrap();
+    assert!(published.get("error").is_none(), "{published}");
+    let reference:warp_agent_bus::context::ContextRef = serde_json::from_value(published["value"]["reference"].clone()).unwrap();
+    let fetched = client.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ContextGet { reference:reference.clone() }
+    )) }, 5).await.unwrap();
+    assert_eq!(fetched["value"]["content"]["summary"], "Reusable WSL findings");
     let message = observer.project_tasks(&TaskCommand::Scoped { scope: scope.clone(), command: Box::new(TaskCommand::Operator(
-        warp_agent_bus::Operation::AgentSend { expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
+        warp_agent_bus::Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective:"Native fixture work".into(), context_refs:vec![reference] }), expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }
     )) }, 5).await.unwrap();
     assert!(message.get("error").is_none(), "{message}");

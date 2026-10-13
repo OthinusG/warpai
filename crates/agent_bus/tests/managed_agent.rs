@@ -114,12 +114,12 @@ fn managed_agent_child() {
 
 // Keep receipts below console line width while preserving delivery and execution identities.
 fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
-    serde_json::json!({"id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
+    serde_json::json!({"reference":result["reference"], "context_summary":result["content"]["summary"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
         "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],
         "messages":result["messages"].as_array().map(|messages| messages.iter()
             .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),
         "has_message":result["messages"].as_array().is_some_and(|messages|
-            messages.iter().any(|message| message["body"] == "Remote fixture message"))})
+            messages.iter().any(|message| warp_agent_bus::context::display_wire_body(&message["body"]) == "Remote fixture message"))})
 }
 
 #[test]
@@ -571,7 +571,7 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
     fixture_operation(
         &mut attachment,
         &mut agents[0],
-        Operation::AgentSend { expects_result: false,
+        Operation::AgentSend { content: None, expects_result: false,
             to: receiver.clone(),
             body: "Remote fixture message".into(),
             subject: None,
@@ -597,7 +597,7 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
     let assigned = fixture_operation(
         &mut attachment,
         &mut agents[0],
-        Operation::TaskAssign {
+        Operation::TaskAssign { context_refs: vec![],
             to: receiver,
             description: "Remote fixture work".into(),
             acceptance: "Message and review pass".into(),

@@ -122,6 +122,8 @@ impl Companion {
                         #[cfg(feature = "wsl_companion")]
                         "managed_launch_cwd".into(),
                         "project_tasks".into(),
+                        "context_resources".into(),
+                        "structured_task_messages".into(),
                         "project_mcp".into(),
                         "project_files".into(),
                         #[cfg(feature = "wsl_companion")]

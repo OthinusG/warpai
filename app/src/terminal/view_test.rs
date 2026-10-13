@@ -4955,7 +4955,7 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
         }
         for index in 0..requests.len() {
             let mut sender = issuer.clone();
-            sender.operation = Operation::AgentSend { expects_result: false,
+            sender.operation = Operation::AgentSend { content: None, expects_result: false,
                 to: requests[index].terminal.clone(),
                 body: "Inspect pending work".into(),
                 subject: None,

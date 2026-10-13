@@ -80,7 +80,7 @@ fn assign(broker: &Broker, from: &Request, to: &str) -> String {
     call(
         broker,
         from,
-        Operation::TaskAssign {
+        Operation::TaskAssign { context_refs: vec![],
             to: to.into(),
             reviewer: None,
             description: "Edit the owned source fixture".into(),

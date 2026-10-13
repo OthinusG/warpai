@@ -43,7 +43,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                     &format!("worker-{index}"),
                 )
                 .unwrap();
-            let assign = Operation::TaskAssign {
+            let assign = Operation::TaskAssign { context_refs: vec![],
                 dependencies: vec![],
                 start_deadline: None,
                 execution_timeout_seconds: None,
@@ -282,7 +282,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
             };
             let registered = transport::call(&server.broker.endpoint, &native_issuer).unwrap();
             native_issuer.run = registered["run"].as_str().map(str::to_owned);
-            native_issuer.operation = Operation::AgentSend { expects_result: false,
+            native_issuer.operation = Operation::AgentSend { content: None, expects_result: false,
                 to: state.into(),
                 body: "weekday".into(),
                 subject: None,
@@ -305,7 +305,7 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
                 .all(|peer| peer.terminal != state));
             continue;
         }
-        issuer.operation = Operation::AgentSend { expects_result: false,
+        issuer.operation = Operation::AgentSend { content: None, expects_result: false,
             to: state.into(),
             body: "weekday".into(),
             subject: None,
@@ -345,7 +345,7 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     let join = thread::spawn(move || transport::call(&broker.endpoint, &waiting).unwrap());
     thread::sleep(Duration::from_millis(80));
     let mut assignment = sender.clone();
-    assignment.operation = Operation::TaskAssign {
+    assignment.operation = Operation::TaskAssign { context_refs: vec![],
         dependencies: vec![],
         start_deadline: None,
         execution_timeout_seconds: None,
@@ -542,7 +542,7 @@ fn dormant_agents_wake_without_an_open_wait_call() {
     for (index, program) in managed_programs().iter().enumerate() {
         let terminal = format!("idle-{index}");
         let mut worker = register(&server.broker, &terminal, program);
-        issuer.operation = Operation::TaskAssign {
+        issuer.operation = Operation::TaskAssign { context_refs: vec![],
             dependencies: vec![],
             start_deadline: None,
             execution_timeout_seconds: None,
@@ -620,7 +620,7 @@ fn dormant_agents_wake_without_an_open_wait_call() {
         request_id: request_id(),
     };
     transport::call(&server.broker.endpoint, &worker).unwrap();
-    issuer.operation = Operation::AgentSend { expects_result: false,
+    issuer.operation = Operation::AgentSend { content: None, expects_result: false,
         to: worker.terminal.clone(),
         body: "Review follow-up".into(),
         subject: None,
@@ -697,7 +697,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     let peers = transport::call(&broker.endpoint, &left).unwrap();
     assert_eq!(peers.as_array().unwrap().len(), 2);
     for recipient in ["right", "third"] {
-        left.operation = Operation::AgentSend { expects_result: false,
+        left.operation = Operation::AgentSend { content: None, expects_result: false,
             to: recipient.into(),
             body: "No pairing required".into(),
             subject: None,
@@ -751,7 +751,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
     let registered = transport::call(&broker.endpoint, &outside).unwrap();
     outside.run = registered["run"].as_str().map(str::to_owned);
     for to in ["outside", registered["agent"]["id"].as_str().unwrap()] {
-        left.operation = Operation::AgentSend { expects_result: false,
+        left.operation = Operation::AgentSend { content: None, expects_result: false,
             to: to.into(),
             body: "Must stay isolated".into(),
             subject: None,
@@ -762,7 +762,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         };
         assert!(transport::call(&broker.endpoint, &left).is_err());
     }
-    outside.operation = Operation::AgentSend { expects_result: false,
+    outside.operation = Operation::AgentSend { content: None, expects_result: false,
         to: "left".into(),
         body: "Must stay isolated".into(),
         subject: None,
@@ -772,7 +772,7 @@ fn project_peers_communicate_without_selection_and_policy_revokes_runs() {
         request_id: request_id(),
     };
     assert!(transport::call(&broker.endpoint, &outside).is_err());
-    left.operation = Operation::TaskAssign {
+    left.operation = Operation::TaskAssign { context_refs: vec![],
         dependencies: vec![],
         start_deadline: None,
         execution_timeout_seconds: None,
@@ -1122,7 +1122,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
                 };
                 transport::call(&broker.endpoint, &worker).unwrap();
             }
-            issuer.operation = Operation::AgentSend { expects_result: false,
+            issuer.operation = Operation::AgentSend { content: None, expects_result: false,
                 to: name.clone(),
                 body: "Execute in your existing terminal and reply".into(),
                 subject: None,
@@ -1166,7 +1166,7 @@ fn every_receiver_state_preserves_work_and_initial_readiness_is_one_shot() {
     let name = "not-discovered";
     broker.prepare(name).unwrap();
     broker.activate(name, "codex", "/project", true).unwrap();
-    issuer.operation = Operation::AgentSend { expects_result: false,
+    issuer.operation = Operation::AgentSend { content: None, expects_result: false,
         to: name.into(),
         body: "Cannot bypass discovery".into(),
         subject: None,
@@ -1186,7 +1186,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
     let mut workers = Vec::new();
     for (index, program) in managed_programs().iter().enumerate() {
         let worker = register(broker, &format!("child-{index}"), program);
-        issuer.operation = Operation::TaskAssign {
+        issuer.operation = Operation::TaskAssign { context_refs: vec![],
             dependencies: vec![],
             start_deadline: None,
             execution_timeout_seconds: None,
@@ -1248,7 +1248,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         transport::call(&broker.endpoint, &issuer).unwrap();
     }
     let mut original = register(broker, "recoverable", "codex");
-    issuer.operation = Operation::TaskAssign {
+    issuer.operation = Operation::TaskAssign { context_refs: vec![],
         dependencies: vec![],
         start_deadline: None,
         execution_timeout_seconds: None,
@@ -1391,7 +1391,7 @@ fn submitted_unacknowledged_head_does_not_hide_later_mail() {
     let mut worker = register(&server.broker, "worker", "claude");
     let mut ids = Vec::new();
     for body in ["first result", "second result"] {
-        worker.operation = Operation::AgentSend {
+        worker.operation = Operation::AgentSend { content: None,
             expects_result: false, to: "lead".into(), body: body.into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: request_id(),
         };
@@ -1418,7 +1418,7 @@ fn cooperative_wait_delivers_later_results_without_discarding_the_head() {
     let mut worker = register(&server.broker, "worker", "claude");
     let mut ids = Vec::new();
     for body in ["first result", "second result"] {
-        worker.operation = Operation::AgentSend { expects_result:false, to:"lead".into(), body:body.into(),
+        worker.operation = Operation::AgentSend { content: None, expects_result:false, to:"lead".into(), body:body.into(),
             subject:None, thread_id:None, reply_to:None, task_id:None, request_id:request_id() };
         let notification = transport::call(&server.broker.endpoint, &worker).unwrap();
         assert!(notification["instruction"].as_str().unwrap().contains("No processing result was requested"));
@@ -1430,7 +1430,7 @@ fn cooperative_wait_delivers_later_results_without_discarding_the_head() {
     }
     lead.operation = Operation::AgentInbox { cursor:None, limit:None };
     assert_eq!(transport::call(&server.broker.endpoint, &lead).unwrap()["messages"].as_array().unwrap().len(), 2);
-    worker.operation = Operation::AgentSend { expects_result:true, to:"lead".into(), body:"Inspect contract".into(),
+    worker.operation = Operation::AgentSend { content: None, expects_result:true, to:"lead".into(), body:"Inspect contract".into(),
         subject:None, thread_id:None, reply_to:None, task_id:None, request_id:request_id() };
     let instruction = transport::call(&server.broker.endpoint, &worker).unwrap();
     lead.operation = Operation::AgentAsk { task_id:None, reply_to:Some(instruction["id"].as_str().unwrap().into()),

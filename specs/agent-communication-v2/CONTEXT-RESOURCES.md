@@ -42,8 +42,8 @@ Resource metadata describes a snapshot, not proof of current repository content.
 The consumer compares source revision before edits or correctness-sensitive work;
 changed code requires publishing a new snapshot. Explicit pinned revisions make
 old results reproducible. A retry/reassignment retains the task's references;
-refreshing context must be an explicit task revision change rather than silently
-following a resource's latest head.
+refreshing context requires an explicit new assignment with the new references,
+rather than silently following a resource's latest head.
 
 ## API and persistence
 

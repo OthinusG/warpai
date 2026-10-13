@@ -139,6 +139,9 @@ pub(super) struct Form {
     selectors: std::collections::HashMap<usize, ViewHandle<super::Dropdown<Action>>>,
     choices: std::collections::HashMap<usize, Vec<(String, String)>>,
     agent_icons: std::collections::HashMap<String, crate::ui_components::icons::Icon>,
+    resources: Vec<warp_agent_bus::context::ContextSummary>,
+    selected_context: Vec<String>,
+    context_selector: Option<ViewHandle<super::Dropdown<Action>>>,
     choices_loading: bool,
     pub(super) submitting: bool,
     error: String,
@@ -179,7 +182,7 @@ fn command(
         "Complete every field using plain text (up to 8192 bytes)"
     );
     if kind == Kind::Send {
-        return Ok(Command::Agent(Operation::AgentSend { expects_result: true,
+        return Ok(Command::Agent(Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective: fields[1].clone(), context_refs: vec![] }), expects_result: true,
             to: fields[0].trim().into(),
             body: fields[1].clone(),
             subject: (!fields[2].trim().is_empty()).then(|| fields[2].clone()),
@@ -277,7 +280,7 @@ fn command(
         let review_timeout_seconds = seconds(&fields[6])?;
         let reviewer = (!fields[7].trim().is_empty()).then(|| fields[7].trim().to_owned());
         return Ok(Command::Agent(if kind == Kind::Pool {
-            Operation::TaskCreatePool {
+            Operation::TaskCreatePool { context_refs: vec![],
                 eligible: names(&fields[0]),
                 description: fields[1].clone(),
                 acceptance: fields[2].clone(),
@@ -289,7 +292,7 @@ fn command(
                 review_timeout_seconds,
             }
         } else {
-            Operation::TaskAssign {
+            Operation::TaskAssign { context_refs: vec![],
                 to: fields[0].trim().to_owned(),
                 description: fields[1].clone(),
                 acceptance: fields[2].clone(),
@@ -399,6 +402,14 @@ fn command(
     })
 }
 
+fn attach_context(command: &mut Command, references: Vec<warp_agent_bus::context::ContextRef>) {
+    match command {
+        Command::Agent(Operation::AgentSend { content: Some(content), .. }) => content.context_refs = references,
+        Command::Agent(Operation::TaskAssign { context_refs, .. } | Operation::TaskCreatePool { context_refs, .. }) => *context_refs = references,
+        _ => {}
+    }
+}
+
 fn toggle_prerequisite(text: &str, value: &str) -> String {
     if value.is_empty() { return String::new(); }
     let mut selected: Vec<_> = text.split(',').filter(|id| !id.is_empty()).map(str::to_owned).collect();
@@ -408,6 +419,29 @@ fn toggle_prerequisite(text: &str, value: &str) -> String {
 }
 
 impl CollaborationPanel {
+    pub(super) fn select_context(&mut self, request: &str, value: &str, ctx: &mut ViewContext<Self>) {
+        let Some(form) = self.form.as_mut().filter(|form| form.request_id == request && !form.submitting && form.submitted_fields.is_none()) else { return; };
+        if !value.is_empty() && !form.resources.iter().any(|resource| resource.reference.id == value) { return; }
+        if value.is_empty() { form.selected_context.clear(); }
+        else if form.selected_context.iter().any(|id| id == value) { form.selected_context.retain(|id| id != value); }
+        else if form.selected_context.len() < 16 { form.selected_context.push(value.into()); }
+        ctx.notify();
+    }
+
+    fn build_context_selector(&mut self, ctx: &mut ViewContext<Self>) {
+        let Some(form) = self.form.as_mut().filter(|form| matches!(form.kind, Kind::Send | Kind::Assign | Kind::Pool)) else { return; };
+        let request = form.request_id.clone();
+        let mut items = vec![super::DropdownItem::new(warpui::localization::text("No context resources"), Action::SelectContext { request: request.clone(), value: String::new() })];
+        items.extend(form.resources.iter().map(|resource| super::DropdownItem::new(format!("{} · {} · v{}", resource.title, resource.kind, resource.reference.revision), Action::SelectContext { request: request.clone(), value: resource.reference.id.clone() })));
+        let selector = ctx.add_typed_action_view(|ctx| {
+            let mut dropdown = super::Dropdown::new(ctx);
+            dropdown.set_items(items, ctx);
+            dropdown.set_selected_by_index(0, ctx);
+            dropdown
+        });
+        form.context_selector = Some(selector);
+    }
+
     pub(super) fn select_form_field(&mut self, request: &str, index: usize, value: &str, ctx: &mut ViewContext<Self>) {
         let Some(form) = self.form.as_ref().filter(|form| form.request_id == request && !form.submitting && form.submitted_fields.is_none()) else { return; };
         let Some(choices) = form.choices.get(&index) else { return; };
@@ -648,6 +682,9 @@ impl CollaborationPanel {
             choices: Default::default(),
             agent_icons: snapshot.map(|s| s.agents.iter().map(|row| &row.agent).chain(s.candidates.iter().map(|candidate| &candidate.agent))
                 .map(|agent| (agent.id.clone(), crate::agent_usage::agent_icon(&agent.program))).collect()).unwrap_or_default(),
+            resources: snapshot.map(|snapshot| snapshot.resources.clone()).unwrap_or_default(),
+            selected_context: Vec::new(),
+            context_selector: None,
             choices_loading: false,
             request_id: uuid::Uuid::new_v4().to_string(),
             submitting: false,
@@ -658,6 +695,7 @@ impl CollaborationPanel {
             buttons: Default::default(),
         });
         self.build_form_selectors(ctx);
+        self.build_context_selector(ctx);
         self.load_remaining_choices(ctx);
         if self.worktree_mode { self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.set_disabled(ctx)); }
         self.scroll = Default::default();
@@ -700,7 +738,7 @@ impl CollaborationPanel {
 
     fn load_remaining_choices(&mut self, ctx: &mut ViewContext<Self>) {
         let (Some(form), Some(snapshot)) = (&mut self.form, &self.snapshot) else { return; };
-        if form.selectors.is_empty() || (snapshot.agent_cursor.is_none() && snapshot.task_cursor.is_none()) { return; }
+        if form.selectors.is_empty() || (snapshot.agent_cursor.is_none() && snapshot.task_cursor.is_none() && snapshot.context_cursor.is_none()) { return; }
         form.choices_loading = true;
         let request = form.request_id.clone();
         let response_request = request.clone();
@@ -708,7 +746,7 @@ impl CollaborationPanel {
         let mut query = warp_agent_bus::transport::PanelQuery {
             project: self.context.as_ref().map(|context| context.0.clone()).unwrap_or_default(),
             scope: Some(project.clone()), terminal: self.context.as_ref().and_then(|context| context.1.clone()),
-            worktree: self.worktree_mode, agent_after: snapshot.agent_cursor.clone(), task_after: snapshot.task_cursor,
+            worktree: self.worktree_mode, agent_after: snapshot.agent_cursor.clone(), task_after: snapshot.task_cursor, context_after: snapshot.context_cursor,
             ..Default::default()
         };
         let remote = self.remote.is_some();
@@ -720,8 +758,9 @@ impl CollaborationPanel {
                 let mut peers = Vec::new();
                 let mut tasks = Vec::new();
                 let mut icons = Vec::new();
+                let mut resources = Vec::new();
                 loop {
-                    let previous = (query.agent_after.clone(), query.task_after);
+                    let previous = (query.agent_after.clone(), query.task_after, query.context_after);
                     let mut value = if remote {
                         query.project.clear(); query.terminal = None;
                         let mut guard = client.lock().await;
@@ -737,19 +776,24 @@ impl CollaborationPanel {
                     icons.extend(page.agents.iter().filter(|row| row.online).map(|row| (row.agent.id.clone(), crate::agent_usage::agent_icon(&row.agent.program))));
                     peers.extend(page.agents.into_iter().filter(|row| row.online).map(|row| (row.agent.id, row.agent.name)));
                     tasks.extend(page.tasks.into_iter().map(|task| (task.id, format!("{} · {}", task.description, warpui::localization::text(&task.state)))));
-                    let complete = page.agent_cursor.is_none() && page.task_cursor.is_none();
+                    resources.extend(page.resources);
+                    let complete = page.agent_cursor.is_none() && page.task_cursor.is_none() && page.context_cursor.is_none();
                     query.agent_after = page.agent_cursor.or(query.agent_after);
                     query.task_after = page.task_cursor.or(query.task_after);
+                    query.context_after = page.context_cursor.or(query.context_after);
                     if complete { break; }
-                    anyhow::ensure!(previous != (query.agent_after.clone(), query.task_after), "Selection cursor did not advance");
+                    anyhow::ensure!(previous != (query.agent_after.clone(), query.task_after, query.context_after), "Selection cursor did not advance");
                 }
-                Ok::<_, anyhow::Error>((peers, tasks, icons))
+                Ok::<_, anyhow::Error>((peers, tasks, icons, resources))
             }).await.map_err(|_| anyhow::anyhow!("Selection loading timed out"))?
         }, move |panel, result, ctx| {
             let Some(form) = panel.form.as_mut().filter(|form| form.request_id == response_request) else { return; };
             form.choices_loading = false;
             match result {
-                Ok((peers, tasks, icons)) => {
+                Ok((peers, tasks, icons, resources)) => {
+                    for resource in resources {
+                        if !form.resources.iter().any(|existing| existing.reference.id == resource.reference.id) { form.resources.push(resource); }
+                    }
                     form.agent_icons.extend(icons);
                     for (&index, choices) in &mut form.choices {
                         for (value, label) in if index == 3 { &tasks } else { &peers } {
@@ -771,6 +815,7 @@ impl CollaborationPanel {
                     form.error = "Could not load all choices. Close this form, reconnect or refresh, then retry.".into();
                 }
             }
+            panel.build_context_selector(ctx);
             ctx.notify();
         });
     }
@@ -854,6 +899,8 @@ impl CollaborationPanel {
                 return;
             }
         } };
+        let references = form.selected_context.iter().filter_map(|id| form.resources.iter().find(|resource| &resource.reference.id == id).map(|resource| resource.reference.clone())).collect::<Vec<_>>();
+        attach_context(&mut operation, references);
         if let Command::Reservation { id, ttl, reason } = &operation {
             let Some(reservation) = form
                 .reservations
@@ -967,7 +1014,14 @@ impl CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         if let Some(form) = &self.form {
             if form.kind == Kind::SelectCoordinator {
-                if !form.error.is_empty() { body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned())); }
+                if let Some(selector) = &form.context_selector {
+                body.add_child(heading(appearance, warpui::localization::text("Context resources")));
+                if !form.submitting && form.submitted_fields.is_none() { body.add_child(ChildView::new(selector).finish()); }
+                let titles = form.selected_context.iter().filter_map(|id| form.resources.iter().find(|resource| &resource.reference.id == id))
+                    .map(|resource| format!("{} · v{}", resource.title, resource.reference.revision)).collect::<Vec<_>>().join(", ");
+                if !titles.is_empty() { body.add_child(note(appearance, titles)); }
+            }
+            if !form.error.is_empty() { body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned())); }
                 if form.submitting { body.add_child(note(appearance, warpui::localization::text("Updating Coordinator…"))); }
                 else if !form.error.is_empty() {
                     body.add_child(builder.button(ButtonVariant::Secondary, form.buttons[0].clone())
@@ -1248,6 +1302,18 @@ impl CollaborationPanel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn panel_send_preserves_structured_objective_and_pinned_references() {
+        let reference = warp_agent_bus::context::ContextRef { id:uuid::Uuid::new_v4().to_string(), revision:3, sha256:"a".repeat(64) };
+        let mut send = command(Kind::Send, "/project", None, &["worker".into(), "Review the analysis".into(), String::new()], "same-intent".into()).unwrap();
+        attach_context(&mut send, vec![reference.clone()]);
+        let Command::Agent(Operation::AgentSend { content:Some(content), request_id, task_id, .. }) = send else { panic!("Structured message required"); };
+        assert_eq!(content.objective, "Review the analysis");
+        assert_eq!(content.context_refs, vec![reference]);
+        assert_eq!(request_id, "same-intent");
+        assert!(task_id.is_none());
+    }
+
     #[test]
     fn prerequisite_selector_toggles_stable_ids_and_clears_explicitly() {
         assert_eq!(toggle_prerequisite("", "task-a"), "task-a");

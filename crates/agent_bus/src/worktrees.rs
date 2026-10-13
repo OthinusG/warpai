@@ -278,7 +278,7 @@ pub(crate) mod tests {
         request
     }
     pub(crate) fn assign(to: &str) -> Operation {
-        Operation::TaskAssign {
+        Operation::TaskAssign { context_refs: vec![],
             to: to.into(),
             description: "Implement owned feature".into(),
             acceptance: "Check owned files and report integration commit".into(),

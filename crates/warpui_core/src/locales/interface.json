@@ -11294,5 +11294,7 @@
   "→ accepts autosuggestions.": [
     "按 → 接受自动建议。",
     "按 → 接受自動建議。"
-  ]
+  ],
+  "Context resources": ["上下文资源", "上下文資源"],
+  "No context resources": ["不引用上下文资源", "不引用上下文資源"]
 }

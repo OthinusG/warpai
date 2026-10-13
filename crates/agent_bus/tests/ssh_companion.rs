@@ -248,11 +248,22 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
             run:worker["run"].as_str().unwrap().into(), request_id:Uuid::new_v4().to_string(),
         }), 9).await.unwrap().get("value").is_some());
     }
+    let panel = one.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 10).await.unwrap();
+    let scope = panel["value"]["collaboration_scope"].as_str().unwrap_or(panel["value"]["project"].as_str().unwrap()).to_owned();
+    let published = one.project_tasks(&warp_agent_bus::companion::TaskCommand::Scoped { scope:scope.clone(),
+        command:Box::new(warp_agent_bus::companion::TaskCommand::Operator(Operation::ContextPublish {
+            resource_id:None, expected_revision:None, title:"Shared SSH analysis".into(),
+            content:warp_agent_bus::context::ContextContent::Analysis { summary:"Reusable SSH findings".into(), findings:vec![] },
+            source_revision:None, request_id:Uuid::new_v4().to_string() })) }, 11).await.unwrap();
+    assert!(published.get("error").is_none(), "{published}");
+    let reference:warp_agent_bus::context::ContextRef = serde_json::from_value(published["value"]["reference"].clone()).unwrap();
+    let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { reference:reference.clone() }).await;
+    assert_eq!(retrieved["context_summary"], "Reusable SSH findings");
     let receiver = format!("fixture-{}", second.session_id);
     let instruction = ssh_fixture_operation(
         &mut one,
         &mut first,
-        Operation::AgentSend { expects_result: true,
+        Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective:"Remote fixture message".into(), context_refs:vec![reference] }), expects_result: true,
             to: receiver.clone(),
             body: "Remote fixture message".into(),
             subject: None,
@@ -305,7 +316,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     let assigned = ssh_fixture_operation(
         &mut one,
         &mut first,
-        Operation::TaskAssign {
+        Operation::TaskAssign { context_refs: vec![],
             to: receiver,
             description: "SSH fixture work".into(),
             acceptance: "Message and review pass".into(),

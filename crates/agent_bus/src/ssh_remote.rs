@@ -493,6 +493,23 @@ impl HostClient {
         if !self.capabilities.iter().any(|c| c == "project_tasks") {
             return Err(ConnectionError::FeatureUnavailable);
         }
+        fn requires_context(command: &crate::companion::TaskCommand) -> bool {
+            use crate::companion::TaskCommand;
+            match command {
+                TaskCommand::Scoped { command, .. } => requires_context(command),
+                TaskCommand::Operator(operation) => match operation {
+                    crate::Operation::ContextPublish { .. } | crate::Operation::ContextGet { .. } | crate::Operation::ContextList { .. } => true,
+                    crate::Operation::AgentSend { content, .. } => content.is_some(),
+                    crate::Operation::TaskAssign { context_refs, .. } | crate::Operation::TaskCreatePool { context_refs, .. } => !context_refs.is_empty(),
+                    _ => false,
+                },
+                _ => false,
+            }
+        }
+        if requires_context(command) && (!self.capabilities.iter().any(|c| c == "context_resources")
+            || !self.capabilities.iter().any(|c| c == "structured_task_messages")) {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         if !self.alive || self.fence.as_ref().is_none_or(|f| f.project_id.is_empty()) {
             return Err(ConnectionError::StaleAttachment);
         }

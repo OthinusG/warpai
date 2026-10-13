@@ -173,7 +173,7 @@ mod tests {
         private.run = call(&legacy, &private, private.operation.clone()).unwrap()["run"].as_str().map(str::to_owned);
         let private_binding = RunBinding { broker:legacy, terminal, run:private.run.clone().unwrap(), environment:vec![] };
         let private_task = execute(&projects, &first, &fixture.main, &Command::Scoped {
-            scope:first.project_id.clone(), command:Box::new(Command::Operator(Operation::TaskCreatePool {
+            scope:first.project_id.clone(), command:Box::new(Command::Operator(Operation::TaskCreatePool { context_refs: vec![],
             eligible: vec!["private".into()], description: "Retain private history".into(), acceptance: "Private only".into(),
             reviewer: None, dependencies: vec![], start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None, request_id: id()
         })) })["value"]["id"].as_str().unwrap().to_owned();
@@ -298,7 +298,7 @@ mod tests {
         request.directory = Some(base.path().to_str().unwrap().into());
         assert!(call(&binding.broker.endpoint, &request).is_err());
         request.directory = None;
-        request.operation = Operation::AgentSend { expects_result: false,
+        request.operation = Operation::AgentSend { content: None, expects_result: false,
             to: "worker".into(),
             body: "Bound original intent".into(),
             subject: None,
@@ -367,7 +367,7 @@ mod tests {
         .unwrap();
         assert_eq!(registration["agent"]["name"], "worker");
         let request_id = Uuid::new_v4().to_string();
-        let mut operation = Operation::TaskCreatePool {
+        let mut operation = Operation::TaskCreatePool { context_refs: vec![],
             description: "Remote fixture task".into(),
             acceptance: "Exact remote history".into(),
             eligible: vec!["worker".into()],
@@ -692,7 +692,10 @@ impl Projects {
             Command::Operator(operation)
                 if !matches!(
                     operation,
-                    Operation::AgentList
+                    Operation::ContextPublish { .. }
+                        | Operation::ContextGet { .. }
+                        | Operation::ContextList { .. }
+                        | Operation::AgentList
                         | Operation::AgentSend { .. }
                         | Operation::AgentReply { .. }
                         | Operation::AgentQuestions { .. }

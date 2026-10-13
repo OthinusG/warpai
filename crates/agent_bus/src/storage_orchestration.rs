@@ -152,7 +152,7 @@ impl Store {
                         .bind::<Text, _>(&Self::operator(&actor.project).id)
                         .execute(&mut *self.connection.borrow_mut())?;
                     if self.inbox_count(&previous.agent)? < MAX_PENDING_PER_AGENT {
-                        self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend { expects_result: false,
+                        self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend { content: None, expects_result: false,
                             to:previous.agent.clone(), body, subject:Some("Coordinator changed".into()),
                             thread_id:None, reply_to:None, task_id:None, request_id:Uuid::new_v4().to_string(),
                         })?;
@@ -181,7 +181,7 @@ impl Store {
             if role == "coordinator" && self.inbox_count(&actor.id)? < MAX_PENDING_PER_AGENT {
                 let pending = self.count("SELECT COUNT(*) AS count FROM tasks WHERE project=? AND state NOT IN ('accepted','failed','cancelled','expired')", &[&actor.project])?;
                 if pending > 0 {
-                    self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend { expects_result: false,
+                    self.mutate(&Self::operator(&actor.project), OPERATOR_EPOCH, &Operation::AgentSend { content: None, expects_result: false,
                         to:actor.id.clone(), body:format!("You now coordinate {pending} unfinished project tasks. Read warp_task_list for all pages and warp_task_get for current ownership and evidence. Existing assignees and reviewers remain responsible."),
                         subject:Some("Coordinator handoff".into()), thread_id:None, reply_to:None, task_id:None,
                         request_id:Uuid::new_v4().to_string(),

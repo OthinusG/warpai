@@ -192,6 +192,8 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             #[cfg(feature = "wsl_companion")]
             "managed_launch_cwd",
             "project_tasks",
+            "context_resources",
+            "structured_task_messages",
             "project_mcp",
             "project_files",
             #[cfg(feature = "wsl_companion")]
