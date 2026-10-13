@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing repository tag to build and publish"
+        description: "Release tag or test package version"
         required: true
         type: string
+      artifact_only:
+        description: "Build test installers from the selected branch without changing a release"
+        required: false
+        type: boolean
+        default: false
       auto_publish:
         description: "Publish after all macOS, Companion and Windows packaging checks pass"
         required: false
@@ -38,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: refs/tags/${{ inputs.release_tag }}
+          ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
       - name: Prepare companion build tools
         run: |
           rustup toolchain install 1.92.0 --profile minimal
@@ -111,16 +116,17 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           lfs: true
-          ref: refs/tags/${{ inputs.release_tag }}
+          ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
       - name: Verify release target
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_ONLY: ${{ inputs.artifact_only }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git check-ref-format "refs/tags/$RELEASE_TAG"
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if [[ "$ARTIFACT_ONLY" != "true" ]] && gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release already exists; refusing to overwrite assets." >&2
             exit 1
           fi
@@ -160,25 +166,58 @@ jobs:
         with:
           pattern: companion-*
           merge-multiple: true
+
+      - name: Prepare versioned installer and checksums
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_ONLY: ${{ inputs.artifact_only }}
+        run: |
+          desktop="Warpai-${RELEASE_TAG#v}-macos-arm64.dmg"
+          mv Warpai.dmg "$desktop"
+          if [[ "$ARTIFACT_ONLY" == "true" ]]; then
+            shasum -a 256 "$desktop" > "SHA256SUMS-Warpai-${RELEASE_TAG#v}-macos-test.txt"
+          else
+            shasum -a 256 "$desktop" WarpaiCompanion-* > "SHA256SUMS-Warpai-${RELEASE_TAG#v}-macos-and-companions.txt"
+          fi
+
+      - name: Preserve macOS test installer
+        if: inputs.artifact_only == true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: macos-test-installer
+          path: |
+            Warpai-*-macos-arm64.dmg
+            SHA256SUMS-Warpai-*-macos-test.txt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Publish tagged release
+        if: inputs.artifact_only != true
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
-          AUTO_PUBLISH: ${{ inputs.auto_publish }}
         run: |
           desktop="Warpai-${RELEASE_TAG#v}-macos-arm64.dmg"
           checksums="SHA256SUMS-Warpai-${RELEASE_TAG#v}-macos-and-companions.txt"
-          mv Warpai.dmg "$desktop"
-          shasum -a 256 "$desktop" WarpaiCompanion-* > "$checksums"
           gh release create "$RELEASE_TAG" "$desktop" WarpaiCompanion-* "$checksums" \
             --verify-tag --repo "$GITHUB_REPOSITORY" \
             --draft --title "Warpai ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
+
+      - name: Prepare Windows release handoff
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          AUTO_PUBLISH: ${{ inputs.auto_publish }}
+          ARTIFACT_ONLY: ${{ inputs.artifact_only }}
+        run: |
           printf '%s\n' "$RELEASE_TAG" > release-tag.txt
           printf '%s\n' "$AUTO_PUBLISH" > auto-publish.txt
+          printf '%s\n' "$ARTIFACT_ONLY" > artifact-only.txt
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-target
           path: |
             release-tag.txt
             auto-publish.txt
+            artifact-only.txt
           retention-days: 7
