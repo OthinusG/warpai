@@ -202,6 +202,14 @@ pub fn codex_accepts_peer_prompt(args: &[String], options: &crate::launch::Launc
     .0 != CodexMode::Native
 }
 
+/// Classify initial work using the same native argument contract as session launch.
+pub fn codex_starts_at_empty_prompt(args: &[String], options: &crate::launch::LaunchOptions) -> bool {
+    let (mode, initial_work, _) = codex_launch_mode(
+        &args.iter().map(OsString::from).collect::<Vec<_>>(), options,
+    );
+    mode != CodexMode::Native && !initial_work
+}
+
 /// Reuse option arity so values and prompts named --no-daemon are never treated as flags.
 pub fn codex_needs_no_daemon(args: &[String], options: &crate::launch::LaunchOptions) -> bool {
     !codex_launch_mode(
@@ -484,6 +492,7 @@ mod tests {
                 .split_whitespace()
                 .map(OsString::from)
                 .collect::<Vec<_>>();
+            assert_eq!(codex_starts_at_empty_prompt(&args.iter().map(|arg| arg.to_string_lossy().into_owned()).collect::<Vec<_>>(), &options), !initial_work);
             assert_eq!(
                 codex_launch_mode(&args, &options).1,
                 initial_work,

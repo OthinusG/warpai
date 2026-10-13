@@ -16,20 +16,23 @@ use event::{CLIAgentEvent, CLIAgentEventType};
 /// Status of a tracked CLI agent session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CLIAgentSessionStatus {
+    Starting,
+    Idle,
     InProgress,
     Success,
     Blocked { message: Option<String> },
 }
 
 impl CLIAgentSessionStatus {
-    pub fn to_conversation_status(&self) -> crate::ai::agent::conversation::ConversationStatus {
+    pub fn to_conversation_status(&self) -> Option<crate::ai::agent::conversation::ConversationStatus> {
         use crate::ai::agent::conversation::ConversationStatus;
         match self {
-            CLIAgentSessionStatus::InProgress => ConversationStatus::InProgress,
-            CLIAgentSessionStatus::Success => ConversationStatus::Success,
-            CLIAgentSessionStatus::Blocked { message } => ConversationStatus::Blocked {
+            Self::Starting | Self::Idle => None,
+            Self::InProgress => Some(ConversationStatus::InProgress),
+            Self::Success => Some(ConversationStatus::Success),
+            Self::Blocked { message } => Some(ConversationStatus::Blocked {
                 blocked_action: message.clone().unwrap_or_default(),
-            },
+            }),
         }
     }
 }
@@ -199,9 +202,12 @@ impl CLIAgentSession {
                 }
                 CLIAgentSessionStatus::InProgress
             }
-            // IdlePrompt means the agent is sitting at its prompt waiting for input.
-            // This should not affect status — otherwise it would override Success after a Stop event.
-            CLIAgentEventType::IdlePrompt => return None,
+            CLIAgentEventType::IdlePrompt => {
+                if matches!(self.status, CLIAgentSessionStatus::Success | CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::Blocked { .. }) {
+                    return None;
+                }
+                CLIAgentSessionStatus::Idle
+            },
             CLIAgentEventType::SessionStart => {
                 self.plugin_version = event.payload.plugin_version.clone();
                 return None;
@@ -297,6 +303,27 @@ impl CLIAgentSessionsModel {
         self.sessions.get(&terminal_view_id)
     }
 
+    /// Broker projections update presentation without claiming a native completion event.
+    pub(crate) fn observe_activity(
+        &mut self, terminal_view_id: EntityId,
+        activity: warp_agent_bus::readiness::Activity, ctx: &mut ModelContext<Self>,
+    ) {
+        use warp_agent_bus::readiness::Activity;
+        let Some(session) = self.sessions.get_mut(&terminal_view_id) else { return; };
+        if matches!(session.status, CLIAgentSessionStatus::Blocked { .. }) { return; }
+        let status = match activity {
+            Activity::Starting => CLIAgentSessionStatus::Starting,
+            Activity::Idle if session.status == CLIAgentSessionStatus::Success => return,
+            Activity::Idle => CLIAgentSessionStatus::Idle,
+            Activity::Working => CLIAgentSessionStatus::InProgress,
+            _ => return,
+        };
+        if session.status == status { return; }
+        session.status = status;
+        ctx.emit(CLIAgentSessionsModelEvent::SessionUpdated { terminal_view_id, agent: session.agent });
+        ctx.notify();
+    }
+
     /// Returns `true` if any tracked session has an agent actively working.
     pub fn any_in_progress(&self) -> bool {
         self.sessions
@@ -341,7 +368,6 @@ impl CLIAgentSessionsModel {
             .filter(|s| s.agent == agent)
         {
             // Upgrade existing session with plugin context.
-            session.status = CLIAgentSessionStatus::InProgress;
             session.listener = Some(listener);
             session.plugin_version = plugin_version;
             session.remote_host = remote_host;
@@ -357,7 +383,7 @@ impl CLIAgentSessionsModel {
             terminal_view_id,
             CLIAgentSession {
                 agent,
-                status: CLIAgentSessionStatus::InProgress,
+                status: CLIAgentSessionStatus::Starting,
                 session_context: CLIAgentSessionContext {
                     cwd,
                     project,

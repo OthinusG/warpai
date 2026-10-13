@@ -125,7 +125,7 @@ impl AgentCommunication {
                                 let launch_options = model.preferences.selected.values()
                                     .find(|entry| entry.active && entry.program == program)
                                     .map(|entry| &entry.launch_options);
-                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (launch_options.is_some_and(|options| agent.starts_at_empty_prompt(command, options))
+                                let initial_prompt = unshadowed && agent.accepts_peer_prompt(command) && (agent.starts_at_empty_prompt(command, &launch_options.cloned().unwrap_or_default())
                                     || (*agent == CLIAgent::Unknown
                                         && model.preferences.selected.get(command)
                                             .is_some_and(|entry| entry.active)));
@@ -154,7 +154,11 @@ impl AgentCommunication {
                                 crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(&session.agent)
                             })
                     }) {
-                        broker.readiness(terminal, matches!(status, CLIAgentSessionStatus::Success));
+                        match status {
+                            CLIAgentSessionStatus::Success | CLIAgentSessionStatus::Idle => broker.readiness(terminal, true),
+                            CLIAgentSessionStatus::InProgress => broker.readiness(terminal, false),
+                            _ => {},
+                        }
                     }
                 }
                 _ => {}
@@ -511,7 +515,13 @@ impl AgentCommunication {
                 for (terminal, view) in &bindings {
                     if let Some(view) = view.upgrade(ctx) {
                         let (draft, blocked) = view.as_ref(ctx).peer_input_guard(ctx);
-                        broker.input_guard(terminal, draft, blocked);
+                        broker.composer_guard(terminal, draft, blocked);
+                        if let Some(activity) = broker.terminal_activity(terminal) {
+                            let id = view.id();
+                            CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
+                                sessions.observe_activity(id, activity, ctx);
+                            });
+                        }
                     }
                 }
                 model.notified.retain(|terminal, message| {

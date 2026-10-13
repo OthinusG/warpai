@@ -84,6 +84,7 @@ struct Live {
     observed: Instant,
     draft: Draft,
     rich_draft: bool,
+    rich_draft_is_native: bool,
     blocked: bool,
     activity: Activity,
     native_activity: Option<Activity>,
@@ -457,6 +458,7 @@ impl Broker {
             observed: Instant::now(),
             draft: Draft::default(),
             rich_draft: false,
+            rich_draft_is_native: true,
             blocked: false,
             activity: Activity::Starting,
             native_activity: None,
@@ -552,6 +554,10 @@ impl Broker {
         }
         self.shared.changed.notify_all();
     }
+    pub fn terminal_activity(&self, terminal: &str) -> Option<Activity> {
+        if let Some(broker) = self.forwarded(terminal) { return broker.terminal_activity(terminal); }
+        self.shared.state.lock().ok()?.terminals.get(terminal)?.live.as_ref().map(|live| live.activity)
+    }
     /// Called by native lifecycle completion/busy events; model readiness covers clients without hooks.
     pub fn readiness(&self, terminal: &str, ready: bool) {
         self.activity(terminal, if ready { Activity::Idle } else { Activity::Working });
@@ -637,7 +643,7 @@ impl Broker {
                     live.readiness_source = "user_input"; live.observed = Instant::now();
                     live.ready = None;
                 }
-                live.initial_prompt = false;
+                if live.activity != Activity::Starting { live.initial_prompt = false; }
                 live.generation += 1;
                 live.last_input = Instant::now(); live.observed = live.last_input;
                 if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
@@ -649,20 +655,30 @@ impl Broker {
         }
         self.shared.changed.notify_all();
     }
-    /// App-owned rich drafts/attachments and permission overlays affect delivery, not idle evidence.
+    /// Remote native editors report only whether they contain text, never its content.
     pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
-        if let Some(broker) = self.forwarded(terminal) { broker.input_guard(terminal, rich_draft, blocked); return; }
+        self.set_input_guard(terminal, rich_draft, blocked, true);
+    }
+    /// App composer text and attachments are separate from the native prompt being submitted.
+    pub fn composer_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
+        self.set_input_guard(terminal, rich_draft, blocked, false);
+    }
+    fn set_input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool, native: bool) {
+        if let Some(broker) = self.forwarded(terminal) { broker.set_input_guard(terminal, rich_draft, blocked, native); return; }
         if let Ok(mut state) = self.shared.state.lock() {
             let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
-                if live.rich_draft != rich_draft || live.blocked != blocked {
+                if live.rich_draft != rich_draft || live.blocked != blocked || live.rich_draft_is_native != native {
                     if live.blocked != blocked {
                         observation = live.agent.clone().map(|actor| (actor, live.run.clone(), live.activity));
                     }
+                    if live.blocked != blocked || (live.rich_draft && live.rich_draft_is_native) != (rich_draft && native) {
+                        live.generation += 1;
+                        if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+                    }
                     live.rich_draft = rich_draft;
+                    live.rich_draft_is_native = native;
                     live.blocked = blocked;
-                    live.generation += 1;
-                    if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
                     live.last_input = Instant::now(); live.observed = live.last_input;
                 }
             }
@@ -725,7 +741,7 @@ impl Broker {
                 if live.waiting
                     || live.paused
                     || live.expired || live.started.elapsed() >= MUTATION_EPOCH
-                    || !live.draft.is_empty() || live.rich_draft || live.blocked
+                    || !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) || live.blocked
                     || live.wake.is_some()
                     || live.ready?.elapsed() < Duration::from_millis(750)
                     || live.last_output.elapsed() < Duration::from_millis(500)
@@ -804,7 +820,7 @@ impl Broker {
             || live.paused
             || live.expired || live.started.elapsed() >= MUTATION_EPOCH
             || live.generation != wake.generation
-            || !live.draft.is_empty() || live.rich_draft || live.blocked
+            || !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) || live.blocked
             || live.ready.is_none()
             || live.native_activity.is_some_and(|activity| !activity.is_idle())
             || live.waiting
@@ -851,7 +867,7 @@ impl Broker {
                 .get(&wake.terminal)
                 .and_then(|binding| binding.live.as_ref())
                 .is_some_and(|live| {
-                    live.agent.as_ref().is_some_and(|actor| state.store.authorize(actor).is_ok() && state.store.authorize_orchestration(actor, &live.run, &Operation::AgentReady).is_ok()) && live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.draft.is_empty() && !live.rich_draft && !live.blocked && live.wake.as_ref() == Some(wake)
+                    live.agent.as_ref().is_some_and(|actor| state.store.authorize(actor).is_ok() && state.store.authorize_orchestration(actor, &live.run, &Operation::AgentReady).is_ok()) && live.run == wake.run && !live.paused && !live.expired && live.started.elapsed() < MUTATION_EPOCH && live.draft.is_empty() && !(live.rich_draft && live.rich_draft_is_native) && !live.blocked && live.wake.as_ref() == Some(wake)
                 })
         })
     }
@@ -1031,8 +1047,8 @@ impl Broker {
                 .unwrap();
             live.agent = Some(agent.clone());
             // Native discovery precedes the first model turn on bare interactive launches.
-            // Any input or lifecycle event since activation cancels this one-time lease.
-            if live.initial_prompt && live.generation == 0 {
+            // Startup acknowledgements and draft edits retain it; actual work revokes it.
+            if live.initial_prompt && live.activity == Activity::Starting && !live.blocked && !live.paused {
                 live.ready = Some(Instant::now());
                 live.activity = Activity::Idle;
                 live.readiness_source = "startup"; live.observed = Instant::now();
@@ -1259,7 +1275,7 @@ impl Broker {
                     if live.ready.is_none() { blockers.push("lifecycle_not_idle"); }
                     if live.native_activity.is_some_and(|activity| !activity.is_idle()) { blockers.push("native_not_idle"); }
                     if live.paused { blockers.push("cancelled"); }
-                    if !live.draft.is_empty() || live.rich_draft { blockers.push("draft"); }
+                    if !live.draft.is_empty() || (live.rich_draft && live.rich_draft_is_native) { blockers.push("draft"); }
                     if live.blocked { blockers.push("permission_or_question"); }
                     if live.waiting { blockers.push("cooperative_wait"); }
                     if live.wake.is_some() { blockers.push("dispatching"); }

@@ -226,19 +226,19 @@ impl TerminalView {
         {
             return;
         }
-        let (draft, blocked) = self.peer_input_guard(ctx);
+        let (_, blocked) = self.peer_input_guard(ctx);
         let native_ready = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
             .filter(|session| session.listener.is_some())
-            .map(|session| {
-                matches!(
-                    session.status,
-                    crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Success
-                )
+            .and_then(|session| match session.status {
+                crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Success
+                    | crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Idle => Some(true),
+                crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Starting => None,
+                _ => Some(false),
             });
         let epoch = self.wsl_peer.epoch;
         let action = NativeAction::Observe {
-            draft: draft || !self.wsl_peer.draft.is_empty(),
+            draft: !self.wsl_peer.draft.is_empty(),
             blocked,
             input_epoch: epoch,
             submitted: self.wsl_peer.submitted,

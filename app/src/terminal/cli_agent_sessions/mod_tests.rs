@@ -408,3 +408,26 @@ fn session_start_without_plugin_version_leaves_none() {
     session.apply_event(&event);
     assert_eq!(session.plugin_version, None);
 }
+
+#[test]
+fn idle_prompt_updates_startup_and_work_without_inventing_completion() {
+    let mut session = CLIAgentSession {
+        agent: CLIAgent::Claude, status: CLIAgentSessionStatus::Starting,
+        session_context: CLIAgentSessionContext::default(), input_state: CLIAgentInputState::Closed,
+        should_auto_toggle_input: false, listener: None, plugin_version: None,
+        remote_host: None, draft_text: Some("private draft".into()), custom_command_prefix: None,
+    };
+    let idle = parse_event(Some("warp://cli-agent"), r#"{"v":1,"agent":"claude","event":"idle_prompt"}"#).unwrap();
+    for status in [CLIAgentSessionStatus::Starting, CLIAgentSessionStatus::InProgress] {
+        session.status = status;
+        assert_eq!(session.apply_event(&idle), Some(CLIAgentSessionStatus::Idle));
+        assert!(session.status.to_conversation_status().is_none());
+        assert_eq!(session.draft_text.as_deref(), Some("private draft"));
+    }
+    session.status = CLIAgentSessionStatus::Success;
+    assert_eq!(session.apply_event(&idle), None);
+    assert_eq!(session.status, CLIAgentSessionStatus::Success);
+    session.status = CLIAgentSessionStatus::Blocked { message: Some("Permission required".into()) };
+    assert_eq!(session.apply_event(&idle), None);
+    assert!(matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
+}

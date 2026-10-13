@@ -145,6 +145,9 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             .broker
             .activate(&terminal, program, "/project", true)
             .unwrap();
+        server.broker.input_bytes(&terminal, b"\r");
+        server.broker.input_bytes(&terminal, b"unfinished");
+        server.broker.composer_guard(&terminal, true, false);
         let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
         command
             .arg("mcp")
@@ -170,6 +173,10 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             .map(str::to_owned);
         let peer = status(&server, &observer, &terminal).await;
         assert_eq!(peer["ready"], true, "fresh {program}");
+        assert_eq!(peer["activity"], "idle", "startup confirmation {program}");
+        assert_eq!(peer["has_draft"], true);
+        server.broker.input_bytes(&terminal, b"\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
+        server.broker.input_guard(&terminal, false, false);
 
         for tool in ["warp_agent_list", "warp_agent_inbox"] {
             client
@@ -203,6 +210,8 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             observer.operation = serde_json::from_value(json!({"op":"agent_send","to":peer["id"],"body":"Report the weekday","request_id":Uuid::new_v4().to_string()})).unwrap();
             let message = call(&server, &observer).await;
             tokio::time::sleep(Duration::from_millis(800)).await;
+            server.broker.composer_guard(&terminal, true, false);
+            tokio::time::sleep(Duration::from_millis(550)).await;
             let wake = server
                 .broker
                 .wakeups()
@@ -210,6 +219,9 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
                 .find(|wake| wake.terminal == terminal)
                 .unwrap();
             assert!(server.broker.claim_wake(&wake));
+            server.broker.composer_guard(&terminal, false, false);
+            server.broker.composer_guard(&terminal, true, false);
+            assert!(server.broker.wake_valid(&wake));
             assert_eq!(status(&server, &observer, &terminal).await["ready"], true);
             server.broker.finish_wake(&wake, true);
             assert_eq!(
@@ -318,6 +330,24 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         client.cancel().await.unwrap();
         server.broker.end(&terminal);
     }
+}
+
+#[tokio::test]
+async fn initial_user_submission_cannot_be_overridden_by_mcp_discovery() {
+    let server = RunningBroker::start(Path::new(":memory:")).unwrap();
+    let capability = server.broker.prepare("worker").unwrap();
+    server.broker.activate("worker", "agy", "/project", true).unwrap();
+    server.broker.input_bytes("worker", b"actual task\r");
+    let mut worker = Request {
+        protocol_major: transport::PROTOCOL_MAJOR, terminal: "worker".into(), capability,
+        run: None, defer_initial_ready: false, native_activity: None, directory: None,
+        operation: Operation::AgentRegister { name: "worker".into() },
+    };
+    worker.run = call(&server, &worker).await["run"].as_str().map(str::to_owned);
+    assert_eq!(server.broker.terminal_activity("worker"), Some(Activity::Working));
+    let peer = status(&server, &worker, "worker").await;
+    assert_eq!(peer["ready"], false);
+    assert_eq!(peer["activity"], "working");
 }
 
 #[tokio::test]

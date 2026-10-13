@@ -4979,18 +4979,14 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                     view.input.update(ctx, |input, ctx| {
                         input.replace_buffer_content("unfinished user draft", ctx)
                     });
-                    view.wake_for_peer_work(broker.clone(), wake.clone(), ctx);
                     assert_eq!(
                         view.input.as_ref(ctx).buffer_text(ctx),
                         "unfinished user draft"
                     );
-                    view.input.update(ctx, |input, ctx| {
-                        input.clear_buffer_and_reset_undo_stack(ctx)
-                    });
                 });
                 assert!(
                     writes.borrow().is_empty(),
-                    "Automatic wake must preserve a user draft"
+                    "Composing a draft must not write to the native prompt"
                 );
             }
             terminal.update(&mut app, |view, ctx| {
@@ -5031,7 +5027,8 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 "Unexpected Enter behavior for {agent:?}"
             );
             terminal.read(&app, |view, ctx| {
-                assert!(view.input.as_ref(ctx).buffer_text(ctx).is_empty())
+                assert_eq!(view.input.as_ref(ctx).buffer_text(ctx), "unfinished user draft");
+                assert!(view.is_cli_agent_rich_input_open(ctx));
             });
         }
     });

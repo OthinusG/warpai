@@ -52,8 +52,7 @@ impl CollaborationPanel {
         for account in &accounts {
             let reading = usage.readings.get(&account.id);
             let windows: Vec<_> = reading.and_then(|reading| reading.as_ref().ok())
-                .map(|reading| reading.windows.iter()
-                    .filter(|window| account.detect_5h || !window.is_5h()).map(Some).collect())
+                .map(|reading| reading.visible_windows(account.provider, account.detect_5h).into_iter().map(Some).collect())
                 .unwrap_or_default();
             let windows = if windows.is_empty() { vec![None] } else { windows };
             for window in windows {
@@ -81,7 +80,7 @@ impl CollaborationPanel {
                                 )
                             }
                         } else {
-                            warpui::localization::text("5h usage detection is disabled").into()
+                            warpui::localization::text("Usage unavailable for this account").into()
                         }
                     }
                     Some(Err(error)) => warpui::localization::text(error).to_owned(),
@@ -93,7 +92,7 @@ impl CollaborationPanel {
                 };
                 let mut tooltip = format!("{} · {}\n{status}", account.provider.name(), account.label);
                 if let Some(Ok(reading)) = reading {
-                    for window in reading.windows.iter().filter(|window| account.detect_5h || !window.is_5h()) {
+                    for window in reading.visible_windows(account.provider, account.detect_5h) {
                         tooltip.push_str(&{
                             let __warpai_locale_argument_0 = &(window.name);
                             let __warpai_locale_argument_1 = &(window.used);

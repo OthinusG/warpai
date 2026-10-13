@@ -150,7 +150,7 @@ impl AgentNotificationsModel {
                 session_context,
             } => match status {
                 // When the agent resumes its work we can assume that the previous notification is stale.
-                CLIAgentSessionStatus::InProgress => {
+                CLIAgentSessionStatus::Starting | CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::InProgress => {
                     self.remove_notification_by_source(
                         NotificationOrigin::CLISession(*terminal_view_id),
                         ctx,

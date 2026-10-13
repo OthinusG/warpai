@@ -768,17 +768,6 @@ impl TerminalView {
                 ctx,
             )
             || matches!(session.status, CLIAgentSessionStatus::Blocked { .. })
-            || session
-                .draft_text
-                .as_ref()
-                .is_some_and(|draft| !draft.is_empty())
-            || (self.is_cli_agent_rich_input_open(ctx)
-                && !self.input.as_ref(ctx).buffer_text(ctx).is_empty())
-            || !self
-                .ai_context_model
-                .as_ref(ctx)
-                .pending_images()
-                .is_empty()
             || !self.is_long_running_and_user_controlled()
         {
             return false;
@@ -945,7 +934,7 @@ impl TerminalView {
                 } else {
                     self.write_user_bytes_to_pty(bytes, ctx);
                 }
-                self.maybe_close_rich_input_after_submit(ctx);
+                if !automatic { self.maybe_close_rich_input_after_submit(ctx); }
                 if let Some(done) = on_submit {
                     done(true);
                 }
@@ -967,7 +956,7 @@ impl TerminalView {
                 } else {
                     self.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
                 }
-                self.maybe_close_rich_input_after_submit(ctx);
+                if !automatic { self.maybe_close_rich_input_after_submit(ctx); }
                 if let Some(done) = on_submit {
                     done(true);
                 }
@@ -992,7 +981,7 @@ impl TerminalView {
                         } else {
                             me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
                         }
-                        me.maybe_close_rich_input_after_submit(ctx);
+                        if !automatic { me.maybe_close_rich_input_after_submit(ctx); }
                         if let Some(done) = on_submit {
                             done(true);
                         }
@@ -1025,7 +1014,7 @@ impl TerminalView {
                         } else {
                             me.write_user_bytes_to_pty(b"\r".to_vec(), ctx);
                         }
-                        me.maybe_close_rich_input_after_submit(ctx);
+                        if !automatic { me.maybe_close_rich_input_after_submit(ctx); }
                         if let Some(done) = on_submit {
                             done(true);
                         }

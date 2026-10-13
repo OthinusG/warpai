@@ -100,13 +100,37 @@ pub(crate) struct Window {
 }
 impl Window {
     pub(crate) fn is_5h(&self) -> bool {
-        self.name.split(" · ").any(|part| part == "5h")
+        self.name.split(" · ").any(|part| matches!(part.to_ascii_lowercase().as_str(), "5h" | "5 hour" | "5 hours" | "5-hour"))
+    }
+    fn is_weekly(&self) -> bool {
+        self.name.split(" · ").any(|part| matches!(part.to_ascii_lowercase().as_str(), "weekly" | "week" | "7d" | "7 days"))
     }
 }
 #[derive(Clone, Default, Debug)]
 pub(crate) struct Reading {
     pub(crate) windows: Vec<Window>,
     pub(crate) balance: Option<f64>,
+}
+impl Reading {
+    pub(crate) fn visible_windows(&self, provider: Provider, detect_5h: bool) -> Vec<&Window> {
+        if provider != Provider::Antigravity {
+            let has_5h = self.windows.iter().any(Window::is_5h);
+            return self.windows.iter().filter(|window| {
+                if has_5h { if detect_5h { window.is_5h() } else { window.is_weekly() } }
+                else { true }
+            }).collect();
+        }
+        ["Claude/GPT", "Gemini"].into_iter().filter_map(|pool| {
+            self.windows.iter().find(|window| {
+                let Some((group, _)) = window.name.split_once(" · ") else { return false; };
+                let group = group.to_ascii_lowercase();
+                let matches_pool = if pool == "Gemini" { group.contains("gemini") }
+                    else { group.contains("claude") || group.contains("gpt") || group.contains("third party") };
+                matches_pool && if detect_5h { window.is_5h() }
+                    else { window.is_weekly() }
+            })
+        }).collect()
+    }
 }
 fn number(value: &Value) -> Option<f64> {
     value
@@ -568,6 +592,53 @@ mod tests {
         assert!((reading.windows[0].used - 20.).abs() < 0.001);
         assert!((reading.windows[1].used - 70.).abs() < 0.001);
     }
+    #[test]
+    fn antigravity_selects_one_window_per_pool_without_discarding_cache() {
+        let reading = parse(Provider::Antigravity, &json!({"status":"SUCCESS", "command":{"name":"usage", "data":{"groups":[
+            {"name":"Gemini", "buckets":[{"name":"5h", "remaining_fraction":0.8}, {"name":"Weekly", "remaining_fraction":0.4}]},
+            {"name":"Claude/GPT", "buckets":[{"name":"5h", "remaining_fraction":0.3}, {"name":"Weekly", "remaining_fraction":0.1}]},
+            {"name":"Other", "buckets":[{"name":"Daily", "remaining_fraction":0.2}]}
+        ]}}})).unwrap();
+        assert_eq!(reading.windows.len(), 5);
+        for (detect_5h, names, used) in [
+            (true, ["Claude/GPT · 5h", "Gemini · 5h"], [70., 20.]),
+            (false, ["Claude/GPT · Weekly", "Gemini · Weekly"], [90., 60.]),
+        ] {
+            let windows = reading.visible_windows(Provider::Antigravity, detect_5h);
+            assert_eq!(windows.len(), 2);
+            for (index, window) in windows.iter().enumerate() {
+                assert_eq!(window.name, names[index]);
+                assert!((window.used - used[index]).abs() < 0.001);
+            }
+        }
+        let weekly_only = Reading { windows: vec![Window { name: "Gemini · Weekly".into(), used: 42., reset: None }], balance: None };
+        assert!(weekly_only.visible_windows(Provider::Antigravity, true).is_empty());
+        assert_eq!(weekly_only.visible_windows(Provider::Antigravity, false).len(), 1);
+        assert_eq!(reading.visible_windows(Provider::Claude, true).len(), 2);
+        assert_eq!(reading.visible_windows(Provider::Claude, false).len(), 2);
+    }
+
+    #[test]
+    fn five_hour_setting_selects_the_reported_window_for_other_providers() {
+        for &provider in Provider::ALL {
+            if provider == Provider::Antigravity { continue; }
+            let reading = Reading { windows: vec![
+                Window { name: "5h".into(), used: 10., reset: Some("short reset".into()) },
+                Window { name: "Weekly".into(), used: 60., reset: Some("weekly reset".into()) },
+                Window { name: "Daily".into(), used: 20., reset: None },
+            ], balance: None };
+            for (detect_5h, name) in [(true, "5h"), (false, "Weekly")] {
+                let windows = reading.visible_windows(provider, detect_5h);
+                assert_eq!(windows.len(), 1, "{provider:?}");
+                assert_eq!(windows[0].name, name);
+                assert!(windows[0].reset.is_some());
+            }
+            let reading = Reading { windows: vec![Window { name: "Daily".into(), used: 12., reset: None }], balance: Some(3.) };
+            assert_eq!(reading.visible_windows(provider, true).len(), 1);
+            assert_eq!(reading.visible_windows(provider, false).len(), 1);
+        }
+    }
+
     #[test]
     fn native_requests_match_provider_transport_contracts() {
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();

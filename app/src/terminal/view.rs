@@ -10625,7 +10625,7 @@ impl TerminalView {
                                                     view_id,
                                                     CLIAgentSession {
                                                         agent,
-                                                        status: CLIAgentSessionStatus::InProgress,
+                                                        status: CLIAgentSessionStatus::Starting,
                                                         session_context:
                                                             CLIAgentSessionContext::default(),
                                                         input_state: CLIAgentInputState::Closed,
@@ -11799,12 +11799,12 @@ impl TerminalView {
                     .is_child_agent_conversation()
                     .then_some(conversation.id())
             });
-        if let Some(conversation_id) = active_child_conversation_id {
+        if let (Some(conversation_id), Some(status)) = (active_child_conversation_id, status.to_conversation_status()) {
             BlocklistAIHistoryModel::handle(ctx).update(ctx, |history_model, ctx| {
                 history_model.update_conversation_status(
                     self.view_id,
                     conversation_id,
-                    status.to_conversation_status(),
+                    status,
                     ctx,
                 );
             });
@@ -11831,7 +11831,7 @@ impl TerminalView {
                             ctx,
                         );
                     }
-                    CLIAgentSessionStatus::InProgress | CLIAgentSessionStatus::Success => {
+                    CLIAgentSessionStatus::Starting | CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::InProgress | CLIAgentSessionStatus::Success => {
                         // Auto-open rich input when the agent resumes or completes.
                         if !self.has_active_cli_agent_input_session(ctx) {
                             self.open_cli_agent_rich_input(CLIAgentInputEntrypoint::AutoShow, ctx);

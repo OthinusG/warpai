@@ -172,6 +172,7 @@ impl TaskStatusSyncModel {
             return;
         };
 
+        if matches!(status, CLIAgentSessionStatus::Starting | CLIAgentSessionStatus::Idle) { return; }
         let (task_state, status_message) = map_cli_session_status(status);
         self.fire_update(task_id, task_state, status_message, ctx);
     }
@@ -315,7 +316,7 @@ fn map_cli_session_status(
     status: &CLIAgentSessionStatus,
 ) -> (AgentTaskState, Option<TaskStatusUpdate>) {
     match status {
-        CLIAgentSessionStatus::InProgress => (AgentTaskState::InProgress, None),
+        CLIAgentSessionStatus::Starting | CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::InProgress => (AgentTaskState::InProgress, None),
         CLIAgentSessionStatus::Success => (AgentTaskState::Succeeded, None),
         CLIAgentSessionStatus::Blocked { message } => (
             AgentTaskState::Blocked,

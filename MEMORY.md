@@ -130,7 +130,12 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   Permissions/cancellation/disconnect observations persist with exact attempts;
   never store drafts/output. Wait receipts retain unacknowledged messages;
   notifications never prove execution or result handling.
-- Wake polls until idle; manual input/cancel/run replacement fences delayed Enter.
+- 1.6.4 fixes: specs/agent-communication-v2/FIXES-1.6.4.md. Usage selects
+  five-hour OR weekly windows; Antigravity retains Gemini and Claude/GPT pools.
+  Composer drafts/attachments stay in memory during peer submission; native PTY
+  drafts remain guarded. Startup acknowledgements retain MCP idle evidence;
+  sidebar lifecycle projections never manufacture completion notifications.
+- Wake polls until idle; native input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.
 - Back up schema migrations consistently; no downgrade or automatic legacy

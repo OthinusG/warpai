@@ -193,7 +193,11 @@ impl CLIAgent {
         };
         self.command_prefixes().contains(&program.as_str())
             && self.accepts_peer_prompt(command)
-            && options.is_empty_interactive(&words[1..])
+            && if *self == Self::Codex {
+                warp_agent_bus::session::codex_starts_at_empty_prompt(&words[1..], options)
+            } else {
+                options.is_empty_interactive(&words[1..])
+            }
     }
 
     /// Batch and protocol clients can use MCP, but their stdin is not a terminal prompt.

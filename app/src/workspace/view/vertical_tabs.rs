@@ -3243,7 +3243,7 @@ fn resolve_icon_with_status_variant(
                 IconWithStatusVariant::CLIAgent {
                     agent: session.agent,
                     status: if agent_supports_rich_status(&session.agent) {
-                        Some(session.status.to_conversation_status())
+                        session.status.to_conversation_status()
                     } else {
                         None
                     },
@@ -6406,7 +6406,7 @@ fn render_terminal_detail_section(
     let status = if let Some(session) =
         cli_agent_session.filter(|s| s.listener.is_some() && agent_supports_rich_status(&s.agent))
     {
-        Some(session.status.to_conversation_status())
+        session.status.to_conversation_status()
     } else if agent_text.is_oz_agent {
         terminal_view.selected_conversation_status_for_display(app)
     } else {

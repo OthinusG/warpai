@@ -271,10 +271,7 @@ impl AgentUsage {
                             .unwrap_or(Err("Usage query timed out"))
                     }
                     .compat()
-                    .await.map(|mut reading| {
-                        reading.windows.retain(|window| account.detect_5h || !window.is_5h());
-                        reading
-                    });
+                    .await;
                     (account.id, reading)
                 }))
                 .await
