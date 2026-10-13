@@ -324,7 +324,8 @@ updates require both and retain the same kind. Content kinds:
 | code_snippet | path, language, start_line, code |
 | design_decision | decision, rationale, alternatives: [string] |
 
-Publication returns a compact summary with `reference: {id, revision, sha256}`.
+Publication returns a compact summary with `reference: {id, revision, sha256}`,
+author/project and broker-owned source_workspace provenance when available.
 Content is limited to 32 KiB; paths must be workspace-relative. Publish explicitly
 supplied snapshots only; the server does not read source files or credentials.
 `warp_context_get({reference})` returns that exact immutable version and verifies

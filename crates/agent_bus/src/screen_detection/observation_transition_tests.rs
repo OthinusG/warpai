@@ -28,3 +28,16 @@ fn native_drafts_and_slash_commands_recover_without_hiding_busy_or_dialogs() {
     let agy_palette = "────────────\n> /model\n────────────\nEsc to cancel";
     assert_ne!(activity_at_cursor("agy", agy_palette, "", quiet, Some(1)), Some(Activity::Idle));
 }
+
+#[test]
+fn live_composer_supersedes_transcript_warnings_and_slash_command_history() {
+    let history = "Old output: approve changes (y/n)\n⠋ working on the previous task\nERROR: previous connection failed\n/status\nSession status";
+    for model in ["gpt-5.6", "o3", "o4-mini"] {
+        let screen = format!("OpenAI Codex\n{history}\n› unsent draft\n{model} · ~/project");
+        assert_eq!(activity_at_cursor("codex", &screen, "", Duration::from_secs(2), Some(6)), Some(Activity::Idle));
+        let busy = format!("OpenAI Codex\n{history}\n• Thinking (esc to interrupt)\n› draft\n{model} · ~/project");
+        assert_eq!(activity_at_cursor("codex", &busy, "", Duration::from_secs(2), Some(7)), Some(Activity::Working));
+    }
+    let agy = format!("Antigravity CLI\n{history}\n────────────\n> unsent draft\n────────────\n? for shortcuts");
+    assert_eq!(activity_at_cursor("agy", &agy, "", Duration::from_secs(2), Some(7)), Some(Activity::Idle));
+}

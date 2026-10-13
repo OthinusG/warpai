@@ -737,6 +737,9 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         "content":{"kind":"analysis","summary":"Reusable fixture context","findings":["Project authority is required"]},
         "request_id":Uuid::new_v4().to_string()}));
     let reference = published["reference"].clone();
+    let resources = issuer.list_resources(None).await.unwrap();
+    let resource_uri = resources.resources.iter().find(|resource| resource.name == "Shared contract analysis").unwrap().uri.clone();
+
     for (index, program) in programs().into_iter().enumerate() {
         let terminal = format!("supervised-{index}");
         let worker = ().serve(spawn(&terminal, program)).await.unwrap();
@@ -750,6 +753,8 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         let task_id = task["id"].as_str().unwrap();
         let assignment = tool!(worker, "warp_agent_inbox", json!({}));
         assert!(assignment["messages"].as_array().unwrap().iter().any(|message| message["task_id"] == task_id && message["kind"] == "assignment"));
+        let native_resource = worker.read_resource(rmcp::model::ReadResourceRequestParam { uri:resource_uri.clone() }).await.unwrap();
+        assert_eq!(native_resource.contents.len(), 1);
         let resource = tool!(worker, "warp_context_get", json!({"reference":reference.clone()}));
         assert_eq!(resource["content"]["summary"], "Reusable fixture context", "{program}");
         let assignment_body = &assignment["messages"][0]["body"];

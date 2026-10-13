@@ -24,8 +24,16 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
     };
     let composer = composer_rows(agent, screen, cursor);
     // Draft words such as "approve" or "working" are not lifecycle signals.
-    let chrome = composer.as_ref().map(|range| screen.lines().enumerate()
-        .filter(|(row, _)| !range.contains(row)).map(|(_, line)| line).collect::<Vec<_>>().join("\n"));
+    let chrome = composer.as_ref().map(|range| {
+        let lines: Vec<_> = screen.lines().collect();
+        // A cursor-bound composer supersedes transcript warnings and old activity text.
+        let live_above = lines[..range.start].iter().rev()
+            .find(|line| !line.trim().is_empty() && !line.trim().chars().all(|c| c == '─'))
+            .filter(|line| { let lower = line.to_lowercase(); lower.contains("esc to interrupt")
+                || lower.contains("ctrl+c to interrupt") || lower.contains("esc to cancel") });
+        live_above.into_iter().map(|line| *line).chain(lines[range.end..].iter().copied())
+            .collect::<Vec<_>>().join("\n")
+    });
     let detection = detect(agent, chrome.as_deref().unwrap_or(screen), title, None);
     let title_activity = title_state(agent, title);
     if let Some(detection) = detection {
@@ -156,6 +164,10 @@ fn title_state(agent: &str, title: &str) -> Option<Activity> {
     })
 }
 
+fn model_footer(line: &str) -> bool {
+    (line.starts_with("gpt-") || line.starts_with("o3") || line.starts_with("o4")) && line.contains('·')
+}
+
 fn codex_ready(screen: &str, cursor: Option<usize>) -> bool {
     let lower = screen.to_lowercase();
     let lines: Vec<_> = lower.lines().map(str::trim).collect();
@@ -163,7 +175,7 @@ fn codex_ready(screen: &str, cursor: Option<usize>) -> bool {
         .iter()
         .enumerate().rfind(|(row, line)| **line == "› ask codex to do anything"
             || cursor == Some(*row) && line.starts_with("› ")
-                && lines.iter().skip(*row + 1).any(|line| line.starts_with("gpt-") && line.contains('·')))
+                && lines.iter().skip(*row + 1).any(|line| model_footer(line)))
         .map(|(row, _)| row)
     else {
         return false;
@@ -207,7 +219,7 @@ fn composer_rows(agent: &str, screen: &str, cursor: Option<usize>) -> Option<std
     if agent == "codex" {
         let start = lines[..=cursor].iter().rposition(|line| line.starts_with("› "))?;
         let end = lines.iter().enumerate().skip(cursor + 1)
-            .find(|(_, line)| line.starts_with("gpt-") && line.contains('·'))?.0;
+            .find(|(_, line)| model_footer(line))?.0;
         if lines[cursor + 1..end].iter().any(|line| {
             let lower = line.to_lowercase();
             lower.contains("esc to cancel") || lower.contains("enter to select") || lower.contains("enter to submit answer")

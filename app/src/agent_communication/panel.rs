@@ -2388,7 +2388,12 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         .and_then(|section| section.rows.first())
         .cloned()
         .unwrap_or_else(|| "Verify the native capture fixture".into());
-    let task = broker.operator(&project, &Operation::TaskAssign { context_refs: vec![],
+    let context = broker.operator(&project, &Operation::ContextPublish { resource_id:None, expected_revision:None,
+        title:"Native shared analysis".into(), content:warp_agent_bus::context::ContextContent::Analysis {
+            summary:"Reusable native fixture context".into(), findings:vec!["Preserve terminal drafts".into()] },
+        source_revision:None, request_id:uuid::Uuid::new_v4().to_string() })?;
+    let context_ref = serde_json::from_value(context["reference"].clone())?;
+    let task = broker.operator(&project, &Operation::TaskAssign { context_refs: vec![context_ref],
         to: "capture-worker".into(), description,
         acceptance: "The deterministic native IPC check passes and the unsent terminal draft remains intact.".into(),
         reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
@@ -3123,6 +3128,25 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 )
             },
         ));
+    driver = driver
+        .with_step(TestStep::new("select native Send context resource").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                panel.open_control(controls::Kind::Send, ctx);
+                panel.fill_control_checkpoint(&["", "Review shared analysis", ""], ctx);
+                panel.select_context_checkpoint(ctx);
+            });
+        }).add_named_assertion("native context selection preserves drafts", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, ctx| panel.context_checkpoint_selected()
+                && panel.control_checkpoint_draft("Review shared analysis", ctx))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }).with_take_screenshot("live-send-context.png"))
+        .with_step(TestStep::new("close native context form").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.cancel_control(ctx));
+        }));
+    filenames.push("live-send-context.png".into());
     filenames.push("live-empty.png".into());
     filenames.extend(["worktree-coordinator-selector.png", "worktree-create-form.png", "worktree-created.png", "worktree-worker-selector.png", "worktree-bound-team.png", "worktree-coordinator-dropdown.png"].map(str::to_owned));
     filenames.extend(["worktree-switched-coordinator.png", "worktree-coordinator-after-tab-switch.png"].map(str::to_owned));

@@ -1276,6 +1276,19 @@ impl CollaborationPanel {
     }
 
     #[cfg(debug_assertions)]
+    pub(super) fn select_context_checkpoint(&mut self, ctx: &mut ViewContext<Self>) {
+        let form = self.form.as_ref().expect("Capture form open");
+        let request = form.request_id.clone();
+        let id = form.resources.first().expect("Capture resource available").reference.id.clone();
+        self.select_context(&request, &id, ctx);
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn context_checkpoint_selected(&self) -> bool {
+        self.form.as_ref().is_some_and(|form| form.selected_context.len() == 1 && form.context_selector.is_some())
+    }
+
+    #[cfg(debug_assertions)]
     pub(super) fn fill_control_checkpoint(&mut self, fields: &[&str], ctx: &mut ViewContext<Self>) {
         let form = self.form.as_ref().expect("Capture form open");
         assert_eq!(fields.len(), form.fields.len());

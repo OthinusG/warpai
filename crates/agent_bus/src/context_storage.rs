@@ -33,13 +33,12 @@ impl Store {
 
     pub(super) fn context_list(&self, actor: &Agent, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
         self.authorize(actor)?;
-        let limit = limit.unwrap_or(PAGE_DEFAULT).clamp(1, PAGE_MAX);
+        let limit = Self::page_limit(limit)?;
         let rows = diesel::sql_query("SELECT value FROM meta WHERE key LIKE 'context/head/%' AND json_extract(value,'$.project')=? AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
             .bind::<Text, _>(&actor.project).bind::<BigInt, _>(cursor.unwrap_or(0).min(i64::MAX as u64) as i64)
             .bind::<BigInt, _>(limit as i64 + 1).load::<ValueRow>(&mut *self.connection.borrow_mut())?;
-        let mut summaries = rows.into_iter().map(|row| serde_json::from_str::<ContextSummary>(&row.value)).collect::<std::result::Result<Vec<_>, _>>()?;
-        let cursor = (summaries.len() > limit as usize).then(|| summaries[limit as usize - 1].created_seq);
-        summaries.truncate(limit as usize);
+        let summaries = rows.into_iter().map(|row| serde_json::from_str::<ContextSummary>(&row.value)).collect::<std::result::Result<Vec<_>, _>>()?;
+        let (summaries, cursor) = bounded_items(summaries.into_iter().map(|summary| (summary.created_seq, summary)), limit)?;
         Ok(json!({"resources":summaries,"cursor":cursor}))
     }
 
@@ -67,7 +66,7 @@ impl Store {
         let summary = ContextSummary { reference:ContextRef { id:id.clone(), revision,
                 sha256:format!("{:x}", Sha256::digest(serde_json::to_vec(content)?)) },
             project:actor.project.clone(), title:title.into(), kind:content.kind().into(), author:actor.id.clone(),
-            source_revision:source_revision.map(str::to_owned), created_seq:self.next_sequence(&actor.project)? };
+            source_revision:source_revision.map(str::to_owned), source_workspace:self.physical_root(actor).ok(), created_seq:self.next_sequence(&actor.project)? };
         let resource = ContextResource { summary:summary.clone(), content:content.clone() };
         let key = format!("context/version/{id}/{revision}");
         ensure!(self.context_meta::<ContextResource>(&key)?.is_none(), invalid_state("Context revision already exists"));
@@ -172,5 +171,17 @@ mod tests {
         assert!(store.execute(&lead, "lead-run", &invalid).is_err());
         let inbox = store.execute(&worker, "worker-run", &Operation::AgentInbox { cursor:None, limit:None }).unwrap();
         assert_eq!(inbox["messages"].as_array().unwrap().len(), 2);
+        let task_id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &Operation::TaskStart { task_id:task_id.clone(), revision:1,
+            expected_version:None, request_id:Uuid::new_v4().to_string() }).unwrap();
+        store.execute(&worker, "worker-run", &Operation::TaskFail { task_id:task_id.clone(), revision:1,
+            reason:"Fixture stopped".into(), evidence_ids:vec![], attempt_id:None, expected_version:None,
+            request_id:Uuid::new_v4().to_string() }).unwrap();
+        let retried = store.execute(&lead, "lead-run", &Operation::TaskRetry { task_id:task_id.clone(),
+            reason:"Retry with the original snapshot".into(), start_deadline:None, clear_start_deadline:false,
+            override_uncertain:false, expected_version:None, request_id:Uuid::new_v4().to_string() }).unwrap();
+        assert_eq!(retried["context_refs"][0], json!(reference));
+        assert_eq!(retried["revision"], 2);
+
     }
 }

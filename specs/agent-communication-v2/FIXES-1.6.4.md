@@ -355,3 +355,26 @@ owner-authorized clear-before-delivery contract requires both shapes. Adopt its
 cursor/frame evidence rather than classify arbitrary prompt-like text as idle.
 Verify pure detector sequences, Broker leases/tasks, real MCP and native UI/WSL
 on source-matched cloud runners. Credentials are not used by the fixtures.
+
+
+### Structured context and native Send acceptance (2026-10-14)
+
+- Shared typed resource DTOs and immutable revisions use the existing account Store,
+  project authority, receipts and byte budgets. The MCP tools and native resource
+  URI reads share validation; no automatic file reads or new persistence service.
+- All task notifications carry typed bodies. Native Send uses typed instructions;
+  Send/assignment/pool controls select project summaries and pin version/digest.
+  SSH/WSL negotiate support and reject unsupported typed sends before transmission.
+- Tests cover replay/restart, immutable old versions, changed/foreign/duplicate
+  references, task retry pins, all managed/custom MCP programs, native MCP resource
+  reads, controlled SSH/WSL resource transfer and native resource selection/drafts.
+- The previous cloud failures exposed a DrvFS chmod assumption in the WSL fixture
+  and unconsumed previous-task notices in the supervision loop; fixtures now
+  respect imported-drive permissions and explicitly handle previous messages.
+- Cursor-bound Codex/agy composers supersede historical warning/approval/spinner
+  prose. Actual live interrupt rows and active dialogs still block delivery; Codex
+  o3/o4 footers use the same composer rule. Native vendor/authenticated acceptance
+  is separate from synthetic transport/state fixtures; owner WSL reproduction is
+  not declared resolved from static or cloud fixture results.
+- Source-matched cloud acceptance and native UI screenshots are required before
+  this change is reported as verified; Windows interim builds remain artifact-only.

@@ -81,6 +81,8 @@ pub struct ContextSummary {
     pub kind: String,
     pub author: String,
     pub source_revision: Option<String>,
+    #[serde(default)]
+    pub source_workspace: Option<String>,
     pub created_seq: u64,
 }
 

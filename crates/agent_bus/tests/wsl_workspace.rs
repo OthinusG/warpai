@@ -150,6 +150,12 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
         warp_agent_bus::Operation::ContextGet { reference:reference.clone() }
     )) }, 5).await.unwrap();
     assert_eq!(fetched["value"]["content"]["summary"], "Reusable WSL findings");
+    let mut foreign = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
+    let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { reference:reference.clone() }), 5).await.unwrap();
+    assert!(denied.get("error").is_some());
+    assert!(denied.get("value").is_none());
+    foreign.disconnect();
+
     let message = observer.project_tasks(&TaskCommand::Scoped { scope: scope.clone(), command: Box::new(TaskCommand::Operator(
         warp_agent_bus::Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective:"Native fixture work".into(), context_refs:vec![reference] }), expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }

@@ -26,7 +26,9 @@ Publish only explicitly supplied context; no background repository scans, shell
 execution, filesystem reads, secret-file ingestion or external vector database.
 
 A resource has stable UUID, immutable revision, SHA-256 digest, title, kind,
-project, author, created sequence and optional source revision metadata. Updating
+project, author, created sequence, broker-owned source workspace when available
+and optional source revision metadata. Source workspace is provenance, never a
+request to open another checkout or a grant of filesystem access. Updating
 requires expected_revision, appends a new revision and never rewrites referenced
 content. Limit encoded publication to fit the existing 64-KiB managed command;
 large indexes are published as scoped module resources. List/search projections
