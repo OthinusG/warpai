@@ -51,8 +51,8 @@ def package(binary, output, source):
         }) + "\n")
         (payload / "platform").write_text("Linux:x86_64\n")
         (payload / "install-unix.sh").write_text(installer_source())
-        for notice in ["FORK_NOTICE.md", "LICENSE-AGPL"]:
-            shutil.copy2(notice, payload / notice)
+        for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL', 'docs/ORCA-LICENSE', 'docs/AGENT-OF-EMPIRES-LICENSE']:
+            shutil.copy2(notice, payload / Path(notice).name)
         (payload / "SHA256SUMS").write_text("".join(
             hashlib.sha256(path.read_bytes()).hexdigest() + "  " +
             path.relative_to(payload).as_posix() + "\n"

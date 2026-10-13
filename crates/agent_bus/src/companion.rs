@@ -126,6 +126,8 @@ impl Companion {
                         "project_files".into(),
                         #[cfg(feature = "wsl_companion")]
                         "project_file_chunks".into(),
+                        #[cfg(feature = "wsl_companion")]
+                        "native_screen_activity".into(),
                         "project_git_review".into(),
                         "worktree_collaboration".into(),
                         "worktree_orchestration".into(),

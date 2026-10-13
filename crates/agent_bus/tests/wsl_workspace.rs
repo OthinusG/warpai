@@ -118,7 +118,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
         wsl_setup::{NativeAction, NativeRequest, NativeState}};
     let observe = |draft, blocked, epoch, submitted, cancelled| TaskCommand::GuestNative(NativeRequest {
         shell_pid, action: NativeAction::Observe { draft, blocked, input_epoch: epoch,
-            submitted, cancelled, native_ready: None },
+            submitted, cancelled, native_ready: None, screen_run: None, screen_activity: None },
     });
     let native_command = |action| TaskCommand::GuestNative(NativeRequest { shell_pid, action });
     let state = client.project_tasks(&observe(false, false, 0, false, false), 1).await.unwrap();

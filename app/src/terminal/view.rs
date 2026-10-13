@@ -7993,6 +7993,8 @@ impl TerminalView {
             not(target_family = "wasm")
         ))]
         crate::agent_communication::output(self.view_id);
+        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        self.record_wsl_peer_output();
         // If find bar is active, we update the matches for the last/active block or the alt screen.
         if self.find_model.as_ref(ctx).is_find_bar_open() {
             self.find_model.update(ctx, |find_model, ctx| {

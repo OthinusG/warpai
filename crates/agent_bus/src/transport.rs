@@ -71,6 +71,20 @@ struct Terminal {
     revoked: bool,
     live: Option<Live>,
 }
+/// A current native run/input/output fence; screen text never enters this token.
+#[derive(Clone)]
+pub struct ScreenContext {
+    pub program: String,
+    run: String,
+    generation: u64,
+    output: Instant,
+    input: Instant,
+    observed: Instant,
+}
+impl ScreenContext {
+    pub fn quiet(&self) -> Duration { self.output.elapsed().min(self.input.elapsed()).min(self.observed.elapsed()) }
+}
+
 struct Live {
     origin_agent: Option<Agent>,
     program: String,
@@ -553,6 +567,44 @@ impl Broker {
             }
         }
         self.shared.changed.notify_all();
+    }
+    pub fn screen_context(&self, terminal: &str) -> Option<ScreenContext> {
+        if let Some(broker) = self.forwarded(terminal) { return broker.screen_context(terminal); }
+        let state = self.shared.state.lock().ok()?;
+        let binding = state.terminals.get(terminal)?;
+        if binding.revoked { return None; }
+        let live = binding.live.as_ref()?;
+        if live.expired { return None; }
+        Some(ScreenContext { program: live.program.clone(), run: live.run.clone(),
+            generation: live.generation, output: live.last_output, input: live.last_input, observed: live.observed })
+    }
+    /// Apply only evidence sampled from this run and before any intervening input/redraw.
+    pub fn observe_screen(&self, terminal: &str, context: &ScreenContext, activity: Activity) -> bool {
+        if let Some(broker) = self.forwarded(terminal) { return broker.observe_screen(terminal, context, activity); }
+        let Ok(mut state) = self.shared.state.lock() else { return false; };
+        let Some(binding) = state.terminals.get_mut(terminal) else { return false; };
+        if binding.revoked { return false; }
+        let Some(live) = binding.live.as_mut() else { return false; };
+        if live.expired || live.run != context.run || live.generation != context.generation
+            || live.last_output != context.output || live.last_input != context.input || live.observed != context.observed { return false; }
+        // Stable samples must preserve the idle lease and any in-flight wake.
+        if live.activity == activity && live.native_activity == Some(activity) { return true; }
+        if activity.is_idle() && context.quiet() < Duration::from_millis(1000) { return false; }
+        live.generation += 1;
+        live.activity = activity;
+        live.native_activity = Some(activity);
+        live.readiness_source = "native_screen";
+        live.observed = Instant::now();
+        live.ready = activity.is_idle().then(Instant::now);
+        live.initial_prompt = false;
+        if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
+        let observation = live.agent.clone().map(|actor| (actor, live.run.clone(), live.blocked));
+        if let Some((actor, run, blocked)) = observation {
+            state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native_screen"}))
+                .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
+        }
+        self.shared.changed.notify_all();
+        true
     }
     pub fn terminal_activity(&self, terminal: &str) -> Option<Activity> {
         if let Some(broker) = self.forwarded(terminal) { return broker.terminal_activity(terminal); }
@@ -1283,7 +1335,7 @@ impl Broker {
                     agent["readiness_source"] = json!(live.readiness_source);
                     agent["last_observed_ms"] = json!(live.observed.elapsed().as_millis() as u64);
                     agent["last_output_ms"] = json!(live.last_output.elapsed().as_millis() as u64);
-                    agent["observation_confirmed"] = json!(live.readiness_source == "native");
+                    agent["observation_confirmed"] = json!(matches!(live.readiness_source, "native" | "native_screen"));
                     agent["paused"] = json!(live.paused);
                     agent["has_draft"] = json!(!live.draft.is_empty() || live.rich_draft);
                     agent["draft_state"] = json!(if live.rich_draft { "present" } else { live.draft.state() });
@@ -1475,18 +1527,22 @@ impl Broker {
             _ => "private",
         };
         let joined = state.store.worktree_binding(&query.project).ok().flatten();
+        let replaced_repository = joined.as_ref().is_some_and(|current| binding
+            .and_then(|binding| binding.workspace.as_ref())
+            .is_some_and(|previous| previous.root == query.project && previous.space != current.space
+                && state.store.authorize_workspace(previous).is_err()));
         let project = binding.and_then(|binding| binding.workspace.as_ref())
-            .filter(|workspace| workspace.root == query.project)
+            .filter(|workspace| workspace.root == query.project && state.store.authorize_workspace(workspace).is_ok())
             .map(crate::WorkspaceBinding::domain)
             .or_else(|| query.terminal.as_ref()
             .and_then(|terminal| state.terminals.get(terminal))
             .filter(|binding| !binding.revoked)
             .and_then(|binding| binding.live.as_ref())
             .and_then(|live| live.agent.as_ref())
-            .filter(|agent| state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
+            .filter(|agent| state.store.authorize(agent).is_ok() && state.store.physical_root(agent).ok().as_deref() == Some(query.project.as_str()))
             .map(|agent| agent.project.clone()))
             .or_else(|| {
-                if binding.is_some_and(|binding| binding.revoked || binding.live.is_some())
+                if binding.is_some_and(|binding| (binding.revoked || binding.live.is_some()) && !replaced_repository)
                     || state.store.worktree_opted_out(&query.project).unwrap_or(true) { return None; }
                 joined.as_ref().map(crate::WorkspaceBinding::domain)
                     .or_else(|| state.store.worktree_domain(&query.project).ok().flatten())

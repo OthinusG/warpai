@@ -329,6 +329,77 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn native_screen_fences_inputs_redraws_restarts_and_preserves_idle_leases() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = crate::project_root(directory.path()).unwrap();
+        let owner = RunningBroker::start(&directory.path().join("screen.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let sender = client(broker, std::path::Path::new(&root), "observer");
+        let programs = include_str!("../../../app/src/terminal/cli_agent.rs").lines()
+            .filter_map(|line| line.trim().strip_prefix("CLIAgent::"))
+            .filter(|line| line.contains("=> &[\""))
+            .filter_map(|line| line.split('"').nth(1));
+        for program in programs.chain(std::iter::once("custom")) {
+            let terminal = id();
+            let capability = broker.prepare(&terminal).unwrap();
+            broker.activate_project(&terminal, program, &root, false).unwrap();
+            let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal:terminal.clone(), capability,
+                run:None, directory:Some(root.clone()), defer_initial_ready:true, native_activity:None,
+                operation:Operation::AgentRegister { name:format!("peer-{}", id()) } };
+            let actor = call(broker, &request, request.operation.clone()).unwrap();
+            request.run = actor["run"].as_str().map(str::to_owned);
+            let context = broker.screen_context(&terminal).unwrap();
+            broker.input_bytes(&terminal, b"draft");
+            assert!(!broker.observe_screen(&terminal, &context, Activity::Idle));
+            let context = broker.screen_context(&terminal).unwrap();
+            broker.output(&terminal);
+            assert!(!broker.observe_screen(&terminal, &context, Activity::Working));
+            {
+                let mut state = broker.store().unwrap();
+                let live = state.terminals.get_mut(&terminal).unwrap().live.as_mut().unwrap();
+                live.last_input = Instant::now() - Duration::from_secs(2);
+                live.last_output = live.last_input;
+                live.observed = live.last_input;
+            }
+            let context = broker.screen_context(&terminal).unwrap();
+            assert!(broker.observe_screen(&terminal, &context, Activity::Idle));
+            let (generation, ready) = {
+                let state = broker.store().unwrap();
+                let live = state.terminals[&terminal].live.as_ref().unwrap();
+                assert_eq!(live.draft.state(), "present", "screen evidence cannot delete user text");
+                (live.generation, live.ready)
+            };
+            for _ in 0..4 {
+                assert!(broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle));
+            }
+            {
+                let state = broker.store().unwrap();
+                let live = state.terminals[&terminal].live.as_ref().unwrap();
+                assert_eq!((live.generation, live.ready), (generation, ready));
+            }
+            let peers = call(broker, &request, Operation::AgentList).unwrap();
+            let peer = peers.as_array().unwrap().iter().find(|peer| peer["terminal"] == terminal).unwrap();
+            assert_eq!(peer["activity"], "idle");
+            assert_eq!(peer["readiness_source"], "native_screen");
+            call(broker, &sender, Operation::AgentSend { expects_result:false,
+                to:actor["agent"]["name"].as_str().unwrap().into(), body:"Check".into(), subject:None,
+                thread_id:None, reply_to:None, task_id:None, request_id:id() }).unwrap();
+            {
+                let mut state = broker.store().unwrap();
+                state.terminals.get_mut(&terminal).unwrap().live.as_mut().unwrap().ready = Some(Instant::now() - Duration::from_secs(2));
+            }
+            let wake = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+            assert!(broker.claim_wake(&wake));
+            assert!(broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle));
+            assert!(broker.wake_valid(&wake), "unchanged screen cannot invalidate a claimed wake");
+            let context = broker.screen_context(&terminal).unwrap();
+            broker.end(&terminal);
+            broker.activate_project(&terminal, program, &root, false).unwrap();
+            assert!(!broker.observe_screen(&terminal, &context, Activity::Idle), "old run cannot complete its successor");
+        }
+    }
+
+    #[test]
     fn replaced_repository_at_old_path_registers_fresh_agents_without_old_authority() {
         for opted_out in [false, true] {
             let directory = tempfile::tempdir().unwrap();
@@ -365,6 +436,9 @@ mod tests {
             assert!(empty["agents"].as_array().unwrap().is_empty());
             broker.control(&root, &ControllerOperation::WorktreeMode { worktree:true, request_id:id() }).unwrap();
             assert_eq!(broker.operator_panel(&PanelQuery { project:root.clone(), ..Default::default() }).unwrap()["worktree_mode"], true);
+            let old_pane = broker.operator_panel(&PanelQuery { project:root.clone(), terminal:Some(old.terminal.clone()), ..Default::default() }).unwrap();
+            assert_eq!(old_pane["worktree_mode"], true, "a stale pane must not hide the fresh main-only repository mode");
+            assert!(old_pane["agents"].as_array().unwrap().is_empty());
             let (fresh, current) = register(broker, "codex");
             register(broker, "agy");
             assert_ne!(actor["agent"]["project"], current["agent"]["project"]);

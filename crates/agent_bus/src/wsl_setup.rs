@@ -21,6 +21,10 @@ pub enum NativeAction {
         submitted: bool,
         cancelled: bool,
         native_ready: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        screen_run: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        screen_activity: Option<crate::readiness::Activity>,
     },
     Claim {
         wake: crate::transport::Wake,
@@ -41,6 +45,8 @@ pub struct NativeState {
     pub program: String,
     pub wake: Option<crate::transport::Wake>,
     pub valid: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity: Option<crate::readiness::Activity>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -405,6 +411,17 @@ fn apply_action(
 mod tests {
     use super::*;
     use crate::setup::{Adapter, Installed, SERVER};
+
+    #[test]
+    fn native_screen_fields_are_optional_and_absent_for_legacy_peers() {
+        let legacy = serde_json::json!({"shell_pid":42,"action":{"action":"observe","draft":false,
+            "blocked":false,"input_epoch":0,"submitted":false,"cancelled":false,"native_ready":null}});
+        let request: NativeRequest = serde_json::from_value(legacy.clone()).unwrap();
+        assert_eq!(serde_json::to_value(request).unwrap(), legacy);
+        let legacy = serde_json::json!({"run":"run","program":"codex","wake":null,"valid":false});
+        let state: NativeState = serde_json::from_value(legacy.clone()).unwrap();
+        assert_eq!(serde_json::to_value(state).unwrap(), legacy);
+    }
 
     #[test]
     fn setup_namespace_can_start_service_and_hardens_previous_scan_directories() {

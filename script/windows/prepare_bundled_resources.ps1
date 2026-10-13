@@ -73,7 +73,8 @@ $AdditionalLicenses = @(
     @{ Name = 'rudder-sdk-rust'; License = 'MIT'; Path = 'app\src\server\telemetry\LICENSE-RUDDER-SDK-RUST.txt' },
     @{ Name = 'Windows Terminal'; License = 'MIT'; Path = 'app\assets\windows\LICENSE-WINDOWS-TERMINAL' },
     @{ Name = 'GitHub Desktop'; License = 'MIT'; Path = 'app\src\code_review\GITHUB-DESKTOP-LICENSE' },
-    @{ Name = 'Orca usage adapters'; License = 'MIT'; Path = 'docs\ORCA-LICENSE' }
+    @{ Name = 'Orca usage and lifecycle adapters'; License = 'MIT'; Path = 'docs\ORCA-LICENSE' },
+    @{ Name = 'Agent of Empires screen detector'; License = 'MIT'; Path = 'docs\AGENT-OF-EMPIRES-LICENSE' }
 )
 # Windows-only components:
 $AdditionalLicenses += @(

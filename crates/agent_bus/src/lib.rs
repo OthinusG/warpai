@@ -6,6 +6,7 @@ pub mod installation;
 pub mod launch;
 pub mod mcp;
 pub mod readiness;
+pub mod screen_detection;
 pub mod session;
 pub mod storage;
 pub mod transport;

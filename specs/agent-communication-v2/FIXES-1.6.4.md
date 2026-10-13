@@ -220,3 +220,27 @@ Enter. WSL uses the same clearing path and retains its guest-owned claim/validat
 The editing shortcuts of a third-party CLI are a native runtime dependency;
 validate default interactive modes, multiline/history input, and unchanged drafts
 in Warpai's composer. Do not use repeated interrupts or stop a working Agent.
+
+### Native observation implementation checkpoint
+
+Source attribution and coverage limits: [AGENT-STATUS-SOURCES](../../docs/AGENT-STATUS-SOURCES.md).
+
+The MIT AoE engine/manifests are ported without tmux/runtime configuration, with
+its no-match idle fallback changed to unknown. Orca's Codex/agy composer, Pi/OMP
+state marker and Qoder ready-body predicates complement the rules. Native local
+polling captures the current grid with forced secret obfuscation, never logs or
+persists it, and fences run/input/output before applying derived activity.
+MCP, panel and sidebar project this shared Broker state. Stable samples preserve
+readiness timestamps, generations and claimed wakes. WSL capability negotiation
+keeps older request/response shapes; edits fence projection and exact guest runs
+fence observation before mutations. SSH transport behavior is unchanged.
+
+Coverage must distinguish shared plumbing from vendor signals: all managed
+programs/aliases enter the shared grid/native-title path, while only verified
+manifest/composer/title shapes can supply positive evidence. Unknown custom
+chrome retains native hook/MCP state rather than inventing completion. Tests of
+synthetic explicit titles are not live-vendor acceptance. Required tests include
+all-program input/redraw/restart fencing and idle wake stability, Codex/agy
+welcome/error-return/busy/menu shapes, WSL stale-run and legacy serialization,
+and stale-pane projection of main-only Git mode after repository replacement.
+Both desktop and Companion installers retain AoE and Orca MIT licenses.

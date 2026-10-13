@@ -27,6 +27,8 @@ pub(super) struct State {
     client: Option<Client>,
     busy: bool,
     attempted: Option<std::time::Instant>,
+    output: Option<std::time::Instant>,
+    input: Option<std::time::Instant>,
     draft: Draft,
     epoch: u64,
     submitted: bool,
@@ -42,6 +44,8 @@ impl State {
             return;
         }
         self.context = context;
+        self.output = Some(std::time::Instant::now());
+        self.input = self.output;
         self.client = None;
         self.busy = false;
         self.attempted = None;
@@ -65,6 +69,7 @@ impl State {
             return;
         }
         self.epoch = self.epoch.wrapping_add(1);
+        self.input = Some(std::time::Instant::now());
         match self.draft.input(bytes) {
             Some(Activity::Working) => {
                 self.submitted = true;
@@ -84,13 +89,17 @@ impl State {
 async fn request(
     client: &Client,
     shell_pid: u32,
-    action: NativeAction,
+    mut action: NativeAction,
 ) -> anyhow::Result<Option<NativeState>> {
     tokio::time::timeout(Duration::from_secs(10), async {
-        let value = client
-            .lock()
-            .await
-            .project_tasks(
+        let mut client = client.lock().await;
+        if !client.capabilities().iter().any(|cap| cap == "native_screen_activity") {
+            if let NativeAction::Observe { screen_run, screen_activity, .. } = &mut action {
+                *screen_run = None;
+                *screen_activity = None;
+            }
+        }
+        let value = client.project_tasks(
                 &TaskCommand::GuestNative(NativeRequest { shell_pid, action }),
                 0,
             )
@@ -145,10 +154,10 @@ impl TerminalView {
         // Guest process identity proves participation even before any queued wake exists.
         if CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).is_none() {
             let agent = enum_iterator::all::<CLIAgent>()
-                .find(|agent| agent.command_prefix() == state.program).unwrap_or(CLIAgent::Unknown);
+                .find(|agent| agent.command_prefixes().contains(&state.program.as_str())).unwrap_or(CLIAgent::Unknown);
             let id = self.view_id;
             CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.set_session(id, CLIAgentSession {
-                agent, status: CLIAgentSessionStatus::InProgress,
+                agent, status: CLIAgentSessionStatus::Starting,
                 session_context: CLIAgentSessionContext { cwd:Some(context.root.clone()),
                     session_id:Some(state.run.clone()), ..Default::default() },
                 input_state:CLIAgentInputState::Closed, should_auto_toggle_input:false,
@@ -156,9 +165,19 @@ impl TerminalView {
                     context.target.user, context.target.distribution)), draft_text:None,
                 custom_command_prefix:(agent == CLIAgent::Unknown).then(|| state.program.clone()),
             }, ctx));
-            self.wsl_peer.observed_run = Some(state.run.clone());
             ctx.notify();
         }
+        self.wsl_peer.observed_run = Some(state.run.clone());
+        if let Some(activity) = state.activity {
+            let id = self.view_id;
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                model.observe_activity(id, activity, true, ctx);
+            });
+        }
+    }
+
+    pub(super) fn record_wsl_peer_output(&mut self) {
+        self.wsl_peer.output = Some(std::time::Instant::now());
     }
 
     pub(super) fn record_wsl_peer_input(&mut self, bytes: &[u8], ctx: &AppContext) {
@@ -236,6 +255,11 @@ impl TerminalView {
                 _ => Some(false),
             });
         let epoch = self.wsl_peer.epoch;
+        let screen_activity = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).and_then(|session| {
+            let quiet = self.wsl_peer.output?.elapsed().min(self.wsl_peer.input?.elapsed());
+            warp_agent_bus::screen_detection::activity(session.agent.command_prefix(),
+                &self.model.lock().agent_screen(), &self.terminal_title, quiet)
+        });
         let action = NativeAction::Observe {
             // The host owns clearing; older guest services still block when this flag is true.
             draft: false,
@@ -244,6 +268,8 @@ impl TerminalView {
             submitted: self.wsl_peer.submitted,
             cancelled: self.wsl_peer.cancelled,
             native_ready,
+            screen_run: self.wsl_peer.observed_run.clone(),
+            screen_activity,
         };
         self.wsl_peer.busy = true;
         self.wsl_peer.attempted = Some(std::time::Instant::now());
@@ -273,11 +299,15 @@ impl TerminalView {
             Ok::<_, anyhow::Error>((client, state))
         }, move |view, result, ctx| {
             if view.wsl_peer.context.as_ref() != Some(&context) || view.wsl_peer.configuration_generation != configuration_generation { return; }
-            let (client, state) = match result {
+            let (client, mut state) = match result {
                 Ok(value) => value,
                 Err(_) => { view.wsl_peer.client = None; view.wsl_peer.busy = false; view.wsl_peer.unavailable = true; return; }
             };
             view.wsl_peer.client = Some(client.clone());
+            if view.wsl_peer.epoch == epoch {
+                view.wsl_peer.submitted = false;
+                view.wsl_peer.cancelled = false;
+            } else if let Some(state) = &mut state { state.activity = None; }
             view.observe_wsl_agent(&context, state.as_ref(), ctx);
             let Some(state) = state else { view.wsl_peer.busy = false; return; };
             let Some(wake) = state.wake.filter(|_| state.valid) else { view.wsl_peer.busy = false; return; };
@@ -381,9 +411,9 @@ mod tests {
             let context = Context { session:1_u64.into(), target:Target {
                 distribution:"Ubuntu Test".into(), user:"guest".into(), home:"/home/guest".into()
             }, shell_pid:123, root:"/home/guest/project".into() };
-            let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false };
+            let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false, activity:None };
             first.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&state), ctx));
-            let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false };
+            let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false, activity:None };
             second.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&other), ctx));
             app.update(|ctx| {
                 assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(first.id()).unwrap().agent, CLIAgent::Codex);
@@ -397,6 +427,11 @@ mod tests {
                 CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.set_session(view.view_id, saved, ctx));
                 view.observe_wsl_agent(&context, Some(&state), ctx);
                 assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap().draft_text.as_deref(), Some("unsent prompt"));
+                let idle = NativeState { activity:Some(Activity::Idle), ..state };
+                view.observe_wsl_agent(&context, Some(&idle), ctx);
+                let session = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).unwrap();
+                assert_eq!(session.status, CLIAgentSessionStatus::Idle);
+                assert_eq!(session.draft_text.as_deref(), Some("unsent prompt"));
                 view.observe_wsl_agent(&context, None, ctx);
             });
             app.update(|ctx| {

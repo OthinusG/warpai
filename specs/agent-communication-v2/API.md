@@ -26,7 +26,14 @@ contains a confirmed Linux shell PID and observe/claim/validate/finish action.
 The service matches canonical checkout, shell/Agent PID start times and exact
 run. `NativeState` contains run/program and a serialized Broker wake claim.
 Observe carries only edit epochs, draft/approval flags and optional native
-readiness. Native draft presence does not block a queued wake; the owner authorizes
+readiness. Services advertising `native_screen_activity` additionally accept
+optional `screen_run` and `screen_activity`. The exact run must match before any
+input/guard mutation; no screen text is transferred. A fenced observation returns
+optional `activity` in NativeState. Older hosts omit the fields and receive the
+original response shape; newer hosts omit them when the capability is absent.
+Only derived positive ready/busy/permission evidence can reconcile state; unknown
+chrome and output silence do not grant readiness. Submitted/cancelled edit epochs
+veto the same sample; host edits fence response projection and wake submission. Native draft presence does not block a queued wake; the owner authorizes
 clearing unsent native input at the idle prompt before task submission. Composer
 drafts stay in the app. Clearing never grants readiness or bypasses an input epoch,
 approval, cancellation or run fence. No draft text is added to the wire.

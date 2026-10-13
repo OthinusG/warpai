@@ -431,3 +431,34 @@ fn idle_prompt_updates_startup_and_work_without_inventing_completion() {
     assert_eq!(session.apply_event(&idle), None);
     assert!(matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
 }
+
+#[test]
+fn native_screen_reconciles_every_managed_session_without_losing_drafts() {
+    use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
+    use warpui::SingletonEntity;
+    use warp_agent_bus::readiness::Activity;
+    warpui::App::test((), |mut app| async move {
+        initialize_app_for_terminal_view(&mut app);
+        let terminal = add_window_with_terminal(&mut app, None);
+        CLIAgentSessionsModel::handle(&mut app).update(&mut app, |model, ctx| {
+            for agent in enum_iterator::all::<CLIAgent>() {
+                model.set_session(terminal.id(), CLIAgentSession {
+                    agent, status:CLIAgentSessionStatus::Blocked { message:None },
+                    session_context:Default::default(), input_state:CLIAgentInputState::Closed,
+                    should_auto_toggle_input:false, listener:None, plugin_version:None,
+                    remote_host:None, draft_text:Some("unsent draft".into()), custom_command_prefix:None,
+                }, ctx);
+                model.observe_activity(terminal.id(), Activity::Idle, false, ctx);
+                assert!(matches!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::Blocked { .. }));
+                model.observe_activity(terminal.id(), Activity::Idle, true, ctx);
+                assert_eq!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::Idle);
+                model.observe_activity(terminal.id(), Activity::Working, true, ctx);
+                assert_eq!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::InProgress);
+                model.observe_activity(terminal.id(), Activity::WaitingApproval, true, ctx);
+                let session = model.session(terminal.id()).unwrap();
+                assert!(matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
+                assert_eq!(session.draft_text.as_deref(), Some("unsent draft"));
+            }
+        });
+    });
+}

@@ -516,14 +516,21 @@ impl AgentCommunication {
                 let pending = broker.pending_work();
                 for (terminal, view) in &bindings {
                     if let Some(view) = view.upgrade(ctx) {
-                        let (draft, blocked) = view.as_ref(ctx).peer_input_guard(ctx);
-                        broker.composer_guard(terminal, draft, blocked);
+                        let observed = broker.screen_context(terminal).and_then(|context| {
+                            let native = view.as_ref(ctx);
+                            let screen = native.model.lock().agent_screen();
+                            let title = native.terminal_title_text();
+                            let activity = warp_agent_bus::screen_detection::activity(&context.program, &screen, &title, context.quiet())?;
+                            broker.observe_screen(terminal, &context, activity).then_some(activity)
+                        });
                         if let Some(activity) = broker.terminal_activity(terminal) {
                             let id = view.id();
                             CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
-                                sessions.observe_activity(id, activity, ctx);
+                                sessions.observe_activity(id, activity, observed.is_some(), ctx);
                             });
                         }
+                        let (draft, blocked) = view.as_ref(ctx).peer_input_guard(ctx);
+                        broker.composer_guard(terminal, draft, blocked);
                     }
                 }
                 model.notified.retain(|terminal, message| {

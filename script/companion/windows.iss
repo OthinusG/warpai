@@ -30,5 +30,7 @@ Source: "../../app/assets/branding/warpai-companion.ico"; DestDir: "{app}"; Dest
 Source: "../../companion-release/warpai-companion.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "../../companion-release/manifest.json"; DestDir: "{app}"; DestName: "companion-manifest.json"; Flags: ignoreversion
 Source: "../../companion-release/LICENSE-AGPL"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/ORCA-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/AGENT-OF-EMPIRES-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/FORK_NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/{#RuntimeDirectory}\*"; DestDir: "{app}\{#RuntimeDirectory}"; Flags: ignoreversion recursesubdirs createallsubdirs

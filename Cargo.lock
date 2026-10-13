@@ -13413,6 +13413,8 @@ dependencies = [
  "dirs 6.0.0",
  "libc",
  "libsqlite3-sys",
+ "log",
+ "regex",
  "remote_protocol",
  "rmcp",
  "schemars 1.0.4",

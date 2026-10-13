@@ -72,12 +72,11 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
   and quota bars. Unknown limits remain unavailable; Zen USD balance stays a balance.
 - Preserve fixed HTTPS hosts, sensitive headers, bounded IO, generations and all
   twelve provider HTTP contracts in USAGE-PROVIDERS.md.
-- agy >=1.1.11 uses only verified free /usage flags via its resolved executable;
-  tolerate log noise, stop polling after model-turn detection, preserve that guard
-  and hidden caches across refreshes; update/restart restores eligibility.
-- Background CLI children prepend resolved binary directory to PATH and hide
-  Windows consoles. Test window visibility, not code pages; preserve PTY/detached
-  services. Qoder CN has no safe usage adapter; never send a billed polling prompt.
+- agy >=1.1.11: only verified free /usage flags through its resolved executable.
+  Tolerate noise, stop after model-turn detection; preserve hidden caches/guard,
+  resetting eligibility on update/restart.
+- CLI children prepend binary directory to PATH/hide Windows consoles; test real
+  visibility, preserve PTY/detached services. Never bill Qoder CN usage polling.
 
 ## SSH, task integrity and files
 
@@ -150,29 +149,33 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 ## Product defaults, CLI integration and website
 
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
-  English/zh-Hans/zh-Hant need restart; localize UI roles/outcomes, preserve IDs.
-  Windows glyph fallback precedes text caching; use regional Chinese fonts.
-  Native capture drivers cannot use cfg(test); each locale owns/closes one SSH
-  master. Close dropdowns; selectors/defaults share labels. UTF-8/POSIX tooling;
-  export/verify PROTOC on Windows. Claude Warm Light/Latte/Dark are approved.
-- Preserve saved themes; baseline Claude Warm Light. Session-only keep-awake tracks
-  Agent activity, permitting display/user sleep. No bundled cloud AI/telemetry.
-- Native Codex execution (including --yolo/resume) uses per-session MCP/--no-daemon
-  while enabled; preserve original CLI/args/cwd/PATH/package ownership. No daemon
-  proxy, impersonation or persistent Codex config edits. Only explicit reserved
-  legacy-MCP cleanup may read/edit persistent Codex configuration.
-- Legacy cleanup disables participation, preserves unrelated servers and reports
-  failures. Ordinary disable/deselect only stops future session injection.
-- Keep native Windows argv/TOML Unicode-before-shell-quoting tests. WSL stays native
-  without host MCP injection; verified guest observations seed sessions before wake.
-  Preserve per-run identity, listeners/drafts, distro/user keys and Windows-only UI.
-- About Update checks stable releases; Download opens the exact platform installer
-  or Releases fallback. Startup check defaults off/runs once; no installation writes.
-- Bilingual Agent-first docs update existing READMEs; retain native screenshots,
-  provenance and approved SVG branding.
-- Website: https://othinusg.github.io/warpai/ on gh-pages, EN / and ZH /zh/.
-  Preserve worktree/branding; update and cmap-check font subsets when copy changes.
-  Jekyll pages own translated strings; production baseurl is /warpai.
+  English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
+- Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
+  UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
+- Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
+  Keep-awake tracks activity; no cloud AI/telemetry.
+- Codex uses per-session MCP/--no-daemon while enabled, preserving CLI/args/cwd/
+  PATH/package ownership. No proxy, impersonation or persistent config writes;
+  only explicit reserved legacy-MCP cleanup may edit persistent configuration.
+  Preserve unrelated servers, report failures, and test Windows Unicode argv/TOML.
+- WSL stays native without host MCP injection; preserve listeners/drafts, run,
+  distro/user identity and Windows-only UI. Verified observations precede wakes.
+- About Update checks stable releases/exact platform installers. Startup check
+  defaults off/runs once; no installation writes. Docs retain screenshot provenance.
+- https://othinusg.github.io/warpai/ lives on gh-pages (EN /, ZH /zh/); preserve
+  branding/worktree, cmap-check font subsets, and Jekyll /warpai production baseurl.
+
+## Native lifecycle repair checkpoint
+
+- Reuse MIT AoE aa02052f's pure Rust screen detector and Orca 38a4958c's
+  Codex/agy composer, Pi/OMP marker and Qoder readiness predicates. Native grids
+  are bounded, secret-obfuscated and memory-only. Missing rules retain state;
+  name-only titles, warnings and quiet output cannot grant idle.
+- Grid observations fence run/input/redraw; stable samples preserve wake leases.
+  WSL negotiates `native_screen_activity`, sending only activity and exact run.
+  Default SSH is unchanged.
+- WSL package/acceptance runs 38393839766/38393846671 use 83c7274b, before
+  the later lifecycle port.
 
 ## Memory maintenance
 

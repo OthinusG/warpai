@@ -178,6 +178,7 @@ impl Guests {
             program: guest.program.clone(),
             wake: None,
             valid: false,
+            activity: None,
         };
         match request.action {
             NativeAction::Observe {
@@ -187,7 +188,12 @@ impl Guests {
                 submitted,
                 cancelled,
                 native_ready,
+                screen_run,
+                screen_activity,
             } => {
+                if screen_run.as_ref().is_some_and(|run| run != &guest.run) {
+                    return Err(ManagedErrorCode::ManagedStaleAttachment);
+                }
                 if guest.input_epoch.is_some_and(|epoch| epoch != input_epoch) {
                     broker.native_input(terminal, submitted, cancelled);
                 }
@@ -196,6 +202,14 @@ impl Guests {
                 if native_ready.is_some() && native_ready != guest.native_ready {
                     broker.readiness(terminal, native_ready == Some(true));
                     guest.native_ready = native_ready;
+                }
+                if screen_run.is_some() {
+                    if !submitted && !cancelled {
+                        if let (Some(activity), Some(context)) = (screen_activity, broker.screen_context(terminal)) {
+                            broker.observe_screen(terminal, &context, activity);
+                        }
+                    }
+                    state.activity = broker.terminal_activity(terminal);
                 }
                 state.wake = broker
                     .wakeups()
@@ -475,6 +489,8 @@ mod tests {
                 submitted: false,
                 cancelled: false,
                 native_ready: None,
+                screen_run: None,
+                screen_activity: None,
             },
         };
         let native = projects
@@ -484,6 +500,20 @@ mod tests {
             .unwrap();
         assert_eq!(native.run, first.run);
         assert!(native.wake.is_none());
+        assert!(native.activity.is_none(), "legacy clients retain the original response shape");
+        let mut stale = observe(std::process::id());
+        if let crate::wsl_setup::NativeAction::Observe { screen_run, screen_activity, input_epoch, .. } = &mut stale.action {
+            *screen_run = Some(Uuid::new_v4().to_string());
+            *screen_activity = Some(crate::readiness::Activity::Idle);
+            *input_epoch = 99;
+        }
+        assert!(matches!(projects.guests.native(project.path(), stale), Err(ManagedErrorCode::ManagedStaleAttachment)));
+        assert_eq!(projects.guests.runs.lock().unwrap()[&pid].input_epoch, Some(1));
+        let mut modern = observe(std::process::id());
+        if let crate::wsl_setup::NativeAction::Observe { screen_run, .. } = &mut modern.action {
+            *screen_run = Some(first.run.clone());
+        }
+        assert!(projects.guests.native(project.path(), modern).unwrap().unwrap().activity.is_some());
         assert!(projects
             .guests
             .native(project.path(), observe(peer))

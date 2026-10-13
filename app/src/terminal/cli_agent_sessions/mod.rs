@@ -306,16 +306,17 @@ impl CLIAgentSessionsModel {
     /// Broker projections update presentation without claiming a native completion event.
     pub(crate) fn observe_activity(
         &mut self, terminal_view_id: EntityId,
-        activity: warp_agent_bus::readiness::Activity, ctx: &mut ModelContext<Self>,
+        activity: warp_agent_bus::readiness::Activity, native_screen: bool, ctx: &mut ModelContext<Self>,
     ) {
         use warp_agent_bus::readiness::Activity;
         let Some(session) = self.sessions.get_mut(&terminal_view_id) else { return; };
-        if matches!(session.status, CLIAgentSessionStatus::Blocked { .. }) { return; }
+        if !native_screen && matches!(session.status, CLIAgentSessionStatus::Blocked { .. }) { return; }
         let status = match activity {
             Activity::Starting => CLIAgentSessionStatus::Starting,
             Activity::Idle if session.status == CLIAgentSessionStatus::Success => return,
             Activity::Idle => CLIAgentSessionStatus::Idle,
             Activity::Working => CLIAgentSessionStatus::InProgress,
+            Activity::WaitingApproval | Activity::WaitingInput | Activity::Error => CLIAgentSessionStatus::Blocked { message: None },
             _ => return,
         };
         if session.status == status { return; }

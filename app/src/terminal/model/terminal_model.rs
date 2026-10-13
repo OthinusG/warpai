@@ -1892,6 +1892,18 @@ impl TerminalModel {
         self.colors = colors;
     }
 
+    /// Bounded current chrome for lifecycle detection; never expose unobfuscated secrets.
+    pub(crate) fn agent_screen(&self) -> String {
+        use super::grid::{Dimensions, RespectDisplayedOutput};
+        let grid = if self.alt_screen_active { self.alt_screen.grid_handler() }
+            else { self.block_list.active_block().grid_handler() };
+        let rows = grid.total_rows();
+        let columns = grid.columns();
+        if rows == 0 || columns == 0 || columns > 4096 { return String::new(); }
+        grid.bounds_to_string(Point::new(rows.saturating_sub(60), 0), Point::new(rows - 1, columns - 1),
+            false, RespectObfuscatedSecrets::Yes, true, RespectDisplayedOutput::No)
+    }
+
     pub fn raw_grid_for_ref_tests(&self) -> &GridHandler {
         if self.alt_screen_active {
             self.alt_screen.grid_handler()
