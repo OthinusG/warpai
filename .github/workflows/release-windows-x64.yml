@@ -16,6 +16,11 @@ on:
         required: false
         type: boolean
         default: false
+      artifact_only:
+        description: "Build from the selected branch and upload a test artifact without changing a release"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,11 +44,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
           FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
+          ARTIFACT_ONLY: ${{ github.event.inputs.artifact_only }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
 
           AUTO_PUBLISH=false
+          if [[ "$ARTIFACT_ONLY" == "true" ]]; then
+            TARGET_TAG="$INPUT_TAG"
+            [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            git check-ref-format "refs/tags/$TARGET_TAG"
+            echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+            echo "source_ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "auto_publish=false" >> "$GITHUB_OUTPUT"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [[ -n "$INPUT_TAG" ]]; then
             TARGET_TAG="$INPUT_TAG"
           else
@@ -68,6 +85,7 @@ jobs:
 
           echo "Target release tag: $TARGET_TAG"
           echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+          echo "source_ref=refs/tags/$TARGET_TAG" >> "$GITHUB_OUTPUT"
           echo "auto_publish=$AUTO_PUBLISH" >> "$GITHUB_OUTPUT"
 
           EXISTING_ASSETS="$(gh release view "$TARGET_TAG" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null || true)"
@@ -87,7 +105,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-          ref: refs/tags/${{ steps.check-release.outputs.release_tag }}
+          ref: ${{ steps.check-release.outputs.source_ref }}
 
       - name: Configure Windows git and environment
         if: steps.check-release.outputs.should_build == 'true'
@@ -149,18 +167,6 @@ jobs:
           sha256sum WarpaiSetup-x64.exe > SHA256SUMS-windows.txt
           git rev-parse HEAD > release-source.txt
 
-      - name: Preserve tagged installer for verification
-        if: steps.check-release.outputs.should_build == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: windows-release-installer
-          path: |
-            WarpaiSetup-x64.exe
-            SHA256SUMS-windows.txt
-            release-source.txt
-          if-no-files-found: error
-          retention-days: 7
-
       - name: Verify Windows product version and icon
         if: steps.check-release.outputs.should_build == 'true'
         shell: pwsh
@@ -187,8 +193,20 @@ jobs:
             }
           } finally { $archive.Dispose() }
 
-      - name: Upload Windows artifacts to release
+      - name: Preserve Windows installer for verification
         if: steps.check-release.outputs.should_build == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-release-installer
+          path: |
+            WarpaiSetup-x64.exe
+            SHA256SUMS-windows.txt
+            release-source.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Windows artifacts to release
+        if: steps.check-release.outputs.should_build == 'true' && github.event.inputs.artifact_only != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -205,7 +223,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY"
 
       - name: Publish complete release when requested
-        if: steps.check-release.outputs.should_build == 'true' && steps.check-release.outputs.auto_publish == 'true'
+        if: steps.check-release.outputs.should_build == 'true' && github.event.inputs.artifact_only != 'true' && steps.check-release.outputs.auto_publish == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

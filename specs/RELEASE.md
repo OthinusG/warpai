@@ -5,6 +5,9 @@
 Owner authorization 2026-10-13: package and publish Warpai 1.6.4, updating
 Companion to 5.1.0. Retain SSH protocol major 1 and Agent Bus protocol major 2.
 
+Owner authorization 2026-10-13: create a Windows test installer artifact from the
+maintenance branch without publishing it. The release remains subject to all gates.
+
 1. Finish source-matched desktop protocol/build/application/native UI/WSL
    acceptance and all three remote Companion jobs. Preserve every existing gate.
 2. Update the Companion constant, WSL package checks and fixtures to 5.1.0;
