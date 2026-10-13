@@ -22,8 +22,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Published releases and maintenance
 
-- Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
-  never move; historical acceptance receipts remain in their owning specs.
+- Owner authorized 1.6.4 / Companion 5.1.0 packaging/publication on 2026-10-13.
+  Preserve immutable historical tags; acceptance and delivery: specs/RELEASE.md.
 - 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
   38323390269 passed. Release packaging: 38333613421. See specs/RELEASE.md.
   Main integrated; maintenance branch milestone/1.6.3; merged milestone/1.6.2

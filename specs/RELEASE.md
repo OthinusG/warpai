@@ -1,5 +1,23 @@
 # Warpai releases
 
+## 1.6.4 delivery contract
+
+Owner authorization 2026-10-13: package and publish Warpai 1.6.4, updating
+Companion to 5.1.0. Retain SSH protocol major 1 and Agent Bus protocol major 2.
+
+1. Finish source-matched desktop protocol/build/application/native UI/WSL
+   acceptance and all three remote Companion jobs. Preserve every existing gate.
+2. Update the Companion constant, WSL package checks and fixtures to 5.1.0;
+   desktop versions derive from immutable v1.6.4. Prepare bilingual README links
+   and docs/releases/v1.6.4.md. No personal installation or local Rust builds.
+3. Integrate the accepted source into main, preserving unrelated worktree changes.
+   Create immutable v1.6.4 and dispatch release-macos.yml with release_tag=v1.6.4
+   and auto_publish=true. Windows follows from the same tagged source.
+4. Retain all five installer/source/version/runtime/reinstall/checksum gates.
+   Monitor at the owner's 30-minute cadence and resolve failures before delivery.
+5. Verify public assets, checksums, tagged provenance and download links; update
+   website downloads and record completed delivery here and in MEMORY.md.
+
 ## 1.6.3 delivery contract
 
 Owner authorization 2026-10-13: check cloud results every 30 minutes, finish all

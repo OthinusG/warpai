@@ -77,7 +77,8 @@ the existing process wrapper on Windows so children survive parent shutdown; on
 macOS wait for the old PID to exit and pass the exact bundle path as a positional
 argument. Never require an updater installer or mark a language restart as an update.
 
-Public release packaging remains outside this fix. Record cloud verification
+Release packaging is authorized by the owner on 2026-10-13 under
+specs/RELEASE.md: Warpai 1.6.4 with Companion 5.1.0. Record cloud verification
 receipts after source-matched desktop, WSL and SSH tests complete.
 
 ## Windows background console audit
