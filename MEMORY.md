@@ -5,9 +5,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 ## Working and delivery rules
 
-- Rust compilation/tests and native desktop acceptance run on GitHub, not locally.
-  Batch 1–17 fixes before full acceptance. Protocol jobs and desktop jobs run
-  independently; both desktops cache Cargo outputs and reuse native capture builds.
+- Rust/native acceptance runs on GitHub. Batch 1–17 before full acceptance.
+  Protocol/desktop jobs run independently; reuse Cargo caches and capture builds.
   Local Rustfmt parsing, diff and script/document checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
@@ -25,9 +24,10 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
 
 - Public 1.6.2 is immutable at 0b109b87; Companion stays 4.0.0. Published tags
   never move; historical acceptance receipts remain in their owning specs.
-- Owner authorized 1.6.3 / Companion 5.0.0 after full acceptance; specs/RELEASE.md.
-  Preserve terminal compatibility and pinned dependencies. Verify fork=false;
-  never delete/recreate the repository.
+- 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
+  38323390269 passed. Release packaging: 38333613421. See specs/RELEASE.md.
+  Main integrated; maintenance branch milestone/1.6.3; merged milestone/1.6.2
+  removed. Preserve terminal compatibility, pinned dependencies and repository.
 
 ## Project, worktree and Agent ownership
 
