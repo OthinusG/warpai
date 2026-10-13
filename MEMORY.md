@@ -126,7 +126,6 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Same-repository checkout replacement requires rejoin; receipt: FIXES-1.6.4.md.
 - Codex opaque OSC 9, warnings and silence cannot prove completion. Native
   observations cover all managed Agents; vendor runtime acceptance stays pending.
-- Main 502b928a skips test handoffs to nonexistent release tags.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
 - Input/cancel/run replacement fences Enter; closing invalidates its run.
@@ -174,8 +173,9 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Owner requires cursor-backed native draft/slash-command transition tests and
   structured task bodies plus reusable versioned context resources, shared by
   local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
-  Shared context DTOs/tools and panel selectors use immutable version/digest pins;
-  legacy text stays readable. See CONTEXT-RESOURCES.md; cloud acceptance is pending.
+  Shared context/MCP/panel sends pin version/digest; legacy text stays readable.
+  Store notification snapshots use internal project reads, retaining public guards.
+  CONTEXT-RESOURCES.md defines scope; cloud acceptance is pending.
 
 ## Memory maintenance
 

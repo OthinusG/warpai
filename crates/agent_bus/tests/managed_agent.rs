@@ -42,7 +42,11 @@ fn managed_agent_child() {
             assert_eq!(response["id"], id);
             assert!(response.get("error").is_none());
             if id == 2 {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 35);
+                let tools = response["result"]["tools"].as_array().unwrap();
+                assert_eq!(tools.len(), warp_agent_bus::mcp::tools().len());
+                for name in ["warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list"] {
+                    assert!(tools.iter().any(|tool| tool["name"] == name));
+                }
             }
         }
         drop(input);

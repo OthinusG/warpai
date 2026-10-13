@@ -995,7 +995,9 @@ impl CollaborationPanel {
                     let form = panel.form.as_mut().unwrap();
                     form.submitting = false;
                     let code = error.downcast_ref::<warp_agent_bus::DomainError>().map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
-                    form.error = if remote && error.downcast_ref::<warp_agent_bus::DomainError>().is_none() {
+                    form.error = if remote && code == "feature_unavailable" {
+                        "Warpai Companion is incompatible. Update Companion in the selected environment, then reconnect.".into()
+                    } else if remote && error.downcast_ref::<warp_agent_bus::DomainError>().is_none() {
                         "Outcome unknown. Original content, version and request are retained. Reconnect, then explicitly retry this unchanged intent to reconcile its receipt.".into()
                     } else {
                         warpui::localization::format_text("Operation rejected ({code}). Original version and request were preserved. Resolve the blocker or close this form, refresh and confirm a new intent.", &[("code", format!("{code}").as_str())])

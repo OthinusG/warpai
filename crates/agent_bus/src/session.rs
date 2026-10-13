@@ -652,7 +652,7 @@ mod tests {
                 .await
                 .unwrap();
                 let client = ().serve(stream).await.unwrap();
-                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 35);
+                assert_eq!(client.list_tools(None).await.unwrap().tools.len(), crate::mcp::tools().len());
                 let peer = server
                     .broker
                     .peers("issuer")
@@ -714,7 +714,7 @@ mod tests {
             assert!(serde_json::to_string(&premature.content)
                 .unwrap()
                 .contains("\\\"ready\\\":false"));
-            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), 35);
+            assert_eq!(panes[0].2.list_tools(None).await.unwrap().tools.len(), crate::mcp::tools().len());
             assert!(
                 server.broker.wakeups().iter().all(|wake| wake.terminal != panes[0].3),
                 "Rediscovery cannot replay an old idle notification"

@@ -695,7 +695,7 @@ impl Store {
     fn queue(&self, project: &str, mut message: Message) -> Result<Message> {
         if let Some(task_id) = &message.task_id {
             use crate::context::{StructuredBody, TaskDetails};
-            let task = self.task(&Self::operator(project), task_id)?;
+            let task = self.operator_task(project, task_id)?;
             let mut references = task.context_refs.clone();
             let instruction = match StructuredBody::decode(&message.body) {
                 Some(StructuredBody::Instruction { instruction, .. }) => {

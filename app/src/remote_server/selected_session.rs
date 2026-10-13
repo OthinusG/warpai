@@ -100,13 +100,13 @@ mod tests {
                 remote_shell:warp_agent_bus::ssh_remote::RemoteShell::Posix };
             let wsl = SshConnection::Wsl { distribution:"Ubuntu".into(), user:"guest".into() };
             let ssh = SshConnection::Native { arguments:vec!["owned".into()], session:"owned".into() };
-            let before = selection_key(&profile, &wsl, &app);
-            let ssh_before = selection_key(&profile, &ssh, &app);
+            let before = app.read(|ctx| selection_key(&profile, &wsl, ctx));
+            let ssh_before = app.read(|ctx| selection_key(&profile, &ssh, ctx));
             crate::agent_communication::AgentCommunication::handle(&app).update(&mut app, |model, _| {
                 model.wsl.generation += 1;
             });
-            assert_ne!(selection_key(&profile, &wsl, &app), before);
-            assert_eq!(selection_key(&profile, &ssh, &app), ssh_before);
+            assert_ne!(app.read(|ctx| selection_key(&profile, &wsl, ctx)), before);
+            assert_eq!(app.read(|ctx| selection_key(&profile, &ssh, ctx)), ssh_before);
         });
     }
 

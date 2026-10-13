@@ -399,7 +399,9 @@ fn socket_wait_handoff_and_expired_run_rejection() {
     };
     assert!(transport::call(&server.broker.endpoint, &worker).is_err());
     let schema = warp_agent_bus::mcp::tools();
-    assert_eq!(schema.len(), 35);
+    for name in ["warp_context_publish", "warp_context_get", "warp_context_list"] {
+        assert!(schema.iter().any(|tool| tool.name == name));
+    }
     for tool in schema {
         assert_eq!(
             tool.input_schema.get("additionalProperties"),
@@ -437,7 +439,7 @@ async fn real_stdio_mcp_negotiates_and_registers_every_managed_type() {
             .env(CAPABILITY, capability)
             .env(TERMINAL, &terminal);
         let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
-        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 35);
+        assert_eq!(client.list_tools(None).await.unwrap().tools.len(), warp_agent_bus::mcp::tools().len());
         let native = server
             .broker
             .peers("live-reviewer")
@@ -524,7 +526,7 @@ async fn stdio_discovery_probe_falls_back_without_losing_buffered_initialization
             } else if expected_id == 2 {
                 assert!(response["result"]["protocolVersion"].is_string());
             } else {
-                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 35);
+                assert_eq!(response["result"]["tools"].as_array().unwrap().len(), warp_agent_bus::mcp::tools().len());
             }
         }
         assert_eq!(server.broker.peers("probe-reviewer").len(), 1);
@@ -1349,7 +1351,7 @@ async fn native_discovery_waits_for_terminal_activation_without_reviving_stale_r
             .activate("starting", "codex", "/project", true)
             .unwrap();
     });
-    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), 35);
+    assert_eq!(client.list_tools(None).await.unwrap().tools.len(), warp_agent_bus::mcp::tools().len());
     activation.await.unwrap();
     server.broker.end("starting");
     server

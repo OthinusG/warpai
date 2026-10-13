@@ -818,7 +818,10 @@ impl CollaborationPanel {
         let envelope = client
             .project_tasks(command, generation)
             .await
-            .map_err(|_| anyhow::anyhow!("ssh_connection_lost"))?;
+            .map_err(|error| if error == warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable {
+                anyhow::Error::from(warp_agent_bus::DomainError { code:"feature_unavailable".into(),
+                    message:"Update the remote Companion to support structured messages and context resources".into(), retryable:false, version:None })
+            } else { anyhow::anyhow!("ssh_connection_lost") })?;
         if let Some(error) = envelope.get("error") {
             return Err(
                 serde_json::from_value::<warp_agent_bus::DomainError>(error.clone())?.into(),
@@ -1204,6 +1207,13 @@ impl CollaborationPanel {
                         .collect(),
                 },
             ]);
+            if !task.context_refs.is_empty() {
+                fixture.sections.push(Section { title:"Context resources".into(), rows:task.context_refs.iter().map(|reference| {
+                    let title = snapshot.resources.iter().find(|resource| resource.reference.id == reference.id)
+                        .map(|resource| resource.title.as_str()).unwrap_or(warpui::localization::text("Context resources"));
+                    format!("{title} · v{}", reference.revision)
+                }).collect() });
+            }
         } else {
             fixture.sections.push(Section {
                 title: "Agents".into(),

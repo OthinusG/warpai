@@ -378,3 +378,11 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   not declared resolved from static or cloud fixture results.
 - Source-matched cloud acceptance and native UI screenshots are required before
   this change is reported as verified; Windows interim builds remain artifact-only.
+
+- Cloud 38446520358/38446523157 exposed a real Worktree notification defect:
+  snapshot generation must use the Store's project-scoped internal task read,
+  not participant visibility for the synthetic operator. Public reads keep their
+  existing authorization. Fixed together with stale fixed tool-count fixtures.
+- Windows lib-test compilation exposed App versus AppContext in the selection
+  generation regression; sample selection through app.read. Desktop application
+  compilation had passed; this failure was in the added acceptance test.

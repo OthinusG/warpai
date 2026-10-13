@@ -76,7 +76,8 @@ def main():
     rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "owned-native-wsl", "version": "1"}})
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
-    assert len(rpc("tools/list", {})["tools"]) == 35
+    names = {item["name"] for item in rpc("tools/list", {})["tools"]}
+    assert {"warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list"} <= names
     assert tool("warp_agent_ready", {})["ready"]
     def publish(wakes):
         temporary = root / "native-session.tmp"
