@@ -26,8 +26,8 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   Preserve immutable historical tags; acceptance and delivery: specs/RELEASE.md.
 - 1.6.3 / Companion 5.0.0: tag 67057c0a; full acceptance 38323386419 and
   38323390269 passed. Release packaging: 38333613421. See specs/RELEASE.md.
-  Main integrated; maintenance branch milestone/1.6.3; merged milestone/1.6.2
-  removed. Preserve terminal compatibility, pinned dependencies and repo.
+  Main integrated; merged milestone/1.6.2 and milestone/1.6.3 branches removed.
+  Active maintenance: milestone/1.6.4. Preserve terminal compatibility and pins.
 
 ## Project, worktree and Agent ownership
 
