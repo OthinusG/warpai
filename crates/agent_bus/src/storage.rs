@@ -884,11 +884,15 @@ impl Store {
     pub(crate) fn worktree_binding(&self, root: &str) -> Result<Option<WorkspaceBinding>> {
         let id = diesel::sql_query("SELECT w.id AS value FROM workspaces AS w JOIN worktree_admissions AS a ON a.workspace_id=w.id WHERE w.root=? AND a.active=1")
             .bind::<Text, _>(root).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
-        id.map(|id| {
-            let binding = self.workspace_binding(&id.value)?;
-            self.authorize_workspace(&binding)?;
-            Ok(binding)
-        }).transpose()
+        let Some(id) = id else { return Ok(None); };
+        let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
+        // A new repository at an old path cannot reuse the previous repository's authority.
+        if self.count("SELECT COUNT(*) AS count FROM worktree_admissions WHERE workspace_id=? AND repository=?", &[&id.value, &checkout.repository])? == 0 {
+            return Ok(None);
+        }
+        let binding = self.workspace_binding(&id.value)?;
+        self.authorize_workspace(&binding)?;
+        Ok(Some(binding))
     }
 
     /// Membership is checked before reads, dedup replay and delivery, rather than only at registration.

@@ -150,6 +150,15 @@ Historical receipts: [archive](docs/history/MEMORY-2026-10-10.md); consult as ne
   Composer drafts/attachments stay in memory; owner authorized clearing native PTY
   drafts before peer submission on 2026-10-13. Startup retains MCP idle evidence;
   sidebar lifecycle projections never manufacture completion notifications.
+- 1.6.4 follow-up: existing same-path main-checkout admissions can refer to a
+  replaced repository. New repository identities need fresh admission, preserving
+  old history and rejecting old capabilities; same-repository checkout replacement
+  still requires explicit rejoin. Codex opaque notifications and Antigravity's lack
+  of native completion observations can leave error-terminated turns busy; never
+  infer idle from warnings or silence. Native lifecycle repair remains pending.
+- Windows run 38378106900 failed before compilation: main's old workflow treated
+  the macOS test handoff as a release and checked out nonexistent v1.6.4. Existing
+  branch Windows test package 38368976431 passed. Sync handoff guard to main.
 - Wake polls until idle; native input/cancel/run replacement fences delayed Enter.
   Cancel pauses wake until resumed input; closing a view invalidates its run.
   Evidence/test labels never authorize command execution or secret-file access.

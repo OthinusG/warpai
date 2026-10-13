@@ -2,6 +2,43 @@
 
 ## Scope and acceptance
 
+### Follow-up: existing local checkout and test-package handoff
+
+Owner reproduction: macOS, bare `codex` and `agy`; both panel and MCP report
+missing main-checkout peers or stuck lifecycle state. Read-only local diagnostics
+found activation failures and a main-checkout admission whose repository and
+checkout fingerprints predate the current directories. Fresh-database fixtures
+did not cover this upgrade/replacement case.
+
+- A native launch into a different repository at an old path must create a new
+  project admission without inheriting old agents, tasks or Coordinator authority.
+  Keep old durable history and reject old capabilities. Replacing only a checkout
+  within the same repository still requires explicit rejoin.
+- Scope opt-out records to the current repository and checkout; an old directory's
+  opt-out must not disable a new repository at that path.
+- Include only fixed error codes in activation diagnostics, never commands,
+  capabilities, configuration or draft text.
+- Regress same-path repository replacement with persisted admissions, bare Codex
+  and Antigravity MCP discovery, both panel modes and stale-client rejection.
+- The default-branch Windows workflow must recognize artifact-only macOS handoffs.
+  Run 38378106900 used the older main workflow and failed before compilation at
+  LFS checkout of nonexistent v1.6.4. Branch test packages passed separately.
+
+Validation: focused protocol regressions followed by source-matched cloud desktop
+builds/native captures and remote suites. Do not claim live vendor lifecycle
+acceptance from synthetic MCP discovery alone.
+
+Owner follow-up: warning/error termination must recover idle only when the CLI
+has actually returned to its input prompt. The existing broker lacks completion
+observations for Antigravity and deliberately treats Codex OSC 9 text as opaque.
+Therefore a failed turn that skips `warp_agent_ready` can leave stale working
+state. A warning, quiet output or MCP query cannot establish idle. Investigate
+native lifecycle evidence independently of the admission repair. Antigravity's
+official Stop hook includes `fullyIdle` (background work may remain); Codex
+0.161.0 exposes native task/MCP startup state through its terminal-title status.
+References: https://antigravity.google/docs/hooks and
+https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/tui/src/chatwidget/status_surfaces.rs.
+
 - Antigravity shows only Gemini and shared Claude/GPT quotas. Each pool shows
   its five-hour window when detection is enabled, otherwise its weekly window.
   Other providers with five-hour windows use the same exclusive setting;

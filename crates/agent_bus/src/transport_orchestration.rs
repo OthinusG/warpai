@@ -329,6 +329,57 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn replaced_repository_at_old_path_registers_fresh_agents_without_old_authority() {
+        for opted_out in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let main = directory.path().join("main");
+            std::fs::create_dir(&main).unwrap();
+            git(&main, &["init", "--initial-branch=main"]);
+            let root = crate::project_root(&main).unwrap();
+            let database = directory.path().join("persisted.sqlite");
+            let owner = RunningBroker::start(&database).unwrap();
+            let broker = &owner.broker;
+            let register = |broker: &Broker, program: &str| {
+                let terminal = id();
+                let capability = broker.prepare(&terminal).unwrap();
+                broker.activate_project(&terminal, program, &root, true).unwrap();
+                let mut request = Request { protocol_major:PROTOCOL_MAJOR, terminal, capability,
+                    run:None, directory:Some(root.clone()), defer_initial_ready:false, native_activity:None,
+                    operation:Operation::AgentRegister { name:program.into() } };
+                let actor = call(broker, &request, request.operation.clone()).unwrap();
+                request.run = actor["run"].as_str().map(str::to_owned);
+                (request, actor)
+            };
+            let (old, actor) = register(broker, "codex");
+            broker.control(&root, &ControllerOperation::WorktreeCoordinator { root:root.clone(),
+                agent:actor["agent"]["id"].as_str().unwrap().into(), run:old.run.clone().unwrap(), request_id:id() }).unwrap();
+            if opted_out {
+                broker.control(&root, &ControllerOperation::WorktreeLeave { root:root.clone(), request_id:id() }).unwrap();
+            }
+            std::fs::rename(&main, directory.path().join("old main")).unwrap();
+            std::fs::create_dir(&main).unwrap();
+            git(&main, &["init", "--initial-branch=main"]);
+            assert!(call(broker, &old, Operation::AgentList).is_err());
+            let (fresh, current) = register(broker, "codex");
+            register(broker, "agy");
+            assert_ne!(actor["agent"]["project"], current["agent"]["project"]);
+            assert_ne!(actor["agent"]["id"], current["agent"]["id"]);
+            assert!(call(broker, &old, Operation::AgentList).is_err());
+            assert_eq!(call(broker, &fresh, Operation::AgentList).unwrap().as_array().unwrap().len(), 1);
+            for worktree in [false, true] {
+                let panel = broker.operator_panel(&PanelQuery { project:root.clone(), worktree, ..Default::default() }).unwrap();
+                assert_eq!(panel["agents"].as_array().unwrap().len(), 2);
+                assert_eq!(panel["coordinator_online"], false);
+                assert!(panel["agents"].as_array().unwrap().iter().all(|row| row["activity"] == "idle"));
+            }
+            drop(owner);
+            let reopened = RunningBroker::start(&database).unwrap();
+            register(&reopened.broker, "agy");
+            assert_eq!(reopened.broker.operator_panel(&PanelQuery { project:root, ..Default::default() }).unwrap()["agents"].as_array().unwrap().len(), 1);
+        }
+    }
+
+    #[test]
     fn main_only_checkout_registers_each_program_and_switches_modes() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().join("main only");

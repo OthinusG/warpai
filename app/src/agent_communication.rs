@@ -133,8 +133,10 @@ impl AgentCommunication {
                                     launch_options.and_then(|options| shlex::split(command).map(|words| options.codex_working_directory(&words[1..], Path::new(directory))))
                                         .and_then(|directory| project_root(&directory).ok()).unwrap_or(project)
                                 } else { project };
-                                if broker.activate_project(terminal, program, &project, initial_prompt).is_err() {
-                                    log::warn!("Could not activate local agent communication");
+                                if let Err(error) = broker.activate_project(terminal, program, &project, initial_prompt) {
+                                    let code = error.downcast_ref::<warp_agent_bus::DomainError>()
+                                        .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
+                                    log::warn!("Could not activate local agent communication: {code}");
                                 }
                             }
                         }

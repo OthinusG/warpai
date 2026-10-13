@@ -93,7 +93,11 @@ impl Store {
         Ok(Some(serde_json::from_str(&row.response)?))
     }
     pub(crate) fn worktree_opted_out(&self, root: &str) -> Result<bool> {
-        Ok(self.count("SELECT COUNT(*) AS count FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE w.root=? AND a.active=0", &[root])? > 0)
+        if self.count("SELECT COUNT(*) AS count FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE w.root=? AND a.active=0", &[root])? == 0 {
+            return Ok(false);
+        }
+        let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
+        Ok(self.count("SELECT COUNT(*) AS count FROM worktree_admissions AS a JOIN workspaces AS w ON w.id=a.workspace_id WHERE w.root=? AND a.active=0 AND a.repository=? AND a.checkout=?", &[root, &checkout.repository, &checkout.checkout])? > 0)
     }
     pub(crate) fn worktree_domain(&self, root: &str) -> Result<Option<String>> {
         let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
