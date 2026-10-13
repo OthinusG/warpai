@@ -29,7 +29,7 @@ Observe carries only edit epochs, draft/approval flags and optional native
 readiness. Services advertising `native_screen_activity` additionally accept
 optional `screen_run` and `screen_activity`. The exact run must match before any
 input/guard mutation; no screen text is transferred. A fenced observation returns
-optional `activity` in NativeState. Older hosts omit the fields and receive the
+optional `activity` and unacknowledged `pending_work` in NativeState. Older hosts omit the fields and receive the
 original response shape; newer hosts omit them when the capability is absent.
 Only derived positive ready/busy/permission evidence can reconcile state; unknown
 chrome and output silence do not grant readiness. Submitted/cancelled edit epochs
@@ -274,3 +274,33 @@ Failed replies atomically retire those questions with the final result; blocked
 replies retain them. Native cancellation records an observation, not proof that
 the execution stopped. Attention notices wake the issuer through the existing
 queue; full inboxes retain the observation in task history for shared polling.
+
+## Shared native supervision and task delivery (2026-10-13)
+
+Native approval/input/error/cancellation observations, and returning to an idle
+prompt with an unfinished executing revision, queue an `observation` message to
+the task's issuer. These are ordinary durable MCP inbox/wait messages with the
+original task/revision, not UI-only notices. Busy receivers preserve arrival
+order; idle delivery uses the existing fenced native wake, after which the Agent
+reads `warp_agent_inbox` and `warp_task_get`, handles the decision and explicitly
+acknowledges the observation. Screen observations never submit/fail/retry a task.
+
+The sidebar projects the same native activity and unacknowledged MCP work as the
+collaboration panel. Its unread indicator does not acknowledge MCP messages when
+a person focuses the tab or marks UI notices read. Native-grid events are typed
+separately from plugin completion events, avoiding broker feedback and legacy
+cloud task reporting. Keep awake consumes the same observed activity: working
+holds the guard; idle, queued work and approval waits do not. Unknown chrome
+retains existing native evidence rather than manufacturing completion.
+
+### WSL attachment recovery
+
+The WSL configuration generation is a desktop selection fence, not account or
+project authority. A successful setup verifies Initialize and ProjectOpen for the
+confirmed guest account and advances that fence. Explorer, Review and collaboration
+invalidate cached pre-install connection failures through their shared selection
+key. Scanning does not remove a confirmed WSL project. Failed verification does
+not schedule recurring reconnect attempts or repeat uncertain file mutations.
+Agent discovery resolves symlinks and excludes Windows drive mappings through
+native WSL path translation; imported Windows PATH entries do not authorize
+Windows Agent configuration changes from the guest.

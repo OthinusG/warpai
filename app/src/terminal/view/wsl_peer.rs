@@ -168,6 +168,10 @@ impl TerminalView {
             ctx.notify();
         }
         self.wsl_peer.observed_run = Some(state.run.clone());
+        if let Some(pending) = state.pending_work {
+            let id = self.view_id;
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.observe_pending_peer_work(id, pending, ctx));
+        }
         if let Some(activity) = state.activity {
             let id = self.view_id;
             CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
@@ -247,7 +251,7 @@ impl TerminalView {
         let (_, blocked) = self.peer_input_guard(ctx);
         let native_ready = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
-            .filter(|session| session.listener.is_some())
+            .filter(|session| session.listener.is_some() && crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(&session.agent))
             .and_then(|session| match session.status {
                 crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Success
                     | crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Idle => Some(true),
@@ -411,9 +415,9 @@ mod tests {
             let context = Context { session:1_u64.into(), target:Target {
                 distribution:"Ubuntu Test".into(), user:"guest".into(), home:"/home/guest".into()
             }, shell_pid:123, root:"/home/guest/project".into() };
-            let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false, activity:None };
+            let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false, activity:None, pending_work:None };
             first.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&state), ctx));
-            let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false, activity:None };
+            let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false, activity:None, pending_work:None };
             second.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&other), ctx));
             app.update(|ctx| {
                 assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(first.id()).unwrap().agent, CLIAgent::Codex);

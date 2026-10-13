@@ -47,6 +47,8 @@ pub struct NativeState {
     pub valid: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activity: Option<crate::readiness::Activity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_work: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -77,6 +79,25 @@ pub struct Response {
     pub preferences: Preferences,
     pub available: Vec<Available>,
     pub status: String,
+}
+
+/// Resolve Windows-backed paths even with custom automount roots and symlinks.
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+pub(crate) fn native_executable(path: &std::path::Path) -> bool {
+    let Ok(path) = path.canonicalize() else { return false; };
+    // Non-WSL Linux fixtures have no imported Windows drives.
+    if !std::path::Path::new("/usr/bin/wslpath").is_file() { return true; }
+    let Ok(output) = std::process::Command::new("/usr/bin/wslpath")
+        .arg("-w").arg(path).output() else { return false; };
+    output.status.success() && output.stdout.len() <= 16384
+        && native_windows_translation(&output.stdout)
+}
+
+#[cfg(any(test, all(feature = "wsl_companion", target_os = "linux")))]
+fn native_windows_translation(bytes: &[u8]) -> bool {
+    let Ok(value) = std::str::from_utf8(bytes) else { return false; };
+    let value = value.trim_end_matches(['\r', '\n']);
+    value.starts_with(r"\\wsl.localhost\") || value.starts_with(r"\\wsl$\")
 }
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
@@ -413,6 +434,16 @@ mod tests {
     use crate::setup::{Adapter, Installed, SERVER};
 
     #[test]
+    fn windows_path_translation_excludes_host_installs() {
+        for native in [r"\\wsl.localhost\Ubuntu\home\guest\.local\bin\dsh", r"\\wsl$\Ubuntu\usr\bin\codex"] {
+            assert!(native_windows_translation(native.as_bytes()));
+        }
+        for host in [r"C:\Users\guest\AppData\Roaming\npm\codex", r"D:\agents\codex", "", "/home/guest/codex"] {
+            assert!(!native_windows_translation(host.as_bytes()));
+        }
+    }
+
+    #[test]
     fn native_screen_fields_are_optional_and_absent_for_legacy_peers() {
         let legacy = serde_json::json!({"shell_pid":42,"action":{"action":"observe","draft":false,
             "blocked":false,"input_epoch":0,"submitted":false,"cancelled":false,"native_ready":null}});
@@ -479,7 +510,7 @@ mod tests {
             let installed = Installed {
                 active: true,
                 program: "codex".into(),
-                executable: "/bin/codex".into(),
+                executable: "/bin/sh".into(),
                 adapter: Adapter::Codex(config.clone()),
                 bridge: home.join("warpai-wsl-companion"),
                 search_paths: vec![],

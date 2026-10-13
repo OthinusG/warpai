@@ -1,4 +1,4 @@
-//! Keeps the system awake while tracked CLI agents are working.
+//! Keeps the system awake while the shared native Agent projection reports actual work.
 //!
 //! The user-facing toggle lives in the tab bar; this singleton owns the
 //! `prevent_sleep` guard and re-evaluates it whenever agent sessions change.

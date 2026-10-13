@@ -395,6 +395,11 @@ impl RightPanelView {
             me.recompute_terminal_availability(ctx);
         });
 
+        #[cfg(all(windows, feature = "local_fs", feature = "local_tty", not(feature = "remote_tty")))]
+        ctx.observe(&crate::agent_communication::AgentCommunication::handle(ctx), |me, _, ctx| {
+            me.refresh_ssh_review(ctx);
+        });
+
         // Recompute terminal availability when AI is toggled on or off, so the
         // send button and tooltip update immediately.
         ctx.subscribe_to_model(&AISettings::handle(ctx), |me, _, event, ctx| {
@@ -486,7 +491,7 @@ impl RightPanelView {
         let selection = visible.then(|| selected_ssh(ctx, ctx.window_id())).flatten();
         let key = selection
             .as_ref()
-            .map(|(profile, connection)| selection_key(profile, connection));
+            .map(|(profile, connection)| selection_key(profile, connection, ctx));
         if key == self.ssh_selection {
             if let Some(view) = &self.ssh_review {
                 view.as_ref(ctx).diff_state_model().clone().update(ctx, |model, ctx| {
@@ -509,7 +514,7 @@ impl RightPanelView {
             let files = warp_agent_bus::ssh_files::RemoteFiles::connect(profile, connection).await?;
             files.repository().await
         }, move |me, result: Result<_, warp_agent_bus::ssh_remote::ConnectionError>, ctx| {
-            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
+            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c, ctx));
             if me.ssh_selection != key || current != key { return; }
             match result {
                 Ok(files) => {
@@ -1329,7 +1334,7 @@ impl RightPanelView {
             {
                 use crate::remote_server::selected_session::{selected_ssh, selection_key};
                 let current =
-                    selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
+                    selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c, ctx));
                 if current != self.ssh_selection {
                     None
                 } else {

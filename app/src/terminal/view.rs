@@ -11773,6 +11773,7 @@ impl TerminalView {
                 CLIAgentSessionsModelEvent::Started { .. }
                     | CLIAgentSessionsModelEvent::StatusChanged { .. }
                     | CLIAgentSessionsModelEvent::SessionUpdated { .. }
+                    | CLIAgentSessionsModelEvent::NativeActivityObserved { .. }
                     | CLIAgentSessionsModelEvent::Ended { .. }
             )
         {
@@ -11845,7 +11846,9 @@ impl TerminalView {
 
         // Desktop notifications — only when navigated away and not in-progress.
         if !self.is_navigated_away_from_window(ctx)
-            || matches!(status, CLIAgentSessionStatus::InProgress)
+            || matches!(status, CLIAgentSessionStatus::Starting | CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::InProgress)
+            || matches!(status, CLIAgentSessionStatus::Success)
+                && !crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(agent)
         {
             return;
         }

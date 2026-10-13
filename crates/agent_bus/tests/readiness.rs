@@ -707,3 +707,67 @@ fn bridge_cannot_impersonate_codex() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("Usage: warpai-agent"));
 }
+
+#[tokio::test]
+async fn every_managed_agent_delivers_supervision_through_real_mcp() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = warp_agent_bus::project_root(temporary.path()).unwrap();
+    let server = RunningBroker::start(Path::new(":memory:")).unwrap();
+    let spawn = |terminal: &str, program: &str| {
+        let capability = server.broker.prepare(terminal).unwrap();
+        server.broker.activate(terminal, program, &root, true).unwrap();
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-agent"));
+        command.arg("mcp").current_dir(&root)
+            .env(ENDPOINT, &server.broker.endpoint).env(CAPABILITY, capability).env(TERMINAL, terminal);
+        TokioChildProcess::new(command).unwrap()
+    };
+    macro_rules! tool {
+        ($client:expr, $name:literal, $arguments:expr) => {{
+            let result = $client.call_tool(CallToolRequestParam {
+                name:$name.into(), arguments:$arguments.as_object().cloned(),
+            }).await.unwrap();
+            assert_ne!(result.is_error, Some(true), "{} failed", $name);
+            let result = serde_json::to_value(result).unwrap();
+            serde_json::from_str::<Value>(result["content"][0]["text"].as_str().unwrap()).unwrap()
+        }};
+    }
+    let issuer = ().serve(spawn("issuer", "codex")).await.unwrap();
+    issuer.list_tools(None).await.unwrap();
+    for (index, program) in programs().into_iter().enumerate() {
+        let terminal = format!("supervised-{index}");
+        let worker = ().serve(spawn(&terminal, program)).await.unwrap();
+        worker.list_tools(None).await.unwrap();
+        let peers = tool!(issuer, "warp_agent_list", json!({}));
+        let peer = peers.as_array().unwrap().iter().find(|peer| peer["terminal"] == terminal).unwrap();
+        server.broker.input_bytes("issuer", b"\r");
+        let task = tool!(issuer, "warp_task_assign", json!({"to":peer["id"],
+            "description":"Inspect the scoped contract", "acceptance":"Report verified outcome",
+            "request_id":Uuid::new_v4().to_string()}));
+        let task_id = task["id"].as_str().unwrap();
+        let assignment = tool!(worker, "warp_agent_inbox", json!({}));
+        assert!(assignment["messages"].as_array().unwrap().iter().any(|message| message["task_id"] == task_id && message["kind"] == "assignment"));
+        tool!(worker, "warp_task_start", json!({"task_id":task_id,"revision":1,"request_id":Uuid::new_v4().to_string()}));
+        for _ in 0..3 {
+            assert!(server.broker.observe_screen(&terminal, &server.broker.screen_context(&terminal).unwrap(), Activity::WaitingApproval));
+        }
+        assert!(server.broker.pending_work().iter().any(|work| work.terminal == "issuer" && work.task_id.as_deref() == Some(task_id)));
+        assert!(server.broker.wakeups().iter().all(|wake| wake.terminal != "issuer"), "busy issuer keeps queued MCP work");
+        let inbox = tool!(issuer, "warp_agent_inbox", json!({}));
+        let observations: Vec<_> = inbox["messages"].as_array().unwrap().iter()
+            .filter(|message| message["kind"] == "observation" && message["task_id"] == task_id).collect();
+        assert_eq!(observations.len(), 1, "{program}: repeated chrome produces one MCP notice");
+        let notice = observations[0]["id"].clone();
+        let detail = tool!(issuer, "warp_task_get", json!({"task_id":task_id}));
+        assert_eq!(detail["state"], "running", "native observation cannot finish a task");
+        assert_eq!(detail["supervision"]["last_observation"]["activity"], "waiting_approval");
+        tool!(issuer, "warp_agent_ack", json!({"message_id":notice}));
+        let inbox = tool!(issuer, "warp_agent_inbox", json!({}));
+        assert!(inbox["messages"].as_array().unwrap().iter().all(|message| message["id"] != notice));
+        assert!(server.broker.pending_work().iter().all(|work| work.terminal != "issuer" || work.task_id.as_deref() != Some(task_id)));
+        tool!(worker, "warp_task_fail", json!({"task_id":task_id,"revision":1,
+            "reason":"Fixture stopped without granting permission", "request_id":Uuid::new_v4().to_string()}));
+        worker.cancel().await.unwrap();
+        server.broker.end(&terminal);
+    }
+    issuer.cancel().await.unwrap();
+}

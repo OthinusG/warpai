@@ -454,10 +454,23 @@ fn native_screen_reconciles_every_managed_session_without_losing_drafts() {
                 assert_eq!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::Idle);
                 model.observe_activity(terminal.id(), Activity::Working, true, ctx);
                 assert_eq!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::InProgress);
+                assert!(model.status_for_display(terminal.id()).is_some());
+                assert!(model.any_in_progress());
+                model.sessions.get_mut(&terminal.id()).unwrap().status = CLIAgentSessionStatus::Success;
+                assert!(model.any_in_progress(), "opaque completion cannot release keep-awake during verified work");
+                assert!(matches!(model.status_for_display(terminal.id()), Some(crate::ai::agent::conversation::ConversationStatus::InProgress)));
+                model.observe_pending_peer_work(terminal.id(), true, ctx);
+                assert!(model.has_pending_peer_work(terminal.id()));
                 model.observe_activity(terminal.id(), Activity::WaitingApproval, true, ctx);
                 let session = model.session(terminal.id()).unwrap();
                 assert!(matches!(session.status, CLIAgentSessionStatus::Blocked { .. }));
                 assert_eq!(session.draft_text.as_deref(), Some("unsent draft"));
+                assert!(!model.any_in_progress(), "approval and queued tasks must not keep the system awake");
+                assert!(model.has_pending_peer_work(terminal.id()));
+                model.remove_session(terminal.id(), ctx);
+                assert!(model.status_for_display(terminal.id()).is_none());
+                assert!(!model.observed_status.contains_key(&terminal.id()));
+                assert!(!model.has_pending_peer_work(terminal.id()));
             }
         });
     });

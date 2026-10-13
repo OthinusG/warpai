@@ -329,6 +329,43 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn screen_permission_observation_notifies_task_issuer_once() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("attention.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let worker = client(broker, &root, "worker");
+        let task = call(broker, &issuer, assign("worker")).unwrap();
+        call(broker, &worker, Operation::TaskStart { task_id:task["id"].as_str().unwrap().into(),
+            revision:1, expected_version:None, request_id:id() }).unwrap();
+        for _ in 0..3 {
+            assert!(broker.observe_screen(&worker.terminal, &broker.screen_context(&worker.terminal).unwrap(), Activity::WaitingApproval));
+        }
+        let inbox = call(broker, &issuer, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        let observations: Vec<_> = inbox["messages"].as_array().unwrap().iter()
+            .filter(|message| message["kind"] == "observation").collect();
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0]["task_id"], task["id"]);
+        assert!(broker.wakeups().iter().all(|wake| wake.terminal != worker.terminal));
+        {
+            let mut state = broker.store().unwrap();
+            let live = state.terminals.get_mut(&worker.terminal).unwrap().live.as_mut().unwrap();
+            live.last_input = Instant::now() - Duration::from_secs(2);
+            live.last_output = live.last_input;
+            live.observed = live.last_input;
+        }
+        for _ in 0..3 {
+            assert!(broker.observe_screen(&worker.terminal, &broker.screen_context(&worker.terminal).unwrap(), Activity::Idle));
+        }
+        let detail = call(broker, &issuer, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap();
+        assert_eq!(detail["state"], "running", "returning to the prompt cannot submit the task");
+        let inbox = call(broker, &issuer, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        assert_eq!(inbox["messages"].as_array().unwrap().iter().filter(|message| message["kind"] == "observation").count(), 2,
+            "idle with an unfinished task adds one durable MCP supervision notice");
+    }
+
+    #[test]
     fn native_screen_fences_inputs_redraws_restarts_and_preserves_idle_leases() {
         let directory = tempfile::tempdir().unwrap();
         let root = crate::project_root(directory.path()).unwrap();
@@ -377,7 +414,7 @@ mod tests {
                 let live = state.terminals[&terminal].live.as_ref().unwrap();
                 assert_eq!((live.generation, live.ready), (generation, ready));
             }
-            let peers = call(broker, &request, Operation::AgentList).unwrap();
+            let peers = call(broker, &sender, Operation::AgentList).unwrap();
             let peer = peers.as_array().unwrap().iter().find(|peer| peer["terminal"] == terminal).unwrap();
             assert_eq!(peer["activity"], "idle");
             assert_eq!(peer["readiness_source"], "native_screen");

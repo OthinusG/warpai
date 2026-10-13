@@ -130,7 +130,12 @@ impl Guests {
         }
         serde_json::from_slice::<crate::setup::Preferences>(&bytes)
             .ok()
-            .map(|preferences| preferences.programs())
+            .map(|preferences| {
+                if !preferences.enabled { return HashSet::new(); }
+                preferences.selected.values().filter(|entry| entry.active
+                    && crate::wsl_setup::native_executable(&entry.executable))
+                    .map(|entry| entry.program.clone()).collect()
+            })
     }
 
     pub fn reap_and_active(&self) -> bool {
@@ -179,6 +184,7 @@ impl Guests {
             wake: None,
             valid: false,
             activity: None,
+            pending_work: None,
         };
         match request.action {
             NativeAction::Observe {
@@ -210,6 +216,7 @@ impl Guests {
                         }
                     }
                     state.activity = broker.terminal_activity(terminal);
+                    state.pending_work = Some(broker.pending_work().iter().any(|work| work.terminal == *terminal && work.run == guest.run));
                 }
                 state.wake = broker
                     .wakeups()
@@ -393,7 +400,7 @@ mod tests {
         let installed = crate::setup::Installed {
             active: true,
             program: "fixture".into(),
-            executable: "/bin/fixture".into(),
+            executable: "/bin/sh".into(),
             adapter: crate::setup::Adapter::Codex("/unused/fixture.toml".into()),
             bridge: "/unused/bridge".into(),
             search_paths: vec![],

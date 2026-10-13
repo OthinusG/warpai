@@ -6,6 +6,45 @@ use tokio::io::AsyncWriteExt;
 use warp_agent_bus::wsl_setup::{Action, Request, Response};
 
 #[tokio::test]
+async fn imported_windows_commands_are_not_guest_agents() {
+    let Some(repository) = std::env::var_os("WARP_TEST_WINDOWS_REPOSITORY") else { return; };
+    let windows = tempfile::tempdir_in(repository).unwrap();
+    let linux = tempfile::tempdir().unwrap();
+    let native = linux.path().join("bin");
+    std::fs::create_dir(&native).unwrap();
+    for (directory, commands) in [(windows.path(), &["codex", "warpai-fixture"][..]),
+        (native.as_path(), &["dsh", "warpai-fixture"][..])] {
+        for name in commands {
+            let path = directory.join(name);
+            let origin = if directory == windows.path() { "host" } else { "native" };
+            std::fs::write(&path, format!("#!/bin/sh\nprintf 'fixture help\\n'\n: > \"$HOME/probed-{origin}-{name}\"\n")).unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+    // Both a Windows npm-style shim and a Linux install share the imported PATH.
+    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_warpai-wsl-companion"))
+        .arg("setup").env("HOME", linux.path()).env("XDG_DATA_HOME", linux.path().join("data"))
+        .env("WSL_DISTRO_NAME", "WarpaiOwnedFixture")
+        .env("PATH", std::env::join_paths([windows.path(), &native, std::path::Path::new("/usr/bin"), std::path::Path::new("/bin")]).unwrap())
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .kill_on_drop(true).spawn().unwrap();
+    let mut input = child.stdin.take().unwrap();
+    input.write_all(&serde_json::to_vec(&Request { action:Action::Rescan,
+        commands: vec![("codex".into(), "codex".into()), ("dsh".into(), "dsh".into()),
+            ("custom".into(), "warpai-fixture".into())] }).unwrap()).await.unwrap();
+    drop(input);
+    let output = tokio::time::timeout(Duration::from_secs(30), child.wait_with_output()).await.unwrap().unwrap();
+    assert!(output.status.success(), "WSL fixture setup failed");
+    let response: Response = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(!response.available.iter().any(|agent| agent.command == "codex"));
+    assert!(response.available.iter().any(|agent| agent.command == "dsh"));
+    assert!(response.available.iter().any(|agent| agent.command == "warpai-fixture"));
+    assert!(linux.path().join("probed-native-warpai-fixture").is_file());
+    assert!(!linux.path().join("probed-host-warpai-fixture").exists());
+    assert!(!linux.path().join("probed-host-codex").exists());
+}
+
+#[tokio::test]
 async fn installed_agent_scan_runs_through_the_wsl_companion_entrypoint() {
     let temporary = tempfile::tempdir().unwrap();
     let home = temporary.path();

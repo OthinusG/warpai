@@ -185,6 +185,8 @@ impl TaskStatusSyncModel {
         status_message: Option<TaskStatusUpdate>,
         ctx: &mut ModelContext<Self>,
     ) {
+        // Local-only CLI sessions use the MCP task bus, never legacy cloud reporting.
+        if !crate::settings::AISettings::as_ref(ctx).is_any_ai_enabled(ctx) { return; }
         let ai_client = self.ai_client.clone();
         ctx.spawn(
             async move {

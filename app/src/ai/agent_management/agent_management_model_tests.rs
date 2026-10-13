@@ -10,6 +10,39 @@ use crate::BlocklistAIHistoryModel;
 
 use super::AgentNotificationsModel;
 
+#[test]
+fn native_cli_attention_uses_existing_mailbox_and_idle_is_not_completion() {
+    use crate::terminal::{CLIAgent, cli_agent_sessions::CLIAgentSessionsModelEvent};
+    use crate::ai::agent_management::notifications::{NotificationCategory, NotificationFilter};
+    use warp_agent_bus::readiness::Activity;
+    use warpui::SingletonEntity;
+    use settings::Setting as _;
+    App::test((), |mut app| async move {
+        let _guard = FeatureFlag::HOANotifications.override_enabled(true);
+        crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
+        crate::settings::AISettings::handle(&app).update(&mut app, |settings, ctx| {
+            settings.show_agent_notifications.set_value(true, ctx).unwrap();
+        });
+        let notifications = AgentNotificationsModel::handle(&app);
+        let terminal = EntityId::new();
+        for agent in enum_iterator::all::<CLIAgent>() {
+            notifications.update(&mut app, |model, ctx| {
+                for activity in [Activity::WaitingApproval, Activity::WaitingApproval] {
+                    model.handle_cli_agent_session_event(&CLIAgentSessionsModelEvent::NativeActivityObserved {
+                        terminal_view_id:terminal, agent, activity,
+                    }, ctx);
+                }
+                assert_eq!(model.notifications.filtered_count(NotificationFilter::All), 1);
+                assert_eq!(model.notifications.items_filtered(NotificationFilter::All).next().unwrap().category, NotificationCategory::Request);
+                model.handle_cli_agent_session_event(&CLIAgentSessionsModelEvent::NativeActivityObserved {
+                    terminal_view_id:terminal, agent, activity:Activity::Idle,
+                }, ctx);
+                assert_eq!(model.notifications.filtered_count(NotificationFilter::All), 0);
+            });
+        }
+    });
+}
+
 fn setup_app(
     app: &mut App,
 ) -> (

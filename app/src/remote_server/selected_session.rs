@@ -42,7 +42,7 @@ pub(crate) fn selected_ssh(
         #[cfg(all(feature = "local_tty", not(feature = "remote_tty")))]
         {
         let settings = &crate::agent_communication::AgentCommunication::as_ref(app).wsl;
-        if !settings.preferences.enabled || settings.busy || !settings.targets.iter().any(|target|
+        if !settings.preferences.enabled || !settings.targets.iter().any(|target|
             target.distribution == *distribution && target.user == *user) { return None; }
         }
         if !crate::terminal::wsl::WslInfo::as_ref(app).distributions()
@@ -70,19 +70,45 @@ pub(crate) fn selected_ssh(
     Some((profile, connection))
 }
 
-pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection) -> String {
-    format!(
+pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection, app: &AppContext) -> String {
+    let key = format!(
         "{}:{}:{}",
         connection.scope_key(),
         profile.target,
         profile.remote_root
-    )
+    );
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    if connection.is_wsl() {
+        return format!("{key}:{}", crate::agent_communication::AgentCommunication::as_ref(app).wsl.generation);
+    }
+    let _ = app;
+    key
 }
 
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
     use crate::terminal::model::session::{command_executor::NoOpCommandExecutor, Session, SessionInfo};
+
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty")))]
+    #[test]
+    fn verified_wsl_setup_invalidates_cached_selection_without_changing_authority() {
+        warpui::App::test((), |mut app| async move {
+            crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
+            let profile = SshProfile { target:"wsl".into(), config_file:None,
+                remote_root:"/home/guest/project".into(), companion_path:"/home/guest/.config/.warpai/wsl/bin/warpai-wsl-companion".into(),
+                remote_shell:warp_agent_bus::ssh_remote::RemoteShell::Posix };
+            let wsl = SshConnection::Wsl { distribution:"Ubuntu".into(), user:"guest".into() };
+            let ssh = SshConnection::Native { arguments:vec!["owned".into()], session:"owned".into() };
+            let before = selection_key(&profile, &wsl, &app);
+            let ssh_before = selection_key(&profile, &ssh, &app);
+            crate::agent_communication::AgentCommunication::handle(&app).update(&mut app, |model, _| {
+                model.wsl.generation += 1;
+            });
+            assert_ne!(selection_key(&profile, &wsl, &app), before);
+            assert_eq!(selection_key(&profile, &ssh, &app), ssh_before);
+        });
+    }
 
     #[test]
     fn wsl_selection_keeps_guest_account_and_nested_ssh_distinct() {

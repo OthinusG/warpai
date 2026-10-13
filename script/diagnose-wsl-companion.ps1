@@ -173,6 +173,7 @@ try {
     # Reproduce the application's existing post-install command, with stdin carrying only the request.
     $appScript = 'test "$(id -un)" = "$2" || exit 126; test -x "$1" || exit 127; exec "$1" setup'
     $null = Invoke-Probe 'Application post-install verification command' ($guest + @('sh', '-lc', $appScript, 'warpai-wsl-setup', $companion, $User)) $agentRequest $true
+    $null = Invoke-Probe 'Companion account service startup (closed control input)' ($guest + @($companion))
     Write-Report "`nFinished. Send the report back; personal paths may be redacted."
 } catch {
     Write-Report ('Diagnostic exception: ' + $_.Exception.GetType().FullName + ': ' + $_.Exception.Message)

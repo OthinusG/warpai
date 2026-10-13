@@ -511,7 +511,7 @@ impl CollaborationPanel {
                     profile.target,
                     profile.remote_root,
                     profile.companion_path,
-                    connection.scope_key()
+                    crate::remote_server::selected_session::selection_key(&profile, &connection, ctx)
                 ),
                 None,
             ));

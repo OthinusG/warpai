@@ -5,6 +5,34 @@ use warp_graphql::ai::{AgentTaskState, PlatformErrorCode};
 
 use super::{classify_renderable_error, map_cli_session_status};
 
+#[test]
+fn local_cli_tasks_never_use_legacy_cloud_status_api() {
+    use std::{collections::HashMap, sync::Arc};
+    use crate::{settings::AISettings, server::server_api::ai::MockAIClient};
+    use warpui::{EntityId, SingletonEntity};
+    use settings::Setting as _;
+    warpui::App::test((), |mut app| async move {
+        crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
+        AISettings::handle(&app).update(&mut app, |settings, ctx| {
+            settings.is_any_ai_enabled.set_value(false, ctx).unwrap();
+        });
+        let mut client = MockAIClient::new();
+        client.expect_update_agent_task().times(0);
+        let model = app.add_model(|_| super::TaskStatusSyncModel {
+            ai_client: Arc::new(client), cli_session_task_ids: HashMap::new(),
+        });
+        model.update(&mut app, |model, ctx| {
+            let terminal = EntityId::new();
+            model.register_cli_session(terminal, "550e8400-e29b-41d4-a716-446655440000".parse().unwrap(), ctx);
+            for status in [CLIAgentSessionStatus::InProgress, CLIAgentSessionStatus::Success,
+                CLIAgentSessionStatus::Blocked { message: None }] {
+                model.on_cli_session_status_changed(terminal, &status, ctx);
+            }
+        });
+        futures_lite::future::yield_now().await;
+    });
+}
+
 /// Helper to assert a (state, Option<TaskStatusUpdate>) tuple.
 fn assert_update(
     (state, update): (AgentTaskState, Option<TaskStatusUpdate>),

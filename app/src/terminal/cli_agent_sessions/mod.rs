@@ -228,6 +228,12 @@ pub enum CLIAgentSessionsModelEvent {
         terminal_view_id: EntityId,
         agent: CLIAgent,
     },
+    /// Broker-verified projection; never feeds plugin/cloud completion or MCP back into itself.
+    NativeActivityObserved {
+        terminal_view_id: EntityId,
+        agent: CLIAgent,
+        activity: warp_agent_bus::readiness::Activity,
+    },
     StatusChanged {
         terminal_view_id: EntityId,
         agent: CLIAgent,
@@ -261,6 +267,9 @@ impl CLIAgentSessionsModelEvent {
             CLIAgentSessionsModelEvent::Started {
                 terminal_view_id, ..
             }
+            | CLIAgentSessionsModelEvent::NativeActivityObserved {
+                terminal_view_id, ..
+            }
             | CLIAgentSessionsModelEvent::StatusChanged {
                 terminal_view_id, ..
             }
@@ -280,6 +289,8 @@ impl CLIAgentSessionsModelEvent {
 /// Singleton model that tracks pane-scoped CLI agent state and plugin-enriched session context.
 pub struct CLIAgentSessionsModel {
     sessions: HashMap<EntityId, CLIAgentSession>,
+    observed_status: HashMap<EntityId, (warp_agent_bus::readiness::Activity, CLIAgentSessionStatus)>,
+    pending_peer_work: HashSet<EntityId>,
     /// Tracks (agent, remote_host) pairs where an auto plugin operation (install or update) has failed.
     /// Shared across all views so failure in one tab is reflected everywhere.
     plugin_auto_failures: HashSet<(CLIAgent, Option<String>)>,
@@ -295,12 +306,39 @@ impl CLIAgentSessionsModel {
     pub fn new() -> Self {
         Self {
             sessions: HashMap::new(),
+            observed_status: HashMap::new(),
+            pending_peer_work: HashSet::new(),
             plugin_auto_failures: HashSet::new(),
         }
     }
 
     pub fn session(&self, terminal_view_id: EntityId) -> Option<&CLIAgentSession> {
         self.sessions.get(&terminal_view_id)
+    }
+
+    pub fn has_pending_peer_work(&self, terminal_view_id: EntityId) -> bool {
+        self.pending_peer_work.contains(&terminal_view_id)
+    }
+
+    /// A UI projection of unacknowledged MCP work; focusing a tab never consumes it.
+    pub(crate) fn observe_pending_peer_work(&mut self, terminal_view_id: EntityId, pending: bool, ctx: &mut ModelContext<Self>) {
+        let pending = pending && self.sessions.contains_key(&terminal_view_id);
+        let changed = if pending { self.pending_peer_work.insert(terminal_view_id) }
+            else { self.pending_peer_work.remove(&terminal_view_id) };
+        if changed {
+            if let Some(session) = self.session(terminal_view_id) {
+                ctx.emit(CLIAgentSessionsModelEvent::SessionUpdated { terminal_view_id, agent:session.agent });
+            }
+            ctx.notify();
+        }
+    }
+
+    /// Verified grid status is available even when the Agent has no rich plugin.
+    pub fn status_for_display(&self, terminal_view_id: EntityId) -> Option<crate::ai::agent::conversation::ConversationStatus> {
+        let session = self.session(terminal_view_id)?;
+        self.observed_status.get(&terminal_view_id).map(|(_, status)| status)
+            .or_else(|| (session.listener.is_some() && listener::agent_supports_rich_status(&session.agent)).then_some(&session.status))
+            .and_then(CLIAgentSessionStatus::to_conversation_status)
     }
 
     /// Broker projections update presentation without claiming a native completion event.
@@ -313,23 +351,31 @@ impl CLIAgentSessionsModel {
         if !native_screen && matches!(session.status, CLIAgentSessionStatus::Blocked { .. }) { return; }
         let status = match activity {
             Activity::Starting => CLIAgentSessionStatus::Starting,
-            Activity::Idle if session.status == CLIAgentSessionStatus::Success => return,
+            Activity::Idle if session.status == CLIAgentSessionStatus::Success && listener::agent_supports_rich_status(&session.agent) => CLIAgentSessionStatus::Success,
             Activity::Idle => CLIAgentSessionStatus::Idle,
             Activity::Working => CLIAgentSessionStatus::InProgress,
             Activity::WaitingApproval | Activity::WaitingInput | Activity::Error => CLIAgentSessionStatus::Blocked { message: None },
             _ => return,
         };
-        if session.status == status { return; }
+        let tracked = native_screen || self.observed_status.contains_key(&terminal_view_id);
+        let previous = tracked.then(|| self.observed_status.insert(terminal_view_id, (activity, status.clone()))).flatten();
+        let observed_changed = tracked && previous.as_ref() != Some(&(activity, status.clone()));
+        if session.status == status && !observed_changed { return; }
         session.status = status;
+        if observed_changed {
+            ctx.emit(CLIAgentSessionsModelEvent::NativeActivityObserved {
+                terminal_view_id, agent:session.agent, activity,
+            });
+        }
         ctx.emit(CLIAgentSessionsModelEvent::SessionUpdated { terminal_view_id, agent: session.agent });
         ctx.notify();
     }
 
     /// Returns `true` if any tracked session has an agent actively working.
     pub fn any_in_progress(&self) -> bool {
-        self.sessions
-            .values()
-            .any(|session| matches!(session.status, CLIAgentSessionStatus::InProgress))
+        self.sessions.iter().any(|(id, session)| self.observed_status.get(id)
+            .map(|(activity, _)| *activity == warp_agent_bus::readiness::Activity::Working)
+            .unwrap_or_else(|| matches!(session.status, CLIAgentSessionStatus::InProgress)))
     }
 
     /// Returns `true` if the rich input editor is currently open for this terminal.
@@ -404,6 +450,8 @@ impl CLIAgentSessionsModel {
     }
 
     pub fn remove_session(&mut self, terminal_view_id: EntityId, ctx: &mut ModelContext<Self>) {
+        self.observed_status.remove(&terminal_view_id);
+        self.pending_peer_work.remove(&terminal_view_id);
         if let Some(session) = self.sessions.remove(&terminal_view_id) {
             ctx.emit(CLIAgentSessionsModelEvent::Ended {
                 terminal_view_id,
@@ -507,6 +555,8 @@ impl CLIAgentSessionsModel {
         ctx: &mut ModelContext<Self>,
     ) {
         let agent = session.agent;
+        self.observed_status.remove(&terminal_view_id);
+        self.pending_peer_work.remove(&terminal_view_id);
         // Close any open rich input before replacing, so subscribers can
         // restore input config before the session ends.
         self.close_input(terminal_view_id, false, ctx);

@@ -391,6 +391,8 @@ impl AgentCommunication {
             settings.busy = false;
             match result {
                 Ok((Some(response), _)) if response.account == selected.user => {
+                    // A verified install/rescan supersedes cached pre-install connection failures.
+                    settings.generation = settings.generation.wrapping_add(1);
                     settings.companion_installed = Some(true);
                     settings.account = Some(response.account);
                     settings.available = response.available;
@@ -616,6 +618,15 @@ pub(super) async fn guest_setup(
         );
         let response: warp_agent_bus::wsl_setup::Response = serde_json::from_slice(&bytes)?;
         ensure!(response.account == target.user, "WSL account changed");
+        let profile = warp_agent_bus::ssh_remote::SshProfile {
+            target: "wsl".into(), config_file: None, remote_root: target.home.clone(),
+            companion_path: companion.clone(),
+            remote_shell: warp_agent_bus::ssh_remote::RemoteShell::Posix,
+        };
+        let mut client = warp_agent_bus::ssh_remote::HostClient::connect_wsl(
+            &profile, &target.distribution, &target.user,
+        ).await.map_err(|error| anyhow::anyhow!("WSL Companion connection verification failed: {error:?}"))?;
+        client.disconnect();
         Ok(response)
     })
     .await?
@@ -623,7 +634,21 @@ pub(super) async fn guest_setup(
 
 async fn discover(target: &Target, commands: &[String]) -> Result<(String, Vec<(String, String)>)> {
     // Arguments stay literal; the fixed login-shell script resolves the guest's own PATH.
-    const SCRIPT: &str = "set -eu; printf '%s\\n' \"$(id -un)\"; for name do path=$(command -v \"$name\" 2>/dev/null) || continue; case $path in /*) printf '%s\\t%s\\n' \"$name\" \"$path\";; esac; done";
+    const SCRIPT: &str = r#"set -efu
+printf '%s\n' "$(id -un)"
+for name do
+  saved_ifs=$IFS; IFS=:
+  for directory in $PATH; do
+    IFS=$saved_ifs
+    path=$directory/$name
+    case $path in /*) ;; *) continue ;; esac
+    test -f "$path" && test -x "$path" || continue
+    resolved=$(readlink -f -- "$path") || continue
+    translated=$(/usr/bin/wslpath -w "$resolved" 2>/dev/null) || continue
+    case $translated in \\\\wsl.localhost\\*|\\\\wsl\$\\*) printf '%s\t%s\n' "$name" "$path"; break ;; esac
+  done
+  IFS=$saved_ifs
+done"#;
     ensure!(
         commands.iter().all(|name| !name.is_empty()
             && name

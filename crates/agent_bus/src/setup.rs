@@ -227,6 +227,8 @@ fn executable_with_environment(
         } {
             let candidate = path.join(format!("{command}{suffix}"));
             if candidate.is_file() {
+                #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+                if !crate::wsl_setup::native_executable(&candidate) { continue; }
                 return Some(candidate);
             }
         }
@@ -684,6 +686,8 @@ pub fn uninstall(installed: &Installed) -> Result<()> {
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
+    ensure!(crate::wsl_setup::native_executable(&installed.executable),
+        "Windows Agent configuration cannot be changed by WSL setup");
     let mut installed = installed.clone();
     let args = json!(["mcp", installed.program]);
     fn native_entry(value: &mut Value, args: &Value) {
@@ -1662,7 +1666,7 @@ mod guest_tests {
         let path = directory.path().join("config.toml");
         let original = "# User settings\nmodel = \"fixture\"\n[mcp_servers.user_tool]\ncommand = \"user-tool\"\n";
         std::fs::write(&path, original).unwrap();
-        let installed = Installed { active:true, program:"codex".into(), executable:"/bin/codex".into(),
+        let installed = Installed { active:true, program:"codex".into(), executable:"/bin/sh".into(),
             adapter:Adapter::Codex(path.clone()), bridge:"/home/guest/.config/.warpai/wsl/bin/warpai-wsl-companion".into(),
             search_paths:vec![], launch_options:Default::default() };
         configure_guest(&installed, true, false).unwrap();

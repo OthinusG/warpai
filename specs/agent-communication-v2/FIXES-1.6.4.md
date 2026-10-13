@@ -244,3 +244,63 @@ all-program input/redraw/restart fencing and idle wake stability, Codex/agy
 welcome/error-return/busy/menu shapes, WSL stale-run and legacy serialization,
 and stale-pane projection of main-only Git mode after repository replacement.
 Both desktop and Companion installers retain AoE and Orca MIT licenses.
+
+### Shared consumers and legacy interface audit
+
+Owner requires MCP task transfer/supervision, shared sidebar supervision and keep
+awake. Audit every CLIAgentSessionsModelEvent consumer and every readiness/task
+projection rather than changing only collaboration panel labels. The sidebar's
+existing notification mailbox is a session projection, not another task store.
+Use the existing MCP Store for assignments, attempts, decisions and receipts;
+project unacknowledged work into the sidebar without acknowledging on UI focus.
+Typed native observations must not feed opaque notifications back into readiness
+or the retained cloud TaskStatusSyncModel. Keep awake must prefer the verified
+native activity over an opaque Stop success. Verify actual MCP subprocess task
+assignment/start/observation/get/ack/fail for every managed program, stable notice
+dedup, busy receiver queueing, run cleanup and independent UI read state.
+
+### 2026-10-14 WSL namespace and shared-consumer follow-up
+
+Owner tested Windows artifact 38393839766 (83c7274b) with Ubuntu, account
+`wqin`, home `/home/wqin`. The supplied redacted diagnostic confirms the bundled
+checksum, native account/home, installed version, private Git runtime, direct
+setup and application login-shell setup all succeed. Closed-input service
+startup inside Ubuntu exits zero. Preserve the original diagnostic locally;
+do not commit personal diagnostic reports. Windows direct closed-input service startup also exits zero; real desktop
+attachment remains open.
+
+- WSL discovery must ignore Windows-installed commands imported into PATH,
+  including npm shell shims. Resolve symlinks and use WSL's native `wslpath`
+  mapping rather than assume `/mnt/c`; continue to a Linux installation of the
+  same name. Apply this to fallback discovery, guest setup, saved participation
+  and vendor configuration mutations. Keep ordinary SSH/local setup unchanged.
+- A settings rescan must not remove a confirmed remote project selection.
+  Successful verification advances the existing configuration generation in
+  the shared Explorer/Review/collaboration selection key, releasing cached
+  pre-install failures once. Review observes the same settings model; failures
+  without explicit rescan/context change remain fenced, with no retry loop.
+  Selected-account and WSL2 guards remain required. Files, Review and collaboration
+  share the existing native connection. Successful setup now requires an actual
+  Initialize/ProjectOpen attachment to the selected account home before claiming
+  the component is installed.
+- Regression: real WSL process with a Windows-mounted Codex shim, Windows-first
+  PATH collision and native-only dsh. Host commands must never be probed or
+  configured. The Windows native capture must retain project selection during
+  deferred startup scanning.
+- Source 4b73cdc2 macOS desktop acceptance passed; Windows native capture failed
+  at confirmed WSL selection, and both OS protocol/remote suites failed a new
+  test querying AgentList as the agent itself. AgentList deliberately excludes
+  its caller: corrected the assertion to use the observer. These failed runs
+  (38398097658/38398104664) are not delivery acceptance.
+- Shared native activity drives sidebar icons, the existing notification mailbox
+  and keep awake. Native idle cannot manufacture task completion; opaque CLI
+  notifications cannot claim completion. Pending MCP work remains unacknowledged
+  when a tab is focused. Permission/error/idle with an unfinished attempt sends
+  a durable observation through the same MCP inbox/wait/task contract.
+- Legacy TaskStatusSyncModel remains retained upstream compatibility; local-only
+  AI-disabled sessions cannot issue its cloud status RPC. New native observations
+  use a separate event and never feed that reporter or plugin completion paths.
+
+Validation: syntax/diff/localization locally; source-matched protocol, desktop,
+real MCP and real WSL/native capture on GitHub. No vendor credentials or user
+Agent configuration are used in fixtures. Real owner WSL acceptance remains open.

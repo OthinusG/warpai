@@ -527,6 +527,8 @@ impl AgentCommunication {
                             let id = view.id();
                             CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                                 sessions.observe_activity(id, activity, observed.is_some(), ctx);
+                                sessions.observe_pending_peer_work(id, pending.iter().any(|work| work.terminal == *terminal
+                                    && broker.run(terminal).as_deref() == Some(work.run.as_str())), ctx);
                             });
                         }
                         let (draft, blocked) = view.as_ref(ctx).peer_input_guard(ctx);

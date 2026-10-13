@@ -140,6 +140,28 @@ impl AgentNotificationsModel {
                     ctx,
                 );
             }
+            CLIAgentSessionsModelEvent::NativeActivityObserved { terminal_view_id, agent, activity, .. } => {
+                use warp_agent_bus::readiness::Activity;
+                if *activity == Activity::Idle && matches!(CLIAgentSessionsModel::as_ref(ctx).status_for_display(*terminal_view_id), Some(ConversationStatus::Success)) {
+                    return;
+                }
+                self.remove_notification_by_source(NotificationOrigin::CLISession(*terminal_view_id), ctx);
+                let category = match activity {
+                    Activity::WaitingApproval | Activity::WaitingInput => Some(NotificationCategory::Request),
+                    Activity::Error => Some(NotificationCategory::Error),
+                    _ => None,
+                };
+                if let Some(category) = category {
+                    let message = match activity {
+                        Activity::Error => warpui::localization::text("error"),
+                        Activity::WaitingApproval => warpui::localization::text("waiting for approval"),
+                        _ => warpui::localization::text("waiting for input"),
+                    };
+                    self.add_notification(agent.display_name().into(), message.to_string(), category,
+                        NotificationSourceAgent::CLI(*agent), NotificationOrigin::CLISession(*terminal_view_id),
+                        *terminal_view_id, vec![], ctx);
+                }
+            }
             CLIAgentSessionsModelEvent::Started { .. }
             | CLIAgentSessionsModelEvent::InputSessionChanged { .. }
             | CLIAgentSessionsModelEvent::SessionUpdated { .. } => {}
@@ -157,6 +179,7 @@ impl AgentNotificationsModel {
                     );
                 }
                 CLIAgentSessionStatus::Success => {
+                    if !crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(agent) { return; }
                     let title = session_context
                         .display_title()
                         .unwrap_or_else(|| format!("{} completed", agent.display_name()));

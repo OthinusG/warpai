@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-13. Read AGENTS.md and README.md.
+Updated 2026-10-14. Read AGENTS.md and README.md.
 Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 
 ## Working and delivery rules
@@ -61,8 +61,7 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 
 - Native Orca port: https://github.com/stablyai/orca at
   3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices in both bundles.
-  Provider/auth contracts: specs/agent-communication-v2/USAGE-PROVIDERS.md.
-  Use native TLS/proxy/storage/widgets; no Electron/Node runtime or invented quotas.
+  Contracts: specs/agent-communication-v2/USAGE-PROVIDERS.md; native UI/TLS, no new runtime.
 - Accounts/visibility and OS-secure credentials persist application-wide; never
   put credentials in metadata/IPC/logs. Cache readings across project/focus changes;
   restart restores accounts and queries fresh readings.
@@ -86,8 +85,7 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 - Diagnose actual failed-stage exit/stderr, not failed diagnostic launchers.
   script/diagnose-wsl-companion.bat + .ps1 confirms account/HOME and preserves
   nonsecret stderr; redact configuration JSON/credentials.
-- Language restart is cancelable ordinary relaunch: macOS waits for old PID and
-  passes paths positionally; Windows preserves parent-job isolation.
+- Language relaunch is cancelable; macOS waits for old PID, Windows isolates jobs.
 - WSL contract: specs/wsl-1.6.0/TECH.md. Use the Windows-bundled guest binary,
   confirmed WSL 2 distro/user and native integration; preserve opt-outs and guards.
   Account detection needs no Companion; launch text cannot grant account authority.
@@ -132,15 +130,11 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
   Codex opaque OSC 9 cannot prove completion; never infer idle from warnings or
   silence. Welcome-only startup and always-working Codex need native observation;
   vendor runtime acceptance remains pending.
-- Windows test package 38368976431 passed. Automatic release 38378106900 failed
-  before compilation at nonexistent v1.6.4; main 502b928a now skips test handoffs.
-- WSL setup-first discovery created 0755 service namespaces, rejected by the 0700
-  service guard. Harden only owned real directories, preserving SSH/account data.
-  Restore saved live accounts with one deferred read-only rescan; don't retry-loop
-  failures. Test installed workspace connection/reconnect and settings reload.
-- Wake polls until idle; native input/cancel/run replacement fences delayed Enter.
-  Cancel pauses wake until resumed input; closing a view invalidates its run.
-  Evidence/test labels never authorize command execution or secret-file access.
+- Main 502b928a skips artifact-only handoffs referencing nonexistent release tags.
+- WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
+  Restore saved live accounts with one deferred rescan, never a failure retry loop.
+- Wake polls until idle; input/cancel/run replacement fences Enter. Cancel pauses
+  wake until resumed input; closing invalidates its run. Evidence is not authority.
 - Back up schema migrations consistently; no downgrade or automatic legacy
   identity migration. Preserve read-only legacy metadata, uncertainty and receipts.
   macOS sockets require short private /tmp paths; Windows uses bounded asynchronous
@@ -174,8 +168,14 @@ Earlier context: [archive](docs/history/MEMORY-2026-10-13.md).
 - Grid observations fence run/input/redraw; stable samples preserve wake leases.
   WSL negotiates `native_screen_activity`, sending only activity and exact run.
   Default SSH is unchanged.
-- WSL package/acceptance runs 38393839766/38393846671 use 83c7274b, before
-  the later lifecycle port.
+- WSL package 38393839766/83c7274b still fails owner Ubuntu attachment despite
+  successful account/home/version/runtime/setup and guest/Windows service probes. See
+  FIXES-1.6.4.md Oct14 receipt; do not call it resolved from CI alone.
+- Filter imported Windows Agent installs through native WSL path mapping, including
+  saved participation. Verified rescans retain project selection and invalidate cached tool failures.
+- MCP task observations, sidebar attention and keep awake share native activity;
+  UI focus never acknowledges MCP work. Retained cloud task reporting is disabled
+  for local-only sessions. Source-matched acceptance remains pending.
 
 ## Memory maintenance
 

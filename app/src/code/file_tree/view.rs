@@ -413,7 +413,7 @@ impl FileTreeView {
         let selected = selected_ssh(ctx, ctx.window_id());
         let key = selected
             .as_ref()
-            .map(|(profile, connection)| selection_key(profile, connection));
+            .map(|(profile, connection)| selection_key(profile, connection, ctx));
         if self.ssh_selection == key {
             self.poll_ssh(ctx);
             return;
@@ -446,7 +446,7 @@ impl FileTreeView {
             let cwd = root.join(&files.relative(&cwd)?);
             Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, snapshot, root, cwd))
         }, move |view, result, ctx| {
-            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c));
+            let current = selected_ssh(ctx, ctx.window_id()).map(|(p, c)| selection_key(&p, &c, ctx));
             if view.ssh_generation != generation || current != key { return; }
             view.ssh_in_flight = false;
             match result {
@@ -516,7 +516,7 @@ impl FileTreeView {
                 }
                 view.ssh_poll = None;
                 let current = crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())
-                    .map(|(profile, connection)| crate::remote_server::selected_session::selection_key(&profile, &connection));
+                    .map(|(profile, connection)| crate::remote_server::selected_session::selection_key(&profile, &connection, ctx));
                 if current != view.ssh_selection {
                     view.refresh_ssh(ctx);
                     return;

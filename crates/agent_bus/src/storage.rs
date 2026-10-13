@@ -1175,7 +1175,7 @@ impl Store {
                     json!({"revision":attempt.revision,"run":run,"observation":observation}))?;
                 let activity = observation["activity"].as_str().unwrap_or("unknown");
                 let needs_attention = observation["connected"] == false
-                    || matches!(activity, "waiting_approval" | "waiting_input" | "error" | "cancelled") && observation["source"] == "native"
+                    || matches!(activity, "idle" | "waiting_approval" | "waiting_input" | "error" | "cancelled") && matches!(observation["source"].as_str(), Some("native" | "native_screen"))
                     || activity == "cancelled" && observation["source"] == "user_input"
                     || observation["source"] == "native_guard" && observation["blocked"] == true
                         && !matches!(activity, "waiting_approval" | "waiting_input");

@@ -42,7 +42,7 @@ cargo test -p warp-agent-bus --lib wsl_chunks_ --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib companion::guests::tests --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib setup::guest_tests --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib wsl_setup::tests --features wsl_companion --locked
-cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
+WARP_TEST_WINDOWS_REPOSITORY="$windows_repository" cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
 project='/home/warpai-test/project spaces 多语言'
 mkdir -p "$project"
 cd "$project"

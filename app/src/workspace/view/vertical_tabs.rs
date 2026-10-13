@@ -5,7 +5,6 @@ use crate::ai::agent_management::AgentNotificationsModel;
 use crate::code::editor::{add_color, remove_color};
 use crate::code::icon_from_file_path;
 use crate::safe_triangle::SafeTriangle;
-use crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status;
 use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::view::TerminalViewState;
 use crate::terminal::CLIAgent;
@@ -3229,32 +3228,16 @@ fn resolve_icon_with_status_variant(
             let terminal_view = terminal_pane.terminal_view(app);
             let terminal_view = terminal_view.as_ref(app);
             let cli_agent_session = CLIAgentSessionsModel::as_ref(app).session(terminal_view.id());
-            let is_plugin_backed = cli_agent_session.is_some_and(|s| s.listener.is_some());
             let is_ambient = terminal_view.is_ambient_agent_session(app);
             let has_conversation = terminal_view
                 .selected_conversation_display_title(app)
                 .is_some();
             let is_oz_agent = has_conversation || is_ambient;
 
-            if let Some(session) = cli_agent_session
-                .filter(|s| s.listener.is_some())
-                .filter(|s| !matches!(s.agent, CLIAgent::Unknown))
-            {
+            if let Some(session) = cli_agent_session.filter(|s| !matches!(s.agent, CLIAgent::Unknown)) {
                 IconWithStatusVariant::CLIAgent {
                     agent: session.agent,
-                    status: if agent_supports_rich_status(&session.agent) {
-                        session.status.to_conversation_status()
-                    } else {
-                        None
-                    },
-                }
-            } else if let Some(session) = cli_agent_session
-                .filter(|_| !is_plugin_backed)
-                .filter(|s| !matches!(s.agent, CLIAgent::Unknown))
-            {
-                IconWithStatusVariant::CLIAgent {
-                    agent: session.agent,
-                    status: None,
+                    status: CLIAgentSessionsModel::as_ref(app).status_for_display(terminal_view.id()),
                 }
             } else if is_oz_agent {
                 IconWithStatusVariant::OzAgent {
@@ -3323,9 +3306,8 @@ fn has_unread_activity(typed: &TypedPane<'_>, app: &AppContext) -> bool {
     };
     let terminal_view = terminal_pane.terminal_view(app);
     let terminal_view_id = terminal_view.as_ref(app).id();
-    AgentNotificationsModel::as_ref(app)
-        .notifications()
-        .has_unread_for_terminal_view(terminal_view_id)
+    CLIAgentSessionsModel::as_ref(app).has_pending_peer_work(terminal_view_id)
+        || AgentNotificationsModel::as_ref(app).notifications().has_unread_for_terminal_view(terminal_view_id)
 }
 
 const INDICATOR_DOT_SIZE: f32 = 8.;
@@ -6398,20 +6380,12 @@ fn render_terminal_detail_section(
     let text_colors = detail_sidecar_text_colors(theme);
     let working_directory = terminal_view.display_working_directory(app);
     let git_branch = terminal_view.current_git_branch(app);
-    let cli_agent_session = CLIAgentSessionsModel::as_ref(app).session(terminal_view.id());
     let agent_text = terminal_agent_text(terminal_view, app);
     let (conversation_display_title, cli_agent_title) =
         preferred_agent_tab_titles(&agent_text, agent_tab_text_preference(app));
     let kind_label = terminal_kind_badge_label(agent_text.is_oz_agent, agent_text.cli_agent);
-    let status = if let Some(session) =
-        cli_agent_session.filter(|s| s.listener.is_some() && agent_supports_rich_status(&s.agent))
-    {
-        session.status.to_conversation_status()
-    } else if agent_text.is_oz_agent {
-        terminal_view.selected_conversation_status_for_display(app)
-    } else {
-        None
-    };
+    let status = CLIAgentSessionsModel::as_ref(app).status_for_display(terminal_view.id())
+        .or_else(|| agent_text.is_oz_agent.then(|| terminal_view.selected_conversation_status_for_display(app)).flatten());
 
     let title_text = terminal_view.terminal_title_from_shell();
     let primary_line = terminal_primary_line_data(
