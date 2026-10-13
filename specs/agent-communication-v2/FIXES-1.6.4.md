@@ -99,3 +99,10 @@ test fixture without changing the production visibility contract.
 Cloud Windows regression initially rejected code page 437 despite CREATE_NO_WINDOW:
 console code pages do not establish window visibility. Check GetConsoleWindow with
 IsWindowVisible instead, including null or invisible message-only window handles.
+
+The desktop wake fixture replaces the entire session to simulate permission
+states; set_session deliberately closes the composer and emits Ended. Compose the
+saved draft after these fixture replacements, immediately before automatic wake,
+so the draft preservation assertion tests delivery rather than session teardown.
+Limit this test's CI logger to errors so assertion output is not buried in per-window
+asset warnings. Preserve permission blocking and stale delayed-Enter assertions.

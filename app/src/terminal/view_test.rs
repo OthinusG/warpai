@@ -4973,22 +4973,6 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 .position(|request| request.terminal == wake.terminal)
                 .unwrap();
             let (terminal, writes, agent) = &terminals[index];
-            {
-                terminal.update(&mut app, |view, ctx| {
-                    view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
-                    view.input.update(ctx, |input, ctx| {
-                        input.replace_buffer_content("unfinished user draft", ctx)
-                    });
-                    assert_eq!(
-                        view.input.as_ref(ctx).buffer_text(ctx),
-                        "unfinished user draft"
-                    );
-                });
-                assert!(
-                    writes.borrow().is_empty(),
-                    "Composing a draft must not write to the native prompt"
-                );
-            }
             terminal.update(&mut app, |view, ctx| {
                 CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
                     let mut session = sessions.session(view.view_id).unwrap().clone();
@@ -5007,6 +4991,13 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                     session.status = CLIAgentSessionStatus::InProgress;
                     sessions.set_session(view.view_id, session, ctx);
                 });
+                // Session replacement closes input; compose only after the permission fixture changes.
+                view.open_cli_agent_rich_input(CLIAgentInputEntrypoint::FooterButton, ctx);
+                view.input.update(ctx, |input, ctx| {
+                    input.replace_buffer_content("unfinished user draft", ctx)
+                });
+                assert_eq!(view.input.as_ref(ctx).buffer_text(ctx), "unfinished user draft");
+                assert!(writes.borrow().is_empty(), "Composing a draft must not write to the native prompt");
                 view.wake_for_peer_work(broker.clone(), wake, ctx)
             });
             // Invalidate the run between the paste and delayed Enter.
