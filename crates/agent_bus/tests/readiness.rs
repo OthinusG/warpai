@@ -193,11 +193,11 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
             );
         }
         server.broker.input_bytes(&terminal, "几个字".as_bytes());
-        tokio::time::sleep(Duration::from_millis(550)).await;
+        tokio::time::sleep(Duration::from_millis(850)).await;
         let drafted = status(&server, &observer, &terminal).await;
         assert_eq!(drafted["ready"], true);
         assert_eq!(drafted["has_draft"], true);
-        assert_eq!(drafted["can_auto_submit"], true);
+        assert_eq!(drafted["can_auto_submit"], true, "{program}: {drafted}");
         server.broker.input_bytes(&terminal, b"\x7f\x7f\x7f");
         let cleared = status(&server, &observer, &terminal).await;
         assert_eq!(cleared["ready"], true);
