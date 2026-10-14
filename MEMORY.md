@@ -6,8 +6,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Working and delivery rules
 
 - Rust/native acceptance runs on GitHub. Batch 1–17 before full acceptance.
-  Protocol/desktop jobs are independent; reuse caches.
-  Local Rustfmt parsing, diff and script checks are allowed.
+  Independent protocol/desktop jobs reuse caches.
+  Local Rustfmt, diff and script checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
@@ -163,12 +163,13 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
 - SSH/WSL install/call/uninstall use `.config/warpai`; Windows installers must not
   reuse the former directory. WSL tools/CI use confirmed install home/new root;
-  path changes invalidate connections and host Agents never enter guest discovery.
+  Path changes invalidate connections; host Agents never enter guest discovery.
+  Setup locks explicitly unlock on Drop despite inherited descriptors.
 - Shared directory hashing allows unsupported birth time using native identity,
   retaining handle fences. Without birth time, closed-handle inode reuse is a limit.
 - Focus publishes session before roots. Replay cached native roots on focus;
   observe session notifications and bound remote polls to the admitted root.
-  Mixed-pane tests cover Explorer, Review, Communication and previews.
+  Pane tests cover Explorer, Review, Communication and previews.
 - MCP observations, sidebar attention and keep awake share native activity.
   Focus never acknowledges MCP work; local cloud reporting stays disabled.
 - Owner requires native draft/slash/error transition tests. Structured tasks and

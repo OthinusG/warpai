@@ -315,7 +315,19 @@ fn run_setup(removing: bool) -> Result<()> {
 }
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
-fn lock_preferences(path: &std::path::Path) -> Result<std::fs::File> {
+struct PreferencesLock(std::fs::File);
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+impl Drop for PreferencesLock {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+        // A fork can retain this description until exec; release the logical setup scope now.
+        unsafe { libc::flock(self.0.as_raw_fd(), libc::LOCK_UN); }
+    }
+}
+
+#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+fn lock_preferences(path: &std::path::Path) -> Result<PreferencesLock> {
     use std::os::{fd::AsRawFd, unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt}};
     let parent = path
         .parent()
@@ -338,7 +350,7 @@ fn lock_preferences(path: &std::path::Path) -> Result<std::fs::File> {
         unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0,
         "Another WSL setup operation is active; rescan after it finishes"
     );
-    Ok(file)
+    Ok(PreferencesLock(file))
 }
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
@@ -481,8 +493,10 @@ mod tests {
         assert!(lock_preferences(&path).is_err());
         let other = directory.path().join("other/mcp-settings.json");
         assert!(lock_preferences(&other).is_ok());
+        let inherited = lock.0.try_clone().unwrap();
         drop(lock);
-        assert!(lock_preferences(&path).is_ok());
+        assert!(lock_preferences(&path).is_ok(), "Setup scope must unlock even with an inherited descriptor");
+        drop(inherited);
         std::fs::remove_file(directory.path().join("mcp-settings.lock")).unwrap();
         std::os::unix::fs::symlink(&other, directory.path().join("mcp-settings.lock")).unwrap();
         assert!(lock_preferences(&path).is_err());

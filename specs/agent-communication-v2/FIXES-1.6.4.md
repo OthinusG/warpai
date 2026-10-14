@@ -520,3 +520,25 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   tests/WSL capture and three-platform SSH validation, then package accepted source.
 - The macOS release workflow embeds the same Windows SSH acceptance step and
   also retained the former path; correct it without dispatching a release.
+
+### Windows payload build lock failure: 38505805648 (2026-10-14)
+
+- WSL payload compilation and managed Agent integration pass; the build stops
+  at `account_lock_rejects_concurrent_setup_and_symlinks` reacquiring after Drop.
+- A flock belongs to an open file description. Parallel test subprocess forks
+  can briefly retain the description until exec, even with O_CLOEXEC. Closing
+  only the parent descriptor therefore need not release the logical setup lock.
+- Return a minimal owned preference-lock guard that explicitly unlocks on Drop,
+  retaining owner/symlink checks, nonblocking acquisition and the stable lock file.
+  Keep File private; callers only hold the guard for the setup scope.
+- Deterministically duplicate the acquired description in the regression, drop
+  the guard and reacquire before closing the duplicate. This models inherited
+  handles without subprocess timing or sleeps; contention must still fail while
+  the guard is held. Existing symlink rejection must still pass.
+- Run focused real WSL tests through existing source-matched validation and
+  retry the explicitly requested artifact-only Windows build after the fix.
+- Linux flock reference: https://man7.org/linux/man-pages/man2/flock.2.html.
+  Local owned-descriptor Python self-check reproduces close-only retention and
+  verifies explicit unlock; Rust parsing/diff checks pass. Real WSL Rust execution
+  remains cloud-only. This is consistent with the failed immediate reacquisition;
+  the original failing process's descriptor inheritance was not traced directly.
