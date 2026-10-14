@@ -47,6 +47,15 @@ active Explorer. Reopen using the existing workspace toggle before selecting
 Explorer in both SSH-exit and WSL-to-native restoration fixtures. Keep the real
 local-root/readiness assertions and production visibility fences unchanged.
 
+Run 38547391269 / 53ee6a1a completed native macOS captures successfully in all
+three languages (capture exit 0, no failed steps/assertions). Its post-capture
+workflow rejected 984 valid PNGs because it expected 981: `live-send-context.png`,
+added by ba2c0b9a, was omitted from both OS formulas. Add this one capture to the
+base count (224 rather than 223), preserving exact count and nonempty-file checks.
+Stop the still-running Windows validation because it uses the same formula;
+rerun complete native/WSL verification. Source-matched three-platform Companion
+validation 38547390880 already passed and needs no repeat for this YAML-only fix.
+
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
 
