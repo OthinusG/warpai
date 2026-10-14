@@ -49,6 +49,8 @@ fn claude_draft_box_and_ascii_titles_preserve_busy_and_permission_guards() {
     assert_eq!(activity_at_cursor("claude", screen, "* Session topic", quiet, Some(2)), Some(Activity::Idle));
     assert_eq!(activity_at_cursor("claude", screen, ". Session topic", quiet, Some(2)), Some(Activity::Working));
     assert_ne!(activity_at_cursor("claude", screen, "", quiet, None), Some(Activity::Idle));
+    let menu = "Select model\nEnter to set as default\nEsc to cancel";
+    assert_eq!(activity_at_cursor("claude", menu, "* Session topic", quiet, None), None);
     let permission = "Would you like to proceed?\n────────────\n❯ 1. Allow once\n────────────\nEnter to select · Esc to cancel";
     assert_eq!(activity_at_cursor("claude", permission, "* Session topic", quiet, Some(2)), Some(Activity::WaitingApproval));
 }

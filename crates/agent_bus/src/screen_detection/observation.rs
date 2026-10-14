@@ -47,6 +47,7 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
                 return Some(Activity::WaitingApproval)
             }
             Some(Status::Error) => return Some(Activity::Error),
+            None => return None,
             _ => {}
         }
     }
@@ -66,7 +67,8 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
     let ready = match agent {
         "codex" => codex_ready(screen, composer.as_ref().map(|range| range.start)) || detection.is_some_and(|d| d.status == Some(Status::Idle)),
         "antigravity" => antigravity_ready(screen) || composer.is_some(),
-        "claude" => composer.is_some() || detection.is_some_and(|d| d.status == Some(Status::Idle)),
+        "claude" => composer.is_some() || detection.is_some_and(|d|
+            d.status == Some(Status::Idle) && d.rule != "live_prompt_box"),
         "qoder" => {
             let screen = screen.to_lowercase();
             screen.contains("type your message or @path/to/file")

@@ -473,3 +473,9 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   `.config/warpai`; former roots remain only explicit migration/compatibility tests.
   Windows Remote uses the existing LocalAppData layout. Source checks and native
   captures are pending cloud execution; owner reproduction remains a separate gate.
+
+- Cloud 38495615370/38495617151 exposed Claude's generic live prompt-box rule
+  granting idle to a draft without cursor evidence. Require the verified native
+  composer for that rule; preserve known completion/empty prompt/title rules.
+  Detector rules explicitly requesting no state update now return no observation
+  before title fallback, so command menus cannot become idle from a rest title.
