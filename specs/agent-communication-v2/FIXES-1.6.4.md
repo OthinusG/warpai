@@ -471,7 +471,8 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   then guest Communication and preview recovery. No owner configuration is changed.
 - Re-audit SSH install/call/remove roots: active POSIX defaults and installer use
   `.config/warpai`; former roots remain only explicit migration/compatibility tests.
-  Windows Remote uses the existing LocalAppData layout. Source checks and native
+  Windows SSH uses `%USERPROFILE%\.config\warpai\bin` and its Inno installer
+  disables reuse of the previous install directory. Source checks and native
   captures are pending cloud execution; owner reproduction remains a separate gate.
 
 - Cloud 38495615370/38495617151 exposed Claude's generic live prompt-box rule
@@ -479,3 +480,8 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   composer for that rule; preserve known completion/empty prompt/title rules.
   Detector rules explicitly requesting no state update now return no observation
   before title fallback, so command menus cannot become idle from a rest title.
+
+- Latest code 7b7b431f: communication/native/WSL validation 38498468161,
+  three-platform remote validation 38498468176, Windows artifact-only installer
+  38498467650. Installation self-checks, shell syntax, Rust parsing and strict
+  locale coverage passed locally. Source-matched native execution is pending.
