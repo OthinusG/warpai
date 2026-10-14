@@ -12,7 +12,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
-- Native UI gates release. WSL polling must not re-read its model during update.
+- Protocol passed; native UI still gates release. Avoid WSL model reentry.
 - Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.

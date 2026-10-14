@@ -542,3 +542,17 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   verifies explicit unlock; Rust parsing/diff checks pass. Real WSL Rust execution
   remains cloud-only. This is consistent with the failed immediate reacquisition;
   the original failing process's descriptor inheritance was not traced directly.
+
+### Physical-grid fixture failure: 38503962185 (2026-10-14)
+
+- Both OS protocol jobs pass. Both desktop jobs fail the same new physical-grid
+  cursor assertion, before later root/pane/WSL acceptance runs.
+- SizeInfo::new_without_font_metrics takes `(rows, cols)`. The fixture passed
+  `(80, 12)`, contrary to its natural rows=12/cols=80, creating a narrow 80-row
+  alternate screen. Bounded last-60-row extraction excludes cursor row 2.
+- Correct the fixture to `(12, 80)` and assert actual grid dimensions before
+  checking physical row alignment, native draft readiness and hidden-cursor fencing.
+  Preserve production sampling and detector guards; do not weaken expectations.
+- Retry desktop/native/WSL validation against the repaired source. The currently
+  running e3a4d7a2 artifact build contains production-equivalent code; this change
+  is confined to its lib-test fixture and acceptance receipt.
