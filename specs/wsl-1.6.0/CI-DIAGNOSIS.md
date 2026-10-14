@@ -56,6 +56,14 @@ Stop the still-running Windows validation because it uses the same formula;
 rerun complete native/WSL verification. Source-matched three-platform Companion
 validation 38547390880 already passed and needs no repeat for this YAML-only fix.
 
+Visual review confirmed 328 nonempty PNGs per language (984 total). It also
+found a product UI defect: the context-resource selector render block was inside
+the Coordinator-only branch, although its model is created for Send/Assign/Pool.
+Move that existing block below those forms' fields so humans can select and
+inspect references before confirming. Retain request/run/context fences and
+the capture count. Complete missing translated conversation/pagination labels.
+Inspect the updated native resource-selection capture before delivery.
+
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
 

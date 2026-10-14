@@ -1022,13 +1022,6 @@ impl CollaborationPanel {
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         if let Some(form) = &self.form {
             if form.kind == Kind::SelectCoordinator {
-                if let Some(selector) = &form.context_selector {
-                body.add_child(heading(appearance, warpui::localization::text("Context resources")));
-                if !form.submitting && form.submitted_fields.is_none() { body.add_child(ChildView::new(selector).finish()); }
-                let titles = form.selected_context.iter().filter_map(|id| form.resources.iter().find(|resource| &resource.reference.id == id))
-                    .map(|resource| format!("{} · v{}", resource.title, resource.reference.revision)).collect::<Vec<_>>().join(", ");
-                if !titles.is_empty() { body.add_child(note(appearance, titles)); }
-            }
             if !form.error.is_empty() { body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned())); }
                 if form.submitting { body.add_child(note(appearance, warpui::localization::text("Updating Coordinator…"))); }
                 else if !form.error.is_empty() {
@@ -1172,6 +1165,13 @@ impl CollaborationPanel {
                         body.add_child(note(appearance, names));
                     }
                 }
+            }
+            if let Some(selector) = &form.context_selector {
+                body.add_child(heading(appearance, warpui::localization::text("Context resources")));
+                if !form.submitting && form.submitted_fields.is_none() { body.add_child(ChildView::new(selector).finish()); }
+                let titles = form.selected_context.iter().filter_map(|id| form.resources.iter().find(|resource| &resource.reference.id == id))
+                    .map(|resource| format!("{} · v{}", resource.title, resource.reference.revision)).collect::<Vec<_>>().join(", ");
+                if !titles.is_empty() { body.add_child(note(appearance, titles)); }
             }
             if !form.error.is_empty() {
                 body.add_child(detail(appearance, warpui::localization::text(&form.error).to_owned()));
