@@ -234,3 +234,37 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     invalid.companion_path = "/nonexistent-owned-warpai-companion".into();
     assert!(HostClient::connect_wsl(&invalid, &distribution, &user).await.is_err());
 }
+
+#[tokio::test]
+#[ignore = "requires a provisioned disposable WSL guest"]
+async fn windows_mounted_directory_supports_files_and_project_attachment() {
+    let distribution = std::env::var("WARP_TEST_WSL_DISTRIBUTION").unwrap();
+    let user = std::env::var("WARP_TEST_WSL_USER").unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("owned.txt"), b"Windows mounted fixture").unwrap();
+    let output = tokio::process::Command::new("wsl.exe")
+        .args(["--distribution", &distribution, "--user", &user, "--exec", "wslpath", "-u"])
+        .arg(directory.path()).output().await.unwrap();
+    assert!(output.status.success());
+    let root = String::from_utf8(output.stdout).unwrap().trim().to_owned();
+    assert!(root.starts_with("/mnt/"), "Fixture must exercise a Windows-mounted directory");
+    let profile = SshProfile { target: "wsl".into(), config_file: None,
+        remote_root: root.clone(), companion_path: std::env::var("WARP_TEST_WSL_COMPANION").unwrap(),
+        remote_shell: RemoteShell::Posix };
+    let connection = SshConnection::Wsl { distribution, user };
+    let files = RemoteFiles::connect(profile.clone(), connection.clone()).await.unwrap();
+    assert!(!files.list(&root, 1).await.unwrap().entries.is_empty());
+    let path = format!("{root}/owned.txt");
+    let (downloaded, hash) = files.download(&path).await.unwrap();
+    assert_eq!(std::fs::read(downloaded).unwrap(), b"Windows mounted fixture");
+    files.save(&path, b"Updated through WSL", &hash).await.unwrap();
+    assert_eq!(std::fs::read(directory.path().join("owned.txt")).unwrap(), b"Updated through WSL");
+    let mut client = connection.connect(&profile).await.unwrap();
+    let identity = client.root_identity.clone();
+    let panel = client.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 1).await.unwrap();
+    assert!(panel.get("error").is_none(), "Project panel must open on the mounted directory");
+    client.disconnect();
+    let mut reconnected = connection.connect(&profile).await.unwrap();
+    assert_eq!(reconnected.root_identity, identity);
+    reconnected.disconnect();
+}

@@ -483,6 +483,12 @@ impl RightPanelView {
         ctx.notify();
     }
 
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn local_review_checkpoint(&self) -> bool {
+        self.code_review_session_env.as_ref().is_some_and(|env| !env.is_remote)
+            && self.ssh_selection.is_none() && self.ssh_review.is_none() && self.ssh_error.is_none()
+    }
+
     #[cfg(feature = "local_fs")]
     pub(crate) fn refresh_ssh_review(&mut self, ctx: &mut ViewContext<Self>) {
         use crate::remote_server::selected_session::{selected_ssh, selection_key};

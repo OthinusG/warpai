@@ -161,7 +161,11 @@ Git writes over the file protocol.
   physical checkout root and UUID request ID. These are never Agent MCP tools.
 - Resolve and validate Git worktree/common directories through the existing
   bounded, no-hook, private-Git command runner. Use native directory identity,
-  including birth time, to distinguish replacement directories.
+  including birth time where supported, to distinguish replacement directories.
+  Filesystems without birth time (including some WSL Windows mounts) use native
+  device/file identity with an explicit domain marker; never path-string identity.
+  Live remote attachments retain handles and reject replaced roots. Without birth
+  time, inode reuse after all handles close cannot be distinguished reliably.
 - Reuse spaces, workspace bindings and producing-root evidence. Store worktree
   admission fingerprints separately from ordinary workspace metadata. Every
   authorization revalidates the admitted checkout/repository identity. Explicit

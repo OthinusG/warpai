@@ -15845,10 +15845,6 @@ impl Workspace {
             }
         };
 
-        // Update working directories for the current pane group
-        let pane_group_handle = pane_group_handle.clone();
-        self.refresh_working_directories_for_pane_group(&pane_group_handle, ctx);
-
         if let Some(terminal_handle) = pane_group_handle.as_ref(ctx).active_session_view(ctx) {
             #[cfg_attr(not(feature = "local_fs"), allow(unused_variables))]
             let (
@@ -15895,6 +15891,9 @@ impl Workspace {
                     ctx,
                 );
             });
+
+            // Root projection must see the newly focused session, not the previous pane.
+            self.refresh_working_directories_for_pane_group(&pane_group_handle, ctx);
 
             CodebaseIndexManager::handle(ctx).update(ctx, |manager, _ctx| {
                 if let Some(working_directory) = working_directory_clone {
@@ -15962,6 +15961,7 @@ impl Workspace {
                 }
             }
         } else {
+            self.refresh_working_directories_for_pane_group(&pane_group_handle, ctx);
             #[cfg(feature = "local_fs")]
             let is_remote =
                 crate::remote_server::selected_session::selected_ssh(ctx, ctx.window_id())

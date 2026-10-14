@@ -428,3 +428,48 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   and artifact-only Windows installer 38496549411 were dispatched. Local WSL
   installer self-check, Bash syntax, Rust parsing and diff checks passed; native
   regression execution remains cloud-only and pending.
+
+### Windows-mounted WSL workspace reproduction (2026-10-14)
+
+- Owner confirms `/mnt/c/Users/wqin2` fails while `cd ~` restores Explorer and
+  Collaboration. Companion installation/home control verification succeeds.
+- Project and worktree directory identity previously required `Metadata::created`
+  unconditionally. Rust documents unsupported filesystems as an error; this can
+  turn a mounted directory into `ManagedUnavailable` / `CompanionUnavailable`.
+  Preserve the existing fingerprint when birth time exists. Only Unsupported
+  falls back to native device/file identity plus an explicit domain marker;
+  permission and other errors propagate. Shared identity hashing serves project
+  attachment and worktree admission. Live handle/replacement guards remain.
+- Native identity without birth time cannot distinguish inode reuse after every
+  handle closes. This is not path-based admission and does not change account
+  fences. See WORKTREE-COLLABORATION.md.
+- Real WSL acceptance now opens a disposable Windows temp directory through
+  `/mnt`, lists/downloads/saves files, opens Collaboration and reconnects with
+  the same identity. Existing tests cover native replacement and account guards.
+- Official behavior: https://doc.rust-lang.org/stable/std/fs/struct.Metadata.html#method.created
+  Owner filesystem metadata has not yet been inspected directly; the source fix
+  targets a verified compatibility defect, and real mounted acceptance is pending.
+
+### Mixed-pane switching and recurring file refresh failure (2026-10-14)
+
+- Owner additionally reports WSL/local Windows pane switching reverses which tools
+  work, and a populated Explorer fails after seconds with refresh InvalidInput.
+- `expand_ancestors_to_path(root, root)` skipped the root before looking for its
+  boundary, so it collected ancestors outside the admitted root. Those paths
+  entered the two-second remote poll. Bound traversal to descendants of the root
+  for both SSH and WSL; a real FileTree regression checks its expanded folder set.
+- Workspace root refresh formerly ran before updating ActiveSession. Move it
+  after the focused session changes. Replay existing directory-model roots when
+  the coding panel updates: a focus-only change may emit no directory event,
+  leaving local roots hidden/removed after remote selection. Observe ActiveSession
+  notifications instead of subscribing to an event it never emits.
+- Review retains its existing selection/generation reply guards and resets remote
+  views on local focus. File previews/editors retain their original RemoteFiles
+  source and cache identity; switching focus cannot redirect saves to another host.
+- Extend native acceptance with post-poll checks, SSH-to-local Explorer recovery,
+  actual Windows/WSL split panes, local Explorer/Review/Communication recovery,
+  then guest Communication and preview recovery. No owner configuration is changed.
+- Re-audit SSH install/call/remove roots: active POSIX defaults and installer use
+  `.config/warpai`; former roots remain only explicit migration/compatibility tests.
+  Windows Remote uses the existing LocalAppData layout. Source checks and native
+  captures are pending cloud execution; owner reproduction remains a separate gate.

@@ -155,28 +155,26 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Native lifecycle repair checkpoint
 
-- Reuse MIT AoE aa02052f's pure Rust screen detector and Orca 38a4958c's
-  Codex/agy composer, Pi/OMP marker and Qoder readiness predicates. Native grids
-  are bounded, secret-obfuscated and memory-only. Missing rules retain state;
-  name-only titles, warnings and quiet output cannot grant idle.
-- Grid observations fence run/input/redraw; stable samples preserve wake leases.
-  WSL negotiates `native_screen_activity`, sending only activity and exact run.
-  Default SSH is unchanged.
-- WSL package 38455056708/d379a2dd still fails owner Ubuntu attachment despite
-  verified installed state/home IPC and earlier runtime/service probes. See
-  FIXES-1.6.4.md Oct14 receipt; owner still reports failure. CI is not resolution.
-- SSH/WSL Companion install/call/uninstall use `.config/warpai`, matching desktop
-  data; Windows installers must not reuse the former registered directory.
-- WSL tools use confirmed install home; cache includes binary path. CI uses new root.
-  WSL mapping excludes Windows Agents; verified rescans clear cached failures.
-- MCP task observations, sidebar attention and keep awake share native activity;
-  UI focus never acknowledges MCP work; local-only cloud reporting is disabled.
-- Owner requires cursor-backed native draft/slash-command transition tests and
-  structured task bodies plus reusable versioned context resources, shared by
-  local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
-  Context/MCP/panel sends pin version/digest; legacy text stays readable.
-  Notification snapshots use internal project reads; public guards stay.
-  See CONTEXT-RESOURCES.md.
+- MIT AoE aa02052f detector and Orca 38a4958c composer/readiness rules feed bounded,
+  secret-obfuscated, memory-only native grids. Missing rules retain state;
+  titles, warnings or silence alone never grant idle. Run/input/redraw fences
+  preserve wake leases. WSL sends only activity/run, negotiating native screens.
+- Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
+  fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
+- SSH/WSL install/call/uninstall use `.config/warpai`; Windows installers must not
+  reuse the former directory. WSL tools/CI use confirmed install home/new root;
+  path changes invalidate connections and host Agents never enter guest discovery.
+- Shared directory hashing allows unsupported birth time using native identity,
+  retaining handle fences. Without birth time, closed-handle inode reuse is a limit.
+- Focus publishes session before roots. Replay cached native roots on focus;
+  observe session notifications and bound remote polls to the admitted root.
+  Native mixed-pane acceptance covers Explorer, Review, Communication and previews.
+- MCP observations, sidebar attention and keep awake share native activity.
+  Focus never acknowledges MCP work; local cloud reporting stays disabled.
+- Owner requires native draft/slash/error transition tests. Structured tasks and
+  reusable versioned context use shared local/WSL/SSH MCP and panel Send contracts.
+  Context refs pin version/digest/project; legacy text stays readable. Notification
+  snapshots use internal project reads; public guards stay. CONTEXT-RESOURCES.md.
 
 ## Memory maintenance
 

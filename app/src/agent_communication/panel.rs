@@ -5125,6 +5125,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 ),
         )
         .with_step(
+            TestStep::new("native Explorer restores roots after SSH exit").with_action(|app, window, _| {
+                let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
+            }).add_named_assertion("SSH exit discards remote errors and restores local roots", |app, window| {
+                let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)
+                    .is_some_and(|tree| tree.as_ref(ctx).local_checkpoint_ready())))
+            }).set_post_step_pause(std::time::Duration::from_secs(5)),
+        )
+        .with_step(
             TestStep::new("prepare local SSH banner fixture").with_action(|app, window, _| {
                 let terminal = app
                     .views_of_type::<crate::terminal::TerminalView>(window)
@@ -5525,7 +5535,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }));
     #[cfg(windows)]
     if std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
-        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "settings-wsl-communication.png", "fixture-wsl-installation-running.png", "fixture-wsl-installation-failed.png"].map(str::to_owned));
+        filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "live-wsl-native-pane-switch.png", "settings-wsl-communication.png", "fixture-wsl-installation-running.png", "fixture-wsl-installation-failed.png"].map(str::to_owned));
         driver = driver.with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, _| {
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
@@ -5597,7 +5607,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && matches!(connection, SshConnection::Wsl { user, .. } if user == "warpai-test"))))
         }))
         // Guest probe and subsequent RPCs can exceed the default 10-second UI step budget.
-        .with_step(TestStep::new("open existing Explorer on WSL").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
+        .with_step(TestStep::new("open existing Explorer on WSL").set_post_step_pause(std::time::Duration::from_secs(5)).set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
@@ -5607,6 +5617,11 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)
                 .is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window))))
         }).with_take_screenshot("live-wsl-file-explorer.png"))
+        .with_step(TestStep::new("WSL Explorer survives automatic refresh").add_named_assertion("guest tree remains attached after polling", |app, window| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)
+                .is_some_and(|tree| tree.as_ref(ctx).ssh_checkpoint_ready(ctx, window))))
+        }))
         .with_step(TestStep::new("open WSL source in native editor").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
@@ -5706,6 +5721,59 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         matches!(target.mode, crate::code_review::diff_state::DiffMode::Head)
                         && target.label == warpui::localization::text("Uncommitted changes"))))))
         }).with_take_screenshot("live-wsl-file-review.png"))
+        .with_step(TestStep::new("split native Windows beside existing WSL pane").with_action(|app, window, data| {
+            let wsl_terminal = app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx).terminal_view_id(window)).unwrap();
+            data.insert("mixed-wsl-terminal", wsl_terminal);
+            app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                model.preferences.enabled = true;
+                ctx.notify();
+            }));
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            let group = workspace.read(app, |workspace, _| workspace.active_tab_pane_group().clone());
+            group.update(app, |group, ctx| {
+                group.add_session(crate::pane_group::Direction::Right, None, None, None, None, ctx);
+            });
+        }).set_timeout(std::time::Duration::from_secs(60)).add_named_assertion("right pane has native authority", |app, window| {
+            warpui::async_assert!(app.read(|ctx| {
+                let active = crate::workspace::ActiveSession::as_ref(ctx);
+                active.session(window).is_some_and(|session| session.is_local() && !session.is_wsl())
+                    && active.path_if_local(window).is_some()
+                    && crate::remote_server::selected_session::selected_ssh(ctx, window).is_none()
+            }))
+        }))
+        .with_step(TestStep::new("restore native Explorer and Review after WSL focus").with_action(|app, window, _| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
+        }).add_named_assertion("native tools discard remote errors and restore local roots", |app, window| {
+            let left = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            let native_tree = left.read(app, |left, ctx| left.active_file_tree_view(ctx)
+                .is_some_and(|tree| tree.as_ref(ctx).local_checkpoint_ready()));
+            let native_review = app.views_of_type::<crate::workspace::view::right_panel::RightPanelView>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |view, _| view.local_review_checkpoint())));
+            warpui::async_assert!(native_tree && native_review)
+        }).set_post_step_pause(std::time::Duration::from_secs(5)).with_take_screenshot("live-wsl-native-pane-switch.png"))
+        .with_step(TestStep::new("local communication after WSL focus").with_action(|app, window, _| {
+            let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
+        }).add_named_assertion("communication uses native project", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.connected && panel.remote.is_none()
+                && panel.remote_connection.is_none() && panel.snapshot.is_some()))
+        }))
+        .with_step(TestStep::new("return to original WSL pane without replacing its previews").with_action(|app, window, data| {
+            let terminal = *data.get::<_, warpui::EntityId>("mixed-wsl-terminal").unwrap();
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| assert!(workspace.focus_terminal_view_locally(terminal, ctx)));
+        }).set_timeout(std::time::Duration::from_secs(60)).add_named_assertion("WSL communication and preview retain guest authority", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            let guest = panel.read(app, |panel, _| panel.connected
+                && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. })));
+            let preview = app.views_of_type::<crate::notebooks::file::FileNotebookView>(window)
+                .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx| view.wsl_checkpoint_ready(ctx))));
+            warpui::async_assert!(guest && preview)
+        }))
         .with_step(TestStep::new("show current-account WSL MCP settings").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.refresh_wsl_targets(ctx);

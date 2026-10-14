@@ -76,15 +76,7 @@ pub(crate) fn branch(root: &str) -> Option<String> {
 pub(crate) fn directory_identity(path: &Path) -> Result<String> {
     let handle = crate::companion::open_root(path)?;
     let mut digest = Sha256::new();
-    digest.update(crate::companion::identity::native_file_identity(&handle)?);
-    digest.update(
-        handle
-            .metadata()?
-            .created()?
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_nanos()
-            .to_be_bytes(),
-    );
+    crate::companion::identity::hash_directory_identity(&mut digest, &handle)?;
     Ok(uuid::Uuid::from_bytes(digest.finalize()[..16].try_into().unwrap()).to_string())
 }
 

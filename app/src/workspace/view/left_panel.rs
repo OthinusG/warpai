@@ -658,9 +658,16 @@ impl LeftPanelView {
     ) {
         #[cfg(feature = "local_fs")]
         {
+            let roots = self.active_pane_group.as_ref().and_then(|group| group.upgrade(ctx))
+                .and_then(|group| self.working_directories_model.as_ref(ctx)
+                    .most_recent_directories_for_pane_group(group.id())
+                    .map(|directories| directories.map(|directory| directory.path).collect::<Vec<_>>()))
+                .unwrap_or_default();
             if let Some(file_tree_view) = self.active_file_tree_view(ctx) {
                 file_tree_view.update(ctx, |view, ctx| {
                     view.set_enablement_state(enablement, ctx);
+                    // Focus changes can leave the directory set unchanged, so no model event fires.
+                    view.set_root_directories(deduplicate_by_directory_name(roots), ctx);
                 });
             }
         }

@@ -373,6 +373,14 @@ impl FileTreeView {
     }
 
     #[cfg(all(debug_assertions, feature = "local_fs"))]
+    pub(crate) fn local_checkpoint_ready(&self) -> bool {
+        self.is_active && self.ssh_selection.is_none() && self.ssh_files.is_none()
+            && self.ssh_error.is_none() && !self.displayed_directories.is_empty()
+            && self.displayed_directories.iter().all(|root|
+                self.root_directories.get(root).is_some_and(|directory| !directory.is_remote()))
+    }
+
+    #[cfg(all(debug_assertions, feature = "local_fs"))]
     pub(crate) fn ssh_checkpoint_file_listed(&self, name: &str) -> bool {
         self.root_directories.values().any(|directory| directory.is_remote()
             && directory.items.iter().any(|item| matches!(item,
@@ -1057,9 +1065,9 @@ impl FileTreeView {
             if view.is_active { view.refresh_ssh(ctx); }
         });
         #[cfg(feature = "local_fs")]
-        ctx.subscribe_to_model(
+        ctx.observe(
             &crate::workspace::ActiveSession::handle(ctx),
-            |view, _, _, ctx| {
+            |view, _, ctx| {
                 if view.is_active {
                     view.refresh_ssh(ctx);
                 }
@@ -1179,7 +1187,7 @@ impl FileTreeView {
         let parents_to_expand: Vec<_> = target_path
             .ancestors()
             .skip(1) // skip target itself — we expand its *parents*
-            .take_while(|p| *p != *root)
+            .take_while(|p| p.starts_with(root) && *p != *root)
             .collect();
 
         // Expand from root -> leaf so we can stop at the first explicitly-collapsed folder.

@@ -57,24 +57,40 @@ impl Identity {
         })
     }
 
-    /// Native directory identity and birth time avoid alias/path-text equality.
+    /// Native directory identity, with birth time when the filesystem provides it.
     pub fn project(&self, file: &File) -> std::io::Result<(String, String)> {
-        let metadata = file.metadata()?;
-        let created = metadata
-            .created()?
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(std::io::Error::other)?;
         let mut digest = Sha256::new();
         digest.update(std::env::consts::OS.as_bytes());
         digest.update([0]);
         digest.update(self.service_id.as_bytes());
         digest.update(self.account_id.as_bytes());
-        digest.update(native_file_identity(file)?);
-        digest.update(created.as_nanos().to_be_bytes());
+        hash_directory_identity(&mut digest, file)?;
         let hash = digest.finalize();
         let id = Uuid::from_bytes(hash[..16].try_into().unwrap());
         let fingerprint = hash.iter().map(|b| format!("{b:02x}")).collect();
         Ok((id.to_string(), fingerprint))
+    }
+}
+
+pub(crate) fn hash_directory_identity(digest: &mut Sha256, file: &File) -> std::io::Result<()> {
+    let created = creation_time(file.metadata()?.created())?;
+    digest.update(native_file_identity(file)?);
+    if let Some(created) = created {
+        digest.update(created.to_be_bytes());
+    } else {
+        // shortcut: without birth time, closed-handle inode reuse is indistinguishable;
+        // use a filesystem generation if the platform exposes one. Never hash path text.
+        digest.update(b"native-directory-without-birth-time-v1");
+    }
+    Ok(())
+}
+
+fn creation_time(created: std::io::Result<std::time::SystemTime>) -> std::io::Result<Option<u128>> {
+    match created {
+        Ok(created) => created.duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| Some(duration.as_nanos())).map_err(std::io::Error::other),
+        Err(error) if error.kind() == std::io::ErrorKind::Unsupported => Ok(None),
+        Err(error) => Err(error),
     }
 }
 
@@ -255,6 +271,15 @@ pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unsupported_birth_time_does_not_make_a_directory_unavailable() {
+        use std::{io::{Error, ErrorKind}, time::{Duration, UNIX_EPOCH}};
+        assert_eq!(creation_time(Ok(UNIX_EPOCH + Duration::from_secs(1))).unwrap(), Some(1_000_000_000));
+        assert_eq!(creation_time(Err(Error::from(ErrorKind::Unsupported))).unwrap(), None);
+        assert_eq!(creation_time(Err(Error::from(ErrorKind::PermissionDenied))).unwrap_err().kind(), ErrorKind::PermissionDenied);
+        assert!(creation_time(Ok(UNIX_EPOCH - Duration::from_secs(1))).is_err());
+    }
 
     #[test]
     fn concurrent_attachments_wait_for_one_persistent_identity() {

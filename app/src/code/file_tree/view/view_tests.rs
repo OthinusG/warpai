@@ -1128,3 +1128,25 @@ fn absorbed_descendant_is_unregistered_from_lazy_loaded_paths() {
         });
     });
 }
+
+#[test]
+fn expanding_root_never_schedules_ancestor_directories_outside_root() {
+    VirtualFS::test("file_tree_root_expansion_boundary", |dirs, mut vfs| {
+        vfs.mkdir("tree").with_files(vec![Stub::FileWithContent("tree/owned.txt", "owned")]);
+        let root_path = dirs.tests().join("tree");
+        App::test((), |mut app| async move {
+            crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
+            app.add_singleton_model(|_| VimRegisters::new());
+            let (_, tree) = app.add_window(WindowStyle::NotStealFocus, FileTreeView::new);
+            tree.update(&mut app, |tree, ctx| {
+                tree.set_root_directories(vec![root_path.clone()], ctx);
+                let root = std_path(&root_path);
+                tree.expand_ancestors_to_path(&root, &root, ctx);
+                let expanded = &tree.root_directories.get(&root).unwrap().expanded_folders;
+                assert!(expanded.contains(&root));
+                assert!(expanded.iter().all(|path| path.starts_with(&root)),
+                    "Remote poll requests must remain inside their admitted root");
+            });
+        });
+    });
+}

@@ -38,6 +38,7 @@ agent_fixture=$(find target/debug/deps -maxdepth 1 -type f -executable -name 'ma
 [[ -n "$agent_fixture" ]]
 install -D -m 755 "$agent_fixture" /home/warpai-test/managed-agent-fixture
 cargo build -p warp-agent-bus --bin warpai-wsl-companion --features wsl_companion --locked
+cargo test -p warp-agent-bus --lib companion::identity::tests --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib context --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib wsl_chunks_ --features wsl_companion --locked
 cargo test -p warp-agent-bus --lib companion::guests::tests --features wsl_companion --locked
