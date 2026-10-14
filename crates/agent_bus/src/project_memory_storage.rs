@@ -242,10 +242,26 @@ impl Store {
         let mut remaining = entries
             .into_iter()
             .filter(|entry| entry.updated_seq > cursor.unwrap_or(0));
-        let memory: Vec<_> = remaining.by_ref().take(limit as usize).collect();
+        let page: Vec<_> = remaining.by_ref().take(limit as usize).collect();
         let next = remaining
             .next()
-            .and_then(|_| memory.last().map(|entry| entry.updated_seq));
+            .and_then(|_| page.last().map(|entry| entry.updated_seq));
+        // Keep repeated project/checkout provenance out of the discovery index.
+        let snapshot = |snapshot: &MemorySnapshot| {
+            json!({
+            "resource":{"reference":snapshot.resource.reference,"title":snapshot.resource.title,
+                "kind":snapshot.resource.kind,"source_revision":snapshot.resource.source_revision},
+            "source_task":snapshot.source_task,"source_task_revision":snapshot.source_task_revision })
+        };
+        let memory: Vec<Value> = page
+            .iter()
+            .map(|entry| {
+                json!({"key":entry.key,
+            "version":entry.version,"updated_seq":entry.updated_seq,
+            "current":entry.current.as_ref().map(&snapshot),
+            "proposed":entry.proposed.as_ref().map(&snapshot) })
+            })
+            .collect();
         let tasks = self.task_list(actor, None, Some(&actor.id), None, Some(16), false)?;
         let resources = self.context_list(actor, None, Some(8))?;
         let threads: Vec<Value> = tasks["tasks"]
@@ -657,5 +673,48 @@ mod tests {
             page["memory"][0]["current"]["resource"]["reference"],
             json!(old)
         );
+    }
+
+    #[test]
+    fn thread_identity_survives_review_changes_and_reassignment() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = store
+            .register("issuer", "claude", "/project", "issuer")
+            .unwrap();
+        let worker = store
+            .register("worker-pane", "codex", "/project", "worker")
+            .unwrap();
+        let replacement = store
+            .register("new-pane", "custom", "/project", "replacement")
+            .unwrap();
+        let task = assign(&store, &issuer, &worker);
+        start(&store, &worker, &task, 1, "first-run");
+        submit(&store, &worker, &task, 1, "first-run");
+        review(&store, &issuer, &task, 1, false);
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskReassign {
+                    task_id: task.clone(),
+                    assignee: replacement.id.clone(),
+                    reviewer: None,
+                    reason: "Continue with another native Agent".into(),
+                    start_deadline: None,
+                    clear_start_deadline: false,
+                    override_uncertain: false,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let revision = store.task(&replacement, &task).unwrap().revision;
+        start(&store, &replacement, &task, revision, "replacement-run");
+        let thread = store.execution_thread(&issuer, &task).unwrap();
+        assert_eq!(thread["thread"]["id"], task);
+        assert_eq!(thread["thread"]["bindings"].as_array().unwrap().len(), 2);
+        assert_eq!(thread["thread"]["bindings"][0]["terminal"], "worker-pane");
+        assert_eq!(thread["thread"]["bindings"][1]["terminal"], "new-pane");
+        assert_eq!(thread["thread"]["bindings"][1]["run"], "replacement-run");
     }
 }
