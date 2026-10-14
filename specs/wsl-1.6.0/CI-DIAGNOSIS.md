@@ -39,6 +39,14 @@ version removal. Assert exact `not_found` and continued panel availability after
 the foreign WSL read, rather than accepting any failure. Cancel obsolete native
 validation and rerun both remote Companion and full native/WSL acceptance.
 
+macOS in that run finished before cancellation with a separate capture failure:
+`native Explorer restores roots after SSH exit`. The fixture had explicitly
+closed the workspace panel, then changed only the panel's selected tool. That
+does not reopen the workspace; `local_checkpoint_ready` correctly requires an
+active Explorer. Reopen using the existing workspace toggle before selecting
+Explorer in both SSH-exit and WSL-to-native restoration fixtures. Keep the real
+local-root/readiness assertions and production visibility fences unchanged.
+
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
 

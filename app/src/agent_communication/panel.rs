@@ -5163,6 +5163,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("native Explorer restores roots after SSH exit").with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| {
+                    if !workspace.is_left_panel_open(ctx) {
+                        workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                    }
+                });
                 let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
             }).add_named_assertion("SSH exit discards remote errors and restores local roots", |app, window| {
@@ -5780,6 +5787,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }))
         }))
         .with_step(TestStep::new("restore native Explorer and Review after WSL focus").with_action(|app, window, _| {
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| {
+                if !workspace.is_left_panel_open(ctx) {
+                    workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                }
+            });
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
         }).add_named_assertion("native tools discard remote errors and restore local roots", |app, window| {
