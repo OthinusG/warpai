@@ -939,6 +939,15 @@ impl Directory {
             if digest(&mut target)? != expected_hash {
                 return Err(ManagedErrorCode::ManagedConflict);
             }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                // DrvFs can inherit the requested mode without granting Linux chmod ownership.
+                if target.metadata().map_err(path_error)?.permissions().mode() != permissions.mode() {
+                    target.set_permissions(permissions).map_err(path_error)?;
+                }
+            }
+            #[cfg(windows)]
             target.set_permissions(permissions).map_err(path_error)?;
             target.sync_all().map_err(path_error)?;
             drop(target);

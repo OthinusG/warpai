@@ -698,6 +698,27 @@ fn staging_snapshots_binary_content_and_save_preserves_permissions() {
             .starts_with(".warpai-save-")));
 }
 
+#[cfg(unix)]
+#[test]
+fn atomic_save_preserves_an_already_matching_private_mode() {
+    use std::os::unix::fs::PermissionsExt;
+    let mut fixture = Fixture::new();
+    fixture.write("private.txt", b"original");
+    std::fs::set_permissions(fixture.root.path().join("private.txt"),
+        std::fs::Permissions::from_mode(0o600)).unwrap();
+    let mut prepare = fixture.query(ProjectFileAction::ProjectFilePrepareWrite, "private.txt");
+    prepare.expected_hash = format!("{:x}", Sha256::digest(b"original"));
+    let transfer = fixture.execute(prepare).unwrap();
+    std::fs::write(&transfer.transfer_path, b"updated").unwrap();
+    let mut commit = fixture.query(ProjectFileAction::ProjectFileCommitWrite, "private.txt");
+    commit.transfer_id = transfer.transfer_id;
+    commit.expected_hash = format!("{:x}", Sha256::digest(b"updated"));
+    fixture.execute(commit).unwrap();
+    let path = fixture.root.path().join("private.txt");
+    assert_eq!(std::fs::read(&path).unwrap(), b"updated");
+    assert_eq!(std::fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o600);
+}
+
 #[test]
 fn failed_and_successful_project_switches_have_distinct_transfer_lifetimes() {
     let mut fixture = Fixture::new();

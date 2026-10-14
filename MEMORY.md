@@ -9,7 +9,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Independent protocol/desktop jobs reuse caches.
   Local Rustfmt, diff and script checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
-- Check cloud runs every 30 minutes, without frequent polling or empty updates.
+- Monitor cloud runs every 30 minutes until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
 - Protocol passed; native UI still gates release. Avoid WSL model reentry.

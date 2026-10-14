@@ -55,7 +55,7 @@ def main():
         return
     assert mode == "--agent" and os.isatty(0)
     config = json.loads((root / "native-mcp.json").read_text())
-    runtime = tempfile.TemporaryDirectory(prefix="native-mcp-runtime-", dir=root.parent())
+    runtime = tempfile.TemporaryDirectory(prefix="native-mcp-runtime-", dir=root.parent)
     bridge = subprocess.Popen([config["command"], *config["args"]], stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=None, text=True, cwd=runtime.name)
     sequence = 0

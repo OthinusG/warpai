@@ -4103,8 +4103,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 .messages
                                 .len()
                                 == 1
-                                && snapshot.messages[0].body
-                                    == "Native thread checkpoint literal _% text"))
+                                && matches!(warp_agent_bus::context::StructuredBody::decode(&snapshot.messages[0].body),
+                                    Some(warp_agent_bus::context::StructuredBody::Task { task_id, details, .. })
+                                        if snapshot.messages[0].task_id.as_deref() == Some(task_id.as_str())
+                                            && details.instruction == "Native thread checkpoint literal _% text")))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 })
@@ -4127,9 +4129,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     warpui::async_assert!(
                         panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
                             |snapshot| snapshot.messages.len() == 2
-                                && snapshot.messages[0].body
-                                    == "Native thread checkpoint literal _% text"
-                                && snapshot.messages[1].body == "Follow-up native checkpoint"
+                                && snapshot.messages.iter().zip([
+                                    "Native thread checkpoint literal _% text", "Follow-up native checkpoint"
+                                ]).all(|(message, instruction)| matches!(
+                                    warp_agent_bus::context::StructuredBody::decode(&message.body),
+                                    Some(warp_agent_bus::context::StructuredBody::Task { task_id, details, .. })
+                                        if message.task_id.as_deref() == Some(task_id.as_str())
+                                            && details.instruction == instruction))
                                 && snapshot.messages[1].reply_to.as_deref()
                                     == Some(snapshot.messages[0].id.as_str())
                         )) && checkpoint_draft(app, window) == "unsent collaboration draft"

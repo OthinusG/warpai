@@ -1,5 +1,30 @@
 # Windows CI diagnosis
 
+## 2026-10-14 follow-up: run 38531256385
+
+Source 010a9090 passed both protocol suites and both desktop configurations.
+Real WSL acceptance failed before native MCP registration: its Python fixture
+called `Path.parent` as a function. Mounted-directory save separately returned
+PermissionDenied. macOS native capture reached literal message search, where
+legacy string assertions did not account for structured task-linked messages.
+
+Fix plan and scope:
+1. Correct the fixture property access and execute its temporary-directory setup
+   with a representative Path locally; syntax checks alone missed this error.
+2. Assert the exact instruction and task association in structured native search
+   and thread results; keep message transport and history immutable.
+3. Preserve atomic save and mode preservation. On Unix, skip chmod when the
+   newly created file already has the requested mode. DrvFs can expose inherited
+   Windows modes without granting Linux chmod ownership. Continue propagating
+   permission failures when a mode change is actually required. Existing Unix
+   mode-preservation tests and real mounted-directory save exercise both paths.
+4. Rerun source-matched native/WSL acceptance, including `/mnt/c/Users/`, then
+   both desktops before packaging. This save correction remains unconfirmed on
+   the owner's machine; do not classify CI fixture repair as owner acceptance.
+
+Monitor active runs at 30-minute intervals until completion. A dispatched run
+does not complete verification, and long builds alone do not justify a restart.
+
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
 
