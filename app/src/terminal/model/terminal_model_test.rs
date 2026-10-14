@@ -3,6 +3,7 @@ use std::fs;
 use base64::engine::general_purpose::STANDARD as BASE64;
 
 use super::*;
+use crate::terminal::SizeInfo;
 use crate::terminal::model::ansi::{Handler, Processor};
 use crate::terminal::model::block::BlockId;
 use crate::terminal::model::bootstrap::BootstrapStage;

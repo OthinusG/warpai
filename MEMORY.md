@@ -6,12 +6,12 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Working and delivery rules
 
 - Rust/native acceptance runs on GitHub. Batch 1–17 before full acceptance.
-  Protocol/desktop jobs are independent; reuse build caches.
-  Local Rustfmt parsing, diff and script/document checks are allowed.
+  Protocol/desktop jobs are independent; reuse caches.
+  Local Rustfmt parsing, diff and script checks are allowed.
   Do not install on personal machines or change personal Agent/SSH configuration.
 - Check cloud runs every 30 minutes, without frequent polling or empty updates.
-  A user-reported error permits immediate diagnosis. Use focused retries while
-  debugging, then one complete source-matched acceptance run before delivery.
+  Owner errors allow immediate diagnosis. Focus retries, then full source-matched
+  acceptance before delivery. Packaging waits until debug validation passes.
 - Native UI gates release. WSL polling must not re-read its model during update.
 - Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,

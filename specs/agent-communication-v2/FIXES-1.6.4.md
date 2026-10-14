@@ -504,3 +504,19 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
 - Desktop default check additionally reports E0502 after the focus/root ordering
   repair: retain an owned cloned PaneGroup handle before mutating Workspace.
   This restores the original borrow boundary and keeps the corrected ordering.
+
+### Debug before packaging: source 8cb89d1e (2026-10-14)
+
+- Owner requests stopping packaging until debugging and focused validation.
+  Force-cancel submitted for Windows release 38499833429; no new package is
+  dispatched until the debug validation succeeds.
+- Communication 38499833377: both OS protocol jobs passed. Desktop lib-test
+  compilation fails on missing SizeInfo in the physical-grid regression. Import
+  the terminal SizeInfo explicitly; keep the 80-column fixture and its assertions.
+- Remote 38499833387: Windows native remote shell test fails its version probe.
+  Its workflow still exports the former `.config/.warpai` installation path while
+  the source-matched installer uses `.config/warpai`. Align the acceptance path.
+- Audit every workflow for active former companion paths. Re-run native desktop
+  tests/WSL capture and three-platform SSH validation, then package accepted source.
+- The macOS release workflow embeds the same Windows SSH acceptance step and
+  also retained the former path; correct it without dispatching a release.

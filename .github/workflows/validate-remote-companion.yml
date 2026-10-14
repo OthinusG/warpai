@@ -169,7 +169,7 @@ jobs:
       - name: Verify native Windows remote shell protocol
         if: runner.os == 'Windows'
         run: |
-          export WARP_TEST_COMPANION_PATH="$USERPROFILE\.config\.warpai\bin\warpai-companion.exe"
+          export WARP_TEST_COMPANION_PATH="$USERPROFILE\.config\warpai\bin\warpai-companion.exe"
           cargo test -p warp-agent-bus --lib native_windows_remote_shell_preserves_companion_protocol_bytes --locked -- --ignored
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
