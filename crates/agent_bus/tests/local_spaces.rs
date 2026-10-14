@@ -237,6 +237,7 @@ fn reviewed_workspace_is_pinned_and_visible_before_agent_discovery() {
         .unwrap();
     assert_eq!(revoked["project"], reviewed.domain());
     assert_eq!(revoked["admission"], "revoked");
+    assert!(revoked["agents"].as_array().unwrap().is_empty());
     b.prepare("ordinary-private").unwrap();
     assert_eq!(
         b.operator_panel(&warp_agent_bus::transport::PanelQuery {

@@ -1534,7 +1534,7 @@ impl Broker {
             .is_some_and(|previous| previous.root == query.project && previous.space != current.space
                 && state.store.authorize_workspace(previous).is_err()));
         let project = binding.and_then(|binding| binding.workspace.as_ref())
-            .filter(|workspace| workspace.root == query.project && state.store.authorize_workspace(workspace).is_ok())
+            .filter(|workspace| workspace.root == query.project && !replaced_repository)
             .map(crate::WorkspaceBinding::domain)
             .or_else(|| query.terminal.as_ref()
             .and_then(|terminal| state.terminals.get(terminal))

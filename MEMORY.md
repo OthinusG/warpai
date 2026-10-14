@@ -156,7 +156,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Native lifecycle repair checkpoint
 
 - MIT AoE aa02052f detector and Orca 38a4958c composer/readiness rules feed bounded,
-  secret-obfuscated, memory-only native grids. Missing rules retain state;
+  secret-obfuscated memory-only grids. No-rule fallback differs from menu retention;
   titles, warnings or silence alone never grant idle. Run/input/redraw fences
   preserve wake leases. WSL sends only activity/run, negotiating native screens.
 - Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
@@ -168,12 +168,12 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   retaining handle fences. Without birth time, closed-handle inode reuse is a limit.
 - Focus publishes session before roots. Replay cached native roots on focus;
   observe session notifications and bound remote polls to the admitted root.
-  Native mixed-pane acceptance covers Explorer, Review, Communication and previews.
+  Mixed-pane tests cover Explorer, Review, Communication and previews.
 - MCP observations, sidebar attention and keep awake share native activity.
   Focus never acknowledges MCP work; local cloud reporting stays disabled.
 - Owner requires native draft/slash/error transition tests. Structured tasks and
   reusable versioned context use shared local/WSL/SSH MCP and panel Send contracts.
-  Context refs pin version/digest/project; legacy text stays readable. Notification
+  Context pins version/digest/project; legacy text stays readable. Notification
   snapshots use internal project reads; public guards stay. CONTEXT-RESOURCES.md.
 
 ## Memory maintenance

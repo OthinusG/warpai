@@ -485,3 +485,18 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   three-platform remote validation 38498468176, Windows artifact-only installer
   38498467650. Installation self-checks, shell syntax, Rust parsing and strict
   locale coverage passed locally. Source-matched native execution is pending.
+
+### CI failure repair plan: source 7b7b431f (2026-10-14)
+
+- Communication 38498468161 protocol jobs fail four screen observation tests.
+  `Detection::unknown_by_default` has status None and rule `no_rule`; this must
+  allow explicit native composer/title evidence. Only an actual matched rule
+  requesting no state update may suppress fallback. Repair the discriminator;
+  retain draft, busy, warning, menu and permission regressions.
+- Remote 38498468176 fails `reviewed_workspace_is_pinned_and_visible_before_agent_discovery`
+  on all three hosts. A revoked reviewed binding must keep its original panel
+  domain, not fall back to a private project. Preserve root matching and the
+  explicit replaced-repository exception; public authorization remains unchanged.
+- Verify with focused cloud screen tests and local_spaces/worktree routing suites,
+  then complete three-platform remote and native/WSL acceptance. Reuse existing
+  workflows and preserve owner files/configuration. No PR or release tag changes.

@@ -47,7 +47,7 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
                 return Some(Activity::WaitingApproval)
             }
             Some(Status::Error) => return Some(Activity::Error),
-            None => return None,
+            None if detection.rule != "no_rule" => return None,
             _ => {}
         }
     }
