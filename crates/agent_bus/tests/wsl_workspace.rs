@@ -162,8 +162,10 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert_eq!(fetched["value"]["content"]["summary"], "Reusable WSL findings");
     let mut foreign = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
     let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { reference:reference.clone() }), 5).await.unwrap();
-    assert!(denied.get("error").is_some());
+    assert_eq!(denied["error"]["code"], "not_found");
     assert!(denied.get("value").is_none());
+    let isolated = foreign.project_tasks(&TaskCommand::Panel(PanelQuery::default()), 6).await.unwrap();
+    assert!(isolated.get("error").is_none(), "A missing foreign reference must not disconnect the workspace");
     foreign.disconnect();
 
     let message = observer.project_tasks(&TaskCommand::Scoped { scope: scope.clone(), command: Box::new(TaskCommand::Operator(

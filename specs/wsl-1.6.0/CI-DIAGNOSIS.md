@@ -25,6 +25,20 @@ Fix plan and scope:
 Monitor active runs at 30-minute intervals until completion. A dispatched run
 does not complete verification, and long builds alone do not justify a restart.
 
+Run 38539223394 / 07ec34f0 passed the mounted-directory test, including save
+and direct `/mnt/c/Users/` attachment. Native MCP registration and same-project
+memory/resource reads passed; the foreign-account resource isolation assertion
+failed at wsl_workspace.rs:164 with StaleAttachment. A missing reference returns
+the Store's legitimate `not_found` domain error, absent from the shared remote
+response decoder's allowlist. The decoder rejects it as malformed and closes
+the connection. SSH on macOS/Windows/Linux uses this same code.
+
+Correction: admit `not_found` in the existing bounded/sanitized error decoder,
+retain unknown-code rejection, and test message redaction, non-retryability and
+version removal. Assert exact `not_found` and continued panel availability after
+the foreign WSL read, rather than accepting any failure. Cancel obsolete native
+validation and rerun both remote Companion and full native/WSL acceptance.
+
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
 

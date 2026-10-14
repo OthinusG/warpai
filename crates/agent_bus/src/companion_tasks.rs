@@ -437,6 +437,15 @@ mod tests {
         assert_eq!(before["value"]["events"], restored["value"]["events"]);
     }
     #[test]
+    fn missing_context_is_a_sanitized_domain_failure() {
+        let result = decode_result(br#"{"error":{"code":"not_found","message":"untrusted context details","retryable":true,"version":9}}"#).unwrap();
+        assert_eq!(result["error"]["code"], "not_found");
+        assert_eq!(result["error"]["message"], "Remote project operation failed");
+        assert_eq!(result["error"]["retryable"], false);
+        assert!(result["error"].get("version").is_none());
+        assert!(result.get("value").is_none());
+    }
+    #[test]
     fn forbidden_agent_and_device_authority_never_creates_a_store() {
         let data = tempfile::tempdir().unwrap();
         let root = tempfile::tempdir().unwrap();
@@ -495,6 +504,7 @@ pub(crate) fn decode_result(bytes: &[u8]) -> Option<serde_json::Value> {
             | "invalid_state"
             | "unauthorized"
             | "scope_denied"
+            | "not_found"
             | "request_conflict"
             | "request_epoch_expired"
             | "capacity_exceeded"
