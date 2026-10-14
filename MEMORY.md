@@ -22,8 +22,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Published releases and maintenance
 
-- 1.6.4 / Companion 5.1.0 publication authorized 2026-10-13; immutable tags
-  and delivery gates: specs/RELEASE.md. Active branch: milestone/1.6.4.
+- 1.6.4 / Companion 5.2.0: direct publication authorized 2026-10-14.
+  Skip further validation runs; retain packaging gates. Contract: specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
 

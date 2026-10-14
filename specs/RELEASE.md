@@ -1,5 +1,25 @@
 # Warpai releases
 
+## 2026-10-14 direct 1.6.4 / Companion 5.2.0 publication
+
+The owner explicitly requested publishing Warpai 1.6.4 with Companion 5.2.0
+without further validation runs. This supersedes the standalone validation
+prerequisite below. Cancel the pending Windows follow-up; preserve the existing
+release workflow's source/version/installer/checksum gates. Do not move tags.
+
+Desktop and native UI source ed9d9dd1 passed macOS and Windows native captures
+in run 38551750559, including real WSL workspace and installation isolation.
+Its only failure was the Windows PNG count (1008 expected, 1011 produced), fixed
+in 8e38b352. All three Companion platforms passed run 38547390880; subsequent
+runtime changes are limited to the shared desktop context selector and translations.
+
+Update all active runtime/WSL package expectations and public Companion links
+to 5.2.0; include native task threads, bootstrap resources and reviewed project
+memory in the notes. Integrate source into main and create immutable v1.6.4,
+then dispatch release-macos.yml with auto_publish=true. Windows follows from
+the same tag and completes publication. Monitor every 30 minutes, resolve actual
+packaging failures and verify all five public installers/checksums before delivery.
+
 ## 1.6.4 delivery contract
 
 Owner authorization 2026-10-13: package and publish Warpai 1.6.4, updating

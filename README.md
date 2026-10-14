@@ -256,7 +256,7 @@ Install the downloaded package using the instructions above.
 
 ### Remote companion
 
-**Warpai Companion 5.1.0** provides the remote workspace on your Linux, macOS or
+**Warpai Companion 5.2.0** provides the remote workspace on your Linux, macOS or
 Windows machine, including its private Git runtime. Warpai's remote file, Review and
 Agent communication infrastructure requires no separate Git, Python, Node, tmux
 or socat installation. Vendor Agents retain their own requirements. Companion
@@ -269,9 +269,9 @@ See [feature dependencies](docs/FEATURE-DEPENDENCIES.md) for SSH/WSL requirement
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-linux-x64.run) |
-| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-linux-x64.run) |
+| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-windows-x64-setup.exe) |
 
 ## Local by design
 

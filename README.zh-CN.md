@@ -207,7 +207,7 @@ Warpai 每次启动检查一次更新。下载后按上方说明安装。
 
 ### 远程 companion
 
-**Warpai Companion 5.1.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
+**Warpai Companion 5.2.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
 组件自带私有 Git；Warpai 的远程文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
 Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Companion 按需启动，
 空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
@@ -218,9 +218,9 @@ Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Compani
 
 | 远程主机 | 下载 |
 | --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-linux-x64.run) |
-| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.1.0-windows-x64-setup.exe) |
+| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-linux-x64.run) |
+| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-macos-arm64.dmg) |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-windows-x64-setup.exe) |
 
 ## 本地优先
 
