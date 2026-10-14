@@ -71,7 +71,8 @@ impl Store {
     ) -> Result<Value> {
         self.authorize(actor)?;
         let limit = Self::page_limit(limit)?;
-        let rows = diesel::sql_query("SELECT value FROM meta WHERE key LIKE 'context/head/%' AND json_extract(value,'$.project')=? AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
+        // Scan only indexed summaries, excluding payload versions and non-JSON metadata.
+        let rows = diesel::sql_query("SELECT value FROM meta WHERE key >= 'context/head/' AND key < 'context/head0' AND json_extract(value,'$.project')=? AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
             .bind::<Text, _>(&actor.project).bind::<BigInt, _>(cursor.unwrap_or(0).min(i64::MAX as u64) as i64)
             .bind::<BigInt, _>(limit as i64 + 1).load::<ValueRow>(&mut *self.connection.borrow_mut())?;
         let summaries = rows
@@ -231,6 +232,7 @@ mod tests {
                 )
                 .unwrap();
         }
+        store.set_worktree_mode("/project", true).unwrap();
         let mut cursor = None;
         let mut seen = std::collections::HashSet::new();
         for page_number in 0..3 {

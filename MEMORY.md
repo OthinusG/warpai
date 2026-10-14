@@ -175,7 +175,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
   Shared context/MCP/panel sends pin version/digest; legacy text stays readable.
   Store notification snapshots use internal project reads, retaining public guards.
-  CONTEXT-RESOURCES.md defines scope; cloud acceptance is pending.
+  CONTEXT-RESOURCES.md defines scope.
 
 ## Memory maintenance
 

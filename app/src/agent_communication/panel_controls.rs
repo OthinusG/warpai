@@ -425,6 +425,8 @@ impl CollaborationPanel {
         if value.is_empty() { form.selected_context.clear(); }
         else if form.selected_context.iter().any(|id| id == value) { form.selected_context.retain(|id| id != value); }
         else if form.selected_context.len() < 16 { form.selected_context.push(value.into()); }
+        let selected = form.selected_context.last().and_then(|id| form.resources.iter().position(|resource| &resource.reference.id == id)).map_or(0, |index| index + 1);
+        if let Some(selector) = &form.context_selector { selector.update(ctx, |dropdown, ctx| dropdown.set_selected_by_index(selected, ctx)); }
         ctx.notify();
     }
 
@@ -432,11 +434,15 @@ impl CollaborationPanel {
         let Some(form) = self.form.as_mut().filter(|form| matches!(form.kind, Kind::Send | Kind::Assign | Kind::Pool)) else { return; };
         let request = form.request_id.clone();
         let mut items = vec![super::DropdownItem::new(warpui::localization::text("No context resources"), Action::SelectContext { request: request.clone(), value: String::new() })];
-        items.extend(form.resources.iter().map(|resource| super::DropdownItem::new(format!("{} · {} · v{}", resource.title, resource.kind, resource.reference.revision), Action::SelectContext { request: request.clone(), value: resource.reference.id.clone() })));
+        items.extend(form.resources.iter().map(|resource| super::DropdownItem::new(format!("{} · {} · v{}", resource.title, warpui::localization::text(match resource.kind.as_str() {
+            "repository_index" => "Repository index", "analysis" => "Analysis", "code_snippet" => "Code snippet",
+            "design_decision" => "Design decision", _ => "Context resources"
+        }), resource.reference.revision), Action::SelectContext { request: request.clone(), value: resource.reference.id.clone() })));
+        let selected = form.selected_context.last().and_then(|id| form.resources.iter().position(|resource| &resource.reference.id == id)).map_or(0, |index| index + 1);
         let selector = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = super::Dropdown::new(ctx);
             dropdown.set_items(items, ctx);
-            dropdown.set_selected_by_index(0, ctx);
+            dropdown.set_selected_by_index(selected, ctx);
             dropdown
         });
         form.context_selector = Some(selector);
@@ -738,7 +744,7 @@ impl CollaborationPanel {
 
     fn load_remaining_choices(&mut self, ctx: &mut ViewContext<Self>) {
         let (Some(form), Some(snapshot)) = (&mut self.form, &self.snapshot) else { return; };
-        if form.selectors.is_empty() || (snapshot.agent_cursor.is_none() && snapshot.task_cursor.is_none() && snapshot.context_cursor.is_none()) { return; }
+        if (form.selectors.is_empty() && form.context_selector.is_none()) || (snapshot.agent_cursor.is_none() && snapshot.task_cursor.is_none() && snapshot.context_cursor.is_none()) { return; }
         form.choices_loading = true;
         let request = form.request_id.clone();
         let response_request = request.clone();

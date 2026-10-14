@@ -66,6 +66,7 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
     let ready = match agent {
         "codex" => codex_ready(screen, composer.as_ref().map(|range| range.start)) || detection.is_some_and(|d| d.status == Some(Status::Idle)),
         "antigravity" => antigravity_ready(screen) || composer.is_some(),
+        "claude" => composer.is_some() || detection.is_some_and(|d| d.status == Some(Status::Idle)),
         "qoder" => {
             let screen = screen.to_lowercase();
             screen.contains("type your message or @path/to/file")
@@ -109,6 +110,10 @@ fn title_state(agent: &str, title: &str) -> Option<Activity> {
                 _ => Activity::Working,
             });
         }
+    }
+    if agent == "claude" {
+        if title.starts_with("* ") { return Some(Activity::Idle); }
+        if title.starts_with(". ") { return Some(Activity::Working); }
     }
     if agent == "qoder" {
         match title.trim_start().chars().next() {
@@ -226,13 +231,14 @@ fn composer_rows(agent: &str, screen: &str, cursor: Option<usize>) -> Option<std
         }) { return None; }
         return Some(start..end);
     }
-    if agent != "antigravity" { return None; }
+    if !matches!(agent, "antigravity" | "claude") { return None; }
     let frame = |line: &&str| line.chars().count() >= 8 && line.chars().all(|c| c == '─');
     let end = lines.iter().rposition(frame)?;
     let start = lines[..end].iter().rposition(frame)?;
-    (cursor > start && cursor < end && lines.get(start + 1).is_some_and(|line| line.starts_with('>'))
+    (cursor > start && cursor < end && lines.get(start + 1).is_some_and(|line| line.starts_with(if agent == "claude" { '❯' } else { '>' }))
         && lines.iter().skip(end + 1).find(|line| !line.is_empty())
-            .is_some_and(|line| line.to_lowercase().starts_with("? for shortcuts")))
+            .is_some_and(|line| if agent == "claude" { (line.starts_with('⏵') || line.starts_with('⏸')) && line.to_lowercase().contains("shift+tab") }
+                else { line.to_lowercase().starts_with("? for shortcuts") }))
         .then_some(start + 1..end)
 }
 

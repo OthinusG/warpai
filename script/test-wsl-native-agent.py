@@ -95,6 +95,14 @@ def main():
             inbox = tool("warp_agent_inbox", {})
             for message in inbox["messages"]:
                 if message["kind"] == "request":
+                    body = message["body"]
+                    if isinstance(body, dict):
+                        assert body["schema_version"] == 1
+                        instruction = body["instruction"] if body["type"] == "instruction" else body
+                        for reference in instruction.get("context_refs", []):
+                            snapshot = tool("warp_context_get", {"reference": reference})
+                            assert snapshot["reference"] == reference
+                            assert snapshot["content"]["summary"] == "Reusable WSL findings"
                     arguments = {"reply_to": message["id"], "question": "Confirm guest fixture acceptance",
                                  "request_id": str(uuid.uuid4())}
                     question = tool("warp_agent_ask", arguments)

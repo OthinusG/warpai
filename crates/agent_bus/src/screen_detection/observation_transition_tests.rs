@@ -41,3 +41,14 @@ fn live_composer_supersedes_transcript_warnings_and_slash_command_history() {
     let agy = format!("Antigravity CLI\n{history}\n────────────\n> unsent draft\n────────────\n? for shortcuts");
     assert_eq!(activity_at_cursor("agy", &agy, "", Duration::from_secs(2), Some(7)), Some(Activity::Idle));
 }
+
+#[test]
+fn claude_draft_box_and_ascii_titles_preserve_busy_and_permission_guards() {
+    let quiet = Duration::from_secs(2);
+    let screen = "Previous output: approve or allow (y/n)\n────────────\n❯ approve this draft later\n────────────\n⏵⏵ accept edits on (shift+tab to cycle)";
+    assert_eq!(activity_at_cursor("claude", screen, "* Session topic", quiet, Some(2)), Some(Activity::Idle));
+    assert_eq!(activity_at_cursor("claude", screen, ". Session topic", quiet, Some(2)), Some(Activity::Working));
+    assert_ne!(activity_at_cursor("claude", screen, "", quiet, None), Some(Activity::Idle));
+    let permission = "Would you like to proceed?\n────────────\n❯ 1. Allow once\n────────────\nEnter to select · Esc to cancel";
+    assert_eq!(activity_at_cursor("claude", permission, "* Session topic", quiet, Some(2)), Some(Activity::WaitingApproval));
+}

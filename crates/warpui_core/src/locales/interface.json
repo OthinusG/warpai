@@ -11296,5 +11296,9 @@
     "按 → 接受自動建議。"
   ],
   "Context resources": ["上下文资源", "上下文資源"],
-  "No context resources": ["不引用上下文资源", "不引用上下文資源"]
+  "No context resources": ["不引用上下文资源", "不引用上下文資源"],
+  "Repository index": ["仓库索引", "儲存庫索引"],
+  "Analysis": ["分析结果", "分析結果"],
+  "Code snippet": ["代码片段", "程式碼片段"],
+  "Design decision": ["设计决策", "設計決策"]
 }

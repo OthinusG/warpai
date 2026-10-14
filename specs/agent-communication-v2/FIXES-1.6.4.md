@@ -386,3 +386,24 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
 - Windows lib-test compilation exposed App versus AppContext in the selection
   generation regression; sample selection through app.read. Desktop application
   compilation had passed; this failure was in the added acceptance test.
+
+### Interim Windows test artifact and remaining acceptance (2026-10-14)
+
+- Source d379a2dd produced `windows-release-installer` in run 38455056708,
+  artifact 11848456523. Windows packaging and bundled WSL verification passed;
+  owner Ubuntu/wqin attachment remains a separate reproduction gate.
+- Communication 38455051895 and remote 38455054344 stopped on the standalone
+  companion fixture's old capability array. Update the fixture to include both
+  context capabilities and the WSL-only native activity capability.
+- Both native desktop regression jobs reached the physical-row test. Its default
+  mock was ten columns, wrapping the header before an assertion about row 1.
+  Use an explicit 80-column fixture for that fixed layout; retain real grid row
+  extraction, cursor evidence and forced secret obfuscation in production.
+- Extend Claude's cursor/frame recognition with its mode footer and Orca's ASCII
+  rest/working title prefixes. Live permission hints and busy titles retain their
+  guards; an unknown cursor/layout cannot prove an idle composer.
+- Resource selectors retain selections across pagination and pool forms load
+  remaining resources. Native WSL request processing retrieves pinned context
+  through the receiving Agent's own MCP, in addition to host control verification.
+- Context summary scans use the existing primary-key prefix range, excluding
+  payload versions and non-JSON metadata without a schema migration.

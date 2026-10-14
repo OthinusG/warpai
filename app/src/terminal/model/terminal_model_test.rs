@@ -20,6 +20,9 @@ use warpui::text::SelectionType;
 #[test]
 fn native_agent_screen_keeps_cursor_rows_for_multiline_drafts_and_hides_invisible_cursor() {
     let mut terminal = TerminalModel::mock(None, None);
+    terminal.resize(crate::terminal::SizeUpdate { update_reason:crate::terminal::SizeUpdateReason::Refresh,
+        last_size:*terminal.block_list().size(), new_size:SizeInfo::new_without_font_metrics(80, 12),
+        new_gap_height:None, natural_rows:12, natural_cols:80 });
     terminal.process_bytes("\x1b[?1049h\x1b[?25h\x1b[HOpenAI Codex\r\n\u{203a} first line\r\n  second line\r\n\r\ngpt-5.6 · ~/project\x1b[3;8H");
     let (screen, cursor) = terminal.agent_screen();
     assert_eq!(cursor, Some(2));

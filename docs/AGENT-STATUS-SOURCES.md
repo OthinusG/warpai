@@ -53,3 +53,11 @@ other commands during an active turn. Command text therefore cannot grant idle.
 Tests cover return-to-composer, live interrupt/spinner, palettes/approval menus,
 Unicode/history/multiline drafts, claimed delivery, changed input, cancellation,
 resumption, duplicate claims and unchanged MCP task/message receipts.
+
+
+Claude also uses a cursor-bound `❯` composer between horizontal rules followed by
+its native `⏵`/`⏸` mode footer (`shift+tab`). Orca's pinned `claude.json` documents
+`* ` at rest and `. ` while working in ASCII titles. Test historical approval
+text inside/above drafts and active selection hints independently. Native status
+tests use explicit realistic dimensions so wrapping does not invalidate a fixed
+layout fixture; production continues to sample physical rows and actual cursor.
