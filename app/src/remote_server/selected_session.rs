@@ -27,6 +27,23 @@ pub(crate) fn session_connection(
     })
 }
 
+fn companion_home<'a>(
+    session: &'a crate::terminal::model::session::Session,
+    connection: &SshConnection,
+    app: &'a AppContext,
+) -> Option<&'a str> {
+    let home = session.home_dir();
+    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    let home = if let SshConnection::Wsl { distribution, user } = &connection {
+        // Installation and workspace tools must use the same confirmed account home.
+        crate::agent_communication::AgentCommunication::as_ref(app).wsl.targets.iter()
+            .find(|target| target.distribution == *distribution && target.user == *user)
+            .map(|target| target.home.as_str())
+    } else { home };
+    let _ = (connection, app);
+    home
+}
+
 pub(crate) fn selected_ssh(
     app: &AppContext,
     window: WindowId,
@@ -48,16 +65,17 @@ pub(crate) fn selected_ssh(
         if !crate::terminal::wsl::WslInfo::as_ref(app).distributions()
             .any(|entry| entry.name == *distribution && entry.supports_communication()) { return None; }
     }
+    let home = companion_home(&session, &connection, app)?;
     let host_info = session.host_info();
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
-        session.home_dir()?,
+        home,
         if connection.is_wsl() { "Linux" }
         else { host_info.os_category.as_deref()? },
     )
     .ok()?;
     #[cfg(windows)]
     let companion_path = if connection.is_wsl() {
-        warp_agent_bus::installation::wsl_companion_path(session.home_dir()?).ok()?
+        warp_agent_bus::installation::wsl_companion_path(home).ok()?
     } else { companion_path };
     let profile = SshProfile {
         target: if connection.is_wsl() { "wsl".into() } else { session.hostname().into() },
@@ -72,10 +90,11 @@ pub(crate) fn selected_ssh(
 
 pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection, app: &AppContext) -> String {
     let key = format!(
-        "{}:{}:{}",
+        "{}:{}:{}:{}",
         connection.scope_key(),
         profile.target,
-        profile.remote_root
+        profile.remote_root,
+        profile.companion_path
     );
     #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
     if connection.is_wsl() {
@@ -100,7 +119,23 @@ mod tests {
                 remote_shell:warp_agent_bus::ssh_remote::RemoteShell::Posix };
             let wsl = SshConnection::Wsl { distribution:"Ubuntu".into(), user:"guest".into() };
             let ssh = SshConnection::Native { arguments:vec!["owned".into()], session:"owned".into() };
+            let session = Session::new(SessionInfo::new_for_test().with_user("guest".into()),
+                std::sync::Arc::new(NoOpCommandExecutor::new()));
+            crate::agent_communication::AgentCommunication::handle(&app).update(&mut app, |model, _| {
+                model.wsl.targets = vec![crate::agent_communication::wsl_settings::Target {
+                    distribution: "Ubuntu".into(), user: "guest".into(), home: "/home/confirmed".into(),
+                }];
+            });
+            app.read(|ctx| {
+                assert_eq!(companion_home(&session, &wsl, ctx), Some("/home/confirmed"));
+                assert_eq!(companion_home(&session, &ssh, ctx), session.home_dir());
+                let other = SshConnection::Wsl { distribution:"Ubuntu".into(), user:"other".into() };
+                assert_eq!(companion_home(&session, &other, ctx), None);
+            });
             let before = app.read(|ctx| selection_key(&profile, &wsl, ctx));
+            let mut moved_profile = profile.clone();
+            moved_profile.companion_path = "/home/confirmed/.config/warpai/wsl/bin/warpai-wsl-companion".into();
+            assert_ne!(app.read(|ctx| selection_key(&moved_profile, &wsl, ctx)), before);
             let ssh_before = app.read(|ctx| selection_key(&profile, &ssh, ctx));
             crate::agent_communication::AgentCommunication::handle(&app).update(&mut app, |model, _| {
                 model.wsl.generation += 1;

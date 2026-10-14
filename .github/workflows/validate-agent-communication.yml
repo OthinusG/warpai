@@ -192,7 +192,7 @@ jobs:
           WARP_TEST_WSL_DISTRIBUTION: Ubuntu-22.04
           WARP_TEST_WSL_USER: warpai-test
           WARP_TEST_WSL_ROOT: /home/warpai-test/project spaces 多语言
-          WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion
+          WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/warpai/wsl/bin/warpai-wsl-companion
         run: |
           cargo test -p warp-agent-bus --test wsl_workspace --locked -- --ignored --nocapture
           if ($LASTEXITCODE -ne 0) { throw 'Real WSL workspace acceptance failed' }
@@ -253,7 +253,7 @@ jobs:
             $env:WARP_TEST_WSL_DISTRIBUTION = 'Ubuntu-22.04'
             $env:WARP_TEST_WSL_USER = 'warpai-test'
             $env:WARP_TEST_WSL_ROOT = '/home/warpai-test/project spaces 多语言'
-            $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/.warpai/wsl/bin/warpai-wsl-companion'
+            $env:WARP_TEST_WSL_COMPANION = '/home/warpai-test/.config/warpai/wsl/bin/warpai-wsl-companion'
           }
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker

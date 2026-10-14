@@ -407,3 +407,18 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   through the receiving Agent's own MCP, in addition to host control verification.
 - Context summary scans use the existing primary-key prefix range, excluding
   payload versions and non-JSON metadata without a schema migration.
+
+### Owner WSL attachment remains unavailable (2026-10-14)
+
+- Owner reports Explorer, Collaboration and Review still unavailable after install.
+  Packaging success does not establish a working owner workspace connection.
+- Workspace selection must resolve Companion under the same confirmed distro/user
+  home used by installation and setup, rather than re-reading a terminal home.
+  Cache identity includes the Companion path so a changed installation cannot
+  reuse an old failed connection. Regression covers account isolation and SSH home.
+- Two native Windows WSL acceptance environment values still used the old hidden
+  root while the fixture installer used the new root. Align both with
+  `.config/warpai`; preserve explicit former-root migration fixtures.
+- These are source inconsistencies, not a confirmed explanation for the owner's
+  latest failure. Current installer identity and verified installation state are
+  pending; real owner connection remains an acceptance gate.

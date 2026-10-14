@@ -164,20 +164,21 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Default SSH is unchanged.
 - WSL package 38393839766/83c7274b still fails owner Ubuntu attachment despite
   successful account/home/version/runtime/setup and guest/Windows service probes. See
-  FIXES-1.6.4.md Oct14 receipt; do not call it resolved from CI alone.
+  FIXES-1.6.4.md Oct14 receipt; owner still reports failure. CI is not resolution.
 - SSH/WSL Companion install/call/uninstall use `.config/warpai`, matching desktop
   data; Windows installers must not reuse the former registered directory.
-- WSL path mapping excludes Windows Agents. Verified rescans clear cached failures.
+- WSL tools use confirmed install home; cache includes binary path. CI uses new root.
+  WSL mapping excludes Windows Agents; verified rescans clear cached failures.
 - MCP task observations, sidebar attention and keep awake share native activity;
   UI focus never acknowledges MCP work; local-only cloud reporting is disabled.
 - Owner requires cursor-backed native draft/slash-command transition tests and
   structured task bodies plus reusable versioned context resources, shared by
   local/WSL/SSH MCP and panel Send to agent. Context snapshots stay project-scoped.
-  Shared context/MCP/panel sends pin version/digest; legacy text stays readable.
-  Store notification snapshots use internal project reads, retaining public guards.
-  CONTEXT-RESOURCES.md defines scope.
+  Context/MCP/panel sends pin version/digest; legacy text stays readable.
+  Notification snapshots use internal project reads; public guards stay.
+  See CONTEXT-RESOURCES.md.
 
 ## Memory maintenance
 
-Keep under 200 lines / 12 KB; receipts belong in specs. Archive useful evidence,
-not all startup context; replace superseded facts.
+Keep under 200 lines / 12 KB; put receipts in specs. Preserve useful evidence;
+replace superseded facts.
