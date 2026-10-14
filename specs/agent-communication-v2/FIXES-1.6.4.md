@@ -597,3 +597,10 @@ Implemented, awaiting source-matched cloud verification:
 Audit 18/21/22 implementation: PROJECT-MEMORY.md. Native/vendor and owner-machine
 acceptance remain separate from synthetic contract tests. Do not mark items
 13–17 complete from successful protocol/build jobs alone.
+
+Cloud verification receipt: run 38517517150 passed both OS protocol suites;
+run 38517517002 passed Linux, macOS and Windows remote Companion validation.
+Desktop compilation stopped at the global-search translation renderer: the
+shared localization helper returns `&str`, so obtain an owned string with
+`to_owned` rather than the `Cow`-only `into_owned`. Native UI and real WSL
+acceptance were not reached and require the corrected desktop build.

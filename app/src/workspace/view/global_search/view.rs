@@ -2176,8 +2176,8 @@ impl GlobalSearchView {
         let theme = appearance.theme();
         let title = title.into();
         let body = body.into();
-        let title = warpui::localization::text(&title).into_owned();
-        let body = warpui::localization::text(&body).into_owned();
+        let title = warpui::localization::text(&title).to_owned();
+        let body = warpui::localization::text(&body).to_owned();
 
         let main_column = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
