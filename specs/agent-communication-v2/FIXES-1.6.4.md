@@ -500,3 +500,7 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
 - Verify with focused cloud screen tests and local_spaces/worktree routing suites,
   then complete three-platform remote and native/WSL acceptance. Reuse existing
   workflows and preserve owner files/configuration. No PR or release tag changes.
+
+- Desktop default check additionally reports E0502 after the focus/root ordering
+  repair: retain an owned cloned PaneGroup handle before mutating Workspace.
+  This restores the original borrow boundary and keeps the corrected ordering.

@@ -15830,7 +15830,7 @@ impl Workspace {
 
     /// Update the active session model state.
     fn update_active_session(&mut self, ctx: &mut ViewContext<Self>) {
-        let pane_group_handle = self.active_tab_pane_group();
+        let pane_group_handle = self.active_tab_pane_group().clone();
         let file_tree_and_global_search_are_enabled = {
             #[cfg(feature = "local_fs")]
             {
