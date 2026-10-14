@@ -590,8 +590,9 @@ Implemented, awaiting source-matched cloud verification:
   add EN/zh-Hans/zh-Hant pairs for setup statuses and guidance from the screenshots.
 - Runs 38514037237/38514037570 failed from missing imports in new integration
   tests (Uuid/TaskCommand), now corrected. Earlier 38508702638 macOS native capture
-  reached pool creation but failed; report actual rejected form errors in the
-  owned capture rather than hiding them behind a timed-out Boolean assertion.
+  reached pool creation but failed: its script submitted before asynchronous
+  selector pagination completed. Wait for the prepared form before submitting;
+  retain the production loading guard. Report rejected form errors directly.
 
 Audit 18/21/22 implementation: PROJECT-MEMORY.md. Native/vendor and owner-machine
 acceptance remain separate from synthetic contract tests. Do not mark items

@@ -1324,6 +1324,11 @@ impl CollaborationPanel {
         self.form.as_ref().filter(|form| !form.submitting && !form.error.is_empty())
             .map(|form| form.error.clone())
     }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn control_checkpoint_ready(&self) -> bool {
+        self.form.as_ref().is_some_and(|form| !form.submitting && !form.choices_loading)
+    }
 }
 
 #[cfg(test)]

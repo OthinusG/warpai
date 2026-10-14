@@ -3943,11 +3943,19 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ],
                             ctx,
                         );
-                        panel.confirm_control(ctx);
                     });
                 },
             ),
         )
+        .with_step(TestStep::new("native pool choices finish loading").add_named_assertion(
+            "pool form is ready", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.control_checkpoint_ready()))
+            }))
+        .with_step(TestStep::new("submit prepared native pool").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+        }))
         .with_step(
             TestStep::new("native pool created without invented execution").add_named_assertion(
                 "unclaimed pool and draft retained",
