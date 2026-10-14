@@ -175,7 +175,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Native draft/slash/error acceptance is pending. Shared context/task contracts:
   CONTEXT-RESOURCES.md; keep project/version/digest fences and public guards.
 - Audit 18/21/22: task-anchored native threads, bootstrap and reviewed memory;
-  PROJECT-MEMORY.md. Defer 19/20/23–30. Project has no permanent leader. CI pending.
+  PROJECT-MEMORY.md. Defer 19/20/23–30; no fixed leader. Core CI pass; native pending.
 
 ## Memory maintenance
 
