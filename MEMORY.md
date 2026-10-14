@@ -165,13 +165,13 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   reuse the former directory. WSL tools/CI use confirmed install home/new root;
   Path changes invalidate connections; host Agents never enter guest discovery.
   Setup locks explicitly unlock on Drop despite inherited descriptors.
-- Shared directory hashing allows unsupported birth time using native identity,
-  retaining handle fences. Without birth time, closed-handle inode reuse is a limit.
+- Hash native identity with signed birth time; positive hashes stay compatible.
+  Keep handle fences; absent birth time cannot distinguish closed-handle inode reuse.
 - Focus publishes session before roots. Replay cached native roots on focus;
   observe session notifications and bound remote polls to the admitted root.
   Pane tests cover Explorer, Review, Communication and previews.
-- MCP observations, sidebar attention and keep awake share native activity.
-  Focus never acknowledges MCP work; local cloud reporting stays disabled.
+- Native bindings register before deferred MCP tools; readiness stays separate.
+  MCP/sidebar/keep awake share activity; focus never acknowledges work.
 - Native draft/slash/error acceptance is pending. Shared context/task contracts:
   CONTEXT-RESOURCES.md; keep project/version/digest fences and public guards.
 - Audit 18/21/22: task-anchored native threads, bootstrap and reviewed memory;

@@ -1,5 +1,6 @@
 //! Opt-in real Windows-to-WSL acceptance against a disposable Linux fixture.
 #![cfg(windows)]
+use uuid::Uuid;
 use remote_protocol::proto::*;
 use warp_agent_bus::{ssh_files::{RemoteFiles, SshConnection}, ssh_remote::{HostClient, RemoteShell, SshProfile}};
 
@@ -276,4 +277,13 @@ async fn windows_mounted_directory_supports_files_and_project_attachment() {
     let mut reconnected = connection.connect(&profile).await.unwrap();
     assert_eq!(reconnected.root_identity, identity);
     reconnected.disconnect();
+    let mut startup = profile;
+    startup.remote_root = "/mnt/c/Users/".into();
+    let files = RemoteFiles::connect(startup.clone(), connection.clone()).await
+        .expect("Default Windows Users root must attach without cd ~");
+    files.list(&files.canonical_root, 2).await.expect("Default Users root must list without cd ~");
+    let mut client = connection.connect(&startup).await.expect("Default Users project must attach");
+    let panel = client.project_tasks(&warp_agent_bus::companion::TaskCommand::Panel(warp_agent_bus::transport::PanelQuery::default()), 2).await.unwrap();
+    assert!(panel.get("error").is_none(), "Default Users communication workspace must be available: {panel}");
+    client.disconnect();
 }

@@ -813,7 +813,7 @@ impl RightPanelView {
 
         let tooltip = if let Some(keybinding) = tooltip_keybinding {
             ui_builder
-                .tool_tip_with_sublabel("Close panel".to_string(), keybinding)
+                .tool_tip_with_sublabel(warpui::localization::text("Close panel").to_owned(), keybinding)
                 .build()
                 .finish()
         } else {

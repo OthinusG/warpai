@@ -1,4 +1,5 @@
 //! Executed only against an explicitly provisioned isolated CI SSH fixture.
+use warp_agent_bus::companion::TaskCommand;
 use remote_protocol::proto::{TerminalAction, TerminalControl, TerminalLaunch, TerminalState};
 use uuid::Uuid;
 use warp_agent_bus::ssh_remote::{HostClient, RemoteShell, SshProfile};

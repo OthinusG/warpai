@@ -2174,6 +2174,10 @@ impl GlobalSearchView {
     ) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let theme = appearance.theme();
+        let title = title.into();
+        let body = body.into();
+        let title = warpui::localization::text(&title).into_owned();
+        let body = warpui::localization::text(&body).into_owned();
 
         let main_column = Flex::column()
             .with_main_axis_size(MainAxisSize::Max)
@@ -2254,7 +2258,7 @@ impl GlobalSearchView {
         self.render_zero_state(
             Icon::AlertTriangle,
             "Global search unavailable",
-            "Global search requries access to your local workspace. Open a new session or navigate to an active session to view.",
+            "Global search requires access to your local workspace. Open a new session or navigate to an active session to view.",
             app,
         )
     }

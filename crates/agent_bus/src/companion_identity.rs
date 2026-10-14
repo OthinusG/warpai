@@ -85,10 +85,17 @@ pub(crate) fn hash_directory_identity(digest: &mut Sha256, file: &File) -> std::
     Ok(())
 }
 
-fn creation_time(created: std::io::Result<std::time::SystemTime>) -> std::io::Result<Option<u128>> {
+fn creation_time(created: std::io::Result<std::time::SystemTime>) -> std::io::Result<Option<i128>> {
     match created {
-        Ok(created) => created.duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| Some(duration.as_nanos())).map_err(std::io::Error::other),
+        Ok(created) => {
+            // NTFS can legitimately expose creation times before the Unix epoch.
+            let (duration, sign) = match created.duration_since(std::time::UNIX_EPOCH) {
+                Ok(duration) => (duration, 1),
+                Err(error) => (error.duration(), -1),
+            };
+            i128::try_from(duration.as_nanos()).map(|nanos| Some(nanos * sign))
+                .map_err(std::io::Error::other)
+        },
         Err(error) if error.kind() == std::io::ErrorKind::Unsupported => Ok(None),
         Err(error) => Err(error),
     }
@@ -276,9 +283,11 @@ mod tests {
     fn unsupported_birth_time_does_not_make_a_directory_unavailable() {
         use std::{io::{Error, ErrorKind}, time::{Duration, UNIX_EPOCH}};
         assert_eq!(creation_time(Ok(UNIX_EPOCH + Duration::from_secs(1))).unwrap(), Some(1_000_000_000));
+        assert_eq!(creation_time(Ok(UNIX_EPOCH + Duration::from_secs(1))).unwrap().unwrap().to_be_bytes(), 1_000_000_000_u128.to_be_bytes());
         assert_eq!(creation_time(Err(Error::from(ErrorKind::Unsupported))).unwrap(), None);
         assert_eq!(creation_time(Err(Error::from(ErrorKind::PermissionDenied))).unwrap_err().kind(), ErrorKind::PermissionDenied);
-        assert!(creation_time(Ok(UNIX_EPOCH - Duration::from_secs(1))).is_err());
+        assert_eq!(creation_time(Ok(UNIX_EPOCH - Duration::from_secs(1))).unwrap(), Some(-1_000_000_000));
+        assert_eq!(creation_time(Ok(UNIX_EPOCH - Duration::from_secs(11_644_473_600))).unwrap(), Some(-11_644_473_600_000_000_000));
     }
 
     #[test]

@@ -829,7 +829,7 @@ impl LeftPanelView {
 
         let tooltip = if let Some(keybinding) = tooltip_keybinding {
             ui_builder
-                .tool_tip_with_sublabel("Close panel".to_string(), keybinding)
+                .tool_tip_with_sublabel(warpui::localization::text("Close panel").to_owned(), keybinding)
                 .build()
                 .finish()
         } else {
@@ -898,12 +898,12 @@ impl LeftPanelView {
 
         let tooltip = if let Some(keybinding) = tooltip_keybinding {
             ui_builder
-                .tool_tip_with_sublabel(button_config.tooltip_text.clone(), keybinding)
+                .tool_tip_with_sublabel(warpui::localization::text(&button_config.tooltip_text).to_owned(), keybinding)
                 .build()
                 .finish()
         } else {
             ui_builder
-                .tool_tip(button_config.tooltip_text.clone())
+                .tool_tip(warpui::localization::text(&button_config.tooltip_text).to_owned())
                 .build()
                 .finish()
         };

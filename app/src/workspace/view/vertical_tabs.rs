@@ -1551,7 +1551,7 @@ fn render_new_tab_button(
         let contents = if hover_state.is_hovered() {
             let tooltip = if let Some(sublabel) = tab_configs_keybinding.clone() {
                 ui_builder
-                    .tool_tip_with_sublabel("Tab configs".to_string(), sublabel)
+                    .tool_tip_with_sublabel(warpui::localization::text("Tab configs").to_owned(), sublabel)
                     .build()
                     .finish()
             } else {

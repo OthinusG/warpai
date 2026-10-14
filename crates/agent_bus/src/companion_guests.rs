@@ -79,6 +79,15 @@ fn foreground_owner(peer: u32) -> std::io::Result<u32> {
     Ok(parent.group)
 }
 
+fn native_directory(agent: u32) -> std::io::Result<PathBuf> {
+    let owner = process(agent)?;
+    let directory = std::fs::read_link(format!("/proc/{agent}/cwd"))?.canonicalize()?;
+    if process(agent)?.started != owner.started {
+        return Err(std::io::ErrorKind::PermissionDenied.into());
+    }
+    Ok(directory)
+}
+
 fn ancestor(mut peer: u32, agent: u32) -> std::io::Result<Process> {
     for _ in 0..32 {
         let current = process(peer)?;
@@ -336,12 +345,13 @@ impl Guests {
 
 pub(super) async fn serve_mcp(program: String) -> anyhow::Result<()> {
     use rmcp::ServiceExt;
-    let directory = std::env::current_dir()?;
+    let agent = foreground_owner(u32::try_from(unsafe { libc::getppid() })?)?;
+    // Plugin hosts can launch MCP from their own package directory rather than the Agent's checkout.
+    let directory = native_directory(agent)?;
     let directory = directory
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Guest directory must be UTF-8"))?
         .to_owned();
-    let agent = foreground_owner(u32::try_from(unsafe { libc::getppid() })?)?;
     let mut client = crate::ssh_remote::HostClient::connect_local(&directory)
         .await
         .map_err(|_| anyhow::anyhow!("WSL service unavailable"))?;
@@ -432,6 +442,7 @@ mod tests {
         let peer: u32 = peer.trim().parse().unwrap();
         assert_eq!(foreground_owner(pid).unwrap(), pid);
         assert_eq!(foreground_owner(peer).unwrap(), pid);
+        assert_eq!(native_directory(foreground_owner(peer).unwrap()).unwrap(), project.path().canonicalize().unwrap());
         use std::os::unix::process::CommandExt;
         let mut detached_command = std::process::Command::new("/bin/sleep");
         detached_command.arg("30");
@@ -464,6 +475,15 @@ mod tests {
                 "fixture",
             )
             .unwrap();
+        let visible = projects.guests.runs.lock().unwrap();
+        let native_broker = &visible.get(&pid).unwrap().binding.broker;
+        let panel = native_broker.operator_panel(&crate::transport::PanelQuery {
+            project: project.path().to_str().unwrap().into(), ..Default::default()
+        }).unwrap();
+        assert!(panel["agents"].as_array().unwrap().iter().any(|agent| agent["agent"]["terminal"] == first.terminal),
+            "A verified native process is discoverable before tools/list");
+        assert!(native_broker.wakeups().is_empty(), "Discovery cannot invent readiness");
+        drop(visible);
         let registered = crate::transport::call(&first.endpoint, &crate::transport::Request {
             protocol_major: crate::transport::PROTOCOL_MAJOR,
             terminal: first.terminal.clone(), capability: first.capability.clone(),

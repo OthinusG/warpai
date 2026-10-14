@@ -507,6 +507,16 @@ impl Broker {
         let binding = state.terminals.get_mut(terminal).unwrap();
         binding.physical_root = Some((root.to_owned(), handle));
         binding.live.as_mut().unwrap().run = run.into();
+        drop(state);
+        // Prepared native runs must not wait for a model turn to become discoverable.
+        if let Err(error) = self.execute(&Request {
+            protocol_major: PROTOCOL_MAJOR, terminal: terminal.into(), capability: capability.clone(),
+            run: Some(run.into()), defer_initial_ready: true, native_activity: None, directory: None,
+            operation: Operation::AgentRegister { name: String::new() },
+        }) {
+            self.revoke_remote_run(terminal, Some(run));
+            return Err(error);
+        }
         Ok(capability)
     }
     pub(crate) fn revoke_remote_run(&self, terminal: &str, run: Option<&str>) {

@@ -35,7 +35,8 @@ immutable history and already-pinned task context remain readable.
   assigned thread summaries, plus published resource summaries with a separate
   context_list cursor. Tool discovery injects its first page in the bootstrap
   tool description; subsequent reads refresh it. The caller's native identity is
-  authenticated by the existing Bridge/Broker. No early handshake registration.
+  authenticated by the existing Bridge/Broker. Verified native bindings register independently of deferred tools/list;
+  discovery never grants idle or task execution.
 - `project_memory_update(key, reference?, source_task?, task_revision?, expected_version,
   request_id)` creates/replaces/retires a slot. Version 0 creates it; all later
   writes require the current version. Keys are bounded ASCII identifiers. A null

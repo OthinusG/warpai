@@ -3953,6 +3953,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 "unclaimed pool and draft retained",
                 |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    if let Some(error) = panel.read(app, |panel, _| panel.control_checkpoint_error()) {
+                        panic!("Native fixture pool creation rejected: {error}");
+                    }
                     warpui::async_assert!(
                         panel.read(app, |panel, _| panel.form.is_none()
                             && panel.snapshot.as_ref().is_some_and(|snapshot| snapshot

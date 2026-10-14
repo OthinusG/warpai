@@ -556,3 +556,43 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
 - Retry desktop/native/WSL validation against the repaired source. The currently
   running e3a4d7a2 artifact build contains production-equivalent code; this change
   is confined to its lib-test fixture and acceptance receipt.
+
+
+## Native discovery, default WSL mounts and translation follow-up (2026-10-14)
+
+Owner reproduction remains open: `/mnt/c/Users/` starts unavailable whereas `cd ~`
+restores tools; an enabled WSL MCP Agent remains absent from Collaborate even
+when Companion/file tools connect. This is generic Agent discovery, not a dsh
+installation/discovery issue. Screenshots in the owner-provided lang directory
+also show untranslated tooltips, global search states and communication setup.
+
+Implemented, awaiting source-matched cloud verification:
+
+- Prepared remote native bindings register project identities before a client
+  lazily requests tools/list. Deferred readiness prevents registration from
+  manufacturing idle, completion or task execution. SSH managed and WSL native
+  paths share this Broker transition; local readiness fences remain intact.
+- Guest MCP selects the foreground native process's verified kernel cwd, rather
+  than a plugin host's MCP-child cwd. A controlled WSL fixture now deliberately
+  starts MCP outside the Agent's project and must still receive that project's
+  resources/messages. PID start-time checks reject process replacement.
+- Native directory identities accept signed creation time, preserving the byte
+  representation of existing positive timestamps and unsupported-time fallback.
+  Previously a valid pre-Unix-epoch creation time rejected the entire attachment.
+  NTFS timestamps can represent dates from 1601: [Microsoft FILETIME contract](https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-filetime).
+  This fixes a concrete identity boundary; the owner's actual default-directory
+  failure is not confirmed resolved without runtime acceptance.
+- Real Windows/WSL acceptance now opens `/mnt/c/Users/` directly, lists files and
+  opens Project communication, in addition to writable mounted temp-directory
+  save/reconnect coverage. No cd-to-home workaround substitutes for this check.
+- Translate shortcut-bearing close/tab/toolbelt tooltips through the same lookup
+  as plain tooltips. Global search zero states translate at their shared renderer;
+  add EN/zh-Hans/zh-Hant pairs for setup statuses and guidance from the screenshots.
+- Runs 38514037237/38514037570 failed from missing imports in new integration
+  tests (Uuid/TaskCommand), now corrected. Earlier 38508702638 macOS native capture
+  reached pool creation but failed; report actual rejected form errors in the
+  owned capture rather than hiding them behind a timed-out Boolean assertion.
+
+Audit 18/21/22 implementation: PROJECT-MEMORY.md. Native/vendor and owner-machine
+acceptance remain separate from synthetic contract tests. Do not mark items
+13–17 complete from successful protocol/build jobs alone.
