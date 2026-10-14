@@ -63,6 +63,9 @@ Move that existing block below those forms' fields so humans can select and
 inspect references before confirming. Retain request/run/context fences and
 the capture count. Complete missing translated conversation/pagination labels.
 Inspect the updated native resource-selection capture before delivery.
+The Windows WSL-only manifest adds nine distinct PNGs (including the native
+pane restoration capture); its supplemental formula still counted eight.
+Use nine, so all three WSL-enabled language runs expect 1011 images in total.
 
 Run: https://github.com/OthinusG/warpai/actions/runs/38051265508
 Source: ca2b4f657bb20fa899c3ff3a1d6a592d6c0ca9b4
