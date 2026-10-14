@@ -5,10 +5,9 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
 
-- Rust/native acceptance runs on GitHub. Batch 1–17 before full acceptance.
-  Independent protocol/desktop jobs reuse caches.
-  Local Rustfmt, diff and script checks are allowed.
-  Do not install on personal machines or change personal Agent/SSH configuration.
+- Rust builds/native acceptance run on GitHub; reuse caches.
+  Local Rustfmt/diff/script checks allowed; no personal installation or Agent/SSH
+  configuration changes.
 - Monitor cloud runs every 30 minutes until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
@@ -24,6 +23,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 - 1.6.4 / Companion 5.2.0: direct publication authorized 2026-10-14.
   Skip further validation runs; retain packaging gates. Contract: specs/RELEASE.md.
+- Artifact-only macOS runs must not trigger Windows publication.
 
 ## Project, worktree and Agent ownership
 
