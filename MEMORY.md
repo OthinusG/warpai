@@ -162,8 +162,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Grid observations fence run/input/redraw; stable samples preserve wake leases.
   WSL negotiates `native_screen_activity`, sending only activity and exact run.
   Default SSH is unchanged.
-- WSL package 38393839766/83c7274b still fails owner Ubuntu attachment despite
-  successful account/home/version/runtime/setup and guest/Windows service probes. See
+- WSL package 38455056708/d379a2dd still fails owner Ubuntu attachment despite
+  verified installed state/home IPC and earlier runtime/service probes. See
   FIXES-1.6.4.md Oct14 receipt; owner still reports failure. CI is not resolution.
 - SSH/WSL Companion install/call/uninstall use `.config/warpai`, matching desktop
   data; Windows installers must not reuse the former registered directory.

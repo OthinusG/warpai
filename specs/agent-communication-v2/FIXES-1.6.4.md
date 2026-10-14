@@ -420,5 +420,11 @@ on source-matched cloud runners. Credentials are not used by the fixtures.
   root while the fixture installer used the new root. Align both with
   `.config/warpai`; preserve explicit former-root migration fixtures.
 - These are source inconsistencies, not a confirmed explanation for the owner's
-  latest failure. Current installer identity and verified installation state are
-  pending; real owner connection remains an acceptance gate.
+  latest failure. Owner confirms run 38455056708/d379a2dd and persistent installed
+  state. Setup already verifies a real control connection to the account home;
+  failure therefore needs current-workspace versus home comparison, not another
+  closed-stdin startup check. Owner workspace connection remains an acceptance gate.
+- Source 679f23fc was pushed. Communication/WSL/native acceptance 38496547370
+  and artifact-only Windows installer 38496549411 were dispatched. Local WSL
+  installer self-check, Bash syntax, Rust parsing and diff checks passed; native
+  regression execution remains cloud-only and pending.
