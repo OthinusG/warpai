@@ -77,7 +77,8 @@ def main():
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
     bridge.stdin.flush()
     names = {item["name"] for item in rpc("tools/list", {})["tools"]}
-    assert {"warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list"} <= names
+    assert {"warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list",
+            "warp_project_bootstrap", "warp_project_memory_update", "warp_execution_thread_get"} <= names
     assert tool("warp_agent_ready", {})["ready"]
     def publish(wakes):
         temporary = root / "native-session.tmp"
@@ -95,11 +96,15 @@ def main():
             inbox = tool("warp_agent_inbox", {})
             for message in inbox["messages"]:
                 if message["kind"] == "request":
+                    bootstrap = tool("warp_project_bootstrap", {})
+                    memory = next(entry for entry in bootstrap["memory"] if entry["key"] == "wsl-contract")
+                    assert memory["current"] and memory["proposed"] is None
                     body = message["body"]
                     if isinstance(body, dict):
                         assert body["schema_version"] == 1
                         instruction = body["instruction"] if body["type"] == "instruction" else body
                         for reference in instruction.get("context_refs", []):
+                            assert memory["current"]["resource"]["reference"] == reference
                             snapshot = tool("warp_context_get", {"reference": reference})
                             assert snapshot["reference"] == reference
                             assert snapshot["content"]["summary"] == "Reusable WSL findings"

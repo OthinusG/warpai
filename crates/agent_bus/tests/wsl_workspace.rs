@@ -146,6 +146,15 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     )) }, 5).await.unwrap();
     assert!(published.get("error").is_none(), "{published}");
     let reference:warp_agent_bus::context::ContextRef = serde_json::from_value(published["value"]["reference"].clone()).unwrap();
+    let remembered = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ProjectMemoryUpdate { key:"wsl-contract".into(), reference:Some(reference.clone()),
+            source_task:None, task_revision:None, expected_version:0, request_id:Uuid::new_v4().to_string() }
+    )) }, 5).await.unwrap();
+    assert!(remembered.get("error").is_none(), "{remembered}");
+    let bootstrap = client.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ProjectBootstrap { cursor:None, limit:None }
+    )) }, 5).await.unwrap();
+    assert_eq!(bootstrap["value"]["memory"][0]["current"]["resource"]["reference"], serde_json::to_value(&reference).unwrap());
     let fetched = client.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
         warp_agent_bus::Operation::ContextGet { reference:reference.clone() }
     )) }, 5).await.unwrap();

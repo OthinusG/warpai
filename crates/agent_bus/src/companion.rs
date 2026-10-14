@@ -124,6 +124,8 @@ impl Companion {
                         "project_tasks".into(),
                         "context_resources".into(),
                         "structured_task_messages".into(),
+                        "execution_threads".into(),
+                        "project_memory".into(),
                         "project_mcp".into(),
                         "project_files".into(),
                         #[cfg(feature = "wsl_companion")]

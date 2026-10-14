@@ -352,3 +352,10 @@ copies resources into text. Panel projections carry compact resource summaries
 and `context_cursor`; native selectors show titles/kinds/revisions and pin the
 original selection while retrying the same request UUID. Local/remote stores
 remain independent per host/account/project, including matching repository URLs.
+# Native threads and project memory
+
+Additive Agent Bus operations and native MCP discovery behavior are specified in
+[PROJECT-MEMORY.md](PROJECT-MEMORY.md). `execution_threads` and `project_memory`
+capabilities cover execution_thread_get, project_bootstrap and project_memory_update.
+These operations share the existing authenticated project/account scope on local,
+WSL and SSH; memory references confer no execution or filesystem authority.

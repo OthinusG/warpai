@@ -257,6 +257,14 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
             source_revision:None, request_id:Uuid::new_v4().to_string() })) }, 11).await.unwrap();
     assert!(published.get("error").is_none(), "{published}");
     let reference:warp_agent_bus::context::ContextRef = serde_json::from_value(published["value"]["reference"].clone()).unwrap();
+    let remembered = one.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        Operation::ProjectMemoryUpdate { key:"ssh-contract".into(), reference:Some(reference.clone()),
+            source_task:None, task_revision:None, expected_version:0, request_id:Uuid::new_v4().to_string() }
+    )) }, 11).await.unwrap();
+    assert!(remembered.get("error").is_none(), "{remembered}");
+    let bootstrap = ssh_fixture_operation(&mut two, &mut second,
+        Operation::ProjectBootstrap { cursor:None, limit:None }).await;
+    assert_eq!(bootstrap["memory_reference"], serde_json::to_value(&reference).unwrap());
     let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { reference:reference.clone() }).await;
     assert_eq!(retrieved["context_summary"], "Reusable SSH findings");
     let receiver = format!("fixture-{}", second.session_id);
@@ -342,6 +350,10 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     )
     .await;
     assert_eq!(started["state"], "running");
+    let execution = ssh_fixture_operation(&mut two, &mut second,
+        Operation::ExecutionThreadGet { task_id:task.clone() }).await;
+    assert_eq!(execution["thread_id"], task);
+    assert_eq!(execution["binding_terminal"], second.session_id);
     let submitted = ssh_fixture_operation(
         &mut two,
         &mut second,

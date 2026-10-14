@@ -44,9 +44,11 @@ fn managed_agent_child() {
             if id == 2 {
                 let tools = response["result"]["tools"].as_array().unwrap();
                 assert_eq!(tools.len(), warp_agent_bus::mcp::tools().len());
-                for name in ["warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list"] {
+                for name in ["warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list", "warp_project_bootstrap", "warp_project_memory_update", "warp_execution_thread_get"] {
                     assert!(tools.iter().any(|tool| tool["name"] == name));
                 }
+                let bootstrap = tools.iter().find(|tool| tool["name"] == "warp_project_bootstrap").unwrap();
+                assert!(bootstrap["description"].as_str().unwrap().contains("Initial project bootstrap"));
             }
         }
         drop(input);
@@ -118,7 +120,9 @@ fn managed_agent_child() {
 
 // Keep receipts below console line width while preserving delivery and execution identities.
 fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
-    serde_json::json!({"reference":result["reference"], "context_summary":result["content"]["summary"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
+    serde_json::json!({"reference":result["reference"], "memory_reference":result["memory"][0]["current"]["resource"]["reference"],
+        "thread_id":result["thread"]["id"], "binding_terminal":result["thread"]["bindings"][0]["terminal"],
+        "context_summary":result["content"]["summary"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
         "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],
         "messages":result["messages"].as_array().map(|messages| messages.iter()
             .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),

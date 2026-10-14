@@ -1,6 +1,7 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod setup;
 pub mod context;
+pub mod project_memory;
 #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
 pub mod wsl_setup;
 pub mod installation;
@@ -206,6 +207,24 @@ pub enum ReplyOutcome {
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Operation {
+    ExecutionThreadGet { task_id: String },
+    ProjectBootstrap {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
+    ProjectMemoryUpdate {
+        key: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reference: Option<context::ContextRef>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_task: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_revision: Option<u32>,
+        expected_version: u64,
+        request_id: String,
+    },
     ContextPublish {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         resource_id: Option<String>,
@@ -562,6 +581,7 @@ impl Operation {
             | Self::TaskSetDependencies { request_id, .. }
             | Self::EvidenceAdd { request_id, .. }
             | Self::ContextPublish { request_id, .. }
+            | Self::ProjectMemoryUpdate { request_id, .. }
             | Self::FileReserve { request_id, .. }
             | Self::FileRenew { request_id, .. }
             | Self::FileRelease { request_id, .. } => Some(request_id),

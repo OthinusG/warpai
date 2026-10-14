@@ -510,6 +510,18 @@ impl HostClient {
             || !self.capabilities.iter().any(|c| c == "structured_task_messages")) {
             return Err(ConnectionError::FeatureUnavailable);
         }
+        fn required_project_feature(command: &crate::companion::TaskCommand) -> Option<&'static str> {
+            use crate::{companion::TaskCommand, Operation};
+            match command {
+                TaskCommand::Scoped { command, .. } => required_project_feature(command),
+                TaskCommand::Operator(Operation::ExecutionThreadGet { .. }) => Some("execution_threads"),
+                TaskCommand::Operator(Operation::ProjectBootstrap { .. } | Operation::ProjectMemoryUpdate { .. }) => Some("project_memory"),
+                _ => None,
+            }
+        }
+        if required_project_feature(command).is_some_and(|feature| !self.capabilities.iter().any(|value| value == feature)) {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         if !self.alive || self.fence.as_ref().is_none_or(|f| f.project_id.is_empty()) {
             return Err(ConnectionError::StaleAttachment);
         }

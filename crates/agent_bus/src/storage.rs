@@ -28,6 +28,8 @@ use uuid::Uuid;
 mod orchestration;
 #[path = "context_storage.rs"]
 mod contexts;
+#[path = "project_memory_storage.rs"]
+mod memories;
 
 pub(crate) const SCHEMA_VERSION: &str = "9";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
@@ -570,6 +572,7 @@ impl Store {
         diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE task_id=? AND kind='question' AND acknowledged=0 AND (revision!=? OR ? IN ('accepted','failed','cancelled','expired'))")
             .bind::<Text, _>(&task.id).bind::<Integer, _>(task.revision as i32).bind::<Text, _>(&task.state)
             .execute(&mut *self.connection.borrow_mut())?;
+        self.retire_stale_memory_proposals(task)?;
         Ok(())
     }
 
@@ -1623,6 +1626,8 @@ impl Store {
         self.authorize_orchestration(actor, run, operation)?;
         self.sweep(&actor.project)?;
         match operation {
+            Operation::ExecutionThreadGet { task_id } => return self.execution_thread(actor, task_id),
+            Operation::ProjectBootstrap { cursor, limit } => return self.project_bootstrap(actor, *cursor, *limit),
             Operation::ContextGet { reference } => return Ok(json!(self.context_get(actor, reference)?)),
             Operation::ContextList { cursor, limit } => return self.context_list(actor, *cursor, *limit),
             Operation::AgentList => {
@@ -1665,6 +1670,7 @@ impl Store {
                 let task = self.actor_task(actor, task_id)?;
                 let mut value = serde_json::to_value(&task)?;
                 value["supervision"] = self.task_supervision(&task)?;
+                value["execution_thread"] = self.execution_thread(actor, task_id)?["thread"].clone();
                 return Ok(value);
             }
             Operation::AgentQuestions { task_id, cursor, limit } =>
@@ -1718,7 +1724,7 @@ impl Store {
         if Uuid::parse_str(request_id).is_err() {
             return Err(invalid_input("request_id must be a UUID"));
         }
-        let control = !matches!(operation, Operation::AgentSend { .. } | Operation::TaskAssign { .. } | Operation::TaskCreatePool { .. } | Operation::FileReserve { .. } | Operation::EvidenceAdd { .. } | Operation::ContextPublish { .. });
+        let control = !matches!(operation, Operation::AgentSend { .. } | Operation::TaskAssign { .. } | Operation::TaskCreatePool { .. } | Operation::FileReserve { .. } | Operation::EvidenceAdd { .. } | Operation::ContextPublish { .. } | Operation::ProjectMemoryUpdate { .. });
         self.execute_mutation(&actor.id, run, request_id, &serialized, control, || {
             self.mutate(actor, run, operation)
         })
@@ -1898,6 +1904,8 @@ impl Store {
 
     fn mutate(&self, actor: &Agent, run: &str, operation: &Operation) -> Result<Value> {
         match operation {
+            Operation::ProjectMemoryUpdate { key, reference, source_task, task_revision, expected_version, .. } =>
+                self.update_project_memory(actor, run, key, reference.as_ref(), source_task.as_deref(), *task_revision, *expected_version),
             Operation::ContextPublish { resource_id, expected_revision, title, content, source_revision, .. } =>
                 self.publish_context(actor, resource_id.as_deref(), *expected_revision, title, content, source_revision.as_deref()),
             Operation::TaskIntegrate { task_id, commit, .. } => self.integrate_task(actor, task_id, commit.as_deref()),
@@ -2159,6 +2167,7 @@ impl Store {
                     executing_run: None,
                 };
                 self.insert_task(&task)?;
+                self.capture_thread_parent(actor, run, &task.id)?;
                 self.save_task_context_refs(actor, &task.id, context_refs)?;
                 self.set_task_dependencies(&task.id, &dependencies)?;
                 let mut task = task;
@@ -2264,6 +2273,7 @@ impl Store {
                 self.update_task_state(&task)?;
                 self.ack_task_notification(&task.id, &actor.id)?;
                 self.retire_available(&task.id)?;
+                self.capture_thread_binding(actor, &attempt)?;
                 self.record(
                     &task.project,
                     "task_started",
@@ -2402,6 +2412,7 @@ impl Store {
                 ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE task_id=? AND kind='question' AND acknowledged=0", &[&task.id])? == 0,
                     invalid_state("Resolve outstanding questions before reviewing work"));
                 self.ack_task_notification(&task.id, &actor.id)?;
+                self.review_project_memory(actor, &task, *accepted)?;
                 diesel::sql_query("INSERT INTO feedback(task_id, revision, author, body, accepted, created_at) VALUES (?,?,?,?,?,?)")
                     .bind::<Text, _>(&task.id)
                     .bind::<Integer, _>(task.revision as i32)
@@ -2527,6 +2538,7 @@ impl Store {
                 self.insert_task(&task)?;
                 self.save_task_context_refs(actor, &task.id, context_refs)?;
                 self.set_task_eligibles(&task.id, &eligible_ids)?;
+                self.capture_thread_parent(actor, run, &task.id)?;
                 self.set_task_dependencies(&task.id, &dependencies)?;
                 let mut task = task;
                 if !self.blocking_dependencies(&task.id)?.is_empty() {

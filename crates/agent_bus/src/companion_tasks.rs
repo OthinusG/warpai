@@ -693,6 +693,9 @@ impl Projects {
                 if !matches!(
                     operation,
                     Operation::ContextPublish { .. }
+                        | Operation::ExecutionThreadGet { .. }
+                        | Operation::ProjectBootstrap { .. }
+                        | Operation::ProjectMemoryUpdate { .. }
                         | Operation::ContextGet { .. }
                         | Operation::ContextList { .. }
                         | Operation::AgentList

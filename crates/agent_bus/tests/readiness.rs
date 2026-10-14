@@ -737,13 +737,20 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         "content":{"kind":"analysis","summary":"Reusable fixture context","findings":["Project authority is required"]},
         "request_id":Uuid::new_v4().to_string()}));
     let reference = published["reference"].clone();
+    tool!(issuer, "warp_project_memory_update", json!({"key":"shared-contract","reference":reference.clone(),
+        "expected_version":0,"request_id":Uuid::new_v4().to_string()}));
     let resources = issuer.list_resources(None).await.unwrap();
     let resource_uri = resources.resources.iter().find(|resource| resource.name == "Shared contract analysis").unwrap().uri.clone();
 
     for (index, program) in programs().into_iter().enumerate() {
         let terminal = format!("supervised-{index}");
         let worker = ().serve(spawn(&terminal, program)).await.unwrap();
-        worker.list_tools(None).await.unwrap();
+        let tools = worker.list_tools(None).await.unwrap();
+        let bootstrap_description = tools.tools.iter().find(|tool| tool.name == "warp_project_bootstrap").unwrap().description.as_deref().unwrap();
+        assert!(bootstrap_description.contains("shared-contract"), "{program}: discovery inherits memory references");
+        assert!(!bootstrap_description.contains("Reusable fixture context"));
+        let bootstrap = tool!(worker, "warp_project_bootstrap", json!({}));
+        assert_eq!(bootstrap["memory"][0]["current"]["resource"]["reference"], reference);
         let peers = tool!(issuer, "warp_agent_list", json!({}));
         let peer = peers.as_array().unwrap().iter().find(|peer| peer["terminal"] == terminal).unwrap();
         server.broker.input_bytes("issuer", b"\r");
@@ -762,6 +769,10 @@ async fn every_managed_agent_delivers_supervision_through_real_mcp() {
         assert_eq!(assignment_body["context_refs"][0], reference);
         assert!(!assignment_body.to_string().contains("Reusable fixture context"));
         tool!(worker, "warp_task_start", json!({"task_id":task_id,"revision":1,"request_id":Uuid::new_v4().to_string()}));
+        let thread = tool!(worker, "warp_execution_thread_get", json!({"task_id":task_id}));
+        assert_eq!(thread["thread"]["id"], task_id);
+        assert_eq!(thread["thread"]["bindings"][0]["terminal"], terminal);
+        assert_eq!(thread["thread"]["bindings"][0]["workspace"], root);
         for _ in 0..3 {
             assert!(server.broker.observe_screen(&terminal, &server.broker.screen_context(&terminal).unwrap(), Activity::WaitingApproval));
         }

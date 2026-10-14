@@ -4,7 +4,7 @@ use crate::context::{ContextContent, ContextRef, ContextResource, ContextSummary
 use sha2::{Digest, Sha256};
 
 impl Store {
-    fn context_meta<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+    pub(super) fn context_meta<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
         let row = diesel::sql_query("SELECT value FROM meta WHERE key=?")
             .bind::<Text, _>(key)
             .get_result::<ValueRow>(&mut *self.connection.borrow_mut())
@@ -13,7 +13,7 @@ impl Store {
             .transpose()
     }
 
-    fn save_context_meta(&self, key: &str, value: &impl serde::Serialize) -> Result<()> {
+    pub(super) fn save_context_meta(&self, key: &str, value: &impl serde::Serialize) -> Result<()> {
         diesel::sql_query("INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
             .bind::<Text, _>(key).bind::<Text, _>(serde_json::to_string(value)?)
             .execute(&mut *self.connection.borrow_mut())?;

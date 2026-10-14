@@ -49,6 +49,9 @@ rather than silently following a resource's latest head.
 
 ## API and persistence
 
+Native execution thread bindings, discovery bootstrap and reviewed project memory
+reuse these resources; their contract is [PROJECT-MEMORY.md](PROJECT-MEMORY.md).
+
 Add context_publish, context_get and context_list to the shared MCP tools. Advertise
 context_resources/structured_task_messages capabilities for remote services and
 reject unsupported reference-bearing operations without copying content inline.

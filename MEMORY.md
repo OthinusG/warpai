@@ -172,10 +172,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Pane tests cover Explorer, Review, Communication and previews.
 - MCP observations, sidebar attention and keep awake share native activity.
   Focus never acknowledges MCP work; local cloud reporting stays disabled.
-- Owner requires native draft/slash/error transition tests. Structured tasks and
-  reusable versioned context use shared local/WSL/SSH MCP and panel Send contracts.
-  Context pins version/digest/project; legacy text stays readable. Notification
-  snapshots use internal project reads; public guards stay. CONTEXT-RESOURCES.md.
+- Native draft/slash/error acceptance is pending. Shared context/task contracts:
+  CONTEXT-RESOURCES.md; keep project/version/digest fences and public guards.
+- Audit 18/21/22: task-anchored native threads, bootstrap and reviewed memory;
+  PROJECT-MEMORY.md. Defer 19/20/23–30. Project has no permanent leader. CI pending.
 
 ## Memory maintenance
 
