@@ -604,3 +604,6 @@ Desktop compilation stopped at the global-search translation renderer: the
 shared localization helper returns `&str`, so obtain an owned string with
 `to_owned` rather than the `Cow`-only `into_owned`. Native UI and real WSL
 acceptance were not reached and require the corrected desktop build.
+The same asynchronous selector fence also applies to native SSH message/task
+forms. Their capture fixtures now wait for readiness before submitting, as the
+native pool fixture does; production validation remains unchanged.

@@ -4547,11 +4547,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             &[&name, "Native remote panel message", "Panel checkpoint"],
                             ctx,
                         );
-                        panel.confirm_control(ctx);
                     });
                 },
             ),
         )
+        .with_step(
+            TestStep::new("wait for remote message selectors")
+                .add_named_assertion("remote message form ready", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.control_checkpoint_ready()))
+                }),
+        )
+        .with_step(TestStep::new("submit prepared remote message").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+        }))
         .with_step(
             TestStep::new("remote Store confirms the human message")
                 .add_named_assertion("real remote message committed", |app, window| {
@@ -4595,11 +4605,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ],
                             ctx,
                         );
-                        panel.confirm_control(ctx);
                     });
                 },
             ),
         )
+        .with_step(
+            TestStep::new("wait for remote task selectors")
+                .add_named_assertion("remote task form ready", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    warpui::async_assert!(panel.read(app, |panel, _| panel.control_checkpoint_ready()))
+                }),
+        )
+        .with_step(TestStep::new("submit prepared remote task").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.confirm_control(ctx));
+        }))
         .with_step(
             TestStep::new("receive remote task list")
                 .add_named_assertion("remote Store task visible", |app, window| {
