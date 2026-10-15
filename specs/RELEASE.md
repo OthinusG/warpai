@@ -24,7 +24,11 @@ views in English, Simplified Chinese and Traditional Chinese, plus live WSL.
 All three Companion platforms passed
 [38667672552](https://github.com/OthinusG/warpai/actions/runs/38667672552).
 The owner explicitly requested triggering the formal 1.6.5 publication workflow
-on 2026-10-15 after these gates passed. Publication remains pending.
+on 2026-10-15 after these gates passed. Immutable `v1.6.5` points to `4b6aa95e`
+(accepted runtime source plus documentation receipts). Formal release started in
+[38682643407](https://github.com/OthinusG/warpai/actions/runs/38682643407) with
+`auto_publish=true`; Windows follows the same tag after macOS succeeds.
+Installer checks and public publication remain pending.
 
 ## 2026-10-14 direct 1.6.4 / Companion 5.2.0 publication
 

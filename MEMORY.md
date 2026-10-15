@@ -10,7 +10,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Monitor cloud runs hourly until done; do not end at dispatch.
   Owner errors allow immediate diagnosis; full acceptance gates delivery.
 - 1.6.5 source 9cc8d0b2 passed desktop/WSL and Companion acceptance.
-  Runs: 38667669349 / 38667672552. Formal publication requested; pending.
+  CI: 38667669349 / 38667672552; release 38682643407 running.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
