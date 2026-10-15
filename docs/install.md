@@ -16,16 +16,11 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
 
 ## Desktop Installation
 
-### 1. macOS (Apple Silicon & Intel)
+### 1. macOS (Apple Silicon)
 
-- **System Requirements**: macOS 11.0 (Big Sur) or newer.
-- **Direct Downloads**:
-  - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/latest)
-  - [Download Warpai for Intel x86_64 (DMG)](https://github.com/OthinusG/warpai/releases/latest)
-- **Homebrew Cask**:
-  ```bash
-  brew install --cask warpai
-  ```
+- **System Requirements**: macOS 11.0 (Big Sur) or newer; Apple Silicon (M1/M2/M3/M4).
+- **Direct Download**:
+  - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg)
 
 #### Installation Steps:
 1. Open the downloaded `.dmg` disk image.
@@ -60,11 +55,7 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
 
 - **System Requirements**: Windows 10 (version 1903+) or Windows 11; 64-bit x86 architecture.
 - **Direct Download**:
-  - [Download Warpai Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/latest)
-- **Windows Package Manager (winget)**:
-  ```powershell
-  winget install Warpai.Warpai
-  ```
+  - [Download Warpai Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiSetup-1.6.5-windows-x64.exe)
 
 #### Installation Steps:
 1. Double-click the installer executable.

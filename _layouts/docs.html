@@ -48,7 +48,7 @@
       <button type="button" class="docs-sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation menu">
         ☰ Menu
       </button>
-      <a class="docs-brand" href="{{ '/' | relative_url }}">
+      <a class="docs-brand" href="{% if page.lang == 'zh' %}{{ '/zh/' | relative_url }}{% else %}{{ '/' | relative_url }}{% endif %}">
         <img src="{{ '/assets/images/warpai-icon.png' | relative_url }}" alt="Warpai">
         <span>warpai</span>
         <span class="docs-badge">DOCS</span>
@@ -56,13 +56,19 @@
     </div>
 
     <div class="docs-header-right">
-      <a class="docs-nav-link" href="{{ '/' | relative_url }}">{% if page.lang == 'zh' %}官网主页{% else %}Home{% endif %}</a>
-      <a class="docs-nav-link" href="https://github.com/OthinusG/warpai/releases" target="_blank" rel="noreferrer">{% if page.lang == 'zh' %}下载{% else %}Download{% endif %}</a>
+      <a class="docs-nav-link" href="{% if page.lang == 'zh' %}{{ '/zh/' | relative_url }}{% else %}{{ '/' | relative_url }}{% endif %}">{% if page.lang == 'zh' %}官网主页{% else %}Home{% endif %}</a>
+      <a class="docs-nav-link" href="{% if page.lang == 'zh' %}{{ '/zh/docs/install.html' | relative_url }}{% else %}{{ '/docs/install.html' | relative_url }}{% endif %}">{% if page.lang == 'zh' %}下载安装{% else %}Download{% endif %}</a>
       
       <a class="docs-github-btn" href="https://github.com/OthinusG/warpai" target="_blank" rel="noreferrer" aria-label="Warpai on GitHub">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.64 7.64 0 0 1 8 3.87c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-        <b data-stars>Star</b>
+        <b data-stars>1</b>
       </a>
+
+      {% if page.lang == 'zh' %}
+      <a class="docs-lang-btn" href="{{ page.url | replace: '/zh/', '/' | relative_url }}" title="Switch to English documentation">EN</a>
+      {% else %}
+      <a class="docs-lang-btn" href="{{ '/zh' | append: page.url | relative_url }}" title="切换至中文文档">中文</a>
+      {% endif %}
 
       <div class="mode" role="radiogroup" aria-label="Theme mode">
         <button type="button" data-ground="ink" aria-pressed="true">ink</button>
@@ -71,6 +77,10 @@
     </div>
   </header>
 
+  {% assign url_prefix = '' %}
+  {% if page.lang == 'zh' %}
+    {% assign url_prefix = '/zh' %}
+  {% endif %}
   <!-- 2. Two-Column Docs Layout -->
   <div class="docs-body">
     <!-- Left Navigation Tree Sidebar -->
@@ -78,62 +88,62 @@
       <nav class="docs-tree">
         <!-- Group: Getting Started -->
         <div class="docs-tree-group">
-          <span class="docs-tree-title">Getting Started</span>
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}快速入门{% else %}Getting Started{% endif %}</span>
           <ul class="docs-tree-list">
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'overview' %}active{% endif %}" href="{{ '/docs/' | relative_url }}">Overview</a>
+              <a class="docs-tree-link {% if page.doc_id == 'overview' %}active{% endif %}" href="{{ url_prefix | append: '/docs/' | relative_url }}">{% if page.lang == 'zh' %}文档概览{% else %}Overview{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'install' %}active{% endif %}" href="{{ '/docs/install.html' | relative_url }}">Installation</a>
+              <a class="docs-tree-link {% if page.doc_id == 'install' %}active{% endif %}" href="{{ url_prefix | append: '/docs/install.html' | relative_url }}">{% if page.lang == 'zh' %}安装指南{% else %}Installation{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'quick-start' %}active{% endif %}" href="{{ '/docs/quick-start.html' | relative_url }}">Quick Start (5 Min)</a>
+              <a class="docs-tree-link {% if page.doc_id == 'quick-start' %}active{% endif %}" href="{{ url_prefix | append: '/docs/quick-start.html' | relative_url }}">{% if page.lang == 'zh' %}快速上手 (5分钟){% else %}Quick Start (5 Min){% endif %}</a>
             </li>
           </ul>
         </div>
 
         <!-- Group: Core Architecture -->
         <div class="docs-tree-group">
-          <span class="docs-tree-title">Core Architecture</span>
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}核心架构{% else %}Core Architecture{% endif %}</span>
           <ul class="docs-tree-list">
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'concepts' %}active{% endif %}" href="{{ '/docs/concepts.html' | relative_url }}">Concepts &amp; Safety</a>
+              <a class="docs-tree-link {% if page.doc_id == 'concepts' %}active{% endif %}" href="{{ url_prefix | append: '/docs/concepts.html' | relative_url }}">{% if page.lang == 'zh' %}核心概念与安全保障{% else %}Concepts &amp; Safety{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'features' %}active{% endif %}" href="{{ '/docs/features.html' | relative_url }}">Features &amp; Warp Comparison</a>
+              <a class="docs-tree-link {% if page.doc_id == 'features' %}active{% endif %}" href="{{ url_prefix | append: '/docs/features.html' | relative_url }}">{% if page.lang == 'zh' %}全景特性与原版对比{% else %}Features &amp; Warp Comparison{% endif %}</a>
             </li>
           </ul>
         </div>
 
         <!-- Group: Using Warpai -->
         <div class="docs-tree-group">
-          <span class="docs-tree-title">Using Warpai</span>
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}使用指南{% else %}Using Warpai{% endif %}</span>
           <ul class="docs-tree-list">
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'using' %}active{% endif %}" href="{{ '/docs/using.html' | relative_url }}">User Guide Overview</a>
+              <a class="docs-tree-link {% if page.doc_id == 'using' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using.html' | relative_url }}">{% if page.lang == 'zh' %}使用指南总览{% else %}User Guide Overview{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'using-terminal' %}active{% endif %}" href="{{ '/docs/using-terminal.html' | relative_url }}">Terminal &amp; Command Blocks</a>
+              <a class="docs-tree-link {% if page.doc_id == 'using-terminal' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-terminal.html' | relative_url }}">{% if page.lang == 'zh' %}终端与命令块深入{% else %}Terminal &amp; Command Blocks{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'using-warpai-agents' %}active{% endif %}" href="{{ '/docs/using-warpai-agents.html' | relative_url }}">Multi-Agent Workflows</a>
+              <a class="docs-tree-link {% if page.doc_id == 'using-warpai-agents' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-warpai-agents.html' | relative_url }}">{% if page.lang == 'zh' %}多 Agent 协同工作流{% else %}Multi-Agent Workflows{% endif %}</a>
             </li>
           </ul>
         </div>
 
         <!-- Group: Agent Ecosystem -->
         <div class="docs-tree-group">
-          <span class="docs-tree-title">Agent Ecosystem</span>
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}Agent 生态{% else %}Agent Ecosystem{% endif %}</span>
           <ul class="docs-tree-list">
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'cli-agents' %}active{% endif %}" href="{{ '/docs/cli-agents.html' | relative_url }}">
-                <span>20+ CLI Agents Guide</span>
-                <small>Setup</small>
+              <a class="docs-tree-link {% if page.doc_id == 'cli-agents' %}active{% endif %}" href="{{ url_prefix | append: '/docs/cli-agents.html' | relative_url }}">
+                <span>{% if page.lang == 'zh' %}20+ 款 CLI Agent 配置{% else %}20+ CLI Agents Guide{% endif %}</span>
+                <small>{% if page.lang == 'zh' %}安装配置{% else %}Setup{% endif %}</small>
               </a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'mcp-api' %}active{% endif %}" href="{{ '/docs/mcp-api.html' | relative_url }}">
-                <span>Native MCP Tools API</span>
+              <a class="docs-tree-link {% if page.doc_id == 'mcp-api' %}active{% endif %}" href="{{ url_prefix | append: '/docs/mcp-api.html' | relative_url }}">
+                <span>{% if page.lang == 'zh' %}原生 MCP 协同工具体系{% else %}Native MCP Tools API{% endif %}</span>
                 <small>38+ tools</small>
               </a>
             </li>
@@ -142,13 +152,13 @@
 
         <!-- Group: Configuration & Help -->
         <div class="docs-tree-group">
-          <span class="docs-tree-title">Configuration &amp; Help</span>
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}配置与帮助{% else %}Configuration &amp; Help{% endif %}</span>
           <ul class="docs-tree-list">
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'config' %}active{% endif %}" href="{{ '/docs/config.html' | relative_url }}">Configuration &amp; Themes</a>
+              <a class="docs-tree-link {% if page.doc_id == 'config' %}active{% endif %}" href="{{ url_prefix | append: '/docs/config.html' | relative_url }}">{% if page.lang == 'zh' %}配置项与外观主题{% else %}Configuration &amp; Themes{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'troubleshooting' %}active{% endif %}" href="{{ '/docs/troubleshooting.html' | relative_url }}">Troubleshooting &amp; FAQ</a>
+              <a class="docs-tree-link {% if page.doc_id == 'troubleshooting' %}active{% endif %}" href="{{ url_prefix | append: '/docs/troubleshooting.html' | relative_url }}">{% if page.lang == 'zh' %}故障排查与常见问题{% else %}Troubleshooting &amp; FAQ{% endif %}</a>
             </li>
           </ul>
         </div>
@@ -160,7 +170,7 @@
       <article class="docs-article">
         <!-- Breadcrumbs -->
         <nav class="docs-breadcrumbs" aria-label="Breadcrumb">
-          <a href="{{ '/docs/' | relative_url }}">Docs</a>
+          <a href="{{ url_prefix | append: '/docs/' | relative_url }}">{% if page.lang == 'zh' %}文档{% else %}Docs{% endif %}</a>
           {% if page.section %}
           <span class="sep">/</span>
           <span>{{ page.section }}</span>
@@ -184,8 +194,8 @@
         {% if page.prev_url or page.next_url %}
         <nav class="docs-pagination" aria-label="Page navigation">
           {% if page.prev_url %}
-          <a class="docs-pag-btn prev" href="{{ page.prev_url | relative_url }}">
-            <span class="docs-pag-label">← Previous</span>
+          <a class="docs-pag-btn prev" href="{% if page.lang == 'zh' %}{{ '/zh' | append: page.prev_url | relative_url }}{% else %}{{ page.prev_url | relative_url }}{% endif %}">
+            <span class="docs-pag-label">{% if page.lang == 'zh' %}← 上一页{% else %}← Previous{% endif %}</span>
             <span class="docs-pag-title">{{ page.prev_title }}</span>
           </a>
           {% else %}
@@ -193,8 +203,8 @@
           {% endif %}
 
           {% if page.next_url %}
-          <a class="docs-pag-btn next" href="{{ page.next_url | relative_url }}">
-            <span class="docs-pag-label">Next →</span>
+          <a class="docs-pag-btn next" href="{% if page.lang == 'zh' %}{{ '/zh' | append: page.next_url | relative_url }}{% else %}{{ page.next_url | relative_url }}{% endif %}">
+            <span class="docs-pag-label">{% if page.lang == 'zh' %}下一页 →{% else %}Next →{% endif %}</span>
             <span class="docs-pag-title">{{ page.next_title }}</span>
           </a>
           {% endif %}
