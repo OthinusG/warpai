@@ -43,6 +43,7 @@ pub(crate) struct AgentCommunication {
     notified: HashMap<String, String>,
     sampled: HashMap<String, warp_agent_bus::transport::ScreenContext>,
     poll_in_flight: bool,
+    work_revision: Option<usize>,
     peer_work: Vec<warp_agent_bus::transport::Wake>,
     wakes: Vec<warp_agent_bus::transport::Wake>,
     observed: HashSet<String>,
@@ -68,6 +69,7 @@ impl AgentCommunication {
             notified: HashMap::new(),
             sampled: HashMap::new(),
             poll_in_flight: false,
+            work_revision: None,
             peer_work: Vec::new(),
             wakes: Vec::new(),
             observed: HashSet::new(),
@@ -147,6 +149,7 @@ impl AgentCommunication {
                                     launch_options.and_then(|options| shlex::split(command).map(|words| options.codex_working_directory(&words[1..], Path::new(directory))))
                                         .and_then(|directory| project_root(&directory).ok()).unwrap_or(project)
                                 } else { project };
+                                drop(terminal_model);
                                 if let Err(error) = broker.activate_project(terminal, program, &project, initial_prompt) {
                                     let code = error.downcast_ref::<warp_agent_bus::DomainError>()
                                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
@@ -212,6 +215,7 @@ impl AgentCommunication {
             notified: HashMap::new(),
             sampled: HashMap::new(),
             poll_in_flight: false,
+            work_revision: None,
             peer_work: Vec::new(),
             wakes: Vec::new(),
             observed: HashSet::new(),
@@ -617,7 +621,9 @@ impl AgentCommunication {
                         }
                     }
                 }
-                if !model.poll_in_flight {
+                if !model.poll_in_flight && (!screens.is_empty() || !remote_screens.is_empty()
+                    || !model.peer_work.is_empty()
+                    || broker.work_revision().is_none_or(|revision| model.work_revision != Some(revision))) {
                     model.poll_in_flight = true;
                     let broker = broker.clone();
                     ctx.spawn(async move {
@@ -649,11 +655,13 @@ impl AgentCommunication {
                                     remote_sampled.push((view, key, activity));
                                 }
                             }
-                            (sampled, remote_sampled, broker.pending_work(), broker.wakeups())
+                            let revision = broker.work_revision();
+                            (sampled, remote_sampled, broker.pending_work(), broker.wakeups(), revision)
                         }).await
                     }, |model, result, ctx| {
                         model.poll_in_flight = false;
-                        if let Ok((sampled, remote_sampled, pending, wakes)) = result {
+                        if let Ok((sampled, remote_sampled, pending, wakes, revision)) = result {
+                            model.work_revision = revision;
                             model.peer_work = pending;
                             model.wakes = wakes;
                             for (terminal, context, observed) in sampled {

@@ -136,9 +136,16 @@ struct Shared {
     state: Mutex<State>,
     forwarded: Mutex<HashMap<String, Broker>>,
     changed: Condvar,
+    revision: AtomicUsize,
     stopped: AtomicBool,
     connections: AtomicUsize,
     shutdown: tokio::sync::Notify,
+}
+impl Shared {
+    fn notify_change(&self) {
+        self.revision.fetch_add(1, Ordering::Release);
+        self.changed.notify_all();
+    }
 }
 #[derive(Clone)]
 pub struct Broker {
@@ -235,6 +242,7 @@ impl RunningBroker {
                 programs: None,
             }),
             changed: Condvar::new(),
+            revision: AtomicUsize::new(1),
             stopped: AtomicBool::new(false),
             connections: AtomicUsize::new(0),
             shutdown: tokio::sync::Notify::new(),
@@ -294,7 +302,7 @@ impl RunningBroker {
 impl Drop for RunningBroker {
     fn drop(&mut self) {
         self.broker.shared.stopped.store(true, Ordering::Release);
-        self.broker.shared.changed.notify_all();
+        self.broker.shared.notify_change();
         self.broker.shared.shutdown.notify_one();
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -327,7 +335,7 @@ impl Broker {
                 }
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     pub fn peers(&self, terminal: &str) -> Vec<Peer> {
         if let Some(broker) = self.forwarded(terminal) { return broker.peers(terminal); }
@@ -493,7 +501,7 @@ impl Broker {
             started: Instant::now(),
             expired: false,
         });
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
         Ok(())
     }
     /// Only the owning companion admits a native remote process to private MCP.
@@ -547,7 +555,7 @@ impl Broker {
                 state.terminals.remove(terminal);
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     pub fn end(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.end(terminal); return; }
@@ -568,7 +576,7 @@ impl Broker {
                 binding.live = None;
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     /// Fences every pending request of this terminal's current run without ending the session.
     #[doc(hidden)]
@@ -583,7 +591,7 @@ impl Broker {
                 live.expired = true;
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     pub fn screen_context(&self, terminal: &str) -> Option<ScreenContext> {
         if let Some(broker) = self.forwarded(terminal) { return broker.screen_context(terminal); }
@@ -620,7 +628,7 @@ impl Broker {
             state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native_screen"}))
                 .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
         true
     }
     pub fn terminal_activity(&self, terminal: &str) -> Option<Activity> {
@@ -659,7 +667,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     /// User input always wins over automatic submission, including an Enter timer already scheduled.
     pub fn user_input(&self, terminal: &str, submitted_or_cancelled: bool) {
@@ -694,7 +702,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     /// Track actual native edits while retaining the lifecycle's idle evidence.
     pub fn input_bytes(&self, terminal: &str, bytes: &[u8]) {
@@ -724,7 +732,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        if lifecycle_changed { self.shared.changed.notify_all(); }
+        if lifecycle_changed { self.shared.notify_change(); }
     }
     /// Remote native editors report only whether they contain text, never its content.
     pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
@@ -760,7 +768,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        if changed { self.shared.changed.notify_all(); }
+        if changed { self.shared.notify_change(); }
     }
     /// Remote editors send edit epochs and guards, never their draft text.
     #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
@@ -785,7 +793,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
     }
     pub fn output(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.output(terminal); return; }
@@ -798,6 +806,11 @@ impl Broker {
                 live.last_output = Instant::now(); live.observed = live.last_output;
             }
         }
+    }
+    /// Empty-queue projections can be reused until a mutation; forwarded Stores keep polling.
+    pub fn work_revision(&self) -> Option<usize> {
+        if !self.shared.forwarded.lock().ok()?.is_empty() { return None; }
+        Some(self.shared.revision.load(Ordering::Acquire))
     }
     pub fn wakeups(&self) -> Vec<Wake> {
         let Ok(state) = self.shared.state.lock() else {
@@ -929,7 +942,7 @@ impl Broker {
         live.delivered.insert(wake.message_id.clone());
         live.delivery = Some((wake.clone(), "claimed", true));
         live.wake = Some(wake.clone());
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
         true
     }
     pub fn wake_valid(&self, wake: &Wake) -> bool {
@@ -986,7 +999,7 @@ impl Broker {
                     else { live.ready = None; live.activity = Activity::Working; live.readiness_source = "peer_submit"; live.observed = Instant::now(); }
                 }
             }
-            self.shared.changed.notify_all();
+            self.shared.notify_change();
         }
     }
     fn execute(&self, request: &Request) -> Result<Value> {
@@ -1083,7 +1096,7 @@ impl Broker {
                 state.store.observe_tasks(&actor, &run, json!({"activity":activity,"blocked":blocked,"connected":true,"source":"native"}))
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
-            self.shared.changed.notify_all();
+            self.shared.notify_change();
             return Ok(response);
         }
         let live = state.terminals.get(&request.terminal).unwrap().live.as_ref().unwrap();
@@ -1151,7 +1164,7 @@ impl Broker {
                 live.readiness_source = "startup"; live.observed = Instant::now();
             }
             live.initial_prompt = false;
-            self.shared.changed.notify_all();
+            self.shared.notify_change();
             let mut result = registration_result(&agent, &run);
             result["capacity"] = state.store.capacity(&project)?;
             let root = state.store.physical_root(&agent)?;
@@ -1419,7 +1432,9 @@ impl Broker {
         if matches!(request.operation, Operation::AgentReply { .. }) {
             result["instruction"] = json!("Your correlated result is durably queued for the original sender. Its handling is separate from your completion; do not wait for a reply to this result. Finish any remaining owned work, then announce readiness as your final action.");
         }
-        self.shared.changed.notify_all();
+        if request.operation.request_id().is_some() || matches!(request.operation, Operation::AgentAck { .. }) {
+            self.shared.notify_change();
+        }
         Ok(result)
     }
     fn store(&self) -> Result<std::sync::MutexGuard<'_, State>> {
@@ -1433,7 +1448,9 @@ impl Broker {
         let result = state
             .store
             .execute(&Store::operator(project), crate::storage::OPERATOR_EPOCH, operation);
-        self.shared.changed.notify_all();
+        if operation.request_id().is_some() || matches!(operation, Operation::AgentAck { .. }) {
+            self.shared.notify_change();
+        }
         result
     }
     /// Trusted explicit file-view intent; remote references never resolve on this device.
@@ -1472,7 +1489,7 @@ impl Broker {
                     if let Some(wake) = live.wake.take() { live.delivered.remove(&wake.message_id); }
                 }
             }
-            self.shared.changed.notify_all();
+            self.shared.notify_change();
             return Ok(result);
         }
         if matches!(operation, ControllerOperation::WorktreeCreate { .. }) {
@@ -1496,7 +1513,7 @@ impl Broker {
             binding.revoked = true;
             binding.live = None;
         }
-        self.shared.changed.notify_all();
+        self.shared.notify_change();
         Ok(result)
     }
     /// Panel reads span the whole project, unlike caller-scoped agent tools.

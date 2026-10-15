@@ -37,7 +37,8 @@ state = "waiting"
 priority = 1000
 region = "bottom_non_empty_lines(12)"
 visible = true
-line_regex = ['(?i)^\s*(?:[❯›>]\s*)?(?:\d+[.)]\s*)?(?:allow once|allow always|deny|允许一次|始终允许|拒绝)(?:\s|$)']
+contains_any = ["allow once", "don't ask again", "允许（仅本次）", "允许，且不再询问"]
+line_regex = ['(?i)^\s*(?:[❯›>]\s*)?(?:\d+[.)]\s*)?(?:no|deny|拒绝)(?:\s|$)']
 
 [[rules]]
 id = "interrupt_hint"

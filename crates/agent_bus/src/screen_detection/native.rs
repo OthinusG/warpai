@@ -10,7 +10,11 @@ impl vt100::Callbacks for Signals {
         if title.len() <= 4096 { self.title = String::from_utf8_lossy(title).into_owned(); }
     }
     fn unhandled_osc(&mut self, _: &mut vt100::Screen, params: &[&[u8]]) {
-        if params.first() == Some(&b"9".as_slice()) && params.get(1) == Some(&b"4".as_slice()) {
+        if params.first() == Some(&b"9".as_slice()) && params.get(1) == Some(&b"4".as_slice())
+            && params.len() <= 4 && params.get(2).is_some_and(|state| matches!(*state, b"0" | b"1" | b"2" | b"3" | b"4"))
+            && params.iter().skip(3).all(|value| value.len() <= 4
+                && std::str::from_utf8(value).ok().and_then(|value| value.parse::<i16>().ok())
+                    .is_some_and(|value| (-1..=100).contains(&value))) {
             self.progress = params[1..].iter().filter_map(|part| std::str::from_utf8(part).ok())
                 .collect::<Vec<_>>().join(";").chars().take(256).collect();
         }
@@ -49,6 +53,8 @@ mod tests {
         screen.process(b"old transcript\x1b[?1049h\x1b[2J\x1b[HAllow once\r\nDeny");
         assert_eq!(screen.0.screen().contents(), "Allow once\nDeny");
         screen.process(b"\x1b[2J\x1b[H\x1b]9;4;1;-1\x07");
+        assert_eq!(screen.0.callbacks().progress, "4;1;-1");
+        screen.process(b"\x1b]9;4;1;101\x07\x1b]9;opaque notification\x07");
         assert_eq!(screen.0.callbacks().progress, "4;1;-1");
         screen.resize(30, 100);
         assert_eq!(screen.0.screen().size(), (30, 100));

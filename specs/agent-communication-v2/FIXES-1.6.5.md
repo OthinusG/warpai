@@ -52,3 +52,23 @@ The local panel async closure executes synchronous project/Git/SQLite reads;
 used by native input/output. The 250 ms screen sampler repeats unchanged grid
 copies. These are source-proven blocking paths; owner Windows latency acceptance
 is required to establish the practical improvement.
+
+## Communication and change reuse
+
+Blocked maps to the existing WaitingApproval/WaitingInput activities, not connection
+loss or a task outcome. Queued messages retain their IDs and task revisions; return
+to Idle only permits guarded native delivery. Add regressions for both blockers,
+MCP inbox access while blocked, original-message delivery and unacknowledged receipts.
+
+The Broker revision invalidates empty-queue reuse on communication/lifecycle changes.
+Unchanged composer guards and read-only MCP queries no longer wake waiting clients.
+Forwarded Stores retain polling; pending work retains settling/retry/cancellation checks.
+The desktop still observes native input/output stamps without copying unchanged grids.
+
+Explicit managed SSH launches use the existing vendor MCP adapters when inline
+configuration is unavailable; serialize setup separately from PTY/Broker locks,
+preserve unrelated entries and fail on reserved-entry ownership collisions. WSL
+continues to use guest preferences and verified foreground process ancestry.
+
+Initial cloud validation from b8b6fad9: communication 38660923047; Companion
+38660926339. Results and later source-matched acceptance remain pending.

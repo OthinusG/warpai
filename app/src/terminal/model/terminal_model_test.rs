@@ -33,6 +33,16 @@ fn native_agent_screen_keeps_cursor_rows_for_multiline_drafts_and_hides_invisibl
     assert!(screen.lines().nth(2).unwrap().contains("second line"));
     assert_eq!(warp_agent_bus::screen_detection::activity_at_cursor("codex", &screen, "",
         std::time::Duration::from_secs(2), cursor), Some(warp_agent_bus::readiness::Activity::Idle));
+    terminal.process_bytes("\x1b]9;4;1;-1\x07");
+    assert_eq!(terminal.agent_progress(), "4;1;-1");
+    terminal.process_bytes("\x1b]9;4;99;10\x07\x1b]9;4;1;101\x07");
+    assert_eq!(terminal.agent_progress(), "4;1;-1", "invalid progress cannot replace native evidence");
+    terminal.process_bytes("\x1b]9;approval notification\x07");
+    assert_eq!(terminal.agent_progress(), "4;1;-1", "opaque OSC 9 remains a notification");
+    terminal.process_bytes("\x1b]9;4;0\x07");
+    assert_eq!(terminal.agent_progress(), "4;0");
+    terminal.set_title(None);
+    assert_eq!(terminal.agent_progress(), "");
     terminal.process_bytes("\x1b[?25l");
     assert_eq!(terminal.agent_screen().1, None);
 }

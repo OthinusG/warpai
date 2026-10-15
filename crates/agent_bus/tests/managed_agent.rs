@@ -91,8 +91,13 @@ fn managed_agent_child() {
         if std::io::stdin().read_line(&mut line).unwrap() == 0 {
             break;
         }
-        match line.trim_end() {
-            value if value.starts_with("Warpai peer work is waiting (message ") => println!("PEER_NOTIFICATION_RECEIVED"),
+        let mut value = line.trim_end();
+        if value.starts_with("Warpai peer work is waiting (message ") {
+            println!("PEER_NOTIFICATION_RECEIVED");
+            let Some(start) = value.find('{') else { continue; };
+            value = &value[start..];
+        }
+        match value {
             "Unicode 空格;$(never-execute)" => println!("UNICODE_INPUT_VERIFIED"),
             value => {
                 use warp_agent_bus::transport::*;

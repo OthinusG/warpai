@@ -344,7 +344,7 @@ impl TerminalView {
                 return;
             }
             let agent = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).map(|session| session.agent)
-                .filter(|agent| agent.command_prefix() == state.program || *agent == CLIAgent::Unknown);
+                .filter(|agent| agent.command_prefixes().contains(&state.program.as_str()) || *agent == CLIAgent::Unknown);
             if uuid::Uuid::parse_str(&wake.message_id).is_err() || agent.is_none()
                 || !view.wsl_peer_valid(&context, epoch, ctx) {
                 view.finish_wsl_wake(client, context, wake, false, ctx);

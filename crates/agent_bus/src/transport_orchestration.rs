@@ -399,6 +399,30 @@ mod tests {
     }
 
     #[test]
+    fn unchanged_guards_and_read_only_mcp_calls_do_not_invalidate_empty_queue_cache() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("revision.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let worker = client(broker, &root, "worker");
+        broker.composer_guard(&worker.terminal, false, false);
+        let revision = broker.work_revision().unwrap();
+        for _ in 0..3 {
+            broker.composer_guard(&worker.terminal, false, false);
+            call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+            call(broker, &worker, Operation::AgentList).unwrap();
+        }
+        assert_eq!(broker.work_revision(), Some(revision));
+        broker.composer_guard(&worker.terminal, false, true);
+        assert_ne!(broker.work_revision(), Some(revision));
+        let revision = broker.work_revision();
+        let issuer = client(broker, &root, "issuer");
+        call(broker, &issuer, assign("worker")).unwrap();
+        assert_ne!(broker.work_revision(), revision);
+        assert!(broker.pending_work().iter().any(|wake| wake.terminal == worker.terminal));
+    }
+
+    #[test]
     fn blocked_native_sessions_keep_mcp_connected_and_resume_original_queued_work() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

@@ -11,4 +11,4 @@ existing Warpai running/waiting manifest states and visible evidence field.
 Warpai preserves its native run, account, task, permission and delivery fences.
 
 The standalone Companion uses vt100 0.16.2 (MIT) for bounded native terminal
-snapshots. Its parser is separate from the desktop terminal rendering core.
+snapshots. See [VT100-LICENSE](VT100-LICENSE). Its parser is separate from the desktop terminal rendering core.

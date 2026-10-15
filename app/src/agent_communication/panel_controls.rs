@@ -773,8 +773,15 @@ impl CollaborationPanel {
                         let client = guard.as_mut().ok_or_else(|| anyhow::anyhow!("SSH connection unavailable"))?;
                         Self::remote_command(client, &warp_agent_bus::companion::TaskCommand::Panel(query.clone()), generation).await?
                     } else {
-                        query.project = warp_agent_bus::project_root(std::path::Path::new(&query.project))?;
-                        broker.as_ref().ok_or_else(|| anyhow::anyhow!("Broker unavailable"))?.operator_panel(&query)?
+                        let broker = broker.clone().ok_or_else(|| anyhow::anyhow!("Broker unavailable"))?;
+                        let selected = query.clone();
+                        let (project, value) = tokio::task::spawn_blocking(move || {
+                            let project = warp_agent_bus::project_root(std::path::Path::new(&selected.project))?;
+                            let value = broker.operator_panel(&super::PanelQuery { project:project.clone(), ..selected })?;
+                            Ok::<_, anyhow::Error>((project, value))
+                        }).await??;
+                        query.project = project;
+                        value
                     };
                     if let Some(scope) = value.get("collaboration_scope").cloned() { value["project"] = scope; }
                     let page: super::Snapshot = serde_json::from_value(value)?;
@@ -981,7 +988,11 @@ impl CollaborationPanel {
                 Self::remote_command(client, &command, generation).await
             } else {
                 let broker = broker.unwrap();
-                match operation { Command::Agent(operation) => broker.operator(&project, &operation), Command::Controller(operation) => broker.control(&project, &operation), _ => unreachable!("Form intent resolved before dispatch") }
+                tokio::task::spawn_blocking(move || match operation {
+                    Command::Agent(operation) => broker.operator(&project, &operation),
+                    Command::Controller(operation) => broker.control(&project, &operation),
+                    _ => unreachable!("Form intent resolved before dispatch"),
+                }).await?
             }
         }, move |panel, result, ctx| {
             if panel.form.as_ref().is_none_or(|form| form.request_id != request_id) { return; }

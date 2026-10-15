@@ -108,7 +108,9 @@ jobs:
             ~/.cargo/git
             target
           key: windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          restore-keys: |
+            windows-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            windows-native-v1-
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked
@@ -312,7 +314,9 @@ jobs:
             ~/.cargo/git
             target
           key: macos-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: macos-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          restore-keys: |
+            macos-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            macos-native-v1-
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked

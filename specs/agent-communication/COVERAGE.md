@@ -84,7 +84,8 @@ Vibe uses its native `VIBE_MCP_SERVERS` environment configuration layer. Warp pr
 
 Restart running clients that do not hot-reload MCP configuration. A fresh managed CLI run loads the bridge and receives a unique project-local identity automatically. All live enabled agents in the same canonical project can discover, message, and delegate to one another; there is no peer picker. Repository subdirectories share scope; separate repositories and worktrees remain isolated.
 
-The cooperation instructions require `warp_agent_ready` as the last action before ending a turn. Warpai polls every 250 ms, waits for output to settle, and automatically submits queued inbox work when eligible. Busy/draft/permission protections remain unchanged. Removal of MCP/environment configuration takes effect in a running vendor client after reload/restart; broker revocation takes effect immediately.
+The cooperation instructions require `warp_agent_ready` as the last action before ending a turn. Warpai reuses unchanged screen evidence and empty queues; changed evidence is
+sampled in a background worker at a 300 ms cadence, waiting for output to settle, and automatically submits queued inbox work when eligible. Busy/draft/permission protections remain unchanged. Removal of MCP/environment configuration takes effect in a running vendor client after reload/restart; broker revocation takes effect immediately.
 
 Adapter references: [Pi](https://pi.dev/docs/latest/mcp), [OMP](https://github.com/can1357/oh-my-pi/blob/main/docs/mcp-config.md), [Hermes](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp), [Goose](https://github.com/aaif-goose/goose/blob/main/documentation/docs/getting-started/using-extensions.md), [Vibe](https://docs.mistral.ai/vibe/code/cli/mcp-servers), [Auggie](https://docs.augmentcode.com/cli/integrations).
 

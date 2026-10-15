@@ -94,6 +94,21 @@ impl Terminals {
             return Err(Error::ManagedInvalidInput);
         }
         let size = dimensions(request.columns, request.rows)?;
+        #[cfg(not(feature = "wsl_companion"))]
+        if request.working_directory.is_some() { return Err(Error::ManagedFeatureUnavailable); }
+        #[cfg(not(feature = "wsl_companion"))]
+        let working_directory = root.to_owned();
+        #[cfg(feature = "wsl_companion")]
+        let working_directory = match request.working_directory.as_deref() {
+            Some(directory) if directory.len() <= 4096 && !directory.contains('\0')
+                && Path::new(directory).is_absolute() => {
+                let directory = Path::new(directory).canonicalize().map_err(path_error)?;
+                if !directory.is_dir() { return Err(Error::ManagedInvalidInput); }
+                directory
+            }
+            Some(_) => return Err(Error::ManagedInvalidInput),
+            None => root.to_owned(),
+        };
         if let Some(program) = &request.agent_program {
             let executable = Path::new(&request.executable);
             if !executable.is_absolute() || request.executable.len() > 4096
@@ -125,21 +140,6 @@ impl Terminals {
         if sessions.len() >= MAX_SESSIONS {
             return Err(Error::ManagedCapacityExceeded);
         }
-        #[cfg(not(feature = "wsl_companion"))]
-        if request.working_directory.is_some() { return Err(Error::ManagedFeatureUnavailable); }
-        #[cfg(not(feature = "wsl_companion"))]
-        let working_directory = root.to_owned();
-        #[cfg(feature = "wsl_companion")]
-        let working_directory = match request.working_directory.as_deref() {
-            Some(directory) if directory.len() <= 4096 && !directory.contains('\0')
-                && Path::new(directory).is_absolute() => {
-                let directory = Path::new(directory).canonicalize().map_err(path_error)?;
-                if !directory.is_dir() { return Err(Error::ManagedInvalidInput); }
-                directory
-            }
-            Some(_) => return Err(Error::ManagedInvalidInput),
-            None => root.to_owned(),
-        };
         let run_id = Uuid::new_v4().to_string();
         let binding = request
             .agent_program
@@ -342,12 +342,11 @@ impl Terminals {
                 {
                     return Err(Error::ManagedUnavailable);
                 }
-                let bytes = request.input.clone();
+                if let Some(binding) = &session.binding { binding.broker.input_bytes(&binding.terminal, &request.input); }
                 session
                     .input
                     .try_send(NativeInput::User(request.input))
                     .map_err(|_| Error::ManagedCapacityExceeded)?;
-                if let Some(binding) = &session.binding { binding.broker.input_bytes(&binding.terminal, &bytes); }
                 session.sequence = request.input_sequence;
             }
             TerminalAction::TerminalResize => {

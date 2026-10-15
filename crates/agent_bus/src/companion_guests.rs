@@ -433,7 +433,7 @@ mod tests {
             .unwrap();
         let mut child = crate::native_pty::NativePty::spawn(
             Path::new("/bin/sh"),
-            &["-c".into(), "echo $$; /bin/sleep 30 & echo $!; wait".into()],
+            &["-c".into(), "set -m; echo $$; /bin/sleep 30 & echo $!; wait".into()],
             project.path(),
             crate::native_pty::Size {
                 columns: 80,
@@ -546,6 +546,17 @@ mod tests {
         assert_eq!(replacement.run, first.run);
         assert!(!replacement.valid && replacement.wake.is_none());
         assert_eq!(projects.guests.runs.lock().unwrap()[&pid].input_epoch, Some(1));
+        let stale_wake = crate::transport::Wake {
+            terminal:first.terminal.clone(), run:Uuid::new_v4().to_string(),
+            message_id:Uuid::new_v4().to_string(), generation:0, task_id:None, revision:None,
+        };
+        for action in [crate::wsl_setup::NativeAction::Claim { wake:stale_wake.clone() },
+            crate::wsl_setup::NativeAction::Validate { wake:stale_wake.clone() },
+            crate::wsl_setup::NativeAction::Finish { wake:stale_wake, submitted:true }] {
+            assert_eq!(projects.guests.native(project.path(), crate::wsl_setup::NativeRequest {
+                shell_pid:std::process::id(), action,
+            }).err(), Some(ManagedErrorCode::ManagedStaleAttachment));
+        }
         let mut modern = observe(std::process::id());
         if let crate::wsl_setup::NativeAction::Observe { screen_run, .. } = &mut modern.action {
             *screen_run = Some(first.run.clone());

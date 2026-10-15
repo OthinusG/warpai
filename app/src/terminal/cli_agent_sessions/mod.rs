@@ -351,7 +351,7 @@ impl CLIAgentSessionsModel {
         if !native_screen && matches!(session.status, CLIAgentSessionStatus::Blocked { .. }) { return; }
         let status = match activity {
             Activity::Starting => CLIAgentSessionStatus::Starting,
-            Activity::Idle if session.status == CLIAgentSessionStatus::Success && listener::agent_supports_rich_status(&session.agent) => CLIAgentSessionStatus::Success,
+            Activity::Idle if !native_screen && session.status == CLIAgentSessionStatus::Success && listener::agent_supports_rich_status(&session.agent) => CLIAgentSessionStatus::Success,
             Activity::Idle => CLIAgentSessionStatus::Idle,
             Activity::Working => CLIAgentSessionStatus::InProgress,
             Activity::WaitingApproval | Activity::WaitingInput | Activity::Error => CLIAgentSessionStatus::Blocked { message: None },

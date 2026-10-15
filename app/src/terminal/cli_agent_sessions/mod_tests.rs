@@ -459,6 +459,8 @@ fn native_screen_reconciles_every_managed_session_without_losing_drafts() {
                 model.sessions.get_mut(&terminal.id()).unwrap().status = CLIAgentSessionStatus::Success;
                 assert!(model.any_in_progress(), "opaque completion cannot release keep-awake during verified work");
                 assert!(matches!(model.status_for_display(terminal.id()), Some(crate::ai::agent::conversation::ConversationStatus::InProgress)));
+                model.observe_activity(terminal.id(), Activity::Idle, true, ctx);
+                assert_eq!(model.session(terminal.id()).unwrap().status, CLIAgentSessionStatus::Idle);
                 model.observe_pending_peer_work(terminal.id(), true, ctx);
                 assert!(model.has_pending_peer_work(terminal.id()));
                 model.observe_activity(terminal.id(), Activity::WaitingApproval, true, ctx);

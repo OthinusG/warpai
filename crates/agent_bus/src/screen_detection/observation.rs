@@ -1,4 +1,4 @@
-//! Native-grid observations; Orca MIT predicates, see docs/ORCA-LICENSE.
+//! Native-grid observations; Herdr rules and Orca composer predicates, see docs/HERDR-NOTICE.md.
 use super::{detect_with_progress, Status};
 use crate::readiness::Activity;
 use regex::Regex;
@@ -239,6 +239,9 @@ mod tests {
             ("dsh-tui", "", "⠂ 🐋 会话标题", Activity::Working),
             ("dsh-tui", "", "✦ 🐋 会话标题", Activity::Idle),
             ("dsh-tui", "❯ 1. Allow once\n2. Deny", "✦ 🐋 会话标题", Activity::WaitingApproval),
+            ("dsh-tui", "允许（仅本次）\n拒绝\n↑/↓ 选择 · Enter 确认 · Esc 拒绝", "", Activity::WaitingApproval),
+            ("dsh-tui", "Enter submit · Ctrl+C cancel batch", "", Activity::WaitingInput),
+            ("dsh-tui", "正在等你回答", "", Activity::WaitingInput),
             ("traecli", "Allow once\nDeny", "", Activity::WaitingApproval),
             ("goose", "Allow\nDeny", "", Activity::WaitingApproval),
         ];

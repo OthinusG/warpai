@@ -92,6 +92,41 @@ mod tests {
         }
     }
 
+    #[cfg(all(unix, not(feature = "wsl_companion")))]
+    #[test]
+    fn explicit_remote_mcp_setup_preserves_unrelated_servers_and_rejects_name_collisions() {
+        const FIXTURE: &str = "WARPAI_TEST_REMOTE_SETUP_ROOT";
+        let Some(root) = std::env::var_os(FIXTURE).map(PathBuf::from) else {
+            let directory = tempfile::tempdir().unwrap();
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "companion::tasks::tests::explicit_remote_mcp_setup_preserves_unrelated_servers_and_rejects_name_collisions", "--nocapture"])
+                .env(FIXTURE, directory.path()).env("HOME", directory.path())
+                .env("USERPROFILE", directory.path()).status().unwrap();
+            assert!(status.success());
+            return;
+        };
+        assert_eq!(dirs::home_dir().unwrap(), root);
+        let projects = Projects::new(&root.join("service"));
+        let path = root.join(".augment/settings.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let original = json!({"user_setting":true,"mcpServers":{"user-server":{"command":"user-tool"}}});
+        std::fs::write(&path, serde_json::to_vec(&original).unwrap()).unwrap();
+        let executable = std::env::current_exe().unwrap();
+        for _ in 0..2 { projects.prepare_agent("auggie", &executable).unwrap(); }
+        let configured: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(configured["user_setting"], true);
+        assert_eq!(configured["mcpServers"]["user-server"], original["mcpServers"]["user-server"]);
+        assert_eq!(configured["mcpServers"]["warp-lite-communication"]["args"], json!(["mcp"]));
+        let settings: crate::setup::Preferences = serde_json::from_slice(
+            &std::fs::read(root.join("service/mcp-settings.json")).unwrap()).unwrap();
+        assert!(settings.selected["auggie"].active);
+        let mut collision = original;
+        collision["mcpServers"]["warp-lite-communication"] = json!({"command":"user-owned-tool"});
+        std::fs::write(&path, serde_json::to_vec(&collision).unwrap()).unwrap();
+        assert!(projects.prepare_agent("auggie", &executable).is_err());
+        assert_eq!(serde_json::from_slice::<Value>(&std::fs::read(path).unwrap()).unwrap(), collision);
+    }
+
     #[test]
     fn remote_worktrees_participate_automatically_and_switch_coordinator_across_fences() {
         use crate::worktrees::tests::{Fixture, call, id};
@@ -561,7 +596,7 @@ impl Projects {
         { let _ = (program, executable); return Ok(()); }
         #[cfg(not(feature = "wsl_companion"))]
         {
-            if matches!(program, "codex" | "claude" | "qoder" | "qodercn")
+            if matches!(program, "codex" | "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn")
                 || !crate::screen_detection::has_manifest(program) { return Ok(()); }
             let _setup = self.mcp_setup.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
             let bridge = std::env::current_exe().map_err(path_error)?;
