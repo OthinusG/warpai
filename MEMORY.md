@@ -151,6 +151,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   defaults off/runs once; no installation writes. Docs retain screenshot provenance.
 - https://othinusg.github.io/warpai/ lives on gh-pages (EN /, ZH /zh/); preserve
   branding/worktree, cmap-check font subsets, and Jekyll /warpai production baseurl.
+- Feature catalog and positioning matrix established in docs/FEATURES.md.
 
 ## Native lifecycle repair checkpoint
 
