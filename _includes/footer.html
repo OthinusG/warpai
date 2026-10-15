@@ -1,7 +1,7 @@
 <footer class="foot">
   <img class="brand-logo" src="{{ '/assets/images/warpai-icon.png' | relative_url }}" alt="Warpai">
-  <a href="https://github.com/OthinusG/warpai/tree/main/docs">{% if page.lang == 'zh' %}完整文档{% else %}docs{% endif %}</a>
-  <a href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md">{% if page.lang == 'zh' %}CLI 工具{% else %}cli agents{% endif %}</a>
+  <a href="{{ '/docs/' | relative_url }}">{% if page.lang == 'zh' %}完整文档{% else %}docs{% endif %}</a>
+  <a href="{{ '/docs/cli-agents.html' | relative_url }}">{% if page.lang == 'zh' %}CLI 工具{% else %}cli agents{% endif %}</a>
   <a href="https://github.com/OthinusG/warpai/releases">{% if page.lang == 'zh' %}发布列表{% else %}releases{% endif %}</a>
   <a href="https://github.com/OthinusG/warpai/blob/main/LICENSE-AGPL">AGPL-3.0</a>
   <span>{% if page.lang == 'zh' %}专为 Agent 打造 · © 2026 Warpai{% else %}built for agents · © 2026 Warpai{% endif %}</span>

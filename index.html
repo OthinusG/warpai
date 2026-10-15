@@ -12,45 +12,59 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     <h1>The terminal built for agents. <em>Native, local-first, fearless.</em></h1>
     <p class="lede">Warpai is where your coding agents live. However many you run, across however many projects, each in its own terminal. <b>Zero telemetry, zero cloud login, isolated worktrees, and guarded PTY delivery.</b></p>
     <div class="go">
-      <div class="hd-cmd">
-        <code id="install-cmd"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
-        <button type="button" id="copy-btn" aria-label="Copy install command">copy</button>
+      <div class="dl-group">
+        <a class="dl-btn primary" href="https://github.com/OthinusG/warpai/releases/latest" title="Download for macOS">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+          <span class="dl-label"><strong>Download macOS</strong> <small>Apple Silicon · Intel</small></span>
+        </a>
+        <a class="dl-btn" href="https://github.com/OthinusG/warpai/releases/latest" title="Download for Windows">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4l8-1v9H3V4zm9-1.1l9-1.3V12h-9V2.9zM3 13h8v9l-8-1.1V13zm9 0h9v10.1l-9-1.3V13z" fill="currentColor"/></svg>
+          <span class="dl-label"><strong>Windows</strong> <small>x64 Installer</small></span>
+        </a>
+        <a class="dl-btn" href="https://github.com/OthinusG/warpai/releases/latest" title="Linux Companion for SSH & Remote">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5M12 4v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span class="dl-label"><strong>Linux Companion</strong> <small>SSH Remote</small></span>
+        </a>
+      </div>
+      <div class="dl-pills">
+        <span class="pkg-cmd" data-copy="brew install --cask warpai"><code>brew install --cask warpai</code><button type="button" aria-label="Copy brew command">copy</button></span>
+        <span class="pkg-cmd" data-copy="winget install Warpai.Warpai"><code>winget install Warpai.Warpai</code><button type="button" aria-label="Copy winget command">copy</button></span>
       </div>
     </div>
     <div class="hero-meta">
-      <div class="meta">macOS · Windows · Linux Companion · AGPL-3.0 &nbsp;—&nbsp; <a href="#install">direct dmg, installer and manual downloads →</a></div>
-      <a class="hero-blog" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md"><span>Guide</span> 16+ Agent CLIs Setup <b aria-hidden="true">&#8594;</b></a>
+      <div class="meta">macOS · Windows · Linux Companion · AGPL-3.0 &nbsp;—&nbsp; <a href="https://github.com/OthinusG/warpai/releases">all platform downloads &amp; checksums →</a></div>
+      <a class="hero-blog" href="{{ '/docs/cli-agents.html' | relative_url }}"><span>Guide</span> 20+ Agent CLIs Setup <b aria-hidden="true">&#8594;</b></a>
     </div>
   </div>
 </header>
 
 <div class="strip">
   <a class="stat" href="https://github.com/OthinusG/warpai" data-count>
-    <b id="n-stars">43,994</b>
+    <b id="n-stars" data-stars>Star</b>
     <span>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/></svg>
       github stars <i class="live"></i>
     </span>
   </a>
-  <a class="stat" href="https://github.com/OthinusG/warpai/releases" data-count>
-    <b id="n-cmds">1,522,863</b>
-    <span>
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4-4m4 4l4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
-      terminal blocks run
-    </span>
-  </a>
-  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md" data-count>
-    <b>16+</b>
+  <a class="stat" href="{{ '/docs/cli-agents.html' | relative_url }}" data-count>
+    <b>20+</b>
     <span>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M13 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
       agent CLIs detected
     </span>
   </a>
-  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md" data-count>
+  <a class="stat" href="{{ '/docs/features.html' | relative_url }}" data-count>
     <b>0 KB</b>
     <span>
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       telemetry &amp; cloud bloat
+    </span>
+  </a>
+  <a class="stat" href="{{ '/docs/mcp-api.html' | relative_url }}" data-count>
+    <b>38+</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      native MCP tools
     </span>
   </a>
 </div>
@@ -255,7 +269,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
 </section>
 
 <div class="caps">
-  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md">
+  <a class="cap" href="{{ '/docs/features.html' | relative_url }}">
     <div class="n"><span>01</span></div>
     <div class="cap-in">
       <h3>Always native. Zero telemetry.&nbsp;<b class="arw">&#8594;</b></h3>
@@ -267,7 +281,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     </div>
   </a>
 
-  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CONCEPTS.md">
+  <a class="cap" href="{{ '/docs/concepts.html' | relative_url }}">
     <div class="n"><span>02</span></div>
     <div class="cap-in">
       <h3>You never hunt for the stuck one.&nbsp;<b class="arw">&#8594;</b></h3>
@@ -280,7 +294,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     </div>
   </a>
 
-  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/USING-WARPAI-AGENTS.md">
+  <a class="cap" href="{{ '/docs/using-warpai-agents.html' | relative_url }}">
     <div class="n"><span>03</span></div>
     <div class="cap-in">
       <h3>Guarded PTY delivery.&nbsp;<b class="arw">&#8594;</b></h3>
@@ -291,11 +305,11 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     </div>
   </a>
 
-  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md">
+  <a class="cap" href="{{ '/docs/cli-agents.html' | relative_url }}">
     <div class="n"><span>04</span></div>
     <div class="cap-in">
       <h3>Runs what you already run.&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Claude Code, Codex, Gemini, Antigravity, Cursor, Trae, Pi, Goose, Grok, and more. Warpai doesn't wrap them in proprietary APIs or dumb webviews; it owns their real terminal processes with custom VT100 manifests and native split panes.</p>
+      <p>Claude Code, Codex, Gemini, Antigravity, Cursor, Trae, Pi, Goose, Grok, Amp, Auggie, Droid, and more. Warpai doesn't wrap them in proprietary APIs or dumb webviews; it owns their real terminal processes with custom VT100 manifests and native split panes.</p>
     </div>
     <div class="ev">
       <div class="herd">
@@ -308,11 +322,11 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
         <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Trae / Grok</span>
         <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Goose / Hermes</span>
       </div>
-      <div class="ev-note">16+ agent CLIs detected out of the box</div>
+      <div class="ev-note">20+ agent CLIs detected out of the box</div>
     </div>
   </a>
 
-  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/INSTALL.md">
+  <a class="cap" href="{{ '/docs/install.html' | relative_url }}">
     <div class="n"><span>05</span></div>
     <div class="cap-in">
       <h3>All your machines. One Warpai.&nbsp;<b class="arw">&#8594;</b></h3>
@@ -326,7 +340,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
   </a>
 </div>
 
-<a class="cloud-teaser" href="https://github.com/OthinusG/warpai/blob/main/docs/MCP-API.md" id="compare">
+<a class="cloud-teaser" href="{{ '/docs/mcp-api.html' | relative_url }}" id="compare">
   <div>
     <span class="cloud-label">Native MCP Coordination <span>warp-lite-communication</span></span>
     <h2>38+ Native Tools. Zero Cloud Subscriptions.</h2>
@@ -338,11 +352,25 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
 <section class="end" id="install">
   <div class="in">
     <h2>Give them somewhere to live.</h2>
-    <p>One command, and nothing else about your workflow changes. The agent CLIs you already run keep working exactly as they did, except now they don't stop when you do.</p>
+    <p>Direct native download for your platform. The agent CLIs you already run keep working exactly as they did, except now they don't stop when you do.</p>
     <div class="go">
-      <div class="hd-cmd">
-        <code id="install-cmd-2"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
-        <button type="button" id="copy-btn-2" aria-label="Copy install command">copy</button>
+      <div class="dl-group">
+        <a class="dl-btn primary" href="https://github.com/OthinusG/warpai/releases/latest" title="Download for macOS">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+          <span class="dl-label"><strong>Download macOS</strong> <small>Apple Silicon · Intel</small></span>
+        </a>
+        <a class="dl-btn" href="https://github.com/OthinusG/warpai/releases/latest" title="Download for Windows">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4l8-1v9H3V4zm9-1.1l9-1.3V12h-9V2.9zM3 13h8v9l-8-1.1V13zm9 0h9v10.1l-9-1.3V13z" fill="currentColor"/></svg>
+          <span class="dl-label"><strong>Windows</strong> <small>x64 Installer</small></span>
+        </a>
+        <a class="dl-btn" href="https://github.com/OthinusG/warpai/releases/latest" title="Linux Companion for SSH & Remote">
+          <svg class="dl-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5M12 4v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span class="dl-label"><strong>Linux Companion</strong> <small>SSH Remote</small></span>
+        </a>
+      </div>
+      <div class="dl-pills">
+        <span class="pkg-cmd" data-copy="brew install --cask warpai"><code>brew install --cask warpai</code><button type="button" aria-label="Copy brew command">copy</button></span>
+        <span class="pkg-cmd" data-copy="winget install Warpai.Warpai"><code>winget install Warpai.Warpai</code><button type="button" aria-label="Copy winget command">copy</button></span>
       </div>
     </div>
     <div class="meta">

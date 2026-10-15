@@ -4,14 +4,14 @@
     <b>warpai</b>
   </a>
   <div class="sp"></div>
-  <a class="lnk" href="https://github.com/OthinusG/warpai/tree/main/docs" target="_blank" rel="noreferrer">{% if page.lang == 'zh' %}文档{% else %}Docs{% endif %}</a>
+  <a class="lnk" href="{{ '/docs/' | relative_url }}">{% if page.lang == 'zh' %}文档{% else %}Docs{% endif %}</a>
   <a class="lnk" href="#features">{% if page.lang == 'zh' %}特性{% else %}Features{% endif %}</a>
-  <a class="lnk" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md" target="_blank" rel="noreferrer">{% if page.lang == 'zh' %}CLI AGENTS{% else %}CLI Agents{% endif %}</a>
+  <a class="lnk" href="{{ '/docs/cli-agents.html' | relative_url }}">{% if page.lang == 'zh' %}CLI AGENTS{% else %}CLI Agents{% endif %}</a>
   <a class="lnk" href="#compare">{% if page.lang == 'zh' %}对比{% else %}Compare{% endif %}</a>
   <div class="social-links">
     <a class="ico wide" href="https://github.com/OthinusG/warpai" target="_blank" rel="noreferrer" aria-label="Warpai on GitHub">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.64 7.64 0 0 1 8 3.87c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-      <b data-stars>43,994</b>
+      <b data-stars>Star</b>
     </a>
     <a class="ico" href="{% if page.lang == 'zh' %}{{ '/' | relative_url }}{% else %}{{ '/zh/' | relative_url }}{% endif %}" aria-label="Switch Language" title="Switch Language">
       <b style="font-size: 11px;">{% if page.lang == 'zh' %}EN{% else %}中{% endif %}</b>
@@ -21,19 +21,19 @@
     <button type="button" data-ground="ink" aria-pressed="true">ink</button>
     <button type="button" data-ground="paper" aria-pressed="false">paper</button>
   </div>
-  <a class="btn" href="#install">{% if page.lang == 'zh' %}安装{% else %}Install{% endif %}</a>
+  <a class="btn" href="#install">{% if page.lang == 'zh' %}下载{% else %}Download{% endif %}</a>
   <button type="button" class="menu" id="nav-menu" aria-expanded="false" aria-controls="nav-sheet" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
 </nav>
 
 <div class="sheet" id="nav-sheet">
-  <a href="https://github.com/OthinusG/warpai/tree/main/docs">{% if page.lang == 'zh' %}文档{% else %}Docs{% endif %}</a>
+  <a href="{{ '/docs/' | relative_url }}">{% if page.lang == 'zh' %}文档{% else %}Docs{% endif %}</a>
   <a href="#features">{% if page.lang == 'zh' %}特性{% else %}Features{% endif %}</a>
-  <a href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md">{% if page.lang == 'zh' %}CLI AGENTS{% else %}CLI Agents{% endif %}</a>
+  <a href="{{ '/docs/cli-agents.html' | relative_url }}">{% if page.lang == 'zh' %}CLI AGENTS{% else %}CLI Agents{% endif %}</a>
   <a href="#compare">{% if page.lang == 'zh' %}对比{% else %}Compare{% endif %}</a>
   <a href="{% if page.lang == 'zh' %}{{ '/' | relative_url }}{% else %}{{ '/zh/' | relative_url }}{% endif %}">{% if page.lang == 'zh' %}English Version{% else %}中文版本{% endif %}</a>
-  <a href="https://github.com/OthinusG/warpai">GitHub</a>
+  <a href="https://github.com/OthinusG/warpai" target="_blank" rel="noreferrer">GitHub</a>
   <div class="sheet-ground">
     <span>{% if page.lang == 'zh' %}外观底色{% else %}Ground{% endif %}</span>
     <div class="mode">

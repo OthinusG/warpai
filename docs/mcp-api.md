@@ -1,0 +1,134 @@
+---
+layout: docs
+title: Native MCP Tools API
+description: "Complete technical reference for the 38+ local MCP tools (warp-lite-communication) for task assignment, peer review, file reservation, and agent messaging."
+section: Agent Ecosystem
+doc_id: mcp-api
+prev_url: /docs/cli-agents.html
+prev_title: 20+ CLI Agents Guide
+next_url: /docs/config.html
+next_title: Configuration & Themes
+---
+
+The **Model Context Protocol (MCP)** provides the open coordination standard connecting independent CLI agents into a unified engineering team. 
+
+When Agent Communication is enabled in Warpai, the bundled `warp-lite-communication` MCP server exposes **38+ native tools** over standard JSON-RPC 2.0 to delegate tasks, conduct code reviews, publish contracts, and coordinate file edits.
+
+---
+
+## 1. Task Lifecycle & Orchestration Tools
+
+### `warp_task_assign`
+Assigns a structured task to a target agent or worktree checkout.
+- **Parameters**:
+  - `title` (string, required): Short descriptive summary of the task.
+  - `description` (string, required): Full specifications, acceptance criteria, and expected deliverables.
+  - `assignee` (string, optional): Unique name/ID of the target agent. If omitted, task is added to the project pool.
+  - `worktree` (string, optional): Specific Git checkout directory for this task.
+  - `dependencies` (array of string, optional): List of prerequisite task IDs.
+- **Returns**: `{ "task_id": "uuid", "status": "assigned" }`
+
+### `warp_task_claim`
+Claims an unassigned task from the project pool.
+- **Parameters**: `task_id` (string, required)
+- **Returns**: `{ "task_id": "uuid", "claimed_by": "agent_id", "status": "in_progress" }`
+
+### `warp_task_progress`
+Updates the progress percentage and current milestone of an active task.
+- **Parameters**:
+  - `task_id` (string, required)
+  - `percent` (integer, required): 0 to 100
+  - `message` (string, optional): Brief update on current activity
+- **Returns**: `{ "task_id": "uuid", "updated": true }`
+
+### `warp_task_submit`
+Submits completed work for peer review.
+- **Parameters**:
+  - `task_id` (string, required)
+  - `summary` (string, required): Overview of changes made
+  - `evidence` (array of string, optional): Test outputs or modified files
+- **Returns**: `{ "task_id": "uuid", "status": "submitted_for_review" }`
+
+### `warp_task_review`
+Records a code review verdict on a submitted task.
+- **Parameters**:
+  - `task_id` (string, required)
+  - `verdict` (string, required): `"accepted"` or `"needs_changes"`
+  - `feedback` (string, required): Actionable review comments
+- **Returns**: `{ "task_id": "uuid", "new_status": "accepted" | "in_progress" }`
+
+### `warp_task_integrate` *(Coordinator-only)*
+Integrates approved changes from a worker checkout into the main project.
+- **Parameters**:
+  - `task_id` (string, required)
+  - `commit_hash` (string, optional): Final verified Git commit hash
+- **Returns**: `{ "task_id": "uuid", "status": "integrated" }`
+
+### `warp_task_cancel` / `warp_task_retry` / `warp_task_reassign`
+Administrative controls to cancel abandoned work, retry failed tasks, or transfer ownership to a new agent.
+
+---
+
+## 2. Agent Communication & Readiness Tools
+
+### `warp_agent_ready`
+Notifies Warpai that the agent has finished its current turn and is waiting for work.
+- **Parameters**: None.
+- **Returns**: `{ "acknowledged": true, "pending_count": integer }`
+
+### `warp_agent_list`
+Discovers all currently active agents in the project.
+- **Parameters**: None.
+- **Returns**: List of agent objects with `name`, `role`, `status` (`working` | `idle`), and `checkout_root`.
+
+### `warp_agent_send`
+Sends a structured message to a peer agent.
+- **Parameters**:
+  - `to` (string, required): Destination agent name
+  - `body` (string, required): Message text
+  - `expects_result` (boolean, optional): If `true`, requires an explicit callback
+- **Returns**: `{ "message_id": "uuid", "delivery": "delivered" | "queued" }`
+
+### `warp_agent_reply`
+Provides a definitive callback to an `expects_result` request.
+- **Parameters**:
+  - `request_id` (string, required)
+  - `outcome` (string, required): `"succeeded"`, `"failed"`, or `"blocked"`
+  - `body` (string, required): Explanation or payload
+- **Returns**: `{ "request_id": "uuid", "acknowledged": true }`
+
+### `warp_agent_inbox` / `warp_agent_ack`
+Retrieves pending notifications and unacknowledged messages from the agent's private queue.
+
+---
+
+## 3. Shared Context & Project Memory
+
+### `warp_context_publish`
+Publishes shared architecture decisions, schemas, or API contracts.
+- **Parameters**:
+  - `key` (string, required): Context key identifier
+  - `content` (string, required): Markdown or JSON string content
+  - `pinned` (boolean, optional): Keep pinned across project sessions
+- **Returns**: `{ "key": "string", "stored": true }`
+
+### `warp_context_get` / `warp_context_list`
+Retrieves a specific context resource by key or lists all published contexts in the project.
+
+### `warp_project_bootstrap` / `warp_project_memory_update`
+Reads or persists shared project-level memories across multiple agent restarts.
+
+---
+
+## 4. Concurrent File Reservations (Locks)
+
+### `warp_file_reserve`
+Reserves a file before beginning modifications to prevent multi-agent edit conflicts.
+- **Parameters**:
+  - `file_path` (string, required): Path relative to repository root
+  - `duration_seconds` (integer, optional): Lock duration (default: 300s)
+  - `reason` (string, optional): Feature or refactor description
+- **Returns**: `{ "file_path": "string", "reserved": true, "expires_at": timestamp }`
+
+### `warp_file_renew` / `warp_file_release` / `warp_file_reservations`
+Renews an active lock, releases it upon task completion, or lists all active file locks in the workspace.

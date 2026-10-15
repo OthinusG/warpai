@@ -139,6 +139,21 @@
     });
   });
 
+  // Package command copy buttons
+  document.querySelectorAll(".pkg-cmd").forEach(function (item) {
+    var btn = item.querySelector("button");
+    var code = item.querySelector("code");
+    if (!btn || !code) return;
+    btn.addEventListener("click", function () {
+      var text = item.getAttribute("data-copy") || code.textContent.trim();
+      navigator.clipboard.writeText(text).then(function () {
+        var prev = btn.textContent;
+        btn.textContent = "copied";
+        setTimeout(function () { btn.textContent = prev; }, 1400);
+      }).catch(function () {});
+    });
+  });
+
   /* 5. Braille Spinner Animation */
   var spinnerFrames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"];
   var spinnerTick = 0;
@@ -248,9 +263,22 @@
     });
   }
 
-  // Animate metrics on load
-  var starEl = document.getElementById("n-stars");
-  if (starEl) settle(starEl, 43994);
-  var cmdEl = document.getElementById("n-cmds");
-  if (cmdEl) settle(cmdEl, 1522863);
+  // Dynamic GitHub Stars Fetch for OthinusG/warpai
+  function fetchWarpaiStars() {
+    fetch("https://api.github.com/repos/OthinusG/warpai")
+      .then(function (res) {
+        if (!res.ok) throw new Error("GitHub API status " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (data && typeof data.stargazers_count === "number") {
+          var count = data.stargazers_count;
+          document.querySelectorAll("[data-stars]").forEach(function (el) {
+            settle(el, count);
+          });
+        }
+      })
+      .catch(function () {});
+  }
+  fetchWarpaiStars();
 })();

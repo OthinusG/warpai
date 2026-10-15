@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="{{ page.lang | default: 'en' }}" data-palette="catppuccin" data-mode="ink">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title }} · Warpai Documentation</title>
+  <meta name="description" content="{{ page.description | default: 'Comprehensive documentation for Warpai: the agent-native, local-first terminal.' }}">
+  <meta name="theme-color" content="#17171a">
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <link rel="icon" type="image/png" href="{{ '/assets/images/warpai-icon.png' | relative_url }}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    window.warpaiGround = {
+      read: function () {
+        try {
+          return localStorage.getItem("warpai-theme") === "paper" ? "paper" : "ink";
+        } catch (e) {
+          return "ink";
+        }
+      },
+      apply: function (mode) {
+        var root = document.documentElement;
+        root.setAttribute("data-mode", mode);
+        root.setAttribute("data-palette", mode === "paper" ? "solarized-light" : "catppuccin");
+        return mode;
+      },
+      save: function (mode) {
+        try {
+          localStorage.setItem("warpai-theme", mode);
+        } catch (e) {}
+      },
+    };
+    window.warpaiGround.apply(window.warpaiGround.read());
+  </script>
+
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/docs.css' | relative_url }}">
+</head>
+<body class="docs-page">
+  <!-- 1. Sticky Documentation Header -->
+  <header class="docs-header">
+    <div class="docs-header-left">
+      <button type="button" class="docs-sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation menu">
+        ☰ Menu
+      </button>
+      <a class="docs-brand" href="{{ '/' | relative_url }}">
+        <img src="{{ '/assets/images/warpai-icon.png' | relative_url }}" alt="Warpai">
+        <span>warpai</span>
+        <span class="docs-badge">DOCS</span>
+      </a>
+    </div>
+
+    <div class="docs-header-right">
+      <a class="docs-nav-link" href="{{ '/' | relative_url }}">{% if page.lang == 'zh' %}官网主页{% else %}Home{% endif %}</a>
+      <a class="docs-nav-link" href="https://github.com/OthinusG/warpai/releases" target="_blank" rel="noreferrer">{% if page.lang == 'zh' %}下载{% else %}Download{% endif %}</a>
+      
+      <a class="docs-github-btn" href="https://github.com/OthinusG/warpai" target="_blank" rel="noreferrer" aria-label="Warpai on GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.64 7.64 0 0 1 8 3.87c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <b data-stars>Star</b>
+      </a>
+
+      <div class="mode" role="radiogroup" aria-label="Theme mode">
+        <button type="button" data-ground="ink" aria-pressed="true">ink</button>
+        <button type="button" data-ground="paper" aria-pressed="false">paper</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. Two-Column Docs Layout -->
+  <div class="docs-body">
+    <!-- Left Navigation Tree Sidebar -->
+    <aside class="docs-sidebar" id="docs-sidebar">
+      <nav class="docs-tree">
+        <!-- Group: Getting Started -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">Getting Started</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'overview' %}active{% endif %}" href="{{ '/docs/' | relative_url }}">Overview</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'install' %}active{% endif %}" href="{{ '/docs/install.html' | relative_url }}">Installation</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'quick-start' %}active{% endif %}" href="{{ '/docs/quick-start.html' | relative_url }}">Quick Start (5 Min)</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Group: Core Architecture -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">Core Architecture</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'concepts' %}active{% endif %}" href="{{ '/docs/concepts.html' | relative_url }}">Concepts &amp; Safety</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'features' %}active{% endif %}" href="{{ '/docs/features.html' | relative_url }}">Features &amp; Warp Comparison</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Group: Using Warpai -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">Using Warpai</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'using' %}active{% endif %}" href="{{ '/docs/using.html' | relative_url }}">User Guide Overview</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'using-terminal' %}active{% endif %}" href="{{ '/docs/using-terminal.html' | relative_url }}">Terminal &amp; Command Blocks</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'using-warpai-agents' %}active{% endif %}" href="{{ '/docs/using-warpai-agents.html' | relative_url }}">Multi-Agent Workflows</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Group: Agent Ecosystem -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">Agent Ecosystem</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'cli-agents' %}active{% endif %}" href="{{ '/docs/cli-agents.html' | relative_url }}">
+                <span>20+ CLI Agents Guide</span>
+                <small>Setup</small>
+              </a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'mcp-api' %}active{% endif %}" href="{{ '/docs/mcp-api.html' | relative_url }}">
+                <span>Native MCP Tools API</span>
+                <small>38+ tools</small>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Group: Configuration & Help -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">Configuration &amp; Help</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'config' %}active{% endif %}" href="{{ '/docs/config.html' | relative_url }}">Configuration &amp; Themes</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'troubleshooting' %}active{% endif %}" href="{{ '/docs/troubleshooting.html' | relative_url }}">Troubleshooting &amp; FAQ</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Right Documentation Article Pane -->
+    <main class="docs-content-wrapper">
+      <article class="docs-article">
+        <!-- Breadcrumbs -->
+        <nav class="docs-breadcrumbs" aria-label="Breadcrumb">
+          <a href="{{ '/docs/' | relative_url }}">Docs</a>
+          {% if page.section %}
+          <span class="sep">/</span>
+          <span>{{ page.section }}</span>
+          {% endif %}
+          <span class="sep">/</span>
+          <span>{{ page.title }}</span>
+        </nav>
+
+        <!-- Page Header -->
+        <h1>{{ page.title }}</h1>
+        {% if page.lead %}
+        <p class="docs-lead">{{ page.lead }}</p>
+        {% endif %}
+
+        <!-- Rendered Page Content -->
+        <div class="docs-markdown-body">
+          {{ content }}
+        </div>
+
+        <!-- Pagination Cards -->
+        {% if page.prev_url or page.next_url %}
+        <nav class="docs-pagination" aria-label="Page navigation">
+          {% if page.prev_url %}
+          <a class="docs-pag-btn prev" href="{{ page.prev_url | relative_url }}">
+            <span class="docs-pag-label">← Previous</span>
+            <span class="docs-pag-title">{{ page.prev_title }}</span>
+          </a>
+          {% else %}
+          <div></div>
+          {% endif %}
+
+          {% if page.next_url %}
+          <a class="docs-pag-btn next" href="{{ page.next_url | relative_url }}">
+            <span class="docs-pag-label">Next →</span>
+            <span class="docs-pag-title">{{ page.next_title }}</span>
+          </a>
+          {% endif %}
+        </nav>
+        {% endif %}
+      </article>
+    </main>
+  </div>
+
+  <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+  <script>
+    // Mobile sidebar drawer toggle
+    var toggleBtn = document.getElementById("sidebar-toggle");
+    var sidebar = document.getElementById("docs-sidebar");
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        sidebar.classList.toggle("open");
+      });
+      document.addEventListener("click", function (e) {
+        if (!sidebar.contains(e.target) && e.target !== toggleBtn) {
+          sidebar.classList.remove("open");
+        }
+      });
+    }
+  </script>
+</body>
+</html>
