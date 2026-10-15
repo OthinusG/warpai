@@ -442,7 +442,7 @@ mod tests {
         std::thread::sleep(Duration::from_millis(1200));
         call(broker, &issuer, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap();
         assert_ne!(broker.work_revision(), revision, "a read can emit a lazy deadline notice");
-        assert!(broker.pending_work().iter().any(|wake| wake.terminal == issuer.terminal));
+        assert!(broker.pending_work().iter().any(|wake| wake.terminal == worker.terminal));
     }
 
     #[test]
