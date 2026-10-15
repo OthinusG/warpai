@@ -906,8 +906,7 @@ impl Store {
             .bind::<Text, _>(&binding.id).get_result::<WorktreeAdmissionRow>(&mut *self.connection.borrow_mut()).optional()?;
         if let Some(admission) = admission {
             ensure!(admission.active != 0, scope_denied("Worktree participation was removed"));
-            // ponytail: revalidate Git metadata on authorization; use native metadata checks if measured launch overhead matters.
-            let current = crate::worktrees::Worktree::discover(std::path::Path::new(&binding.root))?;
+            let current = crate::worktrees::Worktree::revalidate(std::path::Path::new(&binding.root))?;
             ensure!(current.repository == admission.repository && current.checkout == admission.checkout,
                 scope_denied("Worktree identity changed; join the replacement explicitly"));
         }
@@ -918,7 +917,7 @@ impl Store {
         let id = diesel::sql_query("SELECT w.id AS value FROM workspaces AS w JOIN worktree_admissions AS a ON a.workspace_id=w.id WHERE w.root=? AND a.active=1")
             .bind::<Text, _>(root).get_result::<ValueRow>(&mut *self.connection.borrow_mut()).optional()?;
         let Some(id) = id else { return Ok(None); };
-        let checkout = crate::worktrees::Worktree::discover(std::path::Path::new(root))?;
+        let checkout = crate::worktrees::Worktree::revalidate(std::path::Path::new(root))?;
         // A new repository at an old path cannot reuse the previous repository's authority.
         if self.count("SELECT COUNT(*) AS count FROM worktree_admissions WHERE workspace_id=? AND repository=?", &[&id.value, &checkout.repository])? == 0 {
             return Ok(None);

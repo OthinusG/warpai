@@ -975,6 +975,13 @@ where
             // notification messages are freeform text and are extremely unlikely to be purely numeric.
             b"9" => {
                 if params.len() >= 2 {
+                    if params[1] == b"4" && params.len() <= 4
+                        && params.get(2).is_some_and(|state| matches!(*state, b"0" | b"1" | b"2" | b"3" | b"4"))
+                        && params.iter().skip(3).all(|value| value.len() <= 4
+                            && str::from_utf8(value).ok().and_then(|value| value.parse::<i16>().ok()).is_some_and(|value| (-1..=100).contains(&value))) {
+                        self.handler.set_agent_progress(params[1..].iter().map(|part| str::from_utf8(part).unwrap()).collect::<Vec<_>>().join(";"));
+                        return;
+                    }
                     if !params[1].is_empty() && params[1].iter().all(u8::is_ascii_digit) {
                         return;
                     }

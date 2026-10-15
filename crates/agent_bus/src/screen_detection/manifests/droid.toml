@@ -1,35 +1,49 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "droid"
+version = "2026.06.10.1"
+min_engine_version = 1
+updated_at = "2026-06-10T00:00:00Z"
 
 [[rules]]
-extends = "spinner"
-id = "spinner"
-priority = 970
-
-[[rules]]
-id = "activity_hint"
-state = "running"
-priority = 965
+id = "execute_selection_blocker"
+state = "waiting"
+priority = 300
 region = "whole_recent"
 visible = true
-contains_any = [
-  "esc to interrupt",
-  "ctrl+c to interrupt",
-  "thinking",
-  "working",
-  "executing",
-]
-
-[[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 950
-contains_any = ["continue?", "proceed?", "execute?", "enter to select", "esc to cancel"]
-
-[[rules]]
-extends = "input_prompt"
-id = "input_prompt"
-priority = 930
+contains = ["enter to select", "esc to cancel"]
 any = [
-  { line_regex = ['(?i)^\s*droid>\s*$'] },
-  { line = { regex = ['(?i)^\s*>\s\S.{0,96}$'], not_regex = ['(?i)esc'] } },
+  { contains = ["↑↓ to navigate"] },
+  { contains = ["use ↑↓ to navigate"] },
 ]
+all = [
+  { any = [{ contains = ["> yes, allow"] }, { contains = ["> no, cancel"] }] },
+]
+
+[[rules]]
+id = "selection_menu_blocker"
+state = "waiting"
+priority = 290
+region = "bottom_non_empty_lines(8)"
+visible = true
+contains = ["enter select", "esc cancel"]
+any = [
+  { contains = ["↑/↓ navigate"] },
+  { contains = ["↑↓ navigate"] },
+]
+
+[[rules]]
+id = "spinner_stop_working"
+state = "running"
+priority = 110
+region = "whole_recent"
+visible = true
+contains = ["esc to stop"]
+line_regex = ['^\s*[\u2800-\u28FF]']
+
+[[rules]]
+id = "stop_hint_working"
+state = "running"
+priority = 100
+region = "whole_recent"
+visible = true
+contains = ["esc to stop"]

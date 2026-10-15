@@ -422,6 +422,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     let name = binding.program.as_str();
     let companion = std::env::var_os("WARP_AGENT_BIN").map(PathBuf::from);
     let bridge = Bridge::from_env().ok();
+    let bound = bridge.is_some();
     let codex_interactive =
         name == "codex" && codex_launch_mode(&args, &binding.options).0 != CodexMode::Native;
     if codex_interactive && bridge.is_some() {
@@ -460,8 +461,18 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
         args = native;
     }
     // Inherit the launcher's actual project directory; never force a repository or daemon frontend.
-    let result = Command::new(executable)
-        .args(args)
+    let mut command = Command::new(executable);
+    if matches!(name, "vibe" | "vibe-acp") && bound {
+        let installed = crate::setup::remote_installed(name, executable, companion.as_deref()
+            .ok_or_else(|| anyhow::anyhow!("Native Companion unavailable"))?)?;
+        let mut environment = std::collections::HashMap::new();
+        for name in ["WARP_AGENT_ENDPOINT", "WARP_AGENT_CAPABILITY", "WARP_TERMINAL_SESSION_UUID", "VIBE_MCP_SERVERS"] {
+            if let Some(value) = std::env::var_os(name) { environment.insert(name.into(), value); }
+        }
+        crate::setup::vibe_environment(&installed, &mut environment, Some(&std::env::current_dir()?))?;
+        command.envs(environment);
+    }
+    let result = command.args(args)
         .kill_on_drop(true)
         .status()
         .await?;

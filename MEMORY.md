@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-14.
+Updated 2026-10-15.
 Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
@@ -8,7 +8,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Rust builds/native acceptance run on GitHub; reuse caches.
   Local Rustfmt/diff/script checks allowed; no personal installation or Agent/SSH
   configuration changes.
-- Monitor cloud runs every 30 minutes until done; do not end at dispatch.
+- Monitor cloud runs hourly until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
 - Protocol passed; native UI still gates release. Avoid WSL model reentry.
@@ -155,10 +155,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Native lifecycle repair checkpoint
 
-- MIT AoE aa02052f detector and Orca 38a4958c composer/readiness rules feed bounded,
-  secret-obfuscated memory-only grids. No-rule fallback differs from menu retention;
-  titles, warnings or silence alone never grant idle. Run/input/redraw fences
-  preserve wake leases. WSL sends only activity/run, negotiating native screens.
+- 1.6.5 work follows Herdr 2f3432c6 manifests (Apache-2.0): owner approved known
+  Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
+  connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.
+  Shared changes require Companion 5.3.0; acceptance/publication are pending.
+  Repair contract: FIXES-1.6.5.md; Companion PTYs use memory-only vt100 capture.
 - Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
   fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
 - SSH/WSL install/call/uninstall use `.config/warpai`; Windows installers must not

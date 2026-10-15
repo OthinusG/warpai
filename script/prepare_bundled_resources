@@ -75,6 +75,9 @@ ADDITIONAL_LICENSES=(
     "GitHub Desktop|MIT|app/src/code_review/GITHUB-DESKTOP-LICENSE"
     "Orca usage and lifecycle adapters|MIT|docs/ORCA-LICENSE"
     "Agent of Empires screen detector|MIT|docs/AGENT-OF-EMPIRES-LICENSE"
+    "Herdr agent status manifests|Apache-2.0|docs/HERDR-LICENSE"
+    "Herdr attribution|Apache-2.0|docs/HERDR-NOTICE.md"
+    "vt100 terminal parser|MIT|docs/VT100-LICENSE"
 )
 
 # Build the third-party licenses file unless the NO_LICENSES envvar is set.

@@ -1,76 +1,103 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "hermes"
+version = "2026.07.24.1"
+min_engine_version = 2
+updated_at = "2026-07-24T19:12:54Z"
+aliases = ["hermes-agent"]
 
-# Hermes' own spinner glyphs, anywhere in the capture.
 [[rules]]
-id = "spinner"
+id = "osc_title_blocked"
+state = "waiting"
+priority = 1100
+region = "osc_title"
+visible = true
+regex = ['^⚠[\u{fe0e}\u{fe0f}]?(?:\s|$)']
+
+[[rules]]
+id = "osc_title_working"
 state = "running"
-priority = 970
-region = "whole_recent"
+priority = 1050
+region = "osc_title"
 visible = true
-line_regex = ['[\x{25DC}\x{25E0}\x{2727}]']
-
-# While running, Hermes replaces its input prompt with `❯ Ctrl+C to interrupt…`,
-# so this has to outrank the parked-prompt rule below.
-[[rules]]
-id = "interrupt_hint"
-state = "running"
-priority = 965
-region = "bottom_non_empty_lines(5)"
-visible = true
-contains = ["ctrl+c to interrupt"]
-
-# The input prompt on its own (`❯` default skin, `⚡` cyberpunk) means the turn
-# is over.
-[[rules]]
-id = "ready_prompt"
-state = "idle"
-priority = 960
-region = "bottom_non_empty_lines(5)"
-visible = true
-line_regex = ['(?i)^\s*[\x{276F}\x{26A1}](?:\s|$)']
-
-# Streaming lines carry a `┊` prefix; recent lines only, so a completed turn's
-# transcript does not read as live.
-[[rules]]
-id = "streaming_prefix"
-state = "running"
-priority = 955
-region = "bottom_non_empty_lines(10)"
-visible = true
-contains = ["┊"]
+regex = ['^⏳[\u{fe0e}\u{fe0f}]?(?:\s|$)']
 
 [[rules]]
-id = "activity_word"
+id = "dangerous_command_approval"
+state = "waiting"
+priority = 900
+region = "bottom_non_empty_lines(14)"
+visible = true
+any = [
+  { contains = ["dangerous"] },
+  { contains = ["approval"] },
+  { contains = ["allow once", "deny"] },
+  { line_regex = ['(?i)^\s*[▸>]?\s*1\.\s*allow'] },
+]
+all = [
+  { any = [{ contains = ["enter confirm"] }, { contains = ["enter to confirm"] }, { contains = ["↑/↓ to select"] }, { contains = ["show full command"] }] },
+]
+
+[[rules]]
+id = "clarification_prompt"
+state = "waiting"
+priority = 900
+region = "bottom_non_empty_lines(14)"
+visible = true
+any = [
+  { contains = ["hermes needs your"] },
+  { line_regex = ['^\s*ask\s+\S'] },
+  { contains = ["type your answer"] },
+]
+all = [
+  { any = [{ contains = ["enter confirm"] }, { contains = ["enter to confirm"] }, { contains = ["enter send"] }, { contains = ["press enter"] }, { contains = ["↑/↓ select"] }, { contains = ["↑/↓ to select"] }, { contains = ["other (type"] }] },
+]
+
+[[rules]]
+id = "credential_prompt"
+state = "waiting"
+priority = 900
+region = "bottom_non_empty_lines(14)"
+visible = true
+any = [
+  { contains = ["sudo password"] },
+  { contains = ["skill setup"] },
+  { contains = ["🔑", "for "] },
+]
+
+[[rules]]
+id = "confirmation_prompt"
+state = "waiting"
+priority = 900
+region = "bottom_non_empty_lines(14)"
+visible = true
+all = [
+  { any = [{ contains = ["approve once", "cancel"] }, { contains = ["start a new session", "keep going"] }] },
+  { any = [{ contains = ["enter to confirm"] }, { contains = ["enter confirm"] }, { contains = ["type 1/2/3"] }, { contains = ["y/n quick"] }] },
+]
+
+[[rules]]
+id = "interrupt_status_working"
 state = "running"
 priority = 950
-region = "whole_recent"
-contains_any = [
-  "reasoning",
-  "pondering",
-  "contemplating",
-  "forging",
-  "plotting",
-  "jacking in",
-  "decrypting",
-  "uploading",
-  "processing",
-  "analyzing",
-  "computing",
-  "evaluating",
+region = "bottom_non_empty_lines(5)"
+visible = true
+any = [
+  { contains = ["msg=interrupt"] },
+  { contains = ["ctrl+c to interrupt"] },
 ]
 
 [[rules]]
-id = "dangerous_command_prompt"
-state = "waiting"
-priority = 940
-region = "whole_recent"
+id = "classic_cancel_working"
+state = "running"
+priority = 500
+region = "bottom_non_empty_lines(5)"
 visible = true
-contains_any = [
-  "(y/n)",
-  "[y/n]",
-  "approve",
-  "allow",
-  "choice [o/s/a/d]:",
-  "[o]nce",
-  "dangerous command",
-]
+contains = ["ctrl+c cancel"]
+
+[[rules]]
+id = "osc_title_idle"
+state = "idle"
+priority = 100
+region = "osc_title"
+visible = true
+regex = ['^✓[\u{fe0e}\u{fe0f}]?(?:\s|$)']

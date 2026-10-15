@@ -30,8 +30,8 @@ def package(binary, output, source):
     if subprocess.check_output(["uname", "-s"], text=True).strip() != "Linux":
         raise SystemExit("The WSL payload must be built in the Linux guest of the Windows build runner")
     version = subprocess.check_output([str(binary.resolve()), "--version"], text=True).strip()
-    if version != "warpai-companion 5.2.0 protocol 1":
-        raise SystemExit("A dedicated WSL Companion 5.2.0 is required")
+    if version != "warpai-companion 5.3.0 protocol 1":
+        raise SystemExit("A dedicated WSL Companion 5.3.0 is required")
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="warpai-wsl-package-") as temporary:
         payload = Path(temporary)
@@ -51,7 +51,7 @@ def package(binary, output, source):
         }) + "\n")
         (payload / "platform").write_text("Linux:x86_64\n")
         (payload / "install-unix.sh").write_text(installer_source())
-        for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL', 'docs/ORCA-LICENSE', 'docs/AGENT-OF-EMPIRES-LICENSE']:
+        for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL', 'docs/ORCA-LICENSE', 'docs/AGENT-OF-EMPIRES-LICENSE', 'docs/HERDR-LICENSE', 'docs/HERDR-NOTICE.md', 'docs/VT100-LICENSE']:
             shutil.copy2(notice, payload / Path(notice).name)
         (payload / "SHA256SUMS").write_text("".join(
             hashlib.sha256(path.read_bytes()).hexdigest() + "  " +

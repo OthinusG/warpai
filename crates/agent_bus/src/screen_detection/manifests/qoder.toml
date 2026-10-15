@@ -1,0 +1,39 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
+id = "qoder"
+version = "2026.06.10.1"
+min_engine_version = 1
+updated_at = "2026-06-10T00:00:00Z"
+aliases = ["qoderclicn", "qoder", "qodercn"]
+
+[[rules]]
+id = "confirmation_or_input_blocker"
+state = "waiting"
+priority = 300
+region = "whole_recent"
+visible = true
+any = [
+  { contains = ["waiting for user confirmation"], any = [{ contains = ["yes"] }, { contains = ["no"] }, { contains = ["allow"] }, { contains = ["reject"] }] },
+  { contains = ["awaiting approval"], any = [{ contains = ["allow"] }, { contains = ["reject"] }] },
+  { contains = ["permission required"] },
+  { contains = ["allow once or always?"] },
+  { contains = ["asking user"] },
+  { contains = ["enter your response"] },
+  { contains = ["review your answers:"] },
+  { contains = ["shell awaiting input"] },
+]
+
+[[rules]]
+id = "cancel_hint_working"
+state = "running"
+priority = 100
+region = "whole_recent"
+visible = true
+contains = ["(esc to cancel,"]
+
+[[rules]]
+id = "spinner_working"
+state = "running"
+priority = 90
+region = "whole_recent"
+visible = true
+line_regex = ['^\s*[\u2800-\u28FF]\s+.*\p{Alphabetic}']

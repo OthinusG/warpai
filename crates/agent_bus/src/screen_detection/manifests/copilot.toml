@@ -1,59 +1,46 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "copilot"
+version = "2026.08.29.1"
+min_engine_version = 1
+updated_at = "2026-08-29T00:00:00Z"
+aliases = ["github-copilot", "ghcs"]
 
-# Copilot renders a bordered full-screen TUI; its bottom status line is the
-# signal.
 [[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 950
-contains_any = [
-  "continue?",
-  "run command?",
-  "allow this tool",
-  "approve for the rest",
-  "enter to select",
-  "esc to cancel",
-]
-
-# The parked footer (`/ commands · ? help · tab next tab`), or the input prompt
-# itself.
-[[rules]]
-id = "ready_footer"
+id = "selection_blocker"
 state = "waiting"
-priority = 940
+priority = 300
 region = "whole_recent"
 visible = true
-contains = ["/ commands", "? help", "tab next tab"]
-
-[[rules]]
-extends = "input_prompt"
-id = "input_prompt"
-priority = 940
-any = [
-  { line_regex = ['(?i)^\s*copilot>\s*$'] },
-  { line = { regex = ['(?i)^\s*>\s\S.{0,96}$'], not_regex = ['(?i)esc'] } },
+all = [
+  { any = [
+    { contains = ["esc to cancel"] },
+    { contains = ["esc cancel"] },
+  ] },
+  { any = [
+    { contains = ["enter to select"] },
+    { contains = ["enter to confirm"] },
+    { contains = ["enter to submit"] },
+    { contains = ["enter accept"] },
+  ] },
 ]
 
-# Only the last three lines: a finished turn leaves its own activity text in the
-# transcript, and the status line is always at the bottom.
 [[rules]]
-id = "footer_spinner"
+id = "background_agents_working"
 state = "running"
-priority = 930
-region = "bottom_non_empty_lines(3)"
+priority = 110
+region = "bottom_non_empty_lines(6)"
 visible = true
-line_regex = ['[\x{2800}-\x{28FF}]']
+line_regex = ['^\s*◎\s+Waiting for background agents(?:\s|·|$)']
 
 [[rules]]
-id = "footer_activity"
+id = "working_cancel_hint"
 state = "running"
-priority = 920
-region = "bottom_non_empty_lines(3)"
+priority = 100
+region = "whole_recent"
 visible = true
-contains_any = [
-  "thinking",
-  "working",
-  "esc to interrupt",
-  "ctrl+c to interrupt",
-  "esc cancel",
+any = [
+  { contains = ["esc to cancel"] },
+  { contains = ["esc cancel"] },
+  { contains = ["esc again to cancel"] },
+  { contains = ["esc interrupt"] }
 ]

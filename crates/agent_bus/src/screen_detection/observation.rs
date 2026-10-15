@@ -1,8 +1,21 @@
 //! Native-grid observations; Orca MIT predicates, see docs/ORCA-LICENSE.
-use super::{detect, Status};
+use super::{detect_with_progress, Status};
 use crate::readiness::Activity;
 use regex::Regex;
 use std::{sync::OnceLock, time::Duration};
+
+pub(super) fn canonical_program(program: &str) -> &str {
+    match program {
+        "agy" => "antigravity",
+        "agent" | "cursor-agent" => "cursor",
+        "hermes-agent" => "hermes",
+        "vibe-acp" => "vibe",
+        "dsh-tui" => "dsh",
+        "traecn" | "trae-cli" | "traecn-cli" | "traecli" => "trae",
+        "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" => "qoder",
+        other => other,
+    }
+}
 
 /// Unknown chrome is not evidence of completion. Text is never retained or logged.
 pub fn activity(program: &str, screen: &str, title: &str, quiet: Duration) -> Option<Activity> {
@@ -11,17 +24,15 @@ pub fn activity(program: &str, screen: &str, title: &str, quiet: Duration) -> Op
 
 /// The visible native cursor binds typed drafts to a composer, never a quoted prompt or menu.
 pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Duration, cursor: Option<usize>) -> Option<Activity> {
-    if screen.len() > 128 * 1024 || title.len() > 4096 {
+    activity_with_progress(program, screen, title, "", quiet, cursor)
+}
+
+pub fn activity_with_progress(program: &str, screen: &str, title: &str, progress: &str,
+    quiet: Duration, cursor: Option<usize>) -> Option<Activity> {
+    if screen.len() > 128 * 1024 || title.len() > 4096 || progress.len() > 256 {
         return None;
     }
-    let agent = match program {
-        "agy" => "antigravity",
-        "agent" | "cursor-agent" => "cursor",
-        "hermes-agent" => "hermes",
-        "vibe-acp" => "vibe",
-        "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" => "qoder",
-        other => other,
-    };
+    let agent = canonical_program(program);
     let composer = composer_rows(agent, screen, cursor);
     // Draft words such as "approve" or "working" are not lifecycle signals.
     let chrome = composer.as_ref().map(|range| {
@@ -34,7 +45,7 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
         live_above.into_iter().map(|line| *line).chain(lines[range.end..].iter().copied())
             .collect::<Vec<_>>().join("\n")
     });
-    let detection = detect(agent, chrome.as_deref().unwrap_or(screen), title, None);
+    let detection = detect_with_progress(agent, chrome.as_deref().unwrap_or(screen), title, progress, None);
     let title_activity = title_state(agent, title);
     if let Some(detection) = detection {
         match detection.status {
@@ -44,7 +55,9 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
                     "input_prompt" | "ready_footer" | "cursor_line"
                 ) =>
             {
-                return Some(Activity::WaitingApproval)
+                return Some(if detection.rule.starts_with("question_") {
+                    Activity::WaitingInput
+                } else { Activity::WaitingApproval })
             }
             Some(Status::Error) => return Some(Activity::Error),
             None if detection.rule != "no_rule" => return None,
@@ -61,29 +74,12 @@ pub fn activity_at_cursor(program: &str, screen: &str, title: &str, quiet: Durat
         return Some(Activity::Working);
     }
     // A composer can remain painted during submission; require an actual output/input quiet window.
-    if quiet < Duration::from_millis(1000) {
+    if quiet < Duration::from_millis(700) {
         return None;
     }
-    let ready = match agent {
-        "codex" => codex_ready(screen, composer.as_ref().map(|range| range.start)) || detection.is_some_and(|d| d.status == Some(Status::Idle)),
-        "antigravity" => antigravity_ready(screen) || composer.is_some(),
-        "claude" => composer.is_some() || detection.is_some_and(|d|
-            d.status == Some(Status::Idle) && d.rule != "live_prompt_box"),
-        "qoder" => {
-            let screen = screen.to_lowercase();
-            screen.contains("type your message or @path/to/file")
-                && !screen.contains("don't trust and exit")
-        }
-        _ => detection.is_some_and(|d| {
-            d.status == Some(Status::Idle)
-                || (d.status == Some(Status::Waiting)
-                    && matches!(d.rule, "input_prompt" | "ready_footer" | "cursor_line"))
-        }),
-    };
-    if ready {
+    // Herdr's known-Agent fallback: a settled screen with no rule is Idle.
+    if detection.is_some() {
         Some(Activity::Idle)
-    } else if matches!(agent, "antigravity" | "qoder") {
-        None
     } else {
         title_activity
     }
@@ -97,6 +93,10 @@ fn title_state(agent: &str, title: &str) -> Option<Activity> {
         })
     {
         return Some(Activity::Working);
+    }
+    // dsh-tui 0.14 uses a whale title without the executable's name.
+    if agent == "dsh" && title.starts_with("✦ 🐋 ") {
+        return Some(Activity::Idle);
     }
     if matches!(agent, "pi" | "omp") {
         if title.starts_with("π - ") {
@@ -175,50 +175,6 @@ fn model_footer(line: &str) -> bool {
     (line.starts_with("gpt-") || line.starts_with("o3") || line.starts_with("o4")) && line.contains('·')
 }
 
-fn codex_ready(screen: &str, cursor: Option<usize>) -> bool {
-    let lower = screen.to_lowercase();
-    let lines: Vec<_> = lower.lines().map(str::trim).collect();
-    let Some(composer) = lines
-        .iter()
-        .enumerate().rfind(|(row, line)| **line == "› ask codex to do anything"
-            || cursor == Some(*row) && line.starts_with("› ")
-                && lines.iter().skip(*row + 1).any(|line| model_footer(line)))
-        .map(|(row, _)| row)
-    else {
-        return false;
-    };
-    let mut above = lines[..composer]
-        .iter()
-        .rev()
-        .filter(|line| !line.is_empty());
-    let row = above.next().copied().unwrap_or("");
-    let row = if row.starts_with("└ tip:") {
-        above.next().copied().unwrap_or("")
-    } else {
-        row
-    };
-    if row.contains("to interrupt)") {
-        return false;
-    }
-    if let Some(header) = lines.iter().position(|line| line.contains("openai codex")) {
-        static LOADING: OnceLock<Regex> = OnceLock::new();
-        let loading = LOADING.get_or_init(|| {
-            Regex::new(r"(?:model|directory):\s+loading|(?m)^\s*loading\s*$").unwrap()
-        });
-        let header = lines
-            .iter()
-            .skip(header)
-            .take(6)
-            .copied()
-            .collect::<Vec<_>>()
-            .join("\n");
-        if loading.is_match(&header) {
-            return false;
-        }
-    }
-    true
-}
-
 fn composer_rows(agent: &str, screen: &str, cursor: Option<usize>) -> Option<std::ops::Range<usize>> {
     let cursor = cursor?;
     let lines: Vec<_> = screen.lines().map(str::trim).collect();
@@ -248,150 +204,48 @@ fn composer_rows(agent: &str, screen: &str, cursor: Option<usize>) -> Option<std
 #[path = "observation_transition_tests.rs"]
 mod transition_tests;
 
-fn antigravity_ready(screen: &str) -> bool {
-    let lines: Vec<_> = screen
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .rev()
-        .take(4)
-        .collect();
-    if lines.len() != 4 {
-        return false;
-    }
-    let rule = |line: &str| line.chars().count() >= 8 && line.chars().all(|c| c == '─');
-    static MODE: OnceLock<Regex> = OnceLock::new();
-    let mode = MODE.get_or_init(|| Regex::new(r"(?i)^>\s+[a-z][a-z-]*\s+mode:\s").unwrap());
-    lines[0].to_lowercase().starts_with("? for shortcuts")
-        && rule(lines[1])
-        && (lines[2] == ">" || mode.is_match(lines[2]))
-        && rule(lines[3])
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn welcome_is_not_completion_and_real_composers_recover_after_errors() {
-        let quiet = Duration::from_secs(2);
-        for agent in [
-            "codex", "agy", "claude", "amp", "droid", "opencode", "copilot", "pi", "omp", "auggie",
-            "agent", "goose", "hermes", "vibe", "grok", "dsh", "qoder", "qodercn", "trae",
-            "custom",
-        ] {
-            assert_eq!(activity(agent, "Welcome", agent, quiet), None, "{agent}");
-            if !matches!(agent, "agy" | "qoder" | "qodercn") {
-                assert_eq!(
-                    activity(agent, "Welcome", &format!("{agent} ready"), quiet),
-                    Some(Activity::Idle),
-                    "explicit native title: {agent}"
-                );
+    fn every_managed_agent_alias_has_idle_fallback_and_bounded_evidence() {
+        let source = include_str!("../../../../app/src/terminal/cli_agent.rs");
+        let aliases = Regex::new(r#"CLIAgent::\w+ => &\[([^\n]+)\]"#).unwrap();
+        let mut checked = 0;
+        for row in aliases.captures_iter(source) {
+            for alias in row[1].split(',').filter_map(|part| part.trim().strip_prefix('"').and_then(|part| part.strip_suffix('"'))) {
+                assert!(super::super::has_manifest(alias), "missing native rules for {alias}");
+                assert_eq!(activity(alias, "Unrecognized current UI", "", Duration::from_secs(2)), Some(Activity::Idle), "{alias}");
+                assert_eq!(activity(alias, "Unrecognized current UI", "", Duration::ZERO), None, "input/output must settle: {alias}");
+                checked += 1;
             }
-            assert_eq!(
-                activity(agent, "Welcome", &format!("⠋ {agent}"), quiet),
-                Some(Activity::Working),
-                "native busy title: {agent}"
-            );
         }
-        let codex = "OpenAI Codex\nWarning: update available\n› Ask Codex to do anything\n";
-        let agy =
-            "Error: previous request failed\n────────────\n>\n────────────\n? for shortcuts\n";
-        for (agent, screen) in [("codex", codex), ("agy", agy)] {
-            assert_eq!(activity(agent, screen, "", quiet), Some(Activity::Idle));
-            assert_eq!(activity(agent, screen, "", Duration::ZERO), None);
+        assert!(checked >= 30);
+        assert_eq!(activity("custom", "Unrecognized current UI", "", Duration::from_secs(2)), None);
+        assert_eq!(activity("codex", &"x".repeat(128 * 1024 + 1), "", Duration::from_secs(2)), None);
+    }
+
+    #[test]
+    fn herdr_rules_cover_working_blocked_and_return_to_idle_for_priority_clients() {
+        let quiet = Duration::from_secs(2);
+        let cases = [
+            ("codex", "Thinking (2s • esc to interrupt)", "", Activity::Working),
+            ("agy", "↑/↓ Navigate · tab Amend · ctrl+g edit/expand command\nesc to cancel", "", Activity::WaitingApproval),
+            ("agy", "──────── esc to cancel", "", Activity::Working),
+            ("agy", "────────\n>\n────────\n? for shortcuts", "", Activity::Idle),
+            ("qoder", "permission required", "◇ Qoder CLI", Activity::WaitingApproval),
+            ("qodercn", "⠋ Thinking (esc to cancel, 2s)", "", Activity::Working),
+            ("qoderclicn", "Type your message or @path/to/file", "◇ Qoder CLI CN", Activity::Idle),
+            ("dsh-tui", "", "⠂ 🐋 会话标题", Activity::Working),
+            ("dsh-tui", "", "✦ 🐋 会话标题", Activity::Idle),
+            ("dsh-tui", "❯ 1. Allow once\n2. Deny", "✦ 🐋 会话标题", Activity::WaitingApproval),
+            ("traecli", "Allow once\nDeny", "", Activity::WaitingApproval),
+            ("goose", "Allow\nDeny", "", Activity::WaitingApproval),
+        ];
+        for (program, screen, title, expected) in cases {
+            assert_eq!(activity(program, screen, title, quiet), Some(expected), "{program}: {screen}");
         }
-        assert_ne!(
-            activity(
-                "agy",
-                &agy.replace("? for shortcuts", "esc to cancel"),
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_ne!(
-            activity(
-                "agy",
-                &agy.replace("\n>\n", "\n> selected model\n"),
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_ne!(
-            activity(
-                "codex",
-                "OpenAI Codex\n• Processing (esc to interrupt)\n› Ask Codex to do anything",
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_ne!(
-            activity(
-                "codex",
-                "OpenAI Codex\nmodel: loading\n› Ask Codex to do anything",
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_eq!(
-            activity("codex", codex, "⠋ Codex", quiet),
-            Some(Activity::Working)
-        );
-        assert_ne!(
-            activity(
-                "codex",
-                "OpenAI Codex\n│ model:     loading │\n› Ask Codex to do anything",
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_eq!(
-            activity(
-                "codex",
-                "──── Worked for 2s\n› Explain this codebase",
-                "",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_eq!(
-            activity("omp", "", "π - session", quiet),
-            Some(Activity::Idle)
-        );
-        assert_eq!(activity("omp", "", "π > cwd", quiet), Some(Activity::Idle));
-        assert_eq!(
-            activity("omp", "", "π : cwd", quiet),
-            Some(Activity::Working)
-        );
-        assert_eq!(
-            activity("omp", "", "π ! cwd", quiet),
-            Some(Activity::WaitingApproval)
-        );
-        assert_eq!(
-            activity(
-                "qodercn",
-                "Type your message or @path/to/file",
-                "◇ Qoder CLI CN",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_ne!(
-            activity(
-                "qoder",
-                "Type your message or @path/to/file\nDon't trust and exit",
-                "◇ Qoder CLI",
-                quiet
-            ),
-            Some(Activity::Idle)
-        );
-        assert_eq!(
-            activity("codex", "› 1. Yes\n  2. No\nenter to select", "", quiet),
-            Some(Activity::WaitingApproval)
-        );
+        assert_eq!(activity_with_progress("grok", "", "", "4;1;-1", quiet, None), Some(Activity::Working));
+        assert_eq!(activity_with_progress("grok", "", "", "4;0", quiet, None), Some(Activity::Idle));
     }
 }

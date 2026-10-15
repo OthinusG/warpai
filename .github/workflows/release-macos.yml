@@ -81,7 +81,7 @@ jobs:
           source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
           (output / 'SHA256SUMS').write_text(digest + '  ' + binary.name + '\n')
           (output / 'manifest.json').write_text(json.dumps({'source': source, 'release': os.environ['RELEASE_TAG'], 'repository': os.environ['GITHUB_REPOSITORY'], 'target': target, 'version': version, 'profile': 'release', 'sha256': digest}, indent=2) + '\n')
-          for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL', 'docs/ORCA-LICENSE', 'docs/AGENT-OF-EMPIRES-LICENSE']:
+          for notice in ['FORK_NOTICE.md', 'LICENSE-AGPL', 'docs/ORCA-LICENSE', 'docs/AGENT-OF-EMPIRES-LICENSE', 'docs/HERDR-LICENSE', 'docs/HERDR-NOTICE.md', 'docs/VT100-LICENSE']:
               shutil.copy2(notice, output / Path(notice).name)
           PY
           python3 script/companion/package.py

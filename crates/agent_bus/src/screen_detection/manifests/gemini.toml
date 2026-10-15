@@ -1,25 +1,26 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "gemini"
+version = "2026.06.10.1"
+min_engine_version = 1
+updated_at = "2026-06-10T00:00:00Z"
 
 [[rules]]
-extends = "interrupt_hint"
-id = "interrupt_hint"
-priority = 970
+id = "apply_or_allow_change"
+state = "waiting"
+priority = 300
+region = "whole_recent"
+visible = true
+any = [
+  { contains = ["│ Apply this change"] },
+  { contains = ["│ Allow execution"] },
+  { all = [{ contains = ["yes"] }, { any = [{ contains = ["waiting for user confirmation"] }, { contains = ["│ Do you want to proceed"] }, { contains = ["do you want to proceed?"] }] }] },
+  { line_regex = ['(?i)^\s*❯.*(yes|allow)'] },
+]
 
 [[rules]]
-extends = "spinner"
-id = "spinner"
-priority = 960
-
-[[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 950
-contains_any = ["execute?", "enter to select", "esc to cancel"]
-
-# Only a bare `>`: Gemini renders ordinary prose behind the same glyph, so the
-# `> something` form the other agents accept would fire on transcript text.
-[[rules]]
-extends = "input_prompt"
-id = "input_prompt"
-priority = 930
-line_regex = ['(?i)^\s*>\s*$']
+id = "esc_cancel_working"
+state = "running"
+priority = 100
+region = "whole_recent"
+visible = true
+contains = ["esc to cancel"]

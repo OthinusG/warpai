@@ -88,7 +88,7 @@ impl Broker {
     pub(crate) fn worktree_candidates(&self, root: &str) -> Result<Vec<Value>> {
         let repository = crate::worktrees::Worktree::discover(Path::new(root))?.repository;
         let state = self.store()?;
-        Ok(state.terminals.values().filter(|binding| !binding.revoked)
+        let mut candidates: Vec<_> = state.terminals.values().filter(|binding| !binding.revoked)
             .filter_map(|binding| {
                 let live = binding.live.as_ref()?;
                 if live.expired || live.started.elapsed() >= MUTATION_EPOCH { return None; }
@@ -96,10 +96,15 @@ impl Broker {
                 if !active_agent(&state, &agent.id, &live.run) { return None; }
                 state.store.authorize(agent).ok()?;
                 let physical = state.store.physical_root(agent).ok()?;
-                let checkout = crate::worktrees::Worktree::discover(Path::new(&physical)).ok()?;
+                let checkout = crate::worktrees::Worktree::revalidate(Path::new(&physical)).ok()?;
                 if checkout.repository != repository { return None; }
-                Some(json!({"agent":agent,"run":live.run,"root":physical,"branch":crate::worktrees::branch(&physical),"origin_agent":live.origin_agent.as_ref().map(|agent| &agent.id)}))
-            }).collect())
+                Some(json!({"agent":agent,"run":live.run,"root":physical,"origin_agent":live.origin_agent.as_ref().map(|agent| &agent.id)}))
+            }).collect();
+        drop(state);
+        for candidate in &mut candidates {
+            candidate["branch"] = json!(crate::worktrees::branch(candidate["root"].as_str().unwrap()));
+        }
+        Ok(candidates)
     }
 
     /// Repository participation follows native runs, never the focused pane.
@@ -394,6 +399,49 @@ mod tests {
     }
 
     #[test]
+    fn blocked_native_sessions_keep_mcp_connected_and_resume_original_queued_work() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("blocked.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let worker = client(broker, &root, "worker");
+        for blocker in [Activity::WaitingApproval, Activity::WaitingInput] {
+            broker.activity(&worker.terminal, Activity::Working);
+            broker.observe_screen(&worker.terminal, &broker.screen_context(&worker.terminal).unwrap(), blocker);
+            let task = call(broker, &issuer, assign("worker")).unwrap();
+            let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+            let message = inbox["messages"].as_array().unwrap().iter()
+                .find(|message| message["task_id"] == task["id"]).unwrap();
+            let original = message["id"].as_str().unwrap().to_owned();
+            assert!(broker.pending_work().iter().any(|wake| wake.message_id == original));
+            assert!(broker.wakeups().iter().all(|wake| wake.terminal != worker.terminal));
+            assert_eq!(broker.terminal_activity(&worker.terminal), Some(blocker));
+            {
+                let mut state = broker.store().unwrap();
+                let live = state.terminals.get_mut(&worker.terminal).unwrap().live.as_mut().unwrap();
+                live.last_input = Instant::now() - Duration::from_secs(2);
+                live.last_output = live.last_input;
+                live.observed = live.last_input;
+            }
+            assert!(broker.observe_screen(&worker.terminal, &broker.screen_context(&worker.terminal).unwrap(), Activity::Idle));
+            {
+                let mut state = broker.store().unwrap();
+                state.terminals.get_mut(&worker.terminal).unwrap().live.as_mut().unwrap().ready =
+                    Some(Instant::now() - Duration::from_secs(2));
+            }
+            let wake = broker.wakeups().into_iter().find(|wake| wake.message_id == original).unwrap();
+            assert!(broker.claim_wake(&wake));
+            broker.finish_wake(&wake, true);
+            let detail = call(broker, &issuer, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap();
+            assert_ne!(detail["state"], "completed");
+            let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+            assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["id"] == original),
+                "native delivery must not acknowledge an MCP message");
+        }
+    }
+
+    #[test]
     fn screen_permission_observation_notifies_task_issuer_once() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();
@@ -451,7 +499,9 @@ mod tests {
             let actor = call(broker, &request, request.operation.clone()).unwrap();
             request.run = actor["run"].as_str().map(str::to_owned);
             let context = broker.screen_context(&terminal).unwrap();
+            assert!(context.same_screen(&broker.screen_context(&terminal).unwrap()));
             broker.input_bytes(&terminal, b"draft");
+            assert!(!context.same_screen(&broker.screen_context(&terminal).unwrap()));
             assert!(!broker.observe_screen(&terminal, &context, Activity::Idle));
             let context = broker.screen_context(&terminal).unwrap();
             broker.output(&terminal);

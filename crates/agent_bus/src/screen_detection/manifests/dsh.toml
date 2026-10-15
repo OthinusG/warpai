@@ -1,0 +1,48 @@
+# dsh-tui native title contract: ccch1mneyyy/dsh-TUI, Chat.tsx.
+id = "dsh"
+
+[[rules]]
+id = "approval_footer"
+state = "waiting"
+priority = 1200
+region = "bottom_non_empty_lines(2)"
+visible = true
+all = [
+  { contains_any = ["Enter confirm", "Enter 确认"] },
+  { contains_any = ["Esc reject", "Esc 拒绝"] },
+]
+
+[[rules]]
+id = "question_footer"
+state = "waiting"
+priority = 1200
+region = "bottom_non_empty_lines(3)"
+visible = true
+all = [
+  { contains_any = ["Enter submit", "Enter 提交"] },
+  { contains_any = ["Ctrl+C cancel batch", "Ctrl+C 取消整批"] },
+]
+
+[[rules]]
+id = "question_folded"
+state = "waiting"
+priority = 1100
+region = "bottom_non_empty_lines(12)"
+visible = true
+contains_any = ["Waiting for your answer", "正在等你回答"]
+
+[[rules]]
+id = "approval_choices"
+state = "waiting"
+priority = 1000
+region = "bottom_non_empty_lines(12)"
+visible = true
+line_regex = ['(?i)^\s*(?:[❯›>]\s*)?(?:\d+[.)]\s*)?(?:allow once|allow always|deny|允许一次|始终允许|拒绝)(?:\s|$)']
+
+[[rules]]
+id = "interrupt_hint"
+state = "running"
+priority = 900
+region = "bottom_non_empty_lines(5)"
+visible = true
+contains_any = ["esc to interrupt", "esc to cancel", "Esc 取消", "Esc 中断"]

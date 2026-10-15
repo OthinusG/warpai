@@ -5,8 +5,9 @@
 
 mod manifest;
 mod observation;
+pub(crate) mod native;
 mod region;
-pub use observation::{activity, activity_at_cursor};
+pub use observation::{activity, activity_at_cursor, activity_with_progress};
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -36,6 +37,13 @@ const MANIFEST_SOURCES: &[(&str, &str)] = &[
     ("pi", include_str!("manifests/pi.toml")),
     ("codex", include_str!("manifests/codex.toml")),
     ("omp", include_str!("manifests/omp.toml")),
+    ("dsh", include_str!("manifests/dsh.toml")),
+    ("amp", include_str!("manifests/amp.toml")),
+    ("grok", include_str!("manifests/grok.toml")),
+    ("qoder", include_str!("manifests/qoder.toml")),
+    ("auggie", include_str!("manifests/auggie.toml")),
+    ("goose", include_str!("manifests/goose.toml")),
+    ("trae", include_str!("manifests/trae.toml")),
 ];
 
 /// What one capture says about a session.
@@ -79,7 +87,7 @@ fn manifests() -> &'static HashMap<&'static str, Manifest> {
 }
 
 pub fn has_manifest(agent: &str) -> bool {
-    manifests().contains_key(agent)
+    manifests().contains_key(observation::canonical_program(agent))
 }
 
 /// Evaluate `agent`'s manifest. `screen` is ANSI-stripped; `osc_title` is empty
@@ -90,8 +98,14 @@ pub fn detect(
     osc_title: &str,
     hook: Option<HookObservation>,
 ) -> Option<Detection> {
+    detect_with_progress(agent, screen, osc_title, "", hook)
+}
+
+pub(super) fn detect_with_progress(agent: &str, screen: &str, osc_title: &str,
+    osc_progress: &str, hook: Option<HookObservation>) -> Option<Detection> {
+    let agent = observation::canonical_program(agent);
     let manifest = manifests().get(agent)?;
-    let parsed = Screen::new(screen, osc_title);
+    let parsed = Screen::with_progress(screen, osc_title, osc_progress);
     let Some(rule) = manifest.evaluate(&parsed, hook) else {
         return Some(Detection::unknown_by_default());
     };

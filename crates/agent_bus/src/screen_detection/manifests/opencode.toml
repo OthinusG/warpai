@@ -1,35 +1,38 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "opencode"
+version = "2026.06.10.1"
+min_engine_version = 1
+updated_at = "2026-06-10T00:00:00Z"
+aliases = ["open-code", "herdr:opencode"]
 
 [[rules]]
-extends = "interrupt_hint"
-id = "interrupt_hint"
-priority = 970
-contains_any = ["esc to interrupt", "esc interrupt"]
-
-[[rules]]
-extends = "spinner"
-id = "spinner"
-priority = 960
-
-[[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 950
-contains_any = ["continue?", "proceed?", "enter to select", "esc to cancel"]
-
-# A numbered menu row carrying the selection cursor.
-[[rules]]
-id = "numbered_choice"
+id = "permission_required"
 state = "waiting"
-priority = 940
+priority = 300
 region = "whole_recent"
 visible = true
-line_regex = ['(?i)\x{276F}(?:\s*|.* )[123]\.']
+any = [
+  { contains = ["△ Permission required"] },
+  { contains = ["esc dismiss"], any = [{ contains = ["enter confirm"] }, { contains = ["enter submit"] }, { contains = ["enter toggle"] }], all = [{ any = [{ contains = ["↑↓ select"] }, { contains = ["⇆ tab"] }] }] },
+]
 
-# Parked at the input prompt.
 [[rules]]
-extends = "input_prompt"
-id = "input_prompt"
-priority = 930
-# opencode also parks on a doubled prompt.
-any = [{ line_regex = ['(?i)^\s*>>\s*$'] }]
+id = "interrupt_hint_working"
+state = "running"
+priority = 110
+region = "whole_recent"
+visible = true
+any = [
+  { contains = ["esc to interrupt"] },
+  { contains = ["ctrl+c to interrupt"] },
+  { contains = ["press esc to interrupt"] },
+  { line_regex = ['(?i).*opencode.*esc (again to )?interrupt'] },
+]
+
+[[rules]]
+id = "progress_bar_working"
+state = "running"
+priority = 100
+region = "whole_recent"
+visible = true
+regex = ['(■|⬝){4,}']

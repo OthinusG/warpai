@@ -81,6 +81,39 @@ pub(crate) fn directory_identity(path: &Path) -> Result<String> {
 }
 
 impl Worktree {
+    /// Recheck an admitted checkout using Git's on-disk links, without spawning Git.
+    pub(crate) fn revalidate(path: &Path) -> Result<Self> {
+        use std::io::Read;
+        let root = path.canonicalize()?;
+        let read_link = |path: &Path| -> Result<String> {
+            let mut text = String::new();
+            std::fs::File::open(path)?.take(16385).read_to_string(&mut text)?;
+            ensure!(text.len() <= 16384 && text.lines().count() == 1,
+                scope_denied("Invalid Git directory link"));
+            Ok(text.trim_end_matches(['\r', '\n']).to_owned())
+        };
+        let marker = root.join(".git");
+        let git = if marker.is_dir() {
+            marker.canonicalize()?
+        } else {
+            let link = read_link(&marker)?;
+            let directory = link.strip_prefix("gitdir: ")
+                .ok_or_else(|| scope_denied("Invalid Git directory link"))?;
+            root.join(directory).canonicalize()?
+        };
+        let common = if git.join("commondir").exists() {
+            let common = git.join(read_link(&git.join("commondir"))?).canonicalize()?;
+            ensure!(git.parent() == Some(common.join("worktrees").as_path())
+                && git.join(read_link(&git.join("gitdir"))?).canonicalize()? == marker.canonicalize()?,
+                scope_denied("Checkout is not a registered worktree"));
+            common
+        } else { git };
+        ensure!(common.join("HEAD").is_file() && common.join("config").is_file(),
+            scope_denied("Git repository metadata is unavailable"));
+        Ok(Self { repository: directory_identity(&common)?, checkout: directory_identity(&root)?,
+            root: root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?.into(), common })
+    }
+
     pub(crate) fn discover(path: &Path) -> Result<Self> {
         let root = crate::project_root(path)?;
         ensure!(
@@ -150,6 +183,22 @@ pub(crate) mod tests {
         ControllerOperation, Operation,
     };
     use serde_json::Value;
+
+    #[test]
+    fn native_revalidation_matches_admission_and_rejects_broken_worktree_links() {
+        let fixture = Fixture::new();
+        for root in [&fixture.main, &fixture.linked] {
+            let admitted = Worktree::discover(root).unwrap();
+            let checked = Worktree::revalidate(root).unwrap();
+            assert_eq!(checked.repository, admitted.repository);
+            assert_eq!(checked.checkout, admitted.checkout);
+            assert_eq!(checked.common, admitted.common);
+        }
+        let admitted = Worktree::discover(&fixture.linked).unwrap();
+        std::fs::write(fixture.linked.join(".git"), "gitdir: missing\n").unwrap();
+        assert!(Worktree::revalidate(&fixture.linked).is_err());
+        assert_eq!(Worktree::revalidate(&fixture.main).unwrap().repository, admitted.repository);
+    }
 
     #[test]
     fn missing_git_reports_a_capability_error() {

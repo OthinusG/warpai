@@ -6474,9 +6474,9 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "1.0.9"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
+checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "jaq-all"
@@ -13360,12 +13360,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "vt100"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054ff75fb8fa83e609e685106df4faeffdf3a735d3c74ebce97ec557d5d36fd9"
+dependencies = [
+ "itoa",
+ "unicode-width 0.2.1",
+ "vte 0.15.0",
+]
+
+[[package]]
 name = "vte"
 version = "0.13.0"
 source = "git+https://github.com/warpdotdev/vte.git?rev=4b399c87b63ba88f45709edaa6383fc519f6c900#4b399c87b63ba88f45709edaa6383fc519f6c900"
 dependencies = [
  "utf8parse 0.2.1",
  "vte_generate_state_changes",
+]
+
+[[package]]
+name = "vte"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5924018406ce0063cd67f8e008104968b74b563ee1b85dde3ed1f7cb87d3dbd"
+dependencies = [
+ "arrayvec",
+ "memchr",
 ]
 
 [[package]]
@@ -13431,6 +13452,7 @@ dependencies = [
  "toml_edit 0.25.6+spec-1.1.0",
  "unicode-segmentation",
  "uuid",
+ "vt100",
  "windows 0.62.2",
 ]
 
@@ -13830,7 +13852,7 @@ dependencies = [
  "unicode-width 0.1.14",
  "uuid",
  "version-compare",
- "vte",
+ "vte 0.13.0",
  "warp_completer",
  "warp_core",
  "warp_util",
@@ -14106,7 +14128,7 @@ dependencies = [
  "version-compare",
  "vim",
  "virtual-fs",
- "vte",
+ "vte 0.13.0",
  "walkdir",
  "warp-agent-bus",
  "warp-command-signatures",

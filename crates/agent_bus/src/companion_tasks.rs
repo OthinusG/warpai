@@ -539,6 +539,8 @@ pub(crate) fn decode_result(bytes: &[u8]) -> Option<serde_json::Value> {
 pub(super) struct Projects {
     directory: PathBuf,
     owners: Mutex<BTreeMap<String, (String, RunningBroker)>>,
+    #[cfg(not(feature = "wsl_companion"))]
+    mcp_setup: Mutex<()>,
     #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
     pub(super) guests: super::guests::Guests,
 }
@@ -547,8 +549,47 @@ impl Projects {
         Self {
             directory: directory.join("projects"),
             owners: Mutex::new(BTreeMap::new()),
+            #[cfg(not(feature = "wsl_companion"))]
+            mcp_setup: Mutex::new(()),
             #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
             guests: super::guests::Guests::new(directory.join("mcp-settings.json")),
+        }
+    }
+    /// Explicit SSH Agent launches reuse managed MCP setup; guest opt-ins remain WSL-owned.
+    pub(super) fn prepare_agent(&self, program: &str, executable: &Path) -> Result<(), ManagedErrorCode> {
+        #[cfg(feature = "wsl_companion")]
+        { let _ = (program, executable); return Ok(()); }
+        #[cfg(not(feature = "wsl_companion"))]
+        {
+            if matches!(program, "codex" | "claude" | "qoder" | "qodercn")
+                || !crate::screen_detection::has_manifest(program) { return Ok(()); }
+            let _setup = self.mcp_setup.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            let bridge = std::env::current_exe().map_err(path_error)?;
+            let entry = crate::setup::remote_installed(program, executable, &bridge)
+                .map_err(|_| ManagedErrorCode::ManagedFeatureUnavailable)?;
+            if matches!(entry.adapter, crate::setup::Adapter::Vibe(_)) { return Ok(()); }
+            let path = self.directory.parent().ok_or(ManagedErrorCode::ManagedUnavailable)?.join("mcp-settings.json");
+            let mut preferences = match std::fs::File::open(&path) {
+                Ok(file) => {
+                    let mut bytes = Vec::new();
+                    file.take(512 * 1024 + 1).read_to_end(&mut bytes).map_err(path_error)?;
+                    if bytes.len() > 512 * 1024 { return Err(ManagedErrorCode::ManagedInvalidInput); }
+                    serde_json::from_slice::<crate::setup::Preferences>(&bytes).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Default::default(),
+                Err(error) => return Err(path_error(error)),
+            };
+            let owned = preferences.selected.contains_key(program);
+            if !owned {
+                crate::setup::configure(&entry, false, false).map_err(|_| ManagedErrorCode::ManagedConflict)?;
+            }
+            preferences.enabled = true;
+            let mut intent = entry.clone(); intent.active = false;
+            preferences.selected.insert(program.into(), intent);
+            crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            crate::setup::configure(&entry, true, owned).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            preferences.selected.insert(program.into(), entry);
+            crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)
         }
     }
     pub(super) fn broker(&self, project_id: &str, root: &str) -> Result<Broker, ManagedErrorCode> {

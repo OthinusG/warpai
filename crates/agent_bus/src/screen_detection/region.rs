@@ -10,6 +10,7 @@ pub(super) struct Screen<'a> {
     /// Whether a blank row sat above each [`Self::recent`] line.
     blank_before: Vec<bool>,
     osc_title: &'a str,
+    osc_progress: &'a str,
     joined: OnceLock<String>,
     collapsed: OnceLock<String>,
     unstacked: OnceLock<String>,
@@ -20,7 +21,7 @@ pub(super) struct Screen<'a> {
     before_marker: OnceLock<String>,
 }
 
-const RECENT_LINES: usize = 30;
+const RECENT_LINES: usize = 60;
 
 /// A landmark line (a turn divider, an input box rule, a banner) that regions
 /// like `after(<name>)` and `above(<name>, n)` resolve through.
@@ -96,6 +97,10 @@ pub(super) enum Region {
     /// Recent lines with runs of single-character lines glued into words.
     UnstackedRecent,
     BottomLines(usize),
+    TopLines(usize),
+    AfterLastPrompt,
+    BeforeCurrentPrompt,
+    WithoutCurrentPrompt,
     /// The input box's status slot line (spinner, wait line or completion), box
     /// chrome skipped.
     AboveInputBox,
@@ -104,6 +109,7 @@ pub(super) enum Region {
     AfterLastRule,
     /// The OSC 0/2 terminal title.
     OscTitle,
+    OscProgress,
     /// The `prompt_marker` line and below, else the whole window.
     FromPromptMarker,
     BeforePromptMarker,
@@ -117,6 +123,9 @@ pub(super) enum Region {
 impl Region {
     /// Marker region names are leaked once at compile time (process lifetime).
     pub(super) fn parse(raw: &str) -> Option<Self> {
+        if let Some(count) = raw.strip_prefix("top_non_empty_lines(").and_then(|s| s.strip_suffix(')')) {
+            return count.parse().ok().filter(|n| *n > 0).map(Region::TopLines);
+        }
         if let Some(rest) = raw.strip_prefix("after(").and_then(|r| r.strip_suffix(')')) {
             let (name, limit) = match rest.split_once(',') {
                 Some((name, n)) => (name, Some(n.trim().parse().ok()?)),
@@ -154,6 +163,10 @@ impl Region {
             "prompt_box_body" => Region::PromptBoxBody,
             "after_last_horizontal_rule" => Region::AfterLastRule,
             "osc_title" => Region::OscTitle,
+            "osc_progress" => Region::OscProgress,
+            "after_last_prompt_marker" => Region::AfterLastPrompt,
+            "before_current_prompt_marker" => Region::BeforeCurrentPrompt,
+            "whole_recent_without_current_prompt_marker" => Region::WithoutCurrentPrompt,
             "from_prompt_marker" => Region::FromPromptMarker,
             "before_prompt_marker" => Region::BeforePromptMarker,
             _ => return None,
@@ -163,6 +176,10 @@ impl Region {
 
 impl<'a> Screen<'a> {
     pub(super) fn new(clean_screen: &'a str, osc_title: &'a str) -> Self {
+        Self::with_progress(clean_screen, osc_title, "")
+    }
+
+    pub(super) fn with_progress(clean_screen: &'a str, osc_title: &'a str, osc_progress: &'a str) -> Self {
         let mut non_empty: Vec<&str> = Vec::new();
         let mut blank_before: Vec<bool> = Vec::new();
         let mut after_blank = false;
@@ -179,6 +196,7 @@ impl<'a> Screen<'a> {
             recent: non_empty[start..].to_vec(),
             blank_before: blank_before[start..].to_vec(),
             osc_title,
+            osc_progress,
             joined: OnceLock::new(),
             collapsed: OnceLock::new(),
             unstacked: OnceLock::new(),
@@ -199,6 +217,17 @@ impl<'a> Screen<'a> {
     ) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::Borrowed(match region {
             Region::WholeRecent => self.joined(),
+            Region::TopLines(n) => return std::borrow::Cow::Owned(self.recent[..n.min(self.recent.len())].join("\n")),
+            Region::AfterLastPrompt | Region::BeforeCurrentPrompt | Region::WithoutCurrentPrompt => {
+                let prompt = self.recent.iter().rposition(|line| **line == "›" || line.starts_with("› "));
+                let current = prompt.filter(|index| !self.recent[index + 1..].iter().any(|line|
+                    line.starts_with(['•', '■', '✗', '✓'])));
+                return std::borrow::Cow::Owned(match region {
+                    Region::AfterLastPrompt => prompt.map(|index| self.recent[index + 1..].join("\n")).unwrap_or_else(|| self.joined().into()),
+                    Region::BeforeCurrentPrompt => current.map(|index| self.recent[..index].join("\n")).unwrap_or_else(|| self.joined().into()),
+                    _ => if current.is_some() { String::new() } else { self.joined().into() },
+                });
+            }
             Region::CollapsedRecent => self
                 .collapsed
                 .get_or_init(|| collapse_ascii_whitespace(self.joined())),
@@ -227,6 +256,7 @@ impl<'a> Screen<'a> {
                 .after_last_rule
                 .get_or_init(|| self.compute_after_last_rule()),
             Region::OscTitle => self.osc_title,
+            Region::OscProgress => self.osc_progress,
             Region::FromPromptMarker => {
                 self.from_marker
                     .get_or_init(|| match self.marker_index(prompt_marker) {

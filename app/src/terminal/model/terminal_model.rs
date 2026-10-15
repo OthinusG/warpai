@@ -469,6 +469,7 @@ pub struct TerminalModel {
 
     /// Current title of the window. Used if the `custom_title` is not set.
     title: Option<String>,
+    agent_progress: Option<(BlockId, String)>,
     /// Custom title of the window, set manually by the user.
     custom_title: Option<String>,
 
@@ -1131,6 +1132,7 @@ impl TerminalModel {
             alt_screen_active: false,
             title_stack: Vec::new(),
             title: None,
+            agent_progress: None,
             custom_title: None,
             colors,
             override_colors: color::OverrideList::empty(),
@@ -1892,6 +1894,11 @@ impl TerminalModel {
         self.colors = colors;
     }
 
+    pub(crate) fn agent_progress(&self) -> &str {
+        self.agent_progress.as_ref().filter(|(block, _)| block == self.block_list.active_block_id())
+            .map_or("", |(_, progress)| progress.as_str())
+    }
+
     /// Bounded current chrome for lifecycle detection; never expose unobfuscated secrets.
     pub(crate) fn agent_screen(&self) -> (String, Option<usize>) {
         use super::grid::{Dimensions, RespectDisplayedOutput};
@@ -2450,6 +2457,7 @@ pub enum HandlerEvent {
 
 impl ansi::Handler for TerminalModel {
     fn set_title(&mut self, title: Option<String>) {
+        if title.is_none() { self.agent_progress = None; }
         // Don't set the tab title if the title event is for a running in-band command.
         if self.block_list().is_writing_or_executing_in_band_command() {
             return;
@@ -3598,6 +3606,10 @@ impl ansi::Handler for TerminalModel {
         _metadata: &mut HashMap<u32, StoredImageMetadata>,
     ) -> Option<KittyResponse> {
         delegate!(self.handle_completed_kitty_action(action, &mut self.image_id_to_metadata))
+    }
+
+    fn set_agent_progress(&mut self, progress: String) {
+        self.agent_progress = Some((self.block_list.active_block_id().clone(), progress));
     }
 
     fn pluggable_notification(&mut self, title: Option<String>, body: String) {

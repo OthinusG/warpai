@@ -535,8 +535,8 @@ impl CollaborationPanel {
                 let selected = coordinator.is_some_and(|role| role.agent == candidate.agent.id);
                 entries.add_child(Flex::row().with_spacing(super::GAP_ROW)
                     .with_child(warpui::elements::ConstrainedBox::new(crate::agent_usage::agent_icon(&candidate.agent.program).to_warpui_icon(appearance.theme().foreground()).finish()).with_width(16.).with_height(16.).finish())
-                    .with_child(super::Shrinkable::new(1., detail(appearance, format!("{}{}", candidate.agent.name,
-                        if selected { format!(" · {}", warpui::localization::text("Coordinator")) } else { String::new() }))).finish()).finish());
+                    .with_child(super::Shrinkable::new(1., self.copyable_agent_name(&candidate.agent, format!("{}{}", candidate.agent.name,
+                        if selected { format!(" · {}", warpui::localization::text("Coordinator")) } else { String::new() }), app)).finish()).finish());
                 if expanded {
                     for task in snapshot.tasks.iter().filter(|task| task.assignee == candidate.agent.id) {
                         entries.add_child(note(appearance, format!("{} · {}", warpui::localization::text(&task.state), task.description)));

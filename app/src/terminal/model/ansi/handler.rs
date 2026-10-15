@@ -27,6 +27,8 @@ use crate::terminal::model::{
 pub trait Handler {
     /// OSC to set window title.
     fn set_title(&mut self, _: Option<String>);
+    /// Typed ConEmu progress evidence; opaque OSC notifications remain notifications.
+    fn set_agent_progress(&mut self, _: String) {}
 
     /// Set the cursor style.
     fn set_cursor_style(&mut self, _: Option<CursorStyle>);

@@ -336,6 +336,7 @@ pub(crate) struct CollaborationPanel {
     form: Option<controls::Form>,
     control_buttons: [MouseStateHandle; 10],
     focus_buttons: HashMap<String, MouseStateHandle>,
+    name_buttons: HashMap<String, MouseStateHandle>,
     show_spaces: bool,
     workspace_preview: Option<WorkspacePreview>,
     workspace_buttons: HashMap<String, MouseStateHandle>,
@@ -356,6 +357,7 @@ pub(crate) struct CollaborationPanel {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
+    CopyAgentName(String),
     UsageSettings,
     RefreshUsage,
     Mode(bool),
@@ -444,6 +446,7 @@ impl CollaborationPanel {
             form: None,
             control_buttons: Default::default(),
             focus_buttons: Default::default(),
+            name_buttons: Default::default(),
             show_spaces: false,
             workspace_preview: None,
             workspace_buttons: Default::default(),
@@ -594,8 +597,17 @@ impl CollaborationPanel {
         ctx.notify();
     }
 
+    fn copyable_agent_name(&self, agent: &Agent, label: String, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let Some(state) = self.name_buttons.get(&agent.id) else { return detail(appearance, label); };
+        let name = agent.name.clone();
+        appearance.ui_builder().button(ButtonVariant::Text, state.clone())
+            .with_text_label(label).build().on_click(move |ctx, _, _|
+                ctx.dispatch_typed_action(Action::CopyAgentName(name.clone()))).finish()
+    }
+
     fn schedule(ctx: &mut ViewContext<Self>) {
-        ctx.spawn(Timer::after(Duration::from_millis(250)), |panel, _, ctx| {
+        ctx.spawn(Timer::after(Duration::from_secs(1)), |panel, _, ctx| {
             panel.refresh(ctx);
             Self::schedule(ctx);
         });
@@ -706,8 +718,10 @@ impl CollaborationPanel {
                 query.spaces = false;
                 Self::remote_command(client.as_mut().unwrap(), &TaskCommand::Panel(query), generation).await?
             } else {
-                query.project = warp_agent_bus::project_root(std::path::Path::new(&directory))?;
-                broker.unwrap().operator_panel(&query)?
+                tokio::task::spawn_blocking(move || {
+                    query.project = warp_agent_bus::project_root(std::path::Path::new(&directory))?;
+                    broker.unwrap().operator_panel(&query)
+                }).await??
             };
             let mut value = value;
             if let Some(scope) = value.get("collaboration_scope").cloned() {
@@ -761,6 +775,12 @@ impl CollaborationPanel {
                     for row in &snapshot.agents { panel.agent_task_buttons.entry(row.agent.id.clone()).or_default(); }
                     panel.focus_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id));
                     for row in &snapshot.agents { panel.focus_buttons.entry(row.agent.id.clone()).or_default(); }
+                    panel.name_buttons.retain(|id, _| snapshot.agents.iter().any(|row| &row.agent.id == id)
+                        || snapshot.candidates.iter().any(|row| &row.agent.id == id));
+                    for agent in snapshot.agents.iter().map(|row| &row.agent)
+                        .chain(snapshot.candidates.iter().map(|row| &row.agent)) {
+                        panel.name_buttons.entry(agent.id.clone()).or_default();
+                    }
                     panel.workspace_buttons.retain(|id, _| snapshot.spaces.iter().flat_map(|space| &space.workspaces).any(|workspace| &workspace.id == id));
                     for workspace in snapshot.spaces.iter().flat_map(|space| &space.workspaces) { panel.workspace_buttons.entry(workspace.id.clone()).or_default(); }
                     panel.connected = true;
@@ -1300,6 +1320,10 @@ impl TypedActionView for CollaborationPanel {
     type Action = Action;
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         match action {
+            Action::CopyAgentName(name) => {
+                ctx.clipboard().write(warpui::clipboard::ClipboardContent::plain_text(name.clone()));
+                return;
+            }
             Action::UsageSettings => {
                 ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::ShowSettingsPageWithSearch {
                     search_query: "data usage".into(), section: Some(crate::settings_view::SettingsSection::Features),
@@ -1838,9 +1862,12 @@ impl View for CollaborationPanel {
                 column.add_child(if section.title == "History" {
                     self::section(appearance, record)
                 } else if section.title == "Agents" {
-                    let icon = self.snapshot.as_ref().and_then(|s| s.agents.iter().filter(|a| a.online).nth(index))
+                    let agent = self.snapshot.as_ref().and_then(|s| s.agents.iter().filter(|a| a.online).nth(index));
+                    let icon = agent
                         .map(|a| crate::agent_usage::agent_icon(&a.agent.program))
                         .unwrap_or(crate::ui_components::icons::Icon::Terminal);
+                    let record = agent.map(|agent| self.copyable_agent_name(&agent.agent, row.clone(), app))
+                        .unwrap_or(record);
                     Flex::row().with_spacing(GAP_ROW).with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(theme.foreground()).finish()).with_width(16.).with_height(16.).finish())
                         .with_child(Shrinkable::new(1., record).finish()).finish()
                 } else { record });
@@ -4182,6 +4209,21 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         );
     // Clipboard acceptance runs only on isolated cloud runners, never against a daily local clipboard.
     if std::env::var_os("GITHUB_ACTIONS").is_some_and(|value| value == "true") {
+        driver = driver.with_step(
+            TestStep::new("copy a full native Agent name without changing the draft")
+                .with_action(|app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    panel.update(app, |panel, ctx| panel.handle_action(
+                        &Action::CopyAgentName("Agent 名称 with spaces".into()), ctx));
+                })
+                .add_named_assertion("full name uses the native plain-text clipboard", |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    let copied = panel.update(app, |_, ctx| ctx.clipboard().read());
+                    warpui::async_assert!(copied.plain_text == "Agent 名称 with spaces"
+                        && copied.paths.is_none() && copied.html.is_none() && copied.images.is_none()
+                        && checkpoint_draft(app, window) == "unsent collaboration draft")
+                }),
+        );
         let expected = std::sync::Arc::new(std::sync::Mutex::new(None));
         let captured = expected.clone();
         driver = driver.with_step(

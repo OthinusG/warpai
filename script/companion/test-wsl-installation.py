@@ -27,7 +27,7 @@ def main():
             git.parent.mkdir(parents=True)
             git.write_bytes(b"Owned runtime fixture")
         with patch.object(package_wsl.subprocess, "check_output", side_effect=[
-            "Linux\n", "warpai-companion 5.2.0 protocol 1\n",
+            "Linux\n", "warpai-companion 5.3.0 protocol 1\n",
         ]) as commands, patch.object(package_wsl.subprocess, "run", side_effect=build_runtime):
             package_wsl.package(binary_fixture, output, source)
             assert commands.call_count == 2
@@ -56,7 +56,7 @@ def main():
         profile = account / ".profile"
         profile.write_text("# Preserve shell settings\n")
         binary = payload / "warpai-wsl-companion"
-        binary.write_text('#!/bin/sh\ncase "$1" in --version) echo "warpai-companion 5.2.0 protocol 1";; --check-runtime) exit 0;; *) exit 1;; esac\n')
+        binary.write_text('#!/bin/sh\ncase "$1" in --version) echo "warpai-companion 5.3.0 protocol 1";; --check-runtime) exit 0;; *) exit 1;; esac\n')
         binary.chmod(0o700)
         runtime_name = "companion-runtime-" + "a" * 64
         runtime = payload / runtime_name

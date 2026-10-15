@@ -12,11 +12,11 @@ use crate::terminal::{
     CLIAgent, TerminalView,
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ffi::OsString,
     path::{Path, PathBuf},
     sync::{Mutex, OnceLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use warp_agent_bus::{
     project_root,
@@ -29,6 +29,7 @@ use warpui_extras::secure_storage::AppContextExt;
 pub(crate) static BROKER: OnceLock<Broker> = OnceLock::new();
 static VIEWS: OnceLock<Mutex<HashMap<EntityId, (String, WeakViewHandle<TerminalView>)>>> =
     OnceLock::new();
+static NATIVE_EVIDENCE: OnceLock<Mutex<HashMap<EntityId, (Instant, Instant)>>> = OnceLock::new();
 pub(crate) struct AgentCommunication {
     _server: Option<RunningBroker>,
     pub(crate) preferences: setup::Preferences,
@@ -40,6 +41,12 @@ pub(crate) struct AgentCommunication {
     preferences_path: PathBuf,
     pending: Option<std::sync::mpsc::Receiver<(setup::Preferences, Vec<setup::Available>, String)>>,
     notified: HashMap<String, String>,
+    sampled: HashMap<String, warp_agent_bus::transport::ScreenContext>,
+    poll_in_flight: bool,
+    peer_work: Vec<warp_agent_bus::transport::Wake>,
+    wakes: Vec<warp_agent_bus::transport::Wake>,
+    observed: HashSet<String>,
+    remote_sampled: HashMap<EntityId, (CLIAgent, Option<String>, Instant, Instant)>,
 }
 impl Entity for AgentCommunication {
     type Event = ();
@@ -59,6 +66,12 @@ impl AgentCommunication {
             preferences_path: PathBuf::new(),
             pending: None,
             notified: HashMap::new(),
+            sampled: HashMap::new(),
+            poll_in_flight: false,
+            peer_work: Vec::new(),
+            wakes: Vec::new(),
+            observed: HashSet::new(),
+            remote_sampled: HashMap::new(),
         }
     }
 
@@ -75,6 +88,7 @@ impl AgentCommunication {
             let _ = BROKER.set(server.broker.clone());
         }
         VIEWS.get_or_init(|| Mutex::new(HashMap::new()));
+        NATIVE_EVIDENCE.get_or_init(|| Mutex::new(HashMap::new()));
         ctx.subscribe_to_model(&CLIAgentSessionsModel::handle(ctx), |model, event, ctx| {
             let Some(broker) = BROKER.get() else {
                 return;
@@ -196,6 +210,12 @@ impl AgentCommunication {
             preferences_path,
             pending: None,
             notified: HashMap::new(),
+            sampled: HashMap::new(),
+            poll_in_flight: false,
+            peer_work: Vec::new(),
+            wakes: Vec::new(),
+            observed: HashSet::new(),
+            remote_sampled: HashMap::new(),
         };
         model.configure(None, None, ctx);
         model
@@ -477,7 +497,7 @@ impl AgentCommunication {
         ctx.notify();
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
-        ctx.spawn(Timer::after(Duration::from_millis(250)), |model, _, ctx| {
+        ctx.spawn(Timer::after(Duration::from_millis(300)), |model, _, ctx| {
             #[cfg(windows)]
             {
                 model.refresh_wsl_targets(ctx);
@@ -499,7 +519,6 @@ impl AgentCommunication {
                 ctx.notify();
             }
             if let (Some(broker), Some(views)) = (BROKER.get(), VIEWS.get()) {
-                // ponytail: scan registered terminals; event-driven delivery if many panes make this measurable.
                 let bindings: Vec<_> = views
                     .lock()
                     .map(|mut views| {
@@ -513,20 +532,51 @@ impl AgentCommunication {
                         views.values().cloned().collect()
                     })
                     .unwrap_or_default();
-                let pending = broker.pending_work();
+                let pending = model.peer_work.clone();
+                let mut screens = Vec::new();
+                let mut remote_screens = Vec::new();
+                model.sampled.retain(|terminal, _| bindings.iter().any(|(id, _)| id == terminal));
+                model.remote_sampled.retain(|id, _| bindings.iter().any(|(_, view)| view.id() == *id));
+                if let Some(evidence) = NATIVE_EVIDENCE.get() {
+                    if let Ok(mut evidence) = evidence.lock() {
+                        evidence.retain(|id, _| bindings.iter().any(|(_, view)| view.id() == *id));
+                    }
+                }
                 for (terminal, view) in &bindings {
                     if let Some(view) = view.upgrade(ctx) {
-                        let observed = broker.screen_context(terminal).and_then(|context| {
+                        if !model.poll_in_flight { broker.screen_context(terminal).and_then(|context| {
+                            // Coalesce redraws and keystrokes; unchanged screens need no extraction.
+                            if model.sampled.get(terminal).is_some_and(|previous| context.same_screen(previous)) {
+                                return None;
+                            }
+                            if context.input_quiet() < Duration::from_millis(200) { return None; }
                             let native = view.as_ref(ctx);
-                            let (screen, cursor) = native.model.lock().agent_screen();
                             let title = native.terminal_title_text();
-                            let activity = warp_agent_bus::screen_detection::activity_at_cursor(&context.program, &screen, &title, context.quiet(), cursor)?;
-                            broker.observe_screen(terminal, &context, activity).then_some(activity)
-                        });
+                            screens.push((terminal.clone(), context, native.model.clone(), title));
+                            Some(())
+                        }); }
+                        if !model.poll_in_flight && broker.screen_context(terminal).is_none() {
+                            let native = view.as_ref(ctx);
+                            if let Some(session) = CLIAgentSessionsModel::as_ref(ctx).session(view.id()).filter(|session| session.is_remote()) {
+                                #[cfg(windows)]
+                                let is_wsl = session.remote_host.as_deref().is_some_and(|host| host.starts_with("wsl:"));
+                                #[cfg(not(windows))]
+                                let is_wsl = false;
+                                let evidence = NATIVE_EVIDENCE.get().and_then(|evidence| evidence.lock().ok())
+                                    .and_then(|evidence| evidence.get(&view.id()).copied());
+                                if let Some((input, output)) = evidence.filter(|(input, _)| !is_wsl && input.elapsed() >= Duration::from_millis(200)) {
+                                    let key = (session.agent, session.session_context.session_id.clone(), input, output);
+                                    if model.remote_sampled.get(&view.id()) != Some(&key) {
+                                        remote_screens.push((view.id(), key, native.model.clone(), native.terminal_title_text()));
+                                    }
+                                }
+                            }
+                        }
+                        let observed = model.observed.remove(terminal);
                         if let Some(activity) = broker.terminal_activity(terminal) {
                             let id = view.id();
                             CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx| {
-                                sessions.observe_activity(id, activity, observed.is_some(), ctx);
+                                sessions.observe_activity(id, activity, observed, ctx);
                                 sessions.observe_pending_peer_work(id, pending.iter().any(|work| work.terminal == *terminal
                                     && broker.run(terminal).as_deref() == Some(work.run.as_str())), ctx);
                             });
@@ -554,7 +604,7 @@ impl AgentCommunication {
                         }
                     }
                 }
-                for wake in broker.wakeups() {
+                for wake in std::mem::take(&mut model.wakes) {
                     if let Some((_, view)) = bindings
                         .iter()
                         .find(|(terminal, _)| terminal == &wake.terminal)
@@ -566,6 +616,64 @@ impl AgentCommunication {
                             });
                         }
                     }
+                }
+                if !model.poll_in_flight {
+                    model.poll_in_flight = true;
+                    let broker = broker.clone();
+                    ctx.spawn(async move {
+                        tokio::task::spawn_blocking(move || {
+                            let mut sampled = Vec::new();
+                            let mut remote_sampled = Vec::new();
+                            for (terminal, context, native, title) in screens {
+                                let quiet = context.quiet();
+                                let Some(native) = native.try_lock() else { continue; };
+                                let (screen, cursor) = native.agent_screen();
+                                let progress = native.agent_progress().to_owned();
+                                drop(native);
+                                let activity = warp_agent_bus::screen_detection::activity_with_progress(
+                                    &context.program, &screen, &title, &progress, quiet, cursor);
+                                let observed = activity.is_some_and(|activity| broker.observe_screen(&terminal, &context, activity));
+                                if observed || activity.is_none() && quiet >= Duration::from_millis(700) {
+                                    sampled.push((terminal, context, observed));
+                                }
+                            }
+                            for (view, key, native, title) in remote_screens {
+                                let quiet = key.2.elapsed().min(key.3.elapsed());
+                                let Some(native) = native.try_lock() else { continue; };
+                                let (screen, cursor) = native.agent_screen();
+                                let progress = native.agent_progress().to_owned();
+                                drop(native);
+                                let activity = warp_agent_bus::screen_detection::activity_with_progress(
+                                    key.0.command_prefix(), &screen, &title, &progress, quiet, cursor);
+                                if activity.is_some() || quiet >= Duration::from_millis(700) {
+                                    remote_sampled.push((view, key, activity));
+                                }
+                            }
+                            (sampled, remote_sampled, broker.pending_work(), broker.wakeups())
+                        }).await
+                    }, |model, result, ctx| {
+                        model.poll_in_flight = false;
+                        if let Ok((sampled, remote_sampled, pending, wakes)) = result {
+                            model.peer_work = pending;
+                            model.wakes = wakes;
+                            for (terminal, context, observed) in sampled {
+                                if observed { model.observed.insert(terminal.clone()); }
+                                model.sampled.insert(terminal, context);
+                            }
+                            for (view, key, activity) in remote_sampled {
+                                let valid = CLIAgentSessionsModel::as_ref(ctx).session(view).is_some_and(|session|
+                                    session.is_remote() && session.agent == key.0 && session.session_context.session_id == key.1)
+                                    && NATIVE_EVIDENCE.get().and_then(|evidence| evidence.lock().ok())
+                                        .is_some_and(|evidence| evidence.get(&view) == Some(&(key.2, key.3)));
+                                if !valid { continue; }
+                                model.remote_sampled.insert(view, key);
+                                if let Some(activity) = activity {
+                                    CLIAgentSessionsModel::handle(ctx).update(ctx, |sessions, ctx|
+                                        sessions.observe_activity(view, activity, true, ctx));
+                                }
+                            }
+                        }
+                    });
                 }
             }
             Self::schedule(ctx);
@@ -651,6 +759,11 @@ pub(crate) fn bind(view: &ViewHandle<TerminalView>, terminal: Option<String>) {
     if let (Some(terminal), Some(views)) = (terminal, VIEWS.get()) {
         if let Ok(mut views) = views.lock() {
             views.insert(view.id(), (terminal, view.downgrade()));
+            if let Some(evidence) = NATIVE_EVIDENCE.get() {
+                if let Ok(mut evidence) = evidence.lock() {
+                    let now = Instant::now(); evidence.insert(view.id(), (now, now));
+                }
+            }
         }
     }
 }
@@ -664,11 +777,23 @@ fn terminal_for_view(view: EntityId) -> Option<String> {
         .map(|(terminal, _)| terminal.clone())
 }
 pub(crate) fn user_input(view: EntityId, bytes: &[u8]) {
+    if !bytes.is_empty() {
+        if let Some(evidence) = NATIVE_EVIDENCE.get() {
+            if let Ok(mut evidence) = evidence.lock() {
+                if let Some((input, _)) = evidence.get_mut(&view) { *input = Instant::now(); }
+            }
+        }
+    }
     if let (Some(broker), Some(terminal)) = (BROKER.get(), terminal_for_view(view)) {
         broker.input_bytes(&terminal, bytes);
     }
 }
 pub(crate) fn output(view: EntityId) {
+    if let Some(evidence) = NATIVE_EVIDENCE.get() {
+        if let Ok(mut evidence) = evidence.lock() {
+            if let Some((_, output)) = evidence.get_mut(&view) { *output = Instant::now(); }
+        }
+    }
     if let (Some(broker), Some(terminal)) = (BROKER.get(), terminal_for_view(view)) {
         broker.output(&terminal);
     }

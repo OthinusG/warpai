@@ -10,6 +10,7 @@ wsl_companion = []
 
 [dependencies]
 regex.workspace = true
+vt100 = "=0.16.2"
 log.workspace = true
 serde_yaml.workspace = true
 toml = "0.8.13"

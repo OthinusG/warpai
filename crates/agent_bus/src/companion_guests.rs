@@ -67,16 +67,20 @@ fn parse_stat(stat: &str) -> std::io::Result<Process> {
 }
 
 fn foreground_owner(peer: u32) -> std::io::Result<u32> {
-    let parent = process(peer)?;
-    if parent.tty == 0 || parent.foreground != i64::from(parent.group) {
-        return Err(std::io::ErrorKind::PermissionDenied.into());
+    let mut current = peer;
+    for _ in 0..32 {
+        let parent = process(current)?;
+        // MCP plugin hosts can create a child group; the live foreground ancestor owns the pane.
+        if parent.tty != 0 && parent.foreground == i64::from(parent.group) {
+            let owner = ancestor(current, parent.group)?;
+            if owner.tty == parent.tty && owner.foreground == i64::from(parent.group) {
+                return Ok(parent.group);
+            }
+        }
+        if parent.parent <= 1 || parent.parent == current { break; }
+        current = parent.parent;
     }
-    // npm and shell launchers share the interactive command's group, unlike a detached daemon.
-    let owner = ancestor(peer, parent.group)?;
-    if owner.tty != parent.tty || owner.foreground != i64::from(parent.group) {
-        return Err(std::io::ErrorKind::PermissionDenied.into());
-    }
-    Ok(parent.group)
+    Err(std::io::ErrorKind::PermissionDenied.into())
 }
 
 fn native_directory(agent: u32) -> std::io::Result<PathBuf> {
@@ -174,10 +178,12 @@ impl Guests {
             .runs
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        let Some((pid, guest)) = runs.iter_mut().find(|(_, guest)| {
+        let Some((pid, guest)) = runs.iter_mut().find(|(pid, guest)| {
             guest.root == root
-                && guest.shell == request.shell_pid
-                && guest.shell_started == shell.started
+                && (guest.shell == request.shell_pid && guest.shell_started == shell.started
+                    || ancestor(**pid, request.shell_pid).is_ok_and(|owner|
+                        owner.started == shell.started && owner.tty != 0
+                            && owner.foreground == i64::from(**pid)))
         }) else {
             return Ok(None);
         };
@@ -207,7 +213,9 @@ impl Guests {
                 screen_activity,
             } => {
                 if screen_run.as_ref().is_some_and(|run| run != &guest.run) {
-                    return Err(ManagedErrorCode::ManagedStaleAttachment);
+                    // A replaced foreground run is discoverable, but old evidence cannot affect it.
+                    state.activity = broker.terminal_activity(terminal);
+                    return Ok(Some(state));
                 }
                 if guest.input_epoch.is_some_and(|epoch| epoch != input_epoch) {
                     broker.native_input(terminal, submitted, cancelled);
@@ -534,7 +542,9 @@ mod tests {
             *screen_activity = Some(crate::readiness::Activity::Idle);
             *input_epoch = 99;
         }
-        assert!(matches!(projects.guests.native(project.path(), stale), Err(ManagedErrorCode::ManagedStaleAttachment)));
+        let replacement = projects.guests.native(project.path(), stale).unwrap().unwrap();
+        assert_eq!(replacement.run, first.run);
+        assert!(!replacement.valid && replacement.wake.is_none());
         assert_eq!(projects.guests.runs.lock().unwrap()[&pid].input_epoch, Some(1));
         let mut modern = observe(std::process::id());
         if let crate::wsl_setup::NativeAction::Observe { screen_run, .. } = &mut modern.action {

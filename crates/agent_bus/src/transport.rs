@@ -83,6 +83,11 @@ pub struct ScreenContext {
 }
 impl ScreenContext {
     pub fn quiet(&self) -> Duration { self.output.elapsed().min(self.input.elapsed()).min(self.observed.elapsed()) }
+    pub fn input_quiet(&self) -> Duration { self.input.elapsed() }
+    /// Reuse evidence only until the native run, input or output changes.
+    pub fn same_screen(&self, previous: &Self) -> bool {
+        self.run == previous.run && self.output == previous.output && self.input == previous.input
+    }
 }
 
 struct Live {
@@ -601,7 +606,7 @@ impl Broker {
             || live.last_output != context.output || live.last_input != context.input || live.observed != context.observed { return false; }
         // Stable samples must preserve the idle lease and any in-flight wake.
         if live.activity == activity && live.native_activity == Some(activity) { return true; }
-        if activity.is_idle() && context.quiet() < Duration::from_millis(1000) { return false; }
+        if activity.is_idle() && context.quiet() < Duration::from_millis(700) { return false; }
         live.generation += 1;
         live.activity = activity;
         live.native_activity = Some(activity);
@@ -695,11 +700,13 @@ impl Broker {
     pub fn input_bytes(&self, terminal: &str, bytes: &[u8]) {
         if let Some(broker) = self.forwarded(terminal) { broker.input_bytes(terminal, bytes); return; }
         if bytes.is_empty() { return; }
+        let mut lifecycle_changed = false;
         if let Ok(mut state) = self.shared.state.lock() {
             let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 if let Some(activity) = live.draft.input(bytes) {
                     if live.activity != activity {
+                        lifecycle_changed = true;
                         observation = live.agent.clone().map(|actor| (actor, live.run.clone(), activity, live.blocked));
                     }
                     live.activity = activity;
@@ -717,7 +724,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.changed.notify_all();
+        if lifecycle_changed { self.shared.changed.notify_all(); }
     }
     /// Remote native editors report only whether they contain text, never its content.
     pub fn input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool) {
@@ -729,10 +736,12 @@ impl Broker {
     }
     fn set_input_guard(&self, terminal: &str, rich_draft: bool, blocked: bool, native: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.set_input_guard(terminal, rich_draft, blocked, native); return; }
+        let mut changed = false;
         if let Ok(mut state) = self.shared.state.lock() {
             let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 if live.rich_draft != rich_draft || live.blocked != blocked || live.rich_draft_is_native != native {
+                    changed = true;
                     if live.blocked != blocked {
                         observation = live.agent.clone().map(|actor| (actor, live.run.clone(), live.activity));
                     }
@@ -751,7 +760,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.changed.notify_all();
+        if changed { self.shared.changed.notify_all(); }
     }
     /// Remote editors send edit epochs and guards, never their draft text.
     #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
@@ -986,6 +995,14 @@ impl Broker {
             !self.shared.stopped.load(Ordering::Acquire),
             coordinator_unavailable("Broker stopped")
         );
+        {
+            let state = self.store()?;
+            authenticate(&state, request, matches!(request.operation, Operation::AgentRegister { .. }))?;
+        }
+        let directory_root = request.directory.as_ref().map(|directory| {
+            ensure!(Path::new(directory).is_absolute(), invalid_input("Native workspace must be absolute"));
+            Ok::<_, anyhow::Error>((Path::new(directory).canonicalize()?, crate::project_root(Path::new(directory))?))
+        }).transpose()?;
         let mut state = self
             .shared
             .state
@@ -1003,11 +1020,11 @@ impl Broker {
             );
             let binding = state.terminals.get(&request.terminal).unwrap();
             let project = if let Some((root, _)) = &binding.physical_root {
-                ensure!(Path::new(directory).canonicalize()?.starts_with(root),
+                ensure!(directory_root.as_ref().unwrap().0.starts_with(root),
                     scope_denied("Native directory does not match the selected project"));
-                if binding.workspace.is_some() { crate::project_root(Path::new(directory))? }
+                if binding.workspace.is_some() { directory_root.as_ref().unwrap().1.clone() }
                 else { root.to_str().ok_or_else(|| invalid_input("Project path must be UTF-8"))?.to_owned() }
-            } else { crate::project_root(Path::new(directory))? };
+            } else { directory_root.as_ref().unwrap().1.clone() };
             let workspace = binding.workspace.clone();
             if let Some(workspace) = &workspace {
                 ensure!(project == workspace.root, scope_denied("Native directory does not match the selected workspace"));
@@ -1529,6 +1546,9 @@ impl Broker {
                 "events":[],"event_cursor":null,"spaces":[],"space_cursor":null,
                 "reservations":[],"reservation_cursor":null,"messages":[],"message_cursor":null,"history":null}));
         }
+        let worktree_identity = if query.worktree {
+            Some(crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository)
+        } else { None };
         let mut state = self.store()?;
         let binding = query.terminal.as_ref().and_then(|terminal| state.terminals.get(terminal));
         let admission = match binding {
@@ -1563,7 +1583,7 @@ impl Broker {
         let project = if query.worktree {
             match state.store.worktree_domain(&query.project)? {
                 Some(domain) => domain,
-                None => format!("worktree:{}", crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository),
+                None => format!("worktree:{}", worktree_identity.as_ref().unwrap()),
             }
         } else { project };
         let same_scope = query.scope.as_deref() == Some(project.as_str());
@@ -1585,10 +1605,7 @@ impl Broker {
             .filter(|agent| !same_scope || query.agent_after.as_ref().is_none_or(|after| &agent.name > after))
             .collect();
         let agent_cursor = (remaining.len() > 50).then(|| remaining[49].name.clone());
-        let mut branches = HashMap::new();
-        branches.insert(query.project.clone(), crate::worktrees::branch(&query.project));
-        let worktree_branch = branches[&query.project].clone();
-        let agents: Vec<_> = remaining.into_iter().take(50).map(|agent| {
+        let mut agents: Vec<_> = remaining.into_iter().take(50).map(|agent| {
             let live = state.terminals.values().filter(|binding| !binding.revoked)
                 .filter_map(|binding| binding.live.as_ref())
                 .find(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH
@@ -1597,11 +1614,9 @@ impl Broker {
                 .and_then(|qualified| qualified.split_once(':')).map(|(device, _)| device.to_owned())
                 .unwrap_or_else(|| "local".into());
             let workspace = state.store.physical_root(&agent).ok();
-            let branch = workspace.as_ref().and_then(|root| branches.entry(root.clone())
-                .or_insert_with(|| crate::worktrees::branch(root)).clone());
             let observed = live.map(|live| live.observed.elapsed().as_millis() as u64);
             json!({"agent": agent, "online": live.is_some(), "run": live.map(|live| &live.run),
-                "device": device, "workspace": workspace, "worktree_branch": branch, "last_observed_ms": observed,
+                "device": device, "workspace": workspace, "last_observed_ms": observed,
                 "observation_source": if live.is_some() { Some("local observation") } else { None },
                 "delivery_phase": live.and_then(|live| live.delivery.as_ref()).map(|(_, phase, _)| *phase),
                 "delivery_retained": live.and_then(|live| live.delivery.as_ref()).map(|(_, _, retained)| *retained),
@@ -1658,6 +1673,15 @@ impl Broker {
         let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
         let worktree_mode = state.store.worktree_mode(&project)?;
         drop(state);
+        // Git can wait on subprocesses; never hold the native input mutex while querying it.
+        let mut branches = HashMap::new();
+        branches.insert(query.project.clone(), crate::worktrees::branch(&query.project));
+        let worktree_branch = branches[&query.project].clone();
+        for agent in &mut agents {
+            let branch = agent["workspace"].as_str().and_then(|root| branches.entry(root.to_owned())
+                .or_insert_with(|| crate::worktrees::branch(root)).clone());
+            agent["worktree_branch"] = json!(branch);
+        }
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
         Ok(json!({"project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,

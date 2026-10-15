@@ -33,5 +33,8 @@ Source: "../../companion-release/manifest.json"; DestDir: "{app}"; DestName: "co
 Source: "../../companion-release/LICENSE-AGPL"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/ORCA-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/AGENT-OF-EMPIRES-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/HERDR-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/HERDR-NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/VT100-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/FORK_NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/{#RuntimeDirectory}\*"; DestDir: "{app}\{#RuntimeDirectory}"; Flags: ignoreversion recursesubdirs createallsubdirs

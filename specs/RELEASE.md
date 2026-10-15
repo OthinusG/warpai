@@ -1,5 +1,20 @@
 # Warpai releases
 
+## 2026-10-15 1.6.5 / Companion 5.3.0 delivery contract
+
+Owner authorized all-Agent Herdr state adaptation, MCP repair across local/WSL/SSH,
+latency repair preserving communication, copyable names and removal of tab dots.
+Shared Companion code changed, requiring 5.3.0. SSH protocol major 1 and Agent Bus
+major 2 remain unchanged. This contract supersedes earlier monitoring/validation
+exceptions for this release.
+
+Require source-matched protocol, both desktop builds/native UI/real WSL acceptance,
+and all three Companion platforms before immutable v1.6.5 publication. Reuse the
+existing release workflows, preserving installer/provenance/runtime/checksum gates.
+Monitor hourly; resolve actual failures before verifying all five public installers,
+both checksum files and website download links. No personal installation/configuration
+changes or local Rust builds. Acceptance and publication are pending.
+
 ## 2026-10-14 direct 1.6.4 / Companion 5.2.0 publication
 
 The owner explicitly requested publishing Warpai 1.6.4 with Companion 5.2.0

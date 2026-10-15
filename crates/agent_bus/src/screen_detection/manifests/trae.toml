@@ -1,0 +1,30 @@
+# TRAE native TUI/MCP/approval contract: docs.trae.cn/cli_command-line-parameters.
+id = "trae"
+
+[[rules]]
+id = "permission_choices"
+state = "waiting"
+priority = 300
+region = "bottom_non_empty_lines(12)"
+visible = true
+contains_any = ["allow once", "allow always", "允许一次", "始终允许"]
+
+[[rules]]
+id = "confirmation_prompt"
+state = "waiting"
+priority = 290
+region = "bottom_non_empty_lines(5)"
+visible = true
+contains_any = ["[y/n]", "(y/n)", "do you want to proceed?"]
+
+[[rules]]
+id = "working_spinner"
+extends = "spinner"
+priority = 100
+region = "bottom_non_empty_lines(5)"
+
+[[rules]]
+id = "interrupt_hint"
+extends = "interrupt_hint"
+priority = 110
+region = "bottom_non_empty_lines(5)"

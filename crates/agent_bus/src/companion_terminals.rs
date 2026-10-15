@@ -16,6 +16,11 @@ const PAGE_BYTES: usize = 32 * 1024;
 type Error = ManagedErrorCode;
 type Owner = Arc<Mutex<Session>>;
 
+enum NativeInput {
+    User(Vec<u8>),
+    Peer { wake: crate::transport::Wake, bytes: Vec<u8>, submit: bool },
+}
+
 #[derive(Default)]
 pub(super) struct Terminals(Mutex<BTreeMap<String, Owner>>);
 #[derive(Default)]
@@ -42,7 +47,8 @@ struct Session {
     binding: Option<tasks::RunBinding>,
     pty: NativePty,
     output: Arc<Mutex<Output>>,
-    input: mpsc::SyncSender<Vec<u8>>,
+    screen: Option<Arc<Mutex<crate::screen_detection::native::NativeScreen>>>,
+    input: mpsc::SyncSender<NativeInput>,
     connection: Option<String>,
     sequence: u64,
     failed: Arc<AtomicBool>,
@@ -88,6 +94,14 @@ impl Terminals {
             return Err(Error::ManagedInvalidInput);
         }
         let size = dimensions(request.columns, request.rows)?;
+        if let Some(program) = &request.agent_program {
+            let executable = Path::new(&request.executable);
+            if !executable.is_absolute() || request.executable.len() > 4096
+                || request.executable.contains('\0') || request.arguments.len() > 61 {
+                return Err(Error::ManagedInvalidInput);
+            }
+            tasks.prepare_agent(program, executable)?;
+        }
         let mut sessions = lock(&self.0)?;
         if let Some(owner) = sessions.get(&request.session_id) {
             let mut session = lock(owner)?;
@@ -168,10 +182,14 @@ impl Terminals {
         let mut reader = pty.reader.try_clone().map_err(path_error)?;
         let mut writer = pty.writer.try_clone().map_err(path_error)?;
         let output = Arc::new(Mutex::new(Output::default()));
+        let screen = binding.as_ref().map(|_| Arc::new(Mutex::new(
+            crate::screen_detection::native::NativeScreen::new(size.rows, size.columns))));
         let revoked = Arc::new(AtomicBool::new(false));
-        let (input, receiver) = mpsc::sync_channel::<Vec<u8>>(16);
+        let (input, receiver) = mpsc::sync_channel::<NativeInput>(16);
         let failed = Arc::new(AtomicBool::new(false));
         let collected = output.clone();
+        let captured = screen.clone();
+        let observed = binding.as_ref().map(|binding| (binding.broker.clone(), binding.terminal.clone()));
         std::thread::spawn(move || {
             let mut buffer = [0; 8192];
             loop {
@@ -181,29 +199,82 @@ impl Terminals {
                     Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                     Err(_) => break,
                 };
-                let Ok(mut output) = collected.lock() else {
-                    return;
-                };
-                if output.append(&buffer[..count]).is_err() {
-                    break;
+                if let Some((broker, terminal)) = &observed { broker.output(terminal); }
+                {
+                    let Ok(mut output) = collected.lock() else { return; };
+                    if output.append(&buffer[..count]).is_err() { break; }
                 }
+                if let Some(screen) = &captured {
+                    if let Ok(mut screen) = screen.lock() { screen.process(&buffer[..count]); }
+                }
+                if let Some((broker, terminal)) = &observed { broker.output(terminal); }
             }
             if let Ok(mut output) = collected.lock() {
                 output.closed = true;
             }
         });
+        if let (Some(binding), Some(screen)) = (&binding, &screen) {
+            let broker = binding.broker.clone();
+            let terminal = binding.terminal.clone();
+            let screen = screen.clone();
+            let stopped = revoked.clone();
+            let input = input.clone();
+            std::thread::spawn(move || {
+                let mut sampled: Option<crate::transport::ScreenContext> = None;
+                let mut delivery: Option<(crate::transport::Wake, bool)> = None;
+                while !stopped.load(Ordering::Acquire) {
+                    std::thread::sleep(std::time::Duration::from_millis(300));
+                    let Some(context) = broker.screen_context(&terminal) else { break; };
+                    if !sampled.as_ref().is_some_and(|previous| context.same_screen(previous)) {
+                        let activity = screen.lock().ok().and_then(|screen| screen.activity(&context));
+                        if let Some(activity) = activity {
+                            if broker.observe_screen(&terminal, &context, activity) { sampled = Some(context); }
+                        }
+                    }
+                    if let Some((wake, paste)) = delivery.take() {
+                        if !broker.wake_valid(&wake) { broker.finish_wake(&wake, false); continue; }
+                        let bytes = if paste {
+                            let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
+                            if screen.lock().is_ok_and(|screen| screen.bracketed_paste()) {
+                                [b"\x1b[200~".as_slice(), text.as_bytes(), b"\x1b[201~".as_slice()].concat()
+                            } else { text.into_bytes() }
+                        } else { b"\r".to_vec() };
+                        if input.try_send(NativeInput::Peer { wake: wake.clone(), bytes, submit: !paste }).is_err() {
+                            broker.finish_wake(&wake, false);
+                        } else if paste { delivery = Some((wake, false)); }
+                        continue;
+                    }
+                    if let Some(wake) = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal) {
+                        if Uuid::parse_str(&wake.message_id).is_err() || !broker.claim_wake(&wake) { continue; }
+                        if broker.discard_native_draft(&wake)
+                            && input.try_send(NativeInput::Peer { wake: wake.clone(), bytes: b"\x03".to_vec(), submit: false }).is_err() {
+                            broker.finish_wake(&wake, false);
+                        } else { delivery = Some((wake, true)); }
+                    }
+                }
+            });
+        }
         let write_revoked = revoked.clone();
         let write_failed = failed.clone();
+        let write_binding = binding.as_ref().map(|binding| binding.broker.clone());
         std::thread::spawn(move || {
             while let Ok(input) = receiver.recv() {
                 if write_revoked.load(Ordering::Acquire) || write_failed.load(Ordering::Acquire) {
                     continue;
                 }
-                if writer
-                    .write_all(&input)
-                    .and_then(|_| writer.flush())
-                    .is_err()
-                {
+                let (bytes, delivery) = match input {
+                    NativeInput::User(bytes) => (bytes, None),
+                    NativeInput::Peer { wake, bytes, submit } => {
+                        let Some(broker) = &write_binding else { continue; };
+                        if !broker.wake_valid(&wake) { broker.finish_wake(&wake, false); continue; }
+                        (bytes, Some((wake, submit)))
+                    }
+                };
+                let written = writer.write_all(&bytes).and_then(|_| writer.flush()).is_ok();
+                if let (Some(broker), Some((wake, submit))) = (&write_binding, delivery) {
+                    if submit || !written { broker.finish_wake(&wake, written && submit); }
+                }
+                if !written {
                     write_failed.store(true, Ordering::Release);
                 }
             }
@@ -214,6 +285,7 @@ impl Terminals {
             binding,
             pty,
             output,
+            screen,
             input,
             connection: Some(fence.connection_id.clone()),
             sequence: 0,
@@ -270,17 +342,22 @@ impl Terminals {
                 {
                     return Err(Error::ManagedUnavailable);
                 }
+                let bytes = request.input.clone();
                 session
                     .input
-                    .try_send(request.input)
+                    .try_send(NativeInput::User(request.input))
                     .map_err(|_| Error::ManagedCapacityExceeded)?;
+                if let Some(binding) = &session.binding { binding.broker.input_bytes(&binding.terminal, &bytes); }
                 session.sequence = request.input_sequence;
             }
             TerminalAction::TerminalResize => {
+                let size = dimensions(request.columns, request.rows)?;
                 session
                     .pty
-                    .resize(dimensions(request.columns, request.rows)?)
+                    .resize(size)
                     .map_err(path_error)?;
+                if let Some(screen) = &session.screen { lock(screen)?.resize(size.rows, size.columns); }
+                if let Some(binding) = &session.binding { binding.broker.output(&binding.terminal); }
             }
             TerminalAction::TerminalStop => {
                 // Process stop never waits for a blocked native input writer.

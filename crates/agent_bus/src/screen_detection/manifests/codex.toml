@@ -1,157 +1,129 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "codex"
+version = "2026.10.11.1"
+min_engine_version = 3
+updated_at = "2026-10-11T00:00:00Z"
 
-# The divider a finished turn draws (`──── Worked for 1m 3s`).
-[markers.divider]
-line_regex = ['(?i)^\s*─*\s*worked for\b']
-absent_is_whole = true
-
-# The same line, read as a landmark rather than as a bound: with no divider on
-# screen no turn has finished, so a rule about a finished turn cannot fire.
-[markers.completed_turn]
-line_regex = ['(?i)^\s*─*\s*worked for\b']
-
-# The banner a cancelled turn leaves.
-[markers.interruption]
-contains = ["conversation interrupted - tell the model what to do differently"]
-wrap = 4
-strip_prefix = "■"
-
-[markers.review_finished]
-contains = ["<< code review finished >>"]
-
-# The plan dialog's question line, which its choice rows and submit hint follow.
-[markers.plan_question]
-line_regex = ['(?i)^\s*question .*unanswered']
-
-[markers.submit_hint]
-contains = ["enter to submit answer"]
-
-# A plain cursor prompt: the input line, as opposed to a numbered menu row.
-[markers.cursor_prompt]
-line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*(?:[^\s1-9]|[1-9][^.\s])']
-
-# The last numbered choice row carrying the selection cursor.
-[markers.choice_cursor]
-line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*[1-9]\.']
-
-# Codex's Plan-mode radio prompt: a question, its cursored choice rows and the
-# submit hint, in that order, with nothing running after the hint.
 [[rules]]
-id = "plan_radio_prompt"
+id = "osc_title_blocked"
 state = "waiting"
-priority = 980
-region = "after(plan_question)"
+priority = 1100
+region = "osc_title"
 visible = true
-contains = ["enter to submit answer"]
-line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*[1-9]\.']
-not = [
-  { region = "after(submit_hint)", any = [
-    { line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$'] },
-    { line = { regex = ['(?i)^\s*(?:•\s*)?(working|thinking|processing|generating|running command|starting mcp servers)\b'], not_regex = ['(?i)^\s*\S+(?:\W+\w+){0,4}\W+(completed?|done|finished|successful|successfully|success)\b'] }, contains_any = ["esc to interrupt", "ctrl+c to interrupt"] },
+contains = ["Action Required"]
+
+[[rules]]
+id = "osc_title_working"
+state = "running"
+priority = 1050
+region = "osc_title"
+visible = true
+regex = ['(?:^| )[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏](?: |$)']
+
+[[rules]]
+id = "transcript_viewer"
+priority = 1000
+region = "after_last_prompt_marker"
+skip_state_update = true
+contains = ["↑/↓ to scroll", "pgup/pgdn to", "home/end to jump", "q to quit"]
+any = [
+  { contains = ["esc to edit prev"] },
+  { contains = ["esc/← to edit prev"] },
+]
+
+[[rules]]
+id = "trust_directory"
+state = "waiting"
+priority = 950
+region = "top_non_empty_lines(20)"
+visible = true
+all = [
+  { any = [
+    { regex = ['\A> You are in [^\r\n]+(?:\r?\n|$)'] },
+    { contains = ["Folder access"] },
+  ] },
+  { any = [
+    { regex = ['(?s)Do\s+you\s+trust\s+the\s+contents\s+of\s+this\s+directory\?'] },
+    { all = [
+      { contains = ["Trust this folder?", "Codex can read, edit, and run files here"] },
+      { any = [
+        { contains = ["Trust and continue"] },
+        { contains = ["enter continue"] },
+      ] },
+    ] },
   ] },
 ]
 
-# The live turn.
 [[rules]]
-id = "interrupt_hint"
-state = "running"
-priority = 970
-region = "after(divider)"
-visible = true
-line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$']
-
-[[rules]]
-id = "activity_with_interrupt"
-state = "running"
-priority = 970
-region = "after(divider)"
-visible = true
-line = { regex = ['(?i)^\s*(?:•\s*)?(working|thinking|processing|generating|running command|starting mcp servers)\b.*(esc|ctrl\+c) to interrupt'], not_regex = ['(?i)^\s*\S+(?:\W+\w+){0,4}\W+(completed?|done|finished|successful|successfully|success)\b'] }
-
-[[rules]]
-id = "activity_line"
-state = "running"
-priority = 970
-region = "after(divider, 10)"
-visible = true
-line = { regex = ['(?i)^\s*(?:\u{2022}\s*)?[\x{2800}-\x{28FF}]?\s*(working|thinking|processing|generating)[\s.:\x{2026}]'], not_regex = ['(?i)^\s*\S+(?:\W+\w+){0,4}\W+(completed?|done|finished|successful|successfully|success)\b'] }
-
-# Ranked below `hook_running_fresh`: `(y/n)` and `run command?` appear in
-# ordinary turn output, so on their own they are not enough to contradict a
-# `running` write from the last few seconds.
-[[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 590
-contains_any = [
-  "continue?",
-  "proceed?",
-  "execute?",
-  "run command?",
-  "enter to select",
-  "esc to cancel",
-]
-
-# A cursored choice row near the bottom with nothing live below it: the menu is
-# still up and waiting.
-[[rules]]
-id = "numbered_choice_prompt"
+id = "startup_update"
 state = "waiting"
-priority = 955
-region = "after(choice_cursor)"
+priority = 950
+region = "bottom_non_empty_lines(20)"
 visible = true
-not = [
-  { line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$'] },
-  { line = { regex = ['(?i)^\s*(?:•\s*)?[\x{2800}-\x{28FF}]?\s*(working|thinking|processing|generating)[\s.:\x{2026}]'], not_regex = ['(?i)^\s*\S+(?:\W+\w+){0,4}\W+(completed?|done|finished|successful|successfully|success)\b'] } },
-  { line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*(?:[^1-9\s].*)?$'] },
-]
-
-# A cancelled turn with nothing started since.
-[[rules]]
-id = "interrupted_turn"
-state = "idle"
-priority = 985
-region = "after(interruption)"
-visible = true
-not = [
-  { line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$'] },
-  { line = { regex = ['(?i)^\s*(?:•\s*)?[\x{2800}-\x{28FF}]?\s*(working|thinking|processing|generating)[\s.:\x{2026}]'], not_regex = ['(?i)^\s*\S+(?:\W+\w+){0,4}\W+(completed?|done|finished|successful|successfully|success)\b'] } },
-  { line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*[1-9]\.'] },
-  { contains_any = ["(y/n)", "[y/n]", "approve", "allow", "continue?", "proceed?", "execute?", "run command?", "enter to select", "esc to cancel"] },
-  # Two cursor prompts below the banner means the session moved on twice.
-  { line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*\S'], min_lines = 2 },
-]
-
-# A finished turn or review parked at its prompt, with the model footer under
-# it.
-[[rules]]
-id = "completed_turn_prompt"
-state = "idle"
-priority = 620
-region = "after(completed_turn)"
-visible = true
-line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*\S']
-not = [
-  { line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$'] },
-  { line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*[1-9]\.'] },
-  { contains_any = ["(y/n)", "[y/n]", "approve", "allow", "continue?", "proceed?", "execute?", "run command?", "enter to select", "esc to cancel"] },
-  # Nothing but the model footer may follow the prompt: fresh output under it
-  # means the turn moved on rather than parked.
-  { region = "after(cursor_prompt)", line = { regex = ['\S'], not_regex = ['(?i)^\s*(gpt-|o3|o4)\S*\s.*\s\u{b7}\s'] } },
+# Keep the legacy dialog; the shared picker (0.159+) has a different heading
+# and footer. Choices can scroll out of a short viewport, but both gates must
+# remain visible. The passive update history notice has neither picker footer.
+any = [
+  { all = [
+    { contains = ["Update available!", "Update now"] },
+    { regex = ['Skip\s+until\s+next\s+version', 'Press enter to continue\s*\z'] },
+  ] },
+  { all = [
+    { regex = ['(?m)^\s*Update\s+available\s+·'] },
+    { regex = ['enter\s+continue\s+·\s+esc\s+skip\s*\z'] },
+  ] },
 ]
 
 [[rules]]
-id = "completed_review_prompt"
-state = "idle"
-priority = 620
-region = "after(review_finished)"
+id = "live_strong_blocker"
+state = "waiting"
+priority = 900
+region = "after_last_prompt_marker"
 visible = true
-line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*\S']
+any = [
+  { contains = ["press enter to confirm or esc to cancel"] },
+  { contains = ["enter to submit answer"] },
+  { contains = ["enter to submit all"] },
+  { contains = ["allow command?"] },
+  { contains = ["All Results", "Filesystem Only", "Plugins"] },
+]
+
+[[rules]]
+id = "weak_blocker"
+state = "waiting"
+priority = 600
+region = "whole_recent_without_current_prompt_marker"
+# Sparkles can replace the space after ›. A later response marker makes that prompt stale.
+not = [{ regex = ['(?m)^›[⠁⠂⠄⠈⠐⠠⡀⢀][^\n]*(?:\n(?:[^•■✗✓\n][^\n]*)?)*\z'] }]
+any = [
+  { contains = ["[y/n]"] },
+  { contains = ["yes (y)"] },
+  { contains = ["do you want to"], any = [{ contains = ["yes"] }, { contains = ["❯"] }] },
+  { contains = ["would you like to"], any = [{ contains = ["yes"] }, { contains = ["❯"] }] },
+]
+
+[[rules]]
+id = "screen_working_fallback"
+state = "running"
+priority = 500
+region = "before_current_prompt_marker"
+visible = true
+# Support animated and reduced-motion status, including dynamic activity labels.
+# The interrupt hint can be remapped, unbound, or hidden, and queued inputs can
+# sit below the status. Require the live timer suffix with no later response.
+any = [{ contains = [" to interrupt)"] }, { contains = ["s)"] }]
+regex = ['(?m)^(?:[•◦][ \t]+)?[^\s›•◦■✗✓─][^\r\n]* \((?:[0-9]+[hm] )*[0-9]+s(?: • [^\r\n]+? to interrupt)?\)(?: · [^\r\n]*)?(?:\r?\n(?:[^•◦›■✗✓─\r\n][^\r\n]*|•[ \t]+(?:Queued\s+follow-up\s+inputs|Messages\s+to\s+be\s+submitted\s+after\s+next\s+tool\s+call(?:\s+\(press\s+[^\r\n]+?\s+to\s+interrupt\s+and\s+send\s+immediately\))?|Messages\s+to\s+be\s+submitted\s+at\s+end\s+of\s+turn)|›[⠁⠂⠄⠈⠐⠠⡀⢀][^\r\n]*)?)*\s*\z']
+# A failed reconnect keeps its final elapsed timer but is no longer working.
+not = [{ line_regex = ['^(?:[•◦][ \t]+)?Reconnect failed — check the endpoint, then relaunch \([0-9hms ]+\)$'] }]
+
+[[rules]]
+id = "osc_title_idle"
+state = "idle"
+priority = 100
+region = "osc_title"
+visible = true
+regex = ['\S']
 not = [
-  { line_regex = ['(?i)^\s*(?:•\s*)?(?:esc|ctrl\+c) to interrupt\s*$'] },
-  { line_regex = ['(?i)^\s*[\x{276F}\x{203A}]\s*[1-9]\.'] },
-  { contains_any = ["(y/n)", "[y/n]", "approve", "allow", "continue?", "proceed?", "execute?", "run command?", "enter to select", "esc to cancel"] },
-  # Nothing but the model footer may follow the prompt: fresh output under it
-  # means the turn moved on rather than parked.
-  { region = "after(cursor_prompt)", line = { regex = ['\S'], not_regex = ['(?i)^\s*(gpt-|o3|o4)\S*\s.*\s\u{b7}\s'] } },
+  { regex = ['(?:^| )[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏](?: |$)'] },
+  { contains = ["Action Required"] },
 ]

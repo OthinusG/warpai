@@ -458,6 +458,16 @@ fn adapter(
     }
     cli_adapter(command, executable, bridge, search_paths)
 }
+
+/// Build the same managed adapter for an explicitly selected native remote executable.
+pub(crate) fn remote_installed(program: &str, executable: &Path, bridge: &Path) -> Result<Installed> {
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Home directory unavailable"))?;
+    let search_paths = executable.parent().into_iter().map(Path::to_owned).collect::<Vec<_>>();
+    let adapter = adapter(&home, program, executable, bridge, &search_paths)
+        .ok_or_else(|| anyhow::anyhow!("Native MCP setup is unavailable for this Agent version"))?;
+    Ok(Installed { active: true, program: program.into(), executable: executable.into(), adapter,
+        bridge: bridge.into(), search_paths, launch_options: Default::default() })
+}
 fn cli_adapter(
     command: &str,
     executable: &Path,

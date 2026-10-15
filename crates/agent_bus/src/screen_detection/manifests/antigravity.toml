@@ -1,57 +1,81 @@
+# Adapted from herdrdev/herdr 2f3432c6 (Apache-2.0); see docs/HERDR-NOTICE.md.
 id = "antigravity"
+version = "2026.10.05.1"
+min_engine_version = 1
+updated_at = "2026-10-05T00:00:00Z"
+aliases = ["antigravity", "antigravity-cli"]
 
-# Sign-in is a blocking state of its own: the CLI parks on it before any turn
-# can start, and it renders no prompt shape the approval rules would catch.
+# Evidence: Antigravity CLI 1.2.17 live pane reads, plus reporter captures
+# from 1.1.28 through 1.2.16.
+#
+# Dialogs replace the prompt box and end with a key-hint row directly above
+# the "esc to cancel" footer:
+#   permission: "↑/↓ Navigate · tab Amend · ctrl+g edit/expand command"
+#               "↑/↓ Navigate · tab Amend · f full diff"
+#   question:   "↑/↓ Navigate · enter Select · esc Skip"
+#   trust:      "↑/↓ Navigate · enter Confirm"
+#   slash menu: "↑/↓ Navigate · enter Select · tab Complete" (idle)
+# Some captures hold only the two footer rows, so dialog rules must not
+# require the question text.
+#
+# Working turns draw a braille spinner followed by either an -ing word or a
+# thought summary above the prompt box, and the footer reads "esc to cancel"
+# directly under the prompt box's bottom border. The idle footer reads
+# "? for shortcuts".
+#
+# Background tasks and subagents show "· N task(s)" in the footer and a task
+# panel under the prompt box. Once the agent is back at its prompt they do
+# not count as working.
+
 [[rules]]
-id = "sign_in"
+id = "permission_prompt"
 state = "waiting"
-priority = 980
+priority = 300
+region = "bottom_non_empty_lines(2)"
+visible = true
+contains = ["navigate", "tab amend"]
+
+[[rules]]
+id = "question_prompt"
+state = "waiting"
+priority = 290
+region = "bottom_non_empty_lines(2)"
+visible = true
+contains = ["navigate", "esc skip"]
+
+[[rules]]
+id = "trust_prompt"
+state = "waiting"
+priority = 280
+region = "bottom_non_empty_lines(8)"
+visible = true
+contains = ["do you trust the contents of this project?", "yes, i trust this folder", "enter confirm"]
+
+# Pre-1.1.28 permission dialog.
+[[rules]]
+id = "legacy_permission_prompt"
+state = "waiting"
+priority = 270
 region = "whole_recent"
 visible = true
-contains_any = [
-  "not signed in",
-  "signing in",
-  "authorization url",
-  "authorization code",
-  "google sign-in",
+contains = ["requesting permission for:"]
+any = [
+  { contains = ["do you want to proceed?"] },
+  { contains = ["tab amend", "edit command"] },
 ]
 
 [[rules]]
-id = "approval_required"
-state = "waiting"
-priority = 975
-region = "whole_recent"
+id = "esc_cancel_footer_working"
+state = "running"
+priority = 110
+region = "bottom_non_empty_lines(2)"
 visible = true
-contains_any = ["approval required", "awaiting user approval", "deny access"]
+regex = ['(?m)^\s*─{3,}\s*esc to cancel\b']
 
 [[rules]]
-extends = "approval_prompt"
-id = "approval_prompt"
-priority = 970
-contains_any = [
-  "permission request",
-  "do you trust the contents",
-  "yes, i trust this folder",
-  "execute?",
-  "enter to select",
-  "enter confirm",
-  "esc to cancel",
-]
-
-[[rules]]
-extends = "interrupt_hint"
-id = "interrupt_hint"
-priority = 960
-contains_any = ["esc to interrupt", "ctrl+c to interrupt", "ctrl+c to stop"]
-
-[[rules]]
-extends = "spinner"
-id = "spinner"
-priority = 955
-
-# An activity verb opening a line, with the completion-marker suppression the
-# shared helper applies: `Running tests completed` is a report, not activity.
-[[rules]]
-extends = "activity_line"
-id = "activity_line"
-priority = 950
+id = "spinner_working"
+state = "running"
+priority = 100
+region = "bottom_non_empty_lines(12)"
+visible = true
+line_regex = ['^\s*[\u2801-\u28FF]+\s+\S']

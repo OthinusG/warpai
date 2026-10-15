@@ -74,7 +74,10 @@ $AdditionalLicenses = @(
     @{ Name = 'Windows Terminal'; License = 'MIT'; Path = 'app\assets\windows\LICENSE-WINDOWS-TERMINAL' },
     @{ Name = 'GitHub Desktop'; License = 'MIT'; Path = 'app\src\code_review\GITHUB-DESKTOP-LICENSE' },
     @{ Name = 'Orca usage and lifecycle adapters'; License = 'MIT'; Path = 'docs\ORCA-LICENSE' },
-    @{ Name = 'Agent of Empires screen detector'; License = 'MIT'; Path = 'docs\AGENT-OF-EMPIRES-LICENSE' }
+    @{ Name = 'Agent of Empires screen detector'; License = 'MIT'; Path = 'docs\AGENT-OF-EMPIRES-LICENSE' },
+    @{ Name = 'Herdr agent status manifests'; License = 'Apache-2.0'; Path = 'docs\HERDR-LICENSE' },
+    @{ Name = 'Herdr attribution'; License = 'Apache-2.0'; Path = 'docs\HERDR-NOTICE.md' },
+    @{ Name = 'vt100 terminal parser'; License = 'MIT'; Path = 'docs\VT100-LICENSE' }
 )
 # Windows-only components:
 $AdditionalLicenses += @(

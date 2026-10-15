@@ -1,0 +1,23 @@
+# Native interactive/tool-permission contract: docs.augmentcode.com/cli.
+id = "auggie"
+
+[[rules]]
+id = "permission_choices"
+state = "waiting"
+priority = 300
+region = "bottom_non_empty_lines(12)"
+visible = true
+contains_any = ["allow once", "allow for this session", "deny"]
+regex = ['(?i)(?:approve|permission|allow|confirm).*(?:\?|\[y/n\])']
+
+[[rules]]
+id = "working_spinner"
+extends = "spinner"
+priority = 100
+region = "bottom_non_empty_lines(5)"
+
+[[rules]]
+id = "interrupt_hint"
+extends = "interrupt_hint"
+priority = 110
+region = "bottom_non_empty_lines(5)"

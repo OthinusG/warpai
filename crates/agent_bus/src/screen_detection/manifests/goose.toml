@@ -1,0 +1,24 @@
+# Goose manual/smart approval: aaif-goose/goose managing-tools/goose-permissions.
+id = "goose"
+
+[[rules]]
+id = "permission_choices"
+state = "waiting"
+priority = 300
+region = "bottom_non_empty_lines(12)"
+visible = true
+contains = ["allow", "deny"]
+
+[[rules]]
+id = "confirmation_prompt"
+state = "waiting"
+priority = 290
+region = "bottom_non_empty_lines(5)"
+visible = true
+contains_any = ["[y/n]", "(y/n)", "approve this tool", "security alert"]
+
+[[rules]]
+id = "working_spinner"
+extends = "spinner"
+priority = 100
+region = "bottom_non_empty_lines(5)"

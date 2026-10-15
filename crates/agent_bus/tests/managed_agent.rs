@@ -92,6 +92,7 @@ fn managed_agent_child() {
             break;
         }
         match line.trim_end() {
+            value if value.starts_with("Warpai peer work is waiting (message ") => println!("PEER_NOTIFICATION_RECEIVED"),
             "Unicode 空格;$(never-execute)" => println!("UNICODE_INPUT_VERIFIED"),
             value => {
                 use warp_agent_bus::transport::*;

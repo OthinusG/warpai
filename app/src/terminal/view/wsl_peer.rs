@@ -36,6 +36,7 @@ pub(super) struct State {
     observed_run: Option<String>,
     unavailable: bool,
     configuration_generation: u64,
+    sampled_screen: Option<(String, Option<std::time::Instant>, Option<std::time::Instant>)>,
 }
 
 impl State {
@@ -54,6 +55,7 @@ impl State {
         self.submitted = false;
         self.cancelled = false;
         self.unavailable = false;
+        self.sampled_screen = None;
     }
     fn select_configuration(&mut self, generation: u64) {
         if self.configuration_generation == generation { return; }
@@ -62,6 +64,7 @@ impl State {
         self.busy = false;
         self.attempted = None;
         self.unavailable = false;
+        self.sampled_screen = None;
         self.epoch = self.epoch.wrapping_add(1);
     }
     pub(super) fn user_input(&mut self, bytes: &[u8]) {
@@ -259,13 +262,15 @@ impl TerminalView {
                 _ => Some(false),
             });
         let epoch = self.wsl_peer.epoch;
-        let screen_activity = CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).and_then(|session| {
-            let quiet = self.wsl_peer.output?.elapsed().min(self.wsl_peer.input?.elapsed());
-            let (screen, cursor) = self.model.lock().agent_screen();
-            warp_agent_bus::screen_detection::activity_at_cursor(session.agent.command_prefix(),
-                &screen, &self.terminal_title, quiet, cursor)
-        });
-        let action = NativeAction::Observe {
+        let screen_key = self.wsl_peer.observed_run.as_ref().map(|run|
+            (run.clone(), self.wsl_peer.input, self.wsl_peer.output));
+        let screen = screen_key.as_ref().filter(|key| Some(*key) != self.wsl_peer.sampled_screen.as_ref())
+            .and_then(|_| CLIAgentSessionsModel::as_ref(ctx).session(self.view_id))
+            .map(|session| (session.agent.command_prefix().to_owned(), self.model.clone(), self.terminal_title.clone()));
+        let output_evidence = self.wsl_peer.output;
+        let quiet = self.wsl_peer.output.zip(self.wsl_peer.input)
+            .map(|(output, input)| output.elapsed().min(input.elapsed())).unwrap_or_default();
+        let mut action = NativeAction::Observe {
             // The host owns clearing; older guest services still block when this flag is true.
             draft: false,
             blocked,
@@ -274,7 +279,7 @@ impl TerminalView {
             cancelled: self.wsl_peer.cancelled,
             native_ready,
             screen_run: self.wsl_peer.observed_run.clone(),
-            screen_activity,
+            screen_activity: None,
         };
         self.wsl_peer.busy = true;
         self.wsl_peer.attempted = Some(std::time::Instant::now());
@@ -295,27 +300,49 @@ impl TerminalView {
                         .map_err(|_| anyhow::anyhow!("WSL service unavailable"))?))
                 }
             };
+            let sampled = if let Some((program, terminal, title)) = screen {
+                let capture = tokio::task::spawn_blocking(move || {
+                    let terminal = terminal.try_lock()?;
+                    let (screen, cursor) = terminal.agent_screen();
+                    Some(warp_agent_bus::screen_detection::activity_with_progress(&program,
+                        &screen, &title, terminal.agent_progress(), quiet, cursor))
+                }).await?;
+                let activity = capture.flatten();
+                if let NativeAction::Observe { screen_activity, .. } = &mut action { *screen_activity = activity; }
+                capture.is_some() && (activity.is_some() || quiet >= Duration::from_millis(700))
+            } else { false };
             let state = request(&client, selected.shell_pid, action).await?;
             let state = match state {
                 Some(state) if state.wake.is_some() => request(&client, selected.shell_pid,
                     NativeAction::Claim { wake: state.wake.unwrap() }).await?,
                 state => state,
             };
-            Ok::<_, anyhow::Error>((client, state))
+            Ok::<_, anyhow::Error>((client, state, sampled))
         }, move |view, result, ctx| {
             if view.wsl_peer.context.as_ref() != Some(&context) || view.wsl_peer.configuration_generation != configuration_generation { return; }
-            let (client, mut state) = match result {
+            let (client, mut state, sampled) = match result {
                 Ok(value) => value,
                 Err(_) => { view.wsl_peer.client = None; view.wsl_peer.busy = false; view.wsl_peer.unavailable = true; return; }
             };
             view.wsl_peer.client = Some(client.clone());
+            let fresh_output = view.wsl_peer.output == output_evidence;
+            if sampled && fresh_output && view.wsl_peer.epoch == epoch {
+                view.wsl_peer.sampled_screen = screen_key;
+            }
             if view.wsl_peer.epoch == epoch {
                 view.wsl_peer.submitted = false;
                 view.wsl_peer.cancelled = false;
-            } else if let Some(state) = &mut state { state.activity = None; }
+            }
+            if (!fresh_output || view.wsl_peer.epoch != epoch) && state.is_some() {
+                state.as_mut().unwrap().activity = None;
+            }
             view.observe_wsl_agent(&context, state.as_ref(), ctx);
             let Some(state) = state else { view.wsl_peer.busy = false; return; };
             let Some(wake) = state.wake.filter(|_| state.valid) else { view.wsl_peer.busy = false; return; };
+            if !fresh_output {
+                view.finish_wsl_wake(client, context, wake, false, ctx);
+                return;
+            }
             let agent = CLIAgentSessionsModel::as_ref(ctx).session(view.view_id).map(|session| session.agent)
                 .filter(|agent| agent.command_prefix() == state.program || *agent == CLIAgent::Unknown);
             if uuid::Uuid::parse_str(&wake.message_id).is_err() || agent.is_none()
