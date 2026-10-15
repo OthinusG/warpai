@@ -18,6 +18,21 @@ Coordinator-only. Busy queues preserve arrival order across all three transports
 Native notification submission is not handling: wake selection skips previously
 submitted messages, while inbox/wait retains unacknowledged history for recovery.
 
+## Native state and connection separation (2026-10-15)
+
+Local, native WSL and Companion-owned SSH PTYs share screen classification.
+Herdr Blocked maps to existing WaitingApproval/WaitingInput activities. It retains
+registration, account/run authority and MCP inbox access; only automatic native
+input is gated. Queued messages retain their IDs, task associations and ordering.
+Returning to Idle permits guarded delivery; neither transition acknowledges a
+message, completes a task, retries an attempt or grants permission.
+
+Native screen captures remain memory-only. Changed evidence is classified off
+the desktop UI executor; stable input/output/run stamps reuse prior observations.
+Empty queues may be reused against the Broker mutation revision. Pending work and
+forwarded Stores retain settling, lease, cancellation and exact-run validation.
+No operation fields or protocol majors change.
+
 ## Native WSL terminal delivery
 
 Windows and the opt-in Linux WSL service support `GuestNative` on the existing
@@ -28,11 +43,16 @@ run. `NativeState` contains run/program and a serialized Broker wake claim.
 Observe carries only edit epochs, draft/approval flags and optional native
 readiness. Services advertising `native_screen_activity` additionally accept
 optional `screen_run` and `screen_activity`. The exact run must match before any
-input/guard mutation; no screen text is transferred. A fenced observation returns
+input/guard mutation; no screen text is transferred. Since Companion 5.3.0, a
+stale Observe can return current identity/activity with valid=false and no wake,
+without applying old evidence or edit epochs. Claim/Validate/Finish with a stale
+terminal or run still fail with ManagedStaleAttachment. A fenced observation returns
 optional `activity` and unacknowledged `pending_work` in NativeState. Older hosts omit the fields and receive the
 original response shape; newer hosts omit them when the capability is absent.
-Only derived positive ready/busy/permission evidence can reconcile state; unknown
-chrome and output silence do not grant readiness. Submitted/cancelled edit epochs
+Known Agent screens follow the owner-approved Herdr policy: after the native
+quiet window, no matching rule defaults to Idle. Matching approval/question
+rules prevent native submission; recognized viewers retain the prior state.
+Unknown custom clients retain existing lifecycle evidence. Submitted/cancelled edit epochs
 veto the same sample; host edits fence response projection and wake submission. Native draft presence does not block a queued wake; the owner authorizes
 clearing unsent native input at the idle prompt before task submission. Composer
 drafts stay in the app. Clearing never grants readiness or bypasses an input epoch,

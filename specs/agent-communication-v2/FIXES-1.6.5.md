@@ -72,3 +72,7 @@ continues to use guest preferences and verified foreground process ancestry.
 
 Initial cloud validation from b8b6fad9: communication 38660923047; Companion
 38660926339. Results and later source-matched acceptance remain pending.
+
+Latest complete validation source: 4949fa55; communication run 38662737160,
+Companion run 38662740880. Hourly monitoring begins from the latest dispatch;
+source-matched results, capture review and immutable publication remain pending.
