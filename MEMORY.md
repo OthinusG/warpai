@@ -8,8 +8,9 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Rust builds/native acceptance run on GitHub; reuse caches.
   Local syntax/scripts allowed; no personal install/config changes.
 - Monitor cloud runs hourly until done; do not end at dispatch.
-  Owner errors allow immediate diagnosis; full source-matched acceptance gates delivery.
-- 1.6.5 cloud repairs pending protocol/native acceptance. Avoid WSL model reentry.
+  Owner errors allow immediate diagnosis; full acceptance gates delivery.
+- 1.6.5 source 9cc8d0b2 passed desktop/WSL and Companion acceptance.
+  Runs: 38667669349 / 38667672552. Formal publication requested; pending.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
@@ -156,8 +157,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - 1.6.5 work follows Herdr 2f3432c6 manifests (Apache-2.0): owner approved known
   Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
   connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.
-  Companion 5.3.0 required; acceptance/publication pending.
-  FIXES-1.6.5.md records CI repairs; PTYs use memory-only vt100 capture.
+  Companion 5.3.0 required; publication pending.
+  CI repairs: FIXES-1.6.5.md; PTYs use memory-only vt100 capture.
   WSL caches positive native-file proofs; replacements/failures recheck.
 - Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
   fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
@@ -172,10 +173,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Pane tests cover Explorer, Review, Communication and previews.
 - Native bindings register before deferred MCP tools; readiness stays separate.
   MCP/sidebar/keep awake share activity; focus never acknowledges work.
-- Native draft/slash/error acceptance is pending. Shared context/task contracts:
+- Native draft/slash/error acceptance passed. Shared context/task contracts:
   CONTEXT-RESOURCES.md; keep project/version/digest fences and public guards.
 - Audit 18/21/22: task-anchored native threads, bootstrap and reviewed memory;
-  PROJECT-MEMORY.md. Defer 19/20/23–30; no fixed leader. Core/Mac UI pass; WSL pending.
+  PROJECT-MEMORY.md. Defer 19/20/23–30; no fixed leader. Desktop/WSL gates pass.
 
 ## Memory maintenance
 

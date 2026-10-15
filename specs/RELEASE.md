@@ -13,7 +13,18 @@ and all three Companion platforms before immutable v1.6.5 publication. Reuse the
 existing release workflows, preserving installer/provenance/runtime/checksum gates.
 Monitor hourly; resolve actual failures before verifying all five public installers,
 both checksum files and website download links. No personal installation/configuration
-changes or local Rust builds. Acceptance and publication are pending.
+changes or local Rust builds.
+
+Acceptance: source `9cc8d0b25baa9f6258fa8b3098a09767b8dadc41` passed complete
+macOS/Windows protocol, application builds, native UI and real WSL gates in
+[38667669349](https://github.com/OthinusG/warpai/actions/runs/38667669349).
+Native capture diagnostics report exit 0 with no failed steps/assertions: 984
+macOS PNGs and 1011 Windows PNGs. Reviewed representative participant/worktree
+views in English, Simplified Chinese and Traditional Chinese, plus live WSL.
+All three Companion platforms passed
+[38667672552](https://github.com/OthinusG/warpai/actions/runs/38667672552).
+The owner explicitly requested triggering the formal 1.6.5 publication workflow
+on 2026-10-15 after these gates passed. Publication remains pending.
 
 ## 2026-10-14 direct 1.6.4 / Companion 5.2.0 publication
 
