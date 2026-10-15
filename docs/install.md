@@ -19,6 +19,10 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
 ### 1. macOS (Apple Silicon)
 
 - **System Requirements**: macOS 11.0 (Big Sur) or newer; Apple Silicon (M1/M2/M3/M4).
+- **Homebrew Cask (Tap)**:
+  ```bash
+  brew install --cask OthinusG/tap/warpai
+  ```
 - **Direct Download**:
   - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg)
 

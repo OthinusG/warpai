@@ -20,6 +20,10 @@ Warpai 是一款基于 Rust 构建的高性能纯原生桌面应用程序，专�
 ### 1. macOS (Apple 芯片)
 
 - **系统要求**：macOS 11.0 (Big Sur) 或更高版本；Apple 芯片（M1 / M2 / M3 / M4 系列）。
+- **Homebrew Cask (Tap 源)**：
+  ```bash
+  brew install --cask OthinusG/tap/warpai
+  ```
 - **安装包直链**：
   - [下载 Warpai macOS 版 (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg)
 
