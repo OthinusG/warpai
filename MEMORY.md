@@ -6,7 +6,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance run on GitHub; reuse caches.
-  Local Rustfmt/diff/script checks allowed; no personal install or Agent/SSH
+  Local Rustfmt/script checks allowed; no personal install or Agent/SSH
   configuration changes.
 - Monitor cloud runs hourly until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched

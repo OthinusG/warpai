@@ -77,3 +77,16 @@ Initial cloud validation from b8b6fad9: communication 38660923047; Companion
 Latest complete validation source: 4949fa55; communication run 38662737160,
 Companion run 38662740880. Hourly monitoring begins from the latest dispatch;
 source-matched results, capture review and immutable publication remain pending.
+
+## CI diagnosis and fix plan (2026-10-15)
+
+Owner requested immediate failure inspection. Both runs on 4949fa55 failed before
+native acceptance: E0277 at screen_detection/region.rs (str versus &str), and
+Unix test E0412/missing json macro in companion_tasks.rs. Shared control-wire
+checks and clippy passed on all three Companion platforms.
+
+Use fix-errors: correct the extra dereference, import JSON types/macros in the
+isolated setup test, and inspect new sibling-module test field/macro access.
+Keep prior pending queue/deadline repairs. Verify syntax/diff/local scripts, then
+rerun the existing complete desktop and Companion workflows on the repaired source.
+No local Rust build, personal configuration change or release gate bypass.

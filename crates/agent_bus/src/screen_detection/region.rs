@@ -219,7 +219,7 @@ impl<'a> Screen<'a> {
             Region::WholeRecent => self.joined(),
             Region::TopLines(n) => return std::borrow::Cow::Owned(self.recent[..n.min(self.recent.len())].join("\n")),
             Region::AfterLastPrompt | Region::BeforeCurrentPrompt | Region::WithoutCurrentPrompt => {
-                let prompt = self.recent.iter().rposition(|line| **line == "›" || line.starts_with("› "));
+                let prompt = self.recent.iter().rposition(|line| *line == "›" || line.starts_with("› "));
                 let current = prompt.filter(|index| !self.recent[index + 1..].iter().any(|line|
                     line.starts_with(['•', '■', '✗', '✓'])));
                 return std::borrow::Cow::Owned(match region {

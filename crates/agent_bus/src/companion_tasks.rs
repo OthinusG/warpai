@@ -95,6 +95,7 @@ mod tests {
     #[cfg(all(unix, not(feature = "wsl_companion")))]
     #[test]
     fn explicit_remote_mcp_setup_preserves_unrelated_servers_and_rejects_name_collisions() {
+        use serde_json::{json, Value};
         const FIXTURE: &str = "WARPAI_TEST_REMOTE_SETUP_ROOT";
         let Some(root) = std::env::var_os(FIXTURE).map(PathBuf::from) else {
             let directory = tempfile::tempdir().unwrap();

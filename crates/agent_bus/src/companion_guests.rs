@@ -546,7 +546,7 @@ mod tests {
         assert_eq!(replacement.run, first.run);
         assert!(!replacement.valid && replacement.wake.is_none());
         assert_eq!(projects.guests.runs.lock().unwrap()[&pid].input_epoch, Some(1));
-        let stale_wake: crate::transport::Wake = serde_json::from_value(json!({
+        let stale_wake: crate::transport::Wake = serde_json::from_value(serde_json::json!({
             "terminal":first.terminal, "run":Uuid::new_v4().to_string(),
             "message_id":Uuid::new_v4().to_string(), "generation":0, "task_id":null, "revision":null,
         })).unwrap();

@@ -16,11 +16,11 @@ Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.6.4](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.6.5](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.6.4-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.6.4)
+[![Release](https://img.shields.io/badge/release-1.6.5-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -230,7 +230,7 @@ projects use a matching Warpai companion on the remote host.
 
 ## Get Warpai
 
-**[Warpai 1.6.4](https://github.com/OthinusG/warpai/releases/tag/v1.6.4)** brings
+**[Warpai 1.6.5](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)** brings
 Agent coordination, file management, in-app editing and previews to
 your local and SSH projects, with native WSL 2 workspaces on Windows.
 
@@ -241,8 +241,8 @@ retain recovery sources and preserve values already stored in the new folder.
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.4/Warpai-1.6.4-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiSetup-1.6.4-windows-x64.exe) | Run the installer. |
+| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
+| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiSetup-1.6.5-windows-x64.exe) | Run the installer. |
 
 The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
 launch, use **System Settings > Privacy & Security > Open Anyway** after checking
@@ -256,7 +256,7 @@ Install the downloaded package using the instructions above.
 
 ### Remote companion
 
-**Warpai Companion 5.2.0** provides the remote workspace on your Linux, macOS or
+**Warpai Companion 5.3.0** provides the remote workspace on your Linux, macOS or
 Windows machine, including its private Git runtime. Warpai's remote file, Review and
 Agent communication infrastructure requires no separate Git, Python, Node, tmux
 or socat installation. Vendor Agents retain their own requirements. Companion
@@ -269,9 +269,9 @@ See [feature dependencies](docs/FEATURE-DEPENDENCIES.md) for SSH/WSL requirement
 
 | Remote host | Package |
 | --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-linux-x64.run) |
-| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.6.4/WarpaiCompanion-5.2.0-windows-x64-setup.exe) |
+| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-linux-x64.run) |
+| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-macos-arm64.dmg) |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-windows-x64-setup.exe) |
 
 ## Local by design
 

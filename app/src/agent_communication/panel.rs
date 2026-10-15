@@ -4215,12 +4215,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_action(|app, window, _| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     panel.update(app, |panel, ctx| panel.handle_action(
-                        &Action::CopyAgentName("Agent 名称 with spaces".into()), ctx));
+                        &Action::CopyAgentName("agent-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-1234".into()), ctx));
                 })
                 .add_named_assertion("full name uses the native plain-text clipboard", |app, window| {
                     let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                     let copied = panel.update(app, |_, ctx| ctx.clipboard().read());
-                    warpui::async_assert!(copied.plain_text == "Agent 名称 with spaces"
+                    warpui::async_assert!(copied.plain_text == "agent-abcdefghijklmnopqrstuvwxyz-abcdefghijklmnopqrstuvwxyz-1234"
                         && copied.paths.is_none() && copied.html.is_none() && copied.images.is_none()
                         && checkpoint_draft(app, window) == "unsent collaboration draft")
                 }),
