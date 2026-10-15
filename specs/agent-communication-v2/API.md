@@ -41,8 +41,11 @@ contains a confirmed Linux shell PID and observe/claim/validate/finish action.
 The service matches canonical checkout, shell/Agent PID start times and exact
 run. `NativeState` contains run/program and a serialized Broker wake claim.
 Observe carries only edit epochs, draft/approval flags and optional native
-readiness. Services advertising `native_screen_activity` additionally accept
-optional `screen_run` and `screen_activity`. The exact run must match before any
+readiness. Native readiness false plus a blocked flag projects WaitingApproval;
+false without a blocker projects Working. Blocker changes update lifecycle even
+when readiness is unchanged, retaining the original MCP run and pending work.
+Services advertising `native_screen_activity` additionally accept optional
+`screen_run` and `screen_activity`. The exact run must match before any
 input/guard mutation; no screen text is transferred. Since Companion 5.3.0, a
 stale Observe can return current identity/activity with valid=false and no wake,
 without applying old evidence or edit epochs. Claim/Validate/Finish with a stale

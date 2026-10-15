@@ -117,3 +117,9 @@ device/inode, change/modification nanoseconds and size. Replacements invalidate
 the proof; failed probes remain retryable, preferences and ancestry/run checks
 remain live. Add a replacement/failure-recovery regression and run Linux guest,
 WSL setup and process-isolation tests in the existing Companion workflow.
+
+WSL lifecycle review found readiness=false conflated native approval waits with
+Working. Project the existing readiness/blocked fields into an Activity and retain
+that value for change detection, so Blocked/Working transitions cannot overwrite
+the sidebar or open an approval gate. Repeated blockers keep the original MCP run;
+add blocked/repeat/working/idle coverage to the existing live guest binding test.

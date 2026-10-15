@@ -111,7 +111,7 @@ struct Guest {
     shell: u32,
     shell_started: u64,
     input_epoch: Option<u64>,
-    native_ready: Option<bool>,
+    native_activity: Option<crate::readiness::Activity>,
     root: PathBuf,
     program: String,
     run: String,
@@ -222,9 +222,13 @@ impl Guests {
                 }
                 guest.input_epoch = Some(input_epoch);
                 broker.input_guard(terminal, draft, blocked);
-                if native_ready.is_some() && native_ready != guest.native_ready {
-                    broker.readiness(terminal, native_ready == Some(true));
-                    guest.native_ready = native_ready;
+                let native_activity = native_ready.map(|ready| {
+                    use crate::readiness::Activity;
+                    if ready { Activity::Idle } else if blocked { Activity::WaitingApproval } else { Activity::Working }
+                });
+                if let Some(activity) = native_activity.filter(|_| native_activity != guest.native_activity) {
+                    broker.activity(terminal, activity);
+                    guest.native_activity = Some(activity);
                 }
                 if screen_run.is_some() {
                     if !submitted && !cancelled {
@@ -321,7 +325,7 @@ impl Guests {
                     shell: owner.parent,
                     shell_started: shell.started,
                     input_epoch: None,
-                    native_ready: None,
+                    native_activity: None,
                     root,
                     program: program.into(),
                     run,
@@ -561,7 +565,22 @@ mod tests {
         if let crate::wsl_setup::NativeAction::Observe { screen_run, .. } = &mut modern.action {
             *screen_run = Some(first.run.clone());
         }
-        assert!(projects.guests.native(project.path(), modern).unwrap().unwrap().activity.is_some());
+        assert!(projects.guests.native(project.path(), modern.clone()).unwrap().unwrap().activity.is_some());
+        for (blocked, ready, expected) in [
+            (true, false, crate::readiness::Activity::WaitingApproval),
+            (true, false, crate::readiness::Activity::WaitingApproval),
+            (false, false, crate::readiness::Activity::Working),
+            (false, true, crate::readiness::Activity::Idle),
+        ] {
+            if let crate::wsl_setup::NativeAction::Observe { blocked: flag, native_ready, .. } = &mut modern.action {
+                *flag = blocked;
+                *native_ready = Some(ready);
+            }
+            let state = projects.guests.native(project.path(), modern.clone()).unwrap().unwrap();
+            assert_eq!(state.activity, Some(expected), "hook blockers must survive readiness projection");
+            assert_eq!(state.run, first.run, "blocking does not disconnect or replace the native MCP run");
+            assert!(state.wake.is_none());
+        }
         assert!(projects
             .guests
             .native(project.path(), observe(peer))

@@ -6,11 +6,9 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance run on GitHub; reuse caches.
-  Local Rustfmt/script checks allowed; no personal install or Agent/SSH
-  configuration changes.
+  Local syntax/scripts allowed; no personal install/config changes.
 - Monitor cloud runs hourly until done; do not end at dispatch.
-  Owner errors allow immediate diagnosis. Focus retries, then full source-matched
-  acceptance before delivery. Packaging waits until debug validation passes.
+  Owner errors allow immediate diagnosis; full source-matched acceptance gates delivery.
 - 1.6.5 cloud repairs pending protocol/native acceptance. Avoid WSL model reentry.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
