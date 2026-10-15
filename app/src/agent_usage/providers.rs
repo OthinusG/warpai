@@ -100,10 +100,19 @@ pub(crate) struct Window {
 }
 impl Window {
     pub(crate) fn is_5h(&self) -> bool {
-        self.name.split(" · ").any(|part| matches!(part.to_ascii_lowercase().as_str(), "5h" | "5 hour" | "5 hours" | "5-hour"))
+        self.name.split(" · ").any(|part| {
+            let part = part.to_ascii_lowercase();
+            matches!(part.as_str(), "5h" | "5 hour" | "5 hours" | "5-hour")
+                || part.starts_with("five hour")
+        })
     }
     fn is_weekly(&self) -> bool {
-        self.name.split(" · ").any(|part| matches!(part.to_ascii_lowercase().as_str(), "weekly" | "week" | "7d" | "7 days"))
+        self.name.split(" · ").any(|part| {
+            let part = part.to_ascii_lowercase();
+            matches!(part.as_str(), "weekly" | "week" | "7d" | "7 days")
+                || part.starts_with("weekly ")
+                || part.starts_with("week ")
+        })
     }
 }
 #[derive(Clone, Default, Debug)]
@@ -616,6 +625,43 @@ mod tests {
         assert_eq!(weekly_only.visible_windows(Provider::Antigravity, false).len(), 1);
         assert_eq!(reading.visible_windows(Provider::Claude, true).len(), 2);
         assert_eq!(reading.visible_windows(Provider::Claude, false).len(), 2);
+    }
+
+    #[test]
+    fn provider_window_labels_accept_descriptive_period_names() {
+        let reading = parse(Provider::Antigravity, &json!({
+            "status":"SUCCESS",
+            "num_turns":0,
+            "conversation_id":"",
+            "command":{"name":"usage","data":{"groups":[
+                {"name":"Gemini Models","buckets":[
+                    {"name":"Weekly Limit Remaining","remaining_fraction":0.989},
+                    {"name":"Five Hour Limit Remaining","remaining_fraction":0.984}
+                ]},
+                {"name":"Claude and GPT models","buckets":[
+                    {"name":"Weekly Limit Remaining","remaining_fraction":1.0},
+                    {"name":"Five Hour Limit Remaining","remaining_fraction":1.0}
+                ]}
+            ]}}
+        })).unwrap();
+
+        for detect_5h in [true, false] {
+            let windows = reading.visible_windows(Provider::Antigravity, detect_5h);
+            assert_eq!(windows.len(), 2);
+            assert!(windows.iter().all(|window| {
+                if detect_5h { window.name.contains("Five Hour") }
+                else { window.name.contains("Weekly") }
+            }));
+        }
+
+        let claude = Reading { windows: vec![
+            Window { name: "Five Hour Limit Remaining".into(), used: 8., reset: None },
+            Window { name: "Weekly Limit Remaining".into(), used: 1., reset: None },
+        ], balance: None };
+        assert_eq!(claude.visible_windows(Provider::Claude, true).len(), 1);
+        assert_eq!(claude.visible_windows(Provider::Claude, true)[0].used, 8.);
+        assert_eq!(claude.visible_windows(Provider::Claude, false).len(), 1);
+        assert_eq!(claude.visible_windows(Provider::Claude, false)[0].used, 1.);
     }
 
     #[test]
