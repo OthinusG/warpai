@@ -2354,6 +2354,7 @@ impl CollaborationPanel {
                     "run":"sample-run","online":true,"activity":"idle","draft":"empty","blocked":false,"paused":false,"ready":true,"readiness_source":"native"})).unwrap());
                 snapshot.candidates.push(WorktreeCandidate { agent:snapshot.agents.last().unwrap().agent.clone(), run:"sample-run".into(), root:checkout.clone(), branch:Some(branch.clone()) });
                 self.agent_task_buttons.entry(id.clone()).or_default();
+                self.name_buttons.entry(id.clone()).or_default();
                 snapshot.roles.push(WorktreeRole { agent:id, role:if index == 0 { "coordinator" } else { "worker" }.into(), root:checkout.clone(), run:Some("sample-run".into()) });
                 self.checkout_buttons.entry(checkout.clone()).or_default();
                 snapshot.worktrees.push(WorktreeCheckout { root:checkout, branch:Some(branch) });

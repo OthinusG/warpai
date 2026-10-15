@@ -774,11 +774,13 @@ impl Broker {
     #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
     pub fn native_input(&self, terminal: &str, submitted: bool, cancelled: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.native_input(terminal, submitted, cancelled); return; }
+        let mut lifecycle_changed = false;
         if let Ok(mut state) = self.shared.state.lock() {
             let mut observation = None;
             if let Some(live) = state.terminals.get_mut(terminal).and_then(|binding| binding.live.as_mut()) {
                 let next_activity = if cancelled { Activity::Cancelled } else if submitted { Activity::Working } else { live.activity };
                 if live.activity != next_activity {
+                    lifecycle_changed = true;
                     observation = live.agent.clone().map(|actor| (actor, live.run.clone(), next_activity, live.blocked));
                 }
                 live.generation += 1;
@@ -793,7 +795,7 @@ impl Broker {
                     .unwrap_or_else(|_| eprintln!("Warpai: task observation persistence unavailable"));
             }
         }
-        self.shared.notify_change();
+        if lifecycle_changed { self.shared.notify_change(); }
     }
     pub fn output(&self, terminal: &str) {
         if let Some(broker) = self.forwarded(terminal) { broker.output(terminal); return; }

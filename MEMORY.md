@@ -6,13 +6,13 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance run on GitHub; reuse caches.
-  Local Rustfmt/diff/script checks allowed; no personal installation or Agent/SSH
+  Local Rustfmt/diff/script checks allowed; no personal install or Agent/SSH
   configuration changes.
 - Monitor cloud runs hourly until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
 - Protocol passed; native UI still gates release. Avoid WSL model reentry.
-- Public dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
+- Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
 - Release immutable tags through existing workflows; both desktops build the same
@@ -158,7 +158,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - 1.6.5 work follows Herdr 2f3432c6 manifests (Apache-2.0): owner approved known
   Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
   connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.
-  Shared changes require Companion 5.3.0; acceptance/publication are pending.
+  Companion 5.3.0 required; acceptance/publication pending.
   Repair contract: FIXES-1.6.5.md; Companion PTYs use memory-only vt100 capture.
 - Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
   fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
