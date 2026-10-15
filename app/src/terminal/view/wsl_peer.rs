@@ -254,7 +254,8 @@ impl TerminalView {
         let (_, blocked) = self.peer_input_guard(ctx);
         let native_ready = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
-            .filter(|session| session.listener.is_some() && crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(&session.agent))
+            .filter(|session| session.listener.is_some() && session.plugin_version.is_some()
+                && crate::terminal::cli_agent_sessions::listener::agent_supports_rich_status(&session.agent))
             .and_then(|session| match session.status {
                 crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Success
                     | crate::terminal::cli_agent_sessions::CLIAgentSessionStatus::Idle => Some(true),

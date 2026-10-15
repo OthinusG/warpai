@@ -446,6 +446,27 @@ mod tests {
     }
 
     #[test]
+    fn full_lifecycle_hooks_keep_authority_over_screen_fallbacks() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("hook-authority.sqlite")).unwrap();
+        let broker = &owner.broker;
+        for program in ["pi", "omp", "opencode"] {
+            let terminal = id();
+            broker.prepare(&terminal).unwrap();
+            broker.activate_project(&terminal, program, root.to_str().unwrap(), false).unwrap();
+            for authoritative in [Activity::Working, Activity::WaitingApproval, Activity::Idle] {
+                broker.activity(&terminal, authoritative);
+                let context = broker.screen_context(&terminal).unwrap();
+                assert!(broker.observe_screen(&terminal, &context, authoritative));
+                let guess = if authoritative.is_idle() { Activity::Working } else { Activity::Idle };
+                assert!(!broker.observe_screen(&terminal, &context, guess));
+                assert_eq!(broker.terminal_activity(&terminal), Some(authoritative));
+            }
+        }
+    }
+
+    #[test]
     fn blocked_native_sessions_keep_mcp_connected_and_resume_original_queued_work() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

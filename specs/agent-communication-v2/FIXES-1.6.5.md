@@ -90,3 +90,12 @@ isolated setup test, and inspect new sibling-module test field/macro access.
 Keep prior pending queue/deadline repairs. Verify syntax/diff/local scripts, then
 rerun the existing complete desktop and Companion workflows on the repaired source.
 No local Rust build, personal configuration change or release gate bypass.
+
+Native lifecycle events retain Herdr's full authority for Pi/OMP/OpenCode when
+available. A screen fallback cannot overwrite their explicit Working/Blocked/Idle
+state; clients without active native lifecycle evidence still use shared screen
+rules and known-Agent Idle fallback. Add a regression for this priority.
+
+WSL only reports hook readiness after a confirmed plugin SessionStart/version;
+a listener allocated from a command name must not feed screen-inferred state back
+as full lifecycle authority. Unconfirmed clients continue native screen matching.

@@ -612,6 +612,10 @@ impl Broker {
         let Some(live) = binding.live.as_mut() else { return false; };
         if live.expired || live.run != context.run || live.generation != context.generation
             || live.last_output != context.output || live.last_input != context.input || live.observed != context.observed { return false; }
+        // Herdr treats these integrations' native lifecycle as authoritative over screen guesses.
+        if live.readiness_source == "native" && matches!(live.program.as_str(), "pi" | "omp" | "opencode") {
+            return live.activity == activity;
+        }
         // Stable samples must preserve the idle lease and any in-flight wake.
         if live.activity == activity && live.native_activity == Some(activity) { return true; }
         if activity.is_idle() && context.quiet() < Duration::from_millis(700) { return false; }
