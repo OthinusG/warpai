@@ -11,7 +11,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Monitor cloud runs hourly until done; do not end at dispatch.
   Owner errors allow immediate diagnosis. Focus retries, then full source-matched
   acceptance before delivery. Packaging waits until debug validation passes.
-- Protocol passed; native UI still gates release. Avoid WSL model reentry.
+- 1.6.5 cloud repairs pending protocol/native acceptance. Avoid WSL model reentry.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Retain four workflows.
@@ -159,7 +159,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
   connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.
   Companion 5.3.0 required; acceptance/publication pending.
-  Repair contract: FIXES-1.6.5.md; Companion PTYs use memory-only vt100 capture.
+  FIXES-1.6.5.md records CI repairs; PTYs use memory-only vt100 capture.
+  WSL caches positive native-file proofs; replacements/failures recheck.
 - Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
   fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
 - SSH/WSL install/call/uninstall use `.config/warpai`; Windows installers must not
