@@ -87,10 +87,36 @@ pub(crate) fn native_executable(path: &std::path::Path) -> bool {
     let Ok(path) = path.canonicalize() else { return false; };
     // Non-WSL Linux fixtures have no imported Windows drives.
     if !std::path::Path::new("/usr/bin/wslpath").is_file() { return true; }
-    let Ok(output) = std::process::Command::new("/usr/bin/wslpath")
-        .arg("-w").arg(path).output() else { return false; };
-    output.status.success() && output.stdout.len() <= 16384
-        && native_windows_translation(&output.stdout)
+    let inspect = |path: &std::path::Path| {
+        let Ok(output) = std::process::Command::new("/usr/bin/wslpath")
+            .arg("-w").arg(path).output() else { return false; };
+        output.status.success() && output.stdout.len() <= 16384
+            && native_windows_translation(&output.stdout)
+    };
+    #[cfg(target_os = "linux")]
+    { cached_native_executable(&path, inspect) }
+    #[cfg(not(target_os = "linux"))]
+    { inspect(&path) }
+}
+
+#[cfg(target_os = "linux")]
+fn cached_native_executable(path: &std::path::Path, inspect: impl FnOnce(&std::path::Path) -> bool) -> bool {
+    use std::{collections::HashMap, os::unix::fs::MetadataExt, sync::{Mutex, OnceLock}};
+    type Stamp = (u64, u64, i64, i64, i64, i64, u64);
+    static VERIFIED: OnceLock<Mutex<HashMap<std::path::PathBuf, Stamp>>> = OnceLock::new();
+    let Ok(metadata) = path.metadata() else { return false; };
+    if !metadata.is_file() { return false; }
+    let stamp = (metadata.dev(), metadata.ino(), metadata.mtime(), metadata.mtime_nsec(),
+        metadata.ctime(), metadata.ctime_nsec(), metadata.len());
+    let verified = VERIFIED.get_or_init(Default::default);
+    if verified.lock().is_ok_and(|cache| cache.get(path) == Some(&stamp)) { return true; }
+    if !inspect(path) { return false; }
+    // Reuse only positive proofs of unchanged native files; failures remain retryable.
+    if let Ok(mut cache) = verified.lock() {
+        if cache.len() >= 256 { cache.clear(); }
+        cache.insert(path.to_owned(), stamp);
+    }
+    true
 }
 
 #[cfg(any(test, all(feature = "wsl_companion", target_os = "linux")))]
@@ -442,6 +468,28 @@ fn apply_action(
 
 #[cfg(all(test, feature = "wsl_companion", target_os = "linux"))]
 mod tests {
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn native_executable_proofs_skip_repeated_processes_but_recheck_replacements_and_failures() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("agent");
+        std::fs::write(&executable, "native").unwrap();
+        let probes = std::cell::Cell::new(0);
+        let inspect = |_: &std::path::Path| { probes.set(probes.get() + 1); true };
+        assert!(super::cached_native_executable(&executable, inspect));
+        assert!(super::cached_native_executable(&executable, inspect));
+        assert_eq!(probes.get(), 1);
+        let replacement = directory.path().join("replacement");
+        std::fs::write(&replacement, "native").unwrap();
+        std::fs::rename(&replacement, &executable).unwrap();
+        let reject = |_: &std::path::Path| { probes.set(probes.get() + 1); false };
+        assert!(!super::cached_native_executable(&executable, reject));
+        assert!(!super::cached_native_executable(&executable, reject));
+        assert_eq!(probes.get(), 3, "failed probes cannot prevent later recovery");
+        assert!(super::cached_native_executable(&executable, inspect));
+        assert_eq!(probes.get(), 4);
+    }
+
     use super::*;
     use crate::setup::{Adapter, Installed, SERVER};
 

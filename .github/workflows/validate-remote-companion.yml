@@ -51,7 +51,10 @@ jobs:
         run: cargo clippy -p remote_protocol --all-targets --locked -- -D warnings
       - name: Verify WSL setup and recovery with an installed Agent fixture
         if: runner.os == 'Linux'
-        run: cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
+        run: |
+          cargo test -p warp-agent-bus --lib companion::guests::tests --features wsl_companion --locked
+          cargo test -p warp-agent-bus --lib wsl_setup::tests --features wsl_companion --locked
+          cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked
       - name: Verify private project communication and standalone companion
         run: |
           cargo test -p warp-agent-bus --lib setup::tests --locked

@@ -94,6 +94,35 @@ impl Terminals {
             return Err(Error::ManagedInvalidInput);
         }
         let size = dimensions(request.columns, request.rows)?;
+        let reconcile = |sessions: &BTreeMap<String, Owner>| -> Result<Option<TerminalState>, Error> {
+            if let Some(owner) = sessions.get(&request.session_id) {
+                let mut session = lock(owner)?;
+                let original = &session.launch;
+                if original.fence.as_ref().map(|f| &f.project_id) != Some(&fence.project_id)
+                    || original.executable != request.executable
+                    || original.arguments != request.arguments
+                    || original.columns != request.columns
+                    || original.rows != request.rows
+                    || original.agent_program != request.agent_program
+                    || original.working_directory != request.working_directory
+                {
+                    return Err(Error::ManagedConflict);
+                }
+                if session.connection.as_deref() != Some(&fence.connection_id) {
+                    return Err(Error::ManagedStaleAttachment);
+                }
+                // Reconcile only the original connection; disconnected runs cannot be adopted.
+                return session.state(fence, None).map(Some);
+            }
+            if sessions.len() >= MAX_SESSIONS {
+                return Err(Error::ManagedCapacityExceeded);
+            }
+            Ok(None)
+        };
+        {
+            let sessions = lock(&self.0)?;
+            if let Some(state) = reconcile(&sessions)? { return Ok(state); }
+        }
         #[cfg(not(feature = "wsl_companion"))]
         if request.working_directory.is_some() { return Err(Error::ManagedFeatureUnavailable); }
         #[cfg(not(feature = "wsl_companion"))]
@@ -118,28 +147,7 @@ impl Terminals {
             tasks.prepare_agent(program, executable)?;
         }
         let mut sessions = lock(&self.0)?;
-        if let Some(owner) = sessions.get(&request.session_id) {
-            let mut session = lock(owner)?;
-            let original = &session.launch;
-            if original.fence.as_ref().map(|f| &f.project_id) != Some(&fence.project_id)
-                || original.executable != request.executable
-                || original.arguments != request.arguments
-                || original.columns != request.columns
-                || original.rows != request.rows
-                || original.agent_program != request.agent_program
-                || original.working_directory != request.working_directory
-            {
-                return Err(Error::ManagedConflict);
-            }
-            if session.connection.as_deref() != Some(&fence.connection_id) {
-                return Err(Error::ManagedStaleAttachment);
-            }
-            // Reconcile only the original connection; disconnected runs cannot be adopted.
-            return session.state(fence, None);
-        }
-        if sessions.len() >= MAX_SESSIONS {
-            return Err(Error::ManagedCapacityExceeded);
-        }
+        if let Some(state) = reconcile(&sessions)? { return Ok(state); }
         let run_id = Uuid::new_v4().to_string();
         let binding = request
             .agent_program

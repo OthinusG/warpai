@@ -1560,6 +1560,9 @@ impl Broker {
     /// Bounded read projection and resumable events, off the UI thread. A timeout also
     /// refreshes volatile readiness, which deliberately does not enter durable history.
     pub fn operator_panel(&self, query: &PanelQuery) -> Result<Value> {
+        let worktree_identity = if query.worktree && Path::new(&query.project).join(".git").exists() {
+            Some(crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository)
+        } else { None };
         if query.worktree && Path::new(&query.project).join(".git").exists() {
             self.enroll_worktree_agents(self, &query.project)?;
         }
@@ -1571,9 +1574,6 @@ impl Broker {
                 "events":[],"event_cursor":null,"spaces":[],"space_cursor":null,
                 "reservations":[],"reservation_cursor":null,"messages":[],"message_cursor":null,"history":null}));
         }
-        let worktree_identity = if query.worktree {
-            Some(crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository)
-        } else { None };
         let mut state = self.store()?;
         let changes = state.store.mutation_count()?;
         let binding = query.terminal.as_ref().and_then(|terminal| state.terminals.get(terminal));

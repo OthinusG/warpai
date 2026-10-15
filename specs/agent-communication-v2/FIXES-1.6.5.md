@@ -99,3 +99,21 @@ rules and known-Agent Idle fallback. Add a regression for this priority.
 WSL only reports hook readiness after a confirmed plugin SessionStart/version;
 a listener allocated from a command name must not feed screen-inferred state back
 as full lifecycle authority. Unconfirmed clients continue native screen matching.
+
+Second failure diagnosis on e2f51a25: compilation passed; 143/146 library checks
+passed. Repair legacy Claude approval footer priority and Herdr prompt-box regions;
+keep missing-Git discovery ahead of native revalidation for correct UI guidance.
+Isolate both blocker cases in their regression so an earlier unacknowledged message
+retains queue precedence. Restore existing launch conflict/replay checks before new
+setup validation, with MCP setup outside the PTY map lock. Do not weaken assertions.
+
+Desktop macOS compilation also found the live panel action match missing the new
+CopyAgentName variant. Add it to the already-handled action arm; the earlier
+clipboard branch retains the complete name and returns before queue refresh.
+
+Repeated WSL observations also translated every selected executable through a
+wslpath subprocess. Cache only successful native-file proofs using canonical path,
+device/inode, change/modification nanoseconds and size. Replacements invalidate
+the proof; failed probes remain retryable, preferences and ancestry/run checks
+remain live. Add a replacement/failure-recovery regression and run Linux guest,
+WSL setup and process-isolation tests in the existing Companion workflow.

@@ -470,11 +470,11 @@ mod tests {
     fn blocked_native_sessions_keep_mcp_connected_and_resume_original_queued_work() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();
-        let owner = RunningBroker::start(&root.join("blocked.sqlite")).unwrap();
-        let broker = &owner.broker;
-        let issuer = client(broker, &root, "issuer");
-        let worker = client(broker, &root, "worker");
         for blocker in [Activity::WaitingApproval, Activity::WaitingInput] {
+            let owner = RunningBroker::start(&root.join(format!("blocked-{blocker:?}.sqlite"))).unwrap();
+            let broker = &owner.broker;
+            let issuer = client(broker, &root, "issuer");
+            let worker = client(broker, &root, "worker");
             broker.activity(&worker.terminal, Activity::Working);
             broker.observe_screen(&worker.terminal, &broker.screen_context(&worker.terminal).unwrap(), blocker);
             let task = call(broker, &issuer, assign("worker")).unwrap();

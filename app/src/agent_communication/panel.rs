@@ -1691,7 +1691,7 @@ impl TypedActionView for CollaborationPanel {
                         .and_then(|snapshot| snapshot.agent_cursor.clone())
                 }
                 Action::FirstAgents => self.query.agent_after = None,
-                Action::NextFixture | Action::PreviousFixture | Action::UsageSettings | Action::RefreshUsage => {}
+                Action::NextFixture | Action::PreviousFixture | Action::UsageSettings | Action::RefreshUsage | Action::CopyAgentName(_) => {}
                 Action::Scroll(delta) => {
                     self.scroll.scroll_by((*delta).into_pixels());
                     ctx.notify();

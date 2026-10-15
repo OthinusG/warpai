@@ -313,24 +313,22 @@ impl<'a> Screen<'a> {
         self.joined.get_or_init(|| self.recent.join("\n"))
     }
 
+    fn prompt_box_top(&self) -> Option<usize> {
+        self.recent.iter().enumerate().rev()
+            .filter(|(_, line)| line_is_horizontal_rule(line.trim())).nth(1).map(|(index, _)| index)
+    }
+
     fn compute_above_input_box(&self) -> Option<String> {
-        let box_top = self
-            .recent
-            .iter()
-            .rposition(|l| l.trim_start().starts_with('❯'))
-            .unwrap_or(self.recent.len());
-        self.recent[..box_top]
-            .iter()
-            .rev()
-            .find(|l| !line_is_input_box_chrome(l))
-            .map(|l| (*l).to_string())
+        let top = self.prompt_box_top().unwrap_or(self.recent.len());
+        self.recent[..top].last().map(|line| (*line).to_string())
     }
 
     fn compute_prompt_box_body(&self) -> Option<String> {
-        self.recent
-            .iter()
-            .rposition(|l| l.trim_start().starts_with('❯'))
-            .map(|idx| self.recent[idx].to_string())
+        let start = self.prompt_box_top()? + 1;
+        let end = self.recent.iter().enumerate().skip(start)
+            .find(|(_, line)| line_is_horizontal_rule(line.trim())).map(|(index, _)| index)
+            .unwrap_or(self.recent.len());
+        Some(self.recent[start..end].join("\n"))
     }
 
     fn compute_after_last_rule(&self) -> String {
@@ -347,32 +345,8 @@ impl<'a> Screen<'a> {
 
 /// A run of box-drawing dashes, optionally broken by a right-aligned label.
 fn line_is_horizontal_rule(trimmed: &str) -> bool {
-    trimmed.chars().take_while(|c| *c == '─').count() >= 3 && trimmed.ends_with('─')
-}
-
-/// Input-box furniture that [`Region::AboveInputBox`] skips; unlisted furniture
-/// hides the status slot.
-fn line_is_input_box_chrome(line: &str) -> bool {
-    let trimmed = line.trim();
-    line_is_horizontal_rule(trimmed)
-        || (trimmed.starts_with('⎿') && trimmed.contains("Tip:"))
-        || trimmed.starts_with("new task?")
-        || line_is_mode_footer(trimmed)
-        || line_is_update_banner(trimmed)
-}
-
-fn line_is_mode_footer(trimmed: &str) -> bool {
-    let lower = trimmed.to_lowercase();
-    (trimmed.starts_with('⏵') || trimmed.starts_with('⏸'))
-        && (lower.contains(" on") || lower.contains("shift+tab"))
-}
-
-/// Claude's self-update notice, which otherwise hides the completion line.
-fn line_is_update_banner(trimmed: &str) -> bool {
-    let lower = trimmed.to_lowercase();
-    (trimmed.starts_with('✔') || trimmed.starts_with('✓'))
-        && lower.contains("update")
-        && (lower.contains("restart") || lower.contains("installed"))
+    let prefix = trimmed.chars().take_while(|c| *c == '─').count();
+    prefix > 0 && (prefix >= 3 || trimmed.chars().all(|c| c == '─'))
 }
 
 /// Glue runs of single-character lines (a narrow Textual pane stacking a word);
@@ -413,4 +387,18 @@ pub(super) fn collapse_ascii_whitespace(text: &str) -> String {
         out.push(c);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompt_boxes_require_two_native_borders_and_retain_their_complete_body() {
+        let menu = Screen::new("Bash command\nDo you want to proceed?\n❯ 1. Yes\n2. No\nEsc to cancel", "");
+        assert!(menu.compute_prompt_box_body().is_none(), "a selected approval option is not a composer");
+        let prompt = Screen::new("prior output\n──────── Session name\n❯ draft\n  second line\n────────\nmode footer", "");
+        assert_eq!(prompt.compute_prompt_box_body().as_deref(), Some("❯ draft\n  second line"));
+        assert_eq!(prompt.compute_above_input_box().as_deref(), Some("prior output"));
+    }
 }

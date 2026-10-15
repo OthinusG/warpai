@@ -133,6 +133,19 @@ all = [
   ] },
 ]
 
+# Preserve older native Allow-once menus alongside Herdr's current Yes/No shapes.
+[[rules]]
+id = "legacy_allow_selection"
+state = "waiting"
+priority = 985
+region = "whole_recent"
+visible = true
+all = [
+  { region = "bottom_non_empty_lines(3)", contains = ["enter to select", "esc to cancel"] },
+  { contains_any = ["would you like to proceed?", "do you want to proceed?", "run command?"] },
+  { line_regex = ['(?i)^\s*❯?\s*[123]\.\s*(?:allow once|deny|yes|no)\b'] },
+]
+
 [[rules]]
 id = "live_prompt_box"
 state = "idle"
