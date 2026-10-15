@@ -1,203 +1,354 @@
 ---
 layout: default
 lang: zh
+title: "Warpai: 专为 Agent 打造的原生终端"
+description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计的本地优先多 Agent 原生终端，支持 macOS、Windows 与 Linux 远程伴侣。"
 ---
-{% assign s = site.data.strings[page.lang] %}
-<section class="hero">
-  <div class="hero-pattern" aria-hidden="true"></div>
-  <div class="site-container hero-shell">
-    <div class="hero-center">
-      <p class="hero-badge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-        <span>{{ s.badge }}</span>
-      </p>
-      <h1><span>Warpai</span><span class="hero-title-subtitle">{{ s.hero.subtitle }}</span></h1>
-      <p class="hero-lead">{{ s.hero.lead }}</p>
-      <div class="hero-actions">
-        <a class="button-cta" href="https://github.com/OthinusG/warpai/releases/latest">
-          {{ s.hero.cta }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </a>
-        <a class="hero-doc-link" href="https://github.com/OthinusG/warpai/blob/main/README.zh-CN.md">
-          {{ s.hero.doc_link }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-        </a>
-      </div>
-      <div class="hero-platforms" aria-label="{{ s.hero.platforms_label }}">
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-apple.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">macOS 11+ · Apple 芯片</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-windows.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Windows x64</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-linux.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Linux 远程 Companion</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-ssh.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">SSH 远程</span>
-      </div>
-      <div class="hero-features" aria-label="{{ s.hero.features_label }}">
-        {%- for feature in s.hero.features %}
-        <span class="hero-feature">{{ feature }}</span>
-        {%- endfor %}
+
+<header class="hd-hero">
+  <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases">Warpai 1.6.5 已发布 · 原生多 Agent 协同终端 <span aria-hidden="true">↗</span></a>
+  <div class="in">
+    <div class="hd-eyebrow"><s></s>the agent-native terminal</div>
+    <h1>专为 Agent 打造的终端。<em>纯净原生，本地优先，无惧中断。</em></h1>
+    <p class="lede">Warpai 是你的 Coding Agent 专属工作台。无论你在多少个项目中并行启动多少个 Agent，每个 Agent 都运行在独立终端中。<b>零遥测、零云端登录墙、Git Worktree 隔离开发、以及独家守护式 PTY 交付。</b></p>
+    <div class="go">
+      <div class="hd-cmd">
+        <code id="install-cmd"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
+        <button type="button" id="copy-btn" aria-label="Copy install command">copy</button>
       </div>
     </div>
-    <div class="device-mockup device-mockup--desktop hero-product-shot">
-      <div class="device-topbar">
-        <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="device-topbar-title">Warpai</span>
-      </div>
-      <span class="device-screen">
-        <img class="product-image-light" src="{{ '/assets/images/warpai-workspace-light.jpg' | relative_url }}" alt="{{ s.hero.shot_alt }}">
-        <img class="product-image-dark" src="{{ '/assets/images/warpai-workspace-dark.jpg' | relative_url }}" alt="" loading="lazy">
-      </span>
-    </div>
-    <p class="hero-note">{{ s.hero.note }}</p>
-  </div>
-</section>
-
-<section class="chapters" id="features">
-  <div class="site-container">
-    <article class="chapter">
-      <div class="chapter-number">01</div>
-      <div>
-        <h3>智能体会话</h3>
-        <p class="chapter-body">Project 模式协调单个工作区；Worktree 模式在隔离的 Git 检出中并行运行多个智能体，由协调者统一调度。</p>
-      </div>
-      <p class="chapter-detail">每个会话都锚定在项目、分支与历史记录上——重新打开任务，不必从头再来。</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-agent-sessions.jpg' | relative_url }}" alt="含项目会话列表与智能体标签的工作区界面" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">02</div>
-      <div>
-        <h3>证据与评审</h3>
-        <p class="chapter-body">任务自带验收标准。差异、测试与日志作为证据送达，每一项结果都要经过评审，再由协调者决定集成。</p>
-      </div>
-      <p class="chapter-detail">接受结果不会自动合并分支——最终由协调者拍板并完成提交。</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-evidence-review.jpg' | relative_url }}" alt="展示任务状态与评审证据的智能体协作面板" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">03</div>
-      <div>
-        <h3>原生终端</h3>
-        <p class="chapter-body">命令块、GPU 渲染、垂直标签、分屏、文件树与编辑器——终端工作始终在同一个窗口里完成。</p>
-      </div>
-      <p class="chapter-detail">命令块保留输出、退出码与可搜索的历史，长时间的任务随时翻看、随时重跑。</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-native-terminal.jpg' | relative_url }}" alt="带命令块、分屏与 SSH 项目的 Warpai 终端" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">04</div>
-      <div>
-        <h3>本地与远程</h3>
-        <p class="chapter-body">在远程机器上打开 SSH 项目，同一套面板如影随形——智能体、任务与评审和本地完全一致。</p>
-      </div>
-      <p class="chapter-detail">Companion 覆盖 Linux、macOS 与 Windows，跨平台的远程会话保持在线。</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-local-remote.jpg' | relative_url }}" alt="观察远程 SSH 项目中智能体工作的协作面板" loading="lazy">
-        </div>
-      </div>
-    </article>
-  </div>
-</section>
-
-<section class="lab-section" id="workflow">
-  <div class="site-container lab-grid">
-    <div class="lab-copy">
-      <p class="section-kicker">{{ s.panel.kicker }}</p>
-      <h2>{{ s.panel.heading }}</h2>
-      <p>{{ s.panel.body }}</p>
-    </div>
-    <div class="lab-panel">
-      <div class="lab-panel-head">
-        <strong>{{ s.panel.head }}</strong>
-        <span class="lab-progress">t-01 – t-03</span>
-      </div>
-      <div class="task-list">
-        {%- for row in s.panel.rows %}
-        <div class="task-row">
-          <span class="task-id">{{ row.id }}</span>
-          <span class="task-main"><strong>{{ row.title }}</strong><small>{{ row.who }}</small></span>
-          <span class="task-state task-state--{{ row.tone }}">{{ row.state }}</span>
-        </div>
-        {%- endfor %}
-      </div>
-      <div class="lab-live-result">
-        <p>{{ s.panel.result }}</p>
-      </div>
-      <div class="lab-panel-foot">
-        <p class="lab-ready">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-          {{ s.panel.ready }}
-        </p>
-        <a class="button-small" href="https://github.com/OthinusG/warpai/blob/main/specs/agent-communication-v2/WORKTREE-COLLABORATION.md">{{ s.panel.foot_link }}</a>
-      </div>
+    <div class="hero-meta">
+      <div class="meta">macOS · Windows · Linux 伴侣 · AGPL-3.0 &nbsp;—&nbsp; <a href="#install">直接下载 DMG、安装包与验证哈希 →</a></div>
+      <a class="hero-blog" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md"><span>指南</span> 16+ 款 Agent CLI 极速配置 <b aria-hidden="true">&#8594;</b></a>
     </div>
   </div>
-</section>
+</header>
 
-<section class="pocket" id="remote">
-  <div class="site-container">
-    <div class="pocket-head">
-      <div>
-        <p class="section-kicker">{{ s.pocket.kicker }}</p>
-        <h2>{{ s.pocket.heading }}</h2>
-      </div>
-      <p class="pocket-body">{{ s.pocket.body }}</p>
-    </div>
-    <div class="device-row">
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[0].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img class="product-image-light" src="{{ '/assets/images/warpai-workspace-light.jpg' | relative_url }}" alt="{{ s.pocket.shots[0].alt }}" loading="lazy">
-          <img class="product-image-dark" src="{{ '/assets/images/warpai-workspace-dark.jpg' | relative_url }}" alt="" loading="lazy">
-        </span>
-      </div>
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[1].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img class="product-image-light" src="{{ '/assets/images/warpai-ssh-light.jpg' | relative_url }}" alt="{{ s.pocket.shots[1].alt }}" loading="lazy">
-          <img class="product-image-dark" src="{{ '/assets/images/warpai-ssh-dark.jpg' | relative_url }}" alt="" loading="lazy">
-        </span>
-      </div>
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[2].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img src="{{ '/assets/images/pocket-remote-panel.jpg' | relative_url }}" alt="{{ s.pocket.shots[2].alt }}" loading="lazy">
-        </span>
-      </div>
-    </div>
+<div class="strip">
+  <a class="stat" href="https://github.com/OthinusG/warpai" data-count>
+    <b id="n-stars">43,994</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/></svg>
+      github stars <i class="live"></i>
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/releases" data-count>
+    <b id="n-cmds">1,522,863</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4-4m4 4l4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+      终端命令块执行
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md" data-count>
+    <b>16+</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M13 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+      深度支持的 Agent CLIs
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md" data-count>
+    <b>0 KB</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      遥测埋点与云端垃圾
+    </span>
+  </a>
+</div>
+
+<section class="fig" id="features">
+  <div class="fighd">
+    <span>多 Agent 协同沙盘 · 运行在隔离的独立工作树中</span>
+    <span class="r">点击 Agent 或工作区查看终端</span>
   </div>
+  <div class="plate">
+    <figure class="hero-product-shot">
+      <div class="herdr-ui-mock" id="herd-mock" role="img" aria-label="交互式 Warpai 终端工作台沙盘">
+        <aside class="mock-sidebar">
+          <div class="mock-sidebar-half">
+            <div class="mock-sidebar-title">工作区 / 分支</div>
+            <div class="mock-space active" data-ws="warpai">
+              <span class="mock-dot dot-working"></span>
+              <div><strong>warpai</strong><small>main 分支</small></div>
+            </div>
+            <div class="mock-space" data-ws="feat-agent-bus">
+              <span class="mock-dot dot-waiting"></span>
+              <div><strong>feat/agent-bus</strong><small>worktree · 等待审批</small></div>
+            </div>
+            <div class="mock-space" data-ws="infra-remote">
+              <span class="mock-dot dot-done"></span>
+              <div><strong>infra/remote</strong><small>workbox-gpu · ssh</small></div>
+            </div>
+          </div>
+          <div class="mock-sidebar-half mock-sidebar-agents">
+            <div class="mock-agent-title"><span>agents 实例</span><span>实时状态</span></div>
+            <div class="mock-agent working active" data-agent="claude" data-ws-link="warpai" data-tab-link="main">
+              <span>●</span>
+              <div><strong>claude</strong><small>working · claude code</small></div>
+            </div>
+            <div class="mock-agent waiting" data-agent="codex" data-ws-link="feat-agent-bus" data-tab-link="main">
+              <span>◉</span>
+              <div><strong>codex</strong><small>waiting · 等待审批</small></div>
+            </div>
+            <div class="mock-agent idle" data-agent="gemini" data-ws-link="warpai" data-tab-link="terminal">
+              <span>○</span>
+              <div><strong>gemini</strong><small>idle · gemini cli</small></div>
+            </div>
+            <div class="mock-agent done" data-agent="dsh" data-ws-link="infra-remote" data-tab-link="main">
+              <span>●</span>
+              <div><strong>dsh-tui</strong><small>done · 任务完成</small></div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="mock-main">
+          <!-- Workspace 1: warpai -->
+          <div class="mock-view active" data-view="warpai">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">claude</span>
+              <span data-tab="terminal">cargo check</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes active" data-tab="main">
+              <div class="mock-pane focused tui" data-title="claude">
+                <div class="cc-header">
+                  <pre class="cc-logo-art"> ▐▛███▜▌
+▝▜█████▛▘
+  ▘▘ ▝▝</pre>
+                  <div class="cc-header-text">
+                    <div><b>Claude Code</b> <span class="dim">v2.1.198</span></div>
+                    <div class="dim">Sonnet 3.7 with high effort · Claude Max</div>
+                    <div class="dim">~/workplace/warpai</div>
+                  </div>
+                </div>
+                <br>
+                <div><b>❯</b> 实现守护式 PTY 交付，并验证 VT100 终端流状态机</div>
+                <br>
+                <div><span class="cc-bullet">●</span> 验证 <code>crates/agent_bus</code>: 内存级 ANSI 观察器精准解析 <code>Working</code>、<code>WaitingApproval</code> 与 <code>Idle</code> 状态。</div>
+                <br>
+                <div><span class="cc-bullet">●</span> 计划：</div>
+                <div class="dim">&nbsp;&nbsp;· crates/pty — 拦截输入直到终端提示符完全就绪</div>
+                <div class="dim">&nbsp;&nbsp;· crates/agent_bus — 高危命令触发珊瑚色审批提示</div>
+                <br>
+                <div><b>❯</b> 执行聚焦测试并更新工程文档</div>
+                <br>
+                <div><span class="cc-working"><span class="braille-spinner">⠋</span> 编译中…</span> <span class="dim">(<span id="cc-timer">13m 36s</span> · 按 esc 中断)</span></div>
+                <div class="tui-bottom">
+                  <div class="cc-rule"></div>
+                  <div><b>❯</b> <span class="cursor"></span></div>
+                  <div class="cc-rule"></div>
+                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-cyan">~/workplace/warpai</span><span class="cc-gy"> &gt; </span><span class="cc-yellow">main *</span><span class="green"> ↑1</span><span class="cc-gy"> &gt; ctx ──────── </span><span class="green">14%</span><span class="cc-gy"> 142k/1M</span></div>
+                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-coral">⏵⏵ 守护式 PTY 交付已激活</span> <span class="dim">(输入与终端状态严格对齐，零丢字)</span></div>
+                </div>
+              </div>
+
+              <div class="mock-pane" data-title="cargo">
+                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
+                <div><b>❯</b> <span class="cmd">cargo</span> check -p warpai --bin warpai</div>
+                <div class="dim">   Compiling warpai-agent-bus v1.6.5</div>
+                <div class="dim">   Compiling warpai v1.6.5 (/Users/wqin/workplace/warpai)</div>
+                <div><span class="time">16:42:01</span> <span class="blue">[agent_bus]</span> VT100 屏幕观察器已挂载</div>
+                <div><span class="time">16:42:02</span> <span class="green">状态变更</span> → Working</div>
+                <br>
+                <div><span class="badge">cargo</span> <span class="green">check clean</span> 耗时 2.14s</div>
+                <br>
+                <div class="url-line">┃ 守护式 PTY&nbsp;&nbsp; <span>与 VT100 输入循环严格同步</span></div>
+                <div class="dim">  零外部遥测 · 本地套接字安全通道就绪</div>
+                <br>
+                <div><span class="time">16:42:03</span> <span class="green">持续监听工作树文件变更...</span></div>
+              </div>
+            </div>
+
+            <div class="mock-panes single" data-tab="terminal">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
+                <div><b>❯</b> <span class="cmd">git</span> status --short</div>
+                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/claude.toml</div>
+                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/codex.toml</div>
+                <div><span class="blue">??</span> docs/FEATURES.md</div>
+                <div><span class="blue">??</span> docs/CLI-AGENTS.md</div>
+                <br>
+                <div class="dim">无任何遥测依赖。二进制产物 100% 独立可运行。</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workspace 2: feat/agent-bus -->
+          <div class="mock-view" data-view="feat-agent-bus">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">codex</span>
+              <span data-tab="tests">单元测试</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes single active" data-tab="main">
+              <div class="mock-pane focused tui">
+                <div><span class="cx-bullet">•</span> <b>探索代码库</b></div>
+                <div class="dim">&nbsp;&nbsp;└ crates/agent_bus/src/screen_detection/vt100.rs</div>
+                <br>
+                <div><span class="cx-bullet">•</span> <b>运行测试套件</b></div>
+                <div class="dim">&nbsp;&nbsp;└ cargo test -p agent_bus</div>
+                <div class="dim">&nbsp;&nbsp;└ 28 passed · 0 failed · 1.4s</div>
+                <br>
+                <div><span class="cx-bullet">•</span> <b>Warpai Guard 拦截器已激活：</b></div>
+                <div class="warpai-guard-box">
+                  <div class="warpai-guard-title"><span class="pulse-dot"></span> [WaitingApproval] Agent 请求执行提权指令：</div>
+                  <div><span class="cmd">cargo</span> test -p warpai -- --nocapture</div>
+                  <div class="dim">Warpai 已暂停 PTY 交互通道，等待人工审批授权。</div>
+                  <div class="warpai-guard-options">
+                    <div class="selected">❯ 1. 单次执行授权 (按回车)</div>
+                    <div class="dim">&nbsp;&nbsp;2. 对当前任务会话全部放行</div>
+                    <div class="dim">&nbsp;&nbsp;3. 拒绝并挂起该 Agent (按 esc)</div>
+                  </div>
+                </div>
+                <div class="tui-bottom">
+                  <div class="cc-rule"></div>
+                  <div><b>›</b> <span class="cursor"></span></div>
+                  <br>
+                  <div class="dim">gpt-5.5 · ~/workplace/warpai · worktree/feat-agent-bus · WaitingApproval</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mock-panes single" data-tab="tests">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>~/workplace/warpai/worktrees/agent-bus</span> <em>feat/agent-bus</em></div>
+                <div><b>❯</b> <span class="cmd">cargo</span> nextest run</div>
+                <div><span class="green">PASS</span> [   0.042s] agent_bus::tests::test_claude_working_pattern</div>
+                <div><span class="green">PASS</span> [   0.038s] agent_bus::tests::test_codex_approval_pattern</div>
+                <div><span class="green">PASS</span> [   0.040s] agent_bus::tests::test_idle_drain</div>
+                <div><span class="dim">Summary [ 0.120s ]: 3 tests run: 3 passed, 0 failed</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workspace 3: infra/remote -->
+          <div class="mock-view" data-view="infra-remote">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">companion</span>
+              <span data-tab="logs">服务端日志</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes single active" data-tab="main">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>wqin@workbox-gpu</span> <em>远程伴侣进程</em></div>
+                <div><b>❯</b> <span class="cmd">warpai-companion</span> --listen 127.0.0.1:2222</div>
+                <div class="dim">基于 SFTP over SSH 隧道 · 有界分块传输 · Linux x86_64</div>
+                <div><span class="time">16:40:12</span> 伴侣通道已建立 · PTY 输入输出流完全隔离</div>
+                <div><span class="time">16:40:15</span> 远端 Agent 池初始化完成：4 个并发 Worker</div>
+                <div><span class="time">16:41:00</span> dsh-tui 在独立工作树完成任务 #104 <span class="green">成功</span></div>
+                <br>
+                <div><span class="badge">remote</span> <span class="green">已连接</span> 运行时间 2h 14m · 极低网络抖动</div>
+              </div>
+            </div>
+            <div class="mock-panes single" data-tab="logs">
+              <div class="mock-pane focused">
+                <div class="dim">[daemon] 监听 /home/wqin/.config/warpai/companion.sock</div>
+                <div><span class="green">就绪</span> 等待桌面客户端接入协同会话</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <figcaption>多 Agent 并发工作台集中在同一原生视窗中。点击侧边栏或标签页可即时切换。</figcaption>
+    </figure>
+  </div>
+  <p class="figcap">三个独立工作树，四个并发 Agent，互不干扰。<b>守护式 PTY 交付确保零丢字、零乱序、零冲突。</b></p>
 </section>
 
-<section class="close-section" id="download">
-  <div class="site-container close-content">
-    <p class="section-kicker">{{ s.close.kicker }}</p>
-    <h2>{{ s.close.heading_line }} <span class="close-title-brand">Warpai</span></h2>
-    <p>{{ s.close.body }}</p>
-    <div class="close-actions">
-      <a class="download-direct-button" href="https://github.com/OthinusG/warpai/releases/latest">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-        {{ s.close.primary }}
-      </a>
-      <a class="close-other-download" href="https://github.com/OthinusG/warpai/releases">{{ s.close.secondary }}</a>
+<div class="caps">
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md">
+    <div class="n"><span>01</span></div>
+    <div class="cap-in">
+      <h3>纯净原生，零遥测无登录墙。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Warpai 不是 Electron 网页打包，更不是云端托管。它基于 100% 纯 Rust 构建，支持 Metal 与 DirectX GPU 原生硬件加速。我们彻底剥离了全部 51+ 个云端 AI 文件、Sentry 遥测与强制登录限制。你的终端、密钥与代码完全属于你自己。</p>
+    </div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>warpai-core</span><b><i class="beat"></i>local-first</b></div>
+      <div class="ev-note">0 次外部遥测请求 &middot; 0 处强制云端校验 &middot; 100% 隐私安全</div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CONCEPTS.md">
+    <div class="n"><span>02</span></div>
+    <div class="cap-in">
+      <h3>无需逐个翻找停滞的终端。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Warpai 内置 VT100 屏幕观察器，直接在内存中解析原始终端 ANSI 流，精准识别每个 Agent 的状态：Working（执行中）、WaitingApproval（等待审批）与 Idle（空闲就绪）。当 Agent 需要授权时，标签页与侧边栏即时亮起珊瑚红光，无需逐屏排查。</p>
+    </div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
+      <div class="ev-row"><span>warpai (main)</span><b><i class="w"></i>working</b></div>
+      <div class="ev-row"><span>infra/remote</span><b><i class="i"></i>idle</b></div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/USING-WARPAI-AGENTS.md">
+    <div class="n"><span>03</span></div>
+    <div class="cap-in">
+      <h3>守护式 PTY 交互交付。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>普通终端在 Agent 持续输出或重绘时容易吞掉键盘输入或导致指令错乱。Warpai 实行守护式 PTY 交付，确保只有在底层 CLI 处于真正且稳定的提示符状态时才投递字符，彻底杜绝丢键与并发撞车。</p>
+    </div>
+    <div class="ev">
+      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md">
+    <div class="n"><span>04</span></div>
+    <div class="cap-in">
+      <h3>开箱即用，原生适配已有工具。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Claude Code、Codex、Gemini、Antigravity、Cursor、Trae、Pi、Goose、Grok 等全面支持。Warpai 不使用私有 API 封装篡改它们，而是通过精准的 VT100 描述清单与原生分屏，直接赋予它们工业级的运行底座。</p>
+    </div>
+    <div class="ev">
+      <div class="herd">
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Claude Code</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Codex</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Gemini CLI</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Antigravity</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Cursor Agent</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>dsh-tui</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Trae / Grok</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Goose / Hermes</span>
+      </div>
+      <div class="ev-note">开箱支持 16+ 款 Agent CLI 状态感知</div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/INSTALL.md">
+    <div class="n"><span>05</span></div>
+    <div class="cap-in">
+      <h3>统一连接所有设备，一处掌控。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>无论是 MacBook、Windows 台式机，还是云端 Linux GPU 服务器。通过 SSH 接入 Warpai 远程伴侣，远端工作区与本地工作区无缝聚合，支持 SFTP 文件传输，无任何感知延迟。</p>
+    </div>
+    <div class="ev">
+      <div class="machine-cmd"><b>$</b> <code>warpai companion attach workbox-gpu</code></div>
+      <div class="ev-row"><span>本地桌面终端</span><b><i class="beat"></i>已连接</b></div>
+      <div class="ev-row"><span>workbox-gpu (SSH)</span><b><i class="beat"></i>已连接</b></div>
+    </div>
+  </a>
+</div>
+
+<a class="cloud-teaser" href="https://github.com/OthinusG/warpai/blob/main/docs/MCP-API.md" id="compare">
+  <div>
+    <span class="cloud-label">原生 MCP 协同工具体系 <span>warp-lite-communication</span></span>
+    <h2>38+ 原生工具，零云端订阅与网络依赖。</h2>
+    <p>通过内置的 MCP 工具集，在本地直接调度多 Agent 任务池、文件并发锁定、对等评审（Peer Review）与上下文同步。</p>
+  </div>
+  <span class="cloud-cta">查看 MCP API 规范 <span aria-hidden="true">&#8594;</span></span>
+</a>
+
+<section class="end" id="install">
+  <div class="in">
+    <h2>给你的 Agent 一个真正的家。</h2>
+    <p>仅需一行命令，无需改变任何现有开发习惯。你熟悉的 Agent CLI 将像以往一样运行，只是再也不会因为你的离开或合盖而中断。</p>
+    <div class="go">
+      <div class="hd-cmd">
+        <code id="install-cmd-2"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
+        <button type="button" id="copy-btn-2" aria-label="Copy install command">copy</button>
+      </div>
+    </div>
+    <div class="meta">
+      macOS: <code>brew install --cask warpai</code> &nbsp;·&nbsp;
+      Windows: <code>winget install Warpai.Warpai</code> &nbsp;—&nbsp;
+      <a href="https://github.com/OthinusG/warpai/releases">查看全部平台版本与 SHA-256 校验和 →</a>
     </div>
   </div>
 </section>

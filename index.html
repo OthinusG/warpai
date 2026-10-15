@@ -1,203 +1,354 @@
 ---
 layout: default
 lang: en
+title: "Warpai: The terminal built for agents"
+description: "Run them anywhere. Leave them running. Warpai is the agent-native, local-first terminal for macOS, Windows and remote Linux."
 ---
-{% assign s = site.data.strings[page.lang] %}
-<section class="hero">
-  <div class="hero-pattern" aria-hidden="true"></div>
-  <div class="site-container hero-shell">
-    <div class="hero-center">
-      <p class="hero-badge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-        <span>{{ s.badge }}</span>
-      </p>
-      <h1><span>Warpai</span><span class="hero-title-subtitle">{{ s.hero.subtitle }}</span></h1>
-      <p class="hero-lead">{{ s.hero.lead }}</p>
-      <div class="hero-actions">
-        <a class="button-cta" href="https://github.com/OthinusG/warpai/releases/latest">
-          {{ s.hero.cta }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </a>
-        <a class="hero-doc-link" href="https://github.com/OthinusG/warpai/blob/main/README.md">
-          {{ s.hero.doc_link }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-        </a>
-      </div>
-      <div class="hero-platforms" aria-label="{{ s.hero.platforms_label }}">
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-apple.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">macOS 11+ · Apple silicon</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-windows.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Windows x64</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-linux.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">Linux companion</span>
-        <span class="hero-platform"><img class="hero-platform-icon" src="{{ '/assets/images/icon-ssh.svg' | relative_url }}" width="16" height="16" alt="" loading="lazy">SSH remote</span>
-      </div>
-      <div class="hero-features" aria-label="{{ s.hero.features_label }}">
-        {%- for feature in s.hero.features %}
-        <span class="hero-feature">{{ feature }}</span>
-        {%- endfor %}
+
+<header class="hd-hero">
+  <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases">Warpai 1.6.5 is out · Native Multi-Agent Terminal <span aria-hidden="true">↗</span></a>
+  <div class="in">
+    <div class="hd-eyebrow"><s></s>the agent-native terminal</div>
+    <h1>The terminal built for agents. <em>Native, local-first, fearless.</em></h1>
+    <p class="lede">Warpai is where your coding agents live. However many you run, across however many projects, each in its own terminal. <b>Zero telemetry, zero cloud login, isolated worktrees, and guarded PTY delivery.</b></p>
+    <div class="go">
+      <div class="hd-cmd">
+        <code id="install-cmd"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
+        <button type="button" id="copy-btn" aria-label="Copy install command">copy</button>
       </div>
     </div>
-    <div class="device-mockup device-mockup--desktop hero-product-shot">
-      <div class="device-topbar">
-        <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="device-topbar-title">Warpai</span>
-      </div>
-      <span class="device-screen">
-        <img class="product-image-light" src="{{ '/assets/images/warpai-workspace-light.jpg' | relative_url }}" alt="{{ s.hero.shot_alt }}">
-        <img class="product-image-dark" src="{{ '/assets/images/warpai-workspace-dark.jpg' | relative_url }}" alt="" loading="lazy">
-      </span>
-    </div>
-    <p class="hero-note">{{ s.hero.note }}</p>
-  </div>
-</section>
-
-<section class="chapters" id="features">
-  <div class="site-container">
-    <article class="chapter">
-      <div class="chapter-number">01</div>
-      <div>
-        <h3>Agent sessions</h3>
-        <p class="chapter-body">Project mode coordinates one workspace. Worktree mode runs parallel agents in isolated Git checkouts, led by a Coordinator.</p>
-      </div>
-      <p class="chapter-detail">Every session stays attached to its project, branch and history — reopening a task never means starting over.</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-agent-sessions.jpg' | relative_url }}" alt="Warpai workspace with a project session list and agent tabs" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">02</div>
-      <div>
-        <h3>Evidence &amp; review</h3>
-        <p class="chapter-body">Tasks carry acceptance criteria. Diffs, test runs and logs arrive as evidence, and each result is reviewed before the Coordinator integrates it.</p>
-      </div>
-      <p class="chapter-detail">Accepting a result never merges a branch on its own — the Coordinator makes the final call and the final commit.</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-evidence-review.jpg' | relative_url }}" alt="Agent collaboration panel showing task states and review evidence" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">03</div>
-      <div>
-        <h3>A real terminal</h3>
-        <p class="chapter-body">Command blocks, GPU-accelerated rendering, vertical tabs, split panes, a file tree and an editor — terminal work stays in one window.</p>
-      </div>
-      <p class="chapter-detail">Blocks keep output, exit codes and searchable history, so long-running work is easy to re-read and re-run.</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-native-terminal.jpg' | relative_url }}" alt="Warpai terminal with command blocks, splits and an SSH project" loading="lazy">
-        </div>
-      </div>
-    </article>
-
-    <article class="chapter">
-      <div class="chapter-number">04</div>
-      <div>
-        <h3>Local &amp; remote</h3>
-        <p class="chapter-body">Open an SSH project on a remote machine and the same panels follow — agents, tasks and reviews behave exactly like they do locally.</p>
-      </div>
-      <p class="chapter-detail">Companion runs on Linux, macOS and Windows, so remote sessions stay connected across platforms.</p>
-      <div class="chapter-image">
-        <div class="product-frame">
-          <img src="{{ '/assets/images/chapter-local-remote.jpg' | relative_url }}" alt="Collab panel observing an agent working in a remote SSH project" loading="lazy">
-        </div>
-      </div>
-    </article>
-  </div>
-</section>
-
-<section class="lab-section" id="workflow">
-  <div class="site-container lab-grid">
-    <div class="lab-copy">
-      <p class="section-kicker">{{ s.panel.kicker }}</p>
-      <h2>{{ s.panel.heading }}</h2>
-      <p>{{ s.panel.body }}</p>
-    </div>
-    <div class="lab-panel">
-      <div class="lab-panel-head">
-        <strong>{{ s.panel.head }}</strong>
-        <span class="lab-progress">t-01 – t-03</span>
-      </div>
-      <div class="task-list">
-        {%- for row in s.panel.rows %}
-        <div class="task-row">
-          <span class="task-id">{{ row.id }}</span>
-          <span class="task-main"><strong>{{ row.title }}</strong><small>{{ row.who }}</small></span>
-          <span class="task-state task-state--{{ row.tone }}">{{ row.state }}</span>
-        </div>
-        {%- endfor %}
-      </div>
-      <div class="lab-live-result">
-        <p>{{ s.panel.result }}</p>
-      </div>
-      <div class="lab-panel-foot">
-        <p class="lab-ready">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-          {{ s.panel.ready }}
-        </p>
-        <a class="button-small" href="https://github.com/OthinusG/warpai/blob/main/specs/agent-communication-v2/WORKTREE-COLLABORATION.md">{{ s.panel.foot_link }}</a>
-      </div>
+    <div class="hero-meta">
+      <div class="meta">macOS · Windows · Linux Companion · AGPL-3.0 &nbsp;—&nbsp; <a href="#install">direct dmg, installer and manual downloads →</a></div>
+      <a class="hero-blog" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md"><span>Guide</span> 16+ Agent CLIs Setup <b aria-hidden="true">&#8594;</b></a>
     </div>
   </div>
-</section>
+</header>
 
-<section class="pocket" id="remote">
-  <div class="site-container">
-    <div class="pocket-head">
-      <div>
-        <p class="section-kicker">{{ s.pocket.kicker }}</p>
-        <h2>{{ s.pocket.heading }}</h2>
-      </div>
-      <p class="pocket-body">{{ s.pocket.body }}</p>
-    </div>
-    <div class="device-row">
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[0].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img class="product-image-light" src="{{ '/assets/images/warpai-workspace-light.jpg' | relative_url }}" alt="{{ s.pocket.shots[0].alt }}" loading="lazy">
-          <img class="product-image-dark" src="{{ '/assets/images/warpai-workspace-dark.jpg' | relative_url }}" alt="" loading="lazy">
-        </span>
-      </div>
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[1].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img class="product-image-light" src="{{ '/assets/images/warpai-ssh-light.jpg' | relative_url }}" alt="{{ s.pocket.shots[1].alt }}" loading="lazy">
-          <img class="product-image-dark" src="{{ '/assets/images/warpai-ssh-dark.jpg' | relative_url }}" alt="" loading="lazy">
-        </span>
-      </div>
-      <div class="device-mockup device-mockup--desktop">
-        <div class="device-topbar">
-          <span class="device-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="device-topbar-title">{{ s.pocket.shots[2].title }}</span>
-        </div>
-        <span class="device-screen">
-          <img src="{{ '/assets/images/pocket-remote-panel.jpg' | relative_url }}" alt="{{ s.pocket.shots[2].alt }}" loading="lazy">
-        </span>
-      </div>
-    </div>
+<div class="strip">
+  <a class="stat" href="https://github.com/OthinusG/warpai" data-count>
+    <b id="n-stars">43,994</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"/></svg>
+      github stars <i class="live"></i>
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/releases" data-count>
+    <b id="n-cmds">1,522,863</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4-4m4 4l4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+      terminal blocks run
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md" data-count>
+    <b>16+</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l6 6-6 6M13 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+      agent CLIs detected
+    </span>
+  </a>
+  <a class="stat" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md" data-count>
+    <b>0 KB</b>
+    <span>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      telemetry &amp; cloud bloat
+    </span>
+  </a>
+</div>
+
+<section class="fig" id="features">
+  <div class="fighd">
+    <span>the workbench, running agents in parallel checkouts</span>
+    <span class="r">click an agent or workspace</span>
   </div>
+  <div class="plate">
+    <figure class="hero-product-shot">
+      <div class="herdr-ui-mock" id="herd-mock" role="img" aria-label="Interactive Warpai Session Mock with workspaces, tabs, agent states, and terminal panes">
+        <aside class="mock-sidebar">
+          <div class="mock-sidebar-half">
+            <div class="mock-sidebar-title">workspaces</div>
+            <div class="mock-space active" data-ws="warpai">
+              <span class="mock-dot dot-working"></span>
+              <div><strong>warpai</strong><small>main</small></div>
+            </div>
+            <div class="mock-space" data-ws="feat-agent-bus">
+              <span class="mock-dot dot-waiting"></span>
+              <div><strong>feat/agent-bus</strong><small>worktree · waiting</small></div>
+            </div>
+            <div class="mock-space" data-ws="infra-remote">
+              <span class="mock-dot dot-done"></span>
+              <div><strong>infra/remote</strong><small>workbox-gpu · ssh</small></div>
+            </div>
+          </div>
+          <div class="mock-sidebar-half mock-sidebar-agents">
+            <div class="mock-agent-title"><span>agents</span><span>live states</span></div>
+            <div class="mock-agent working active" data-agent="claude" data-ws-link="warpai" data-tab-link="main">
+              <span>●</span>
+              <div><strong>claude</strong><small>working · claude code</small></div>
+            </div>
+            <div class="mock-agent waiting" data-agent="codex" data-ws-link="feat-agent-bus" data-tab-link="main">
+              <span>◉</span>
+              <div><strong>codex</strong><small>waiting approval · codex</small></div>
+            </div>
+            <div class="mock-agent idle" data-agent="gemini" data-ws-link="warpai" data-tab-link="terminal">
+              <span>○</span>
+              <div><strong>gemini</strong><small>idle · gemini cli</small></div>
+            </div>
+            <div class="mock-agent done" data-agent="dsh" data-ws-link="infra-remote" data-tab-link="main">
+              <span>●</span>
+              <div><strong>dsh-tui</strong><small>done · remote agent</small></div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="mock-main">
+          <!-- Workspace 1: warpai -->
+          <div class="mock-view active" data-view="warpai">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">claude</span>
+              <span data-tab="terminal">cargo check</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes active" data-tab="main">
+              <div class="mock-pane focused tui" data-title="claude">
+                <div class="cc-header">
+                  <pre class="cc-logo-art"> ▐▛███▜▌
+▝▜█████▛▘
+  ▘▘ ▝▝</pre>
+                  <div class="cc-header-text">
+                    <div><b>Claude Code</b> <span class="dim">v2.1.198</span></div>
+                    <div class="dim">Sonnet 3.7 with high effort · Claude Max</div>
+                    <div class="dim">~/workplace/warpai</div>
+                  </div>
+                </div>
+                <br>
+                <div><b>❯</b> implement guarded PTY delivery and verify screen detection</div>
+                <br>
+                <div><span class="cc-bullet">●</span> Verified <code>crates/agent_bus</code>: screen detection parses live ANSI streams into <code>Working</code>, <code>WaitingApproval</code>, and <code>Idle</code> states.</div>
+                <br>
+                <div><span class="cc-bullet">●</span> Plan:</div>
+                <div class="dim">&nbsp;&nbsp;· crates/pty — guard keystrokes until VT100 prompt stabilizes</div>
+                <div class="dim">&nbsp;&nbsp;· crates/agent_bus — emit approval badge on high-risk command</div>
+                <br>
+                <div><b>❯</b> run focused checks across the workspace</div>
+                <br>
+                <div><span class="cc-working"><span class="braille-spinner">⠋</span> Testing…</span> <span class="dim">(<span id="cc-timer">13m 36s</span> · esc to interrupt)</span></div>
+                <div class="tui-bottom">
+                  <div class="cc-rule"></div>
+                  <div><b>❯</b> <span class="cursor"></span></div>
+                  <div class="cc-rule"></div>
+                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-cyan">~/workplace/warpai</span><span class="cc-gy"> &gt; </span><span class="cc-yellow">main *</span><span class="green"> ↑1</span><span class="cc-gy"> &gt; ctx ──────── </span><span class="green">14%</span><span class="cc-gy"> 142k/1M</span></div>
+                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-coral">⏵⏵ guarded pty delivery active</span> <span class="dim">(safe from dropped keystrokes)</span></div>
+                </div>
+              </div>
+
+              <div class="mock-pane" data-title="cargo">
+                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
+                <div><b>❯</b> <span class="cmd">cargo</span> check -p warpai --bin warpai</div>
+                <div class="dim">   Compiling warpai-agent-bus v1.6.5</div>
+                <div class="dim">   Compiling warpai v1.6.5 (/Users/wqin/workplace/warpai)</div>
+                <div><span class="time">16:42:01</span> <span class="blue">[agent_bus]</span> VT100 screen observer attached</div>
+                <div><span class="time">16:42:02</span> <span class="green">state changed</span> → Working</div>
+                <br>
+                <div><span class="badge">cargo</span> <span class="green">check clean</span> in 2.14s</div>
+                <br>
+                <div class="url-line">┃ Guarded PTY&nbsp;&nbsp; <span>synced to VT100 input loop</span></div>
+                <div class="dim">  Zero telemetry · Local socket communication ready</div>
+                <br>
+                <div><span class="time">16:42:03</span> <span class="green">watching for worktree file changes...</span></div>
+              </div>
+            </div>
+
+            <div class="mock-panes single" data-tab="terminal">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
+                <div><b>❯</b> <span class="cmd">git</span> status --short</div>
+                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/claude.toml</div>
+                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/codex.toml</div>
+                <div><span class="blue">??</span> docs/FEATURES.md</div>
+                <div><span class="blue">??</span> docs/CLI-AGENTS.md</div>
+                <br>
+                <div class="dim">No telemetry dependencies found. Binary build is 100% self-contained.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workspace 2: feat/agent-bus -->
+          <div class="mock-view" data-view="feat-agent-bus">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">codex</span>
+              <span data-tab="tests">test runner</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes single active" data-tab="main">
+              <div class="mock-pane focused tui">
+                <div><span class="cx-bullet">•</span> <b>Explored</b></div>
+                <div class="dim">&nbsp;&nbsp;└ crates/agent_bus/src/screen_detection/vt100.rs</div>
+                <br>
+                <div><span class="cx-bullet">•</span> <b>Ran Tests</b></div>
+                <div class="dim">&nbsp;&nbsp;└ cargo test -p agent_bus</div>
+                <div class="dim">&nbsp;&nbsp;└ 28 passed · 0 failed · 1.4s</div>
+                <br>
+                <div><span class="cx-bullet">•</span> <b>Warpai Guard Interceptor Triggered:</b></div>
+                <div class="warpai-guard-box">
+                  <div class="warpai-guard-title"><span class="pulse-dot"></span> [WaitingApproval] Privileged command requested by Agent:</div>
+                  <div><span class="cmd">cargo</span> test -p warpai -- --nocapture</div>
+                  <div class="dim">Warpai halted PTY delivery until human confirmation.</div>
+                  <div class="warpai-guard-options">
+                    <div class="selected">❯ 1. Approve single execution (Enter)</div>
+                    <div class="dim">&nbsp;&nbsp;2. Approve for entire task session</div>
+                    <div class="dim">&nbsp;&nbsp;3. Deny and halt agent (esc)</div>
+                  </div>
+                </div>
+                <div class="tui-bottom">
+                  <div class="cc-rule"></div>
+                  <div><b>›</b> <span class="cursor"></span></div>
+                  <br>
+                  <div class="dim">gpt-5.5 · ~/workplace/warpai · worktree/feat-agent-bus · WaitingApproval</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mock-panes single" data-tab="tests">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>~/workplace/warpai/worktrees/agent-bus</span> <em>feat/agent-bus</em></div>
+                <div><b>❯</b> <span class="cmd">cargo</span> nextest run</div>
+                <div><span class="green">PASS</span> [   0.042s] agent_bus::tests::test_claude_working_pattern</div>
+                <div><span class="green">PASS</span> [   0.038s] agent_bus::tests::test_codex_approval_pattern</div>
+                <div><span class="green">PASS</span> [   0.040s] agent_bus::tests::test_idle_drain</div>
+                <div><span class="dim">Summary [ 0.120s ]: 3 tests run: 3 passed, 0 failed</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workspace 3: infra/remote -->
+          <div class="mock-view" data-view="infra-remote">
+            <div class="mock-tabs">
+              <span class="active" data-tab="main">companion</span>
+              <span data-tab="logs">server logs</span>
+              <span>+</span>
+            </div>
+            <div class="mock-panes single active" data-tab="main">
+              <div class="mock-pane focused">
+                <div class="mock-prompt"><span>wqin@workbox-gpu</span> <em>remote companion</em></div>
+                <div><b>❯</b> <span class="cmd">warpai-companion</span> --listen 127.0.0.1:2222</div>
+                <div class="dim">connected via SFTP over SSH · bounded stdio file chunks · Linux x86_64</div>
+                <div><span class="time">16:40:12</span> channel attached · PTY streams isolated</div>
+                <div><span class="time">16:40:15</span> agent pool initialized: 4 workers available</div>
+                <div><span class="time">16:41:00</span> dsh-tui completed task #104 in worktree <span class="green">ok</span></div>
+                <br>
+                <div><span class="badge">remote</span> <span class="green">connected</span> elapsed 2h 14m · zero latency spikes</div>
+              </div>
+            </div>
+            <div class="mock-panes single" data-tab="logs">
+              <div class="mock-pane focused">
+                <div class="dim">[daemon] watching /home/wqin/.config/warpai/companion.sock</div>
+                <div><span class="green">ready</span> listening for incoming desktop sessions</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <figcaption>The entire multi-agent workbench in one native window. Click the sidebar or tabs to switch views.</figcaption>
+    </figure>
+  </div>
+  <p class="figcap">Three isolated worktrees, four agents, running simultaneously without Git conflicts. <b>Guarded PTY ensures zero dropped keystrokes or collision.</b></p>
 </section>
 
-<section class="close-section" id="download">
-  <div class="site-container close-content">
-    <p class="section-kicker">{{ s.close.kicker }}</p>
-    <h2>{{ s.close.heading_line }} <span class="close-title-brand">Warpai</span></h2>
-    <p>{{ s.close.body }}</p>
-    <div class="close-actions">
-      <a class="download-direct-button" href="https://github.com/OthinusG/warpai/releases/latest">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-        {{ s.close.primary }}
-      </a>
-      <a class="close-other-download" href="https://github.com/OthinusG/warpai/releases">{{ s.close.secondary }}</a>
+<div class="caps">
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/FEATURES.md">
+    <div class="n"><span>01</span></div>
+    <div class="cap-in">
+      <h3>Always native. Zero telemetry.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Warpai is not an Electron web wrap or a cloud rental. It is 100% native Rust, Metal, and DirectX GPU-accelerated. We completely stripped all 51+ cloud AI files, Sentry tracking, and mandatory login walls. You own your terminal, your keys, and your data.</p>
+    </div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>warpai-core</span><b><i class="beat"></i>local-first</b></div>
+      <div class="ev-note">0 telemetry requests &middot; 0 cloud account gates &middot; 100% private</div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CONCEPTS.md">
+    <div class="n"><span>02</span></div>
+    <div class="cap-in">
+      <h3>You never hunt for the stuck one.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Warpai's built-in VT100 screen observer analyzes raw terminal output in memory, identifying every agent's state: Working, WaitingApproval, or Idle. When an agent stops and needs permission, the tab pulses coral immediately—no more pane-by-pane searching.</p>
+    </div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
+      <div class="ev-row"><span>warpai (main)</span><b><i class="w"></i>working</b></div>
+      <div class="ev-row"><span>infra/remote</span><b><i class="i"></i>idle</b></div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/USING-WARPAI-AGENTS.md">
+    <div class="n"><span>03</span></div>
+    <div class="cap-in">
+      <h3>Guarded PTY delivery.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Ordinary terminals drop inputs or clobber commands when an agent CLI is redrawing or busy thinking. Warpai gates PTY delivery so instructions only land when the agent CLI is at a true input prompt, preventing garbled keystrokes and unintended execution.</p>
+    </div>
+    <div class="ev">
+      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/CLI-AGENTS.md">
+    <div class="n"><span>04</span></div>
+    <div class="cap-in">
+      <h3>Runs what you already run.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Claude Code, Codex, Gemini, Antigravity, Cursor, Trae, Pi, Goose, Grok, and more. Warpai doesn't wrap them in proprietary APIs or dumb webviews; it owns their real terminal processes with custom VT100 manifests and native split panes.</p>
+    </div>
+    <div class="ev">
+      <div class="herd">
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Claude Code</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Codex</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Gemini CLI</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Antigravity</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Cursor Agent</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>dsh-tui</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Trae / Grok</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>Goose / Hermes</span>
+      </div>
+      <div class="ev-note">16+ agent CLIs detected out of the box</div>
+    </div>
+  </a>
+
+  <a class="cap" href="https://github.com/OthinusG/warpai/blob/main/docs/INSTALL.md">
+    <div class="n"><span>05</span></div>
+    <div class="cap-in">
+      <h3>All your machines. One Warpai.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Your MacBook, your Windows desktop, or a remote Linux GPU box. Connect over SSH with the Warpai Remote Companion; your remote workspaces and agents sit alongside local ones with full SFTP file transfer and zero latency penalty.</p>
+    </div>
+    <div class="ev">
+      <div class="machine-cmd"><b>$</b> <code>warpai companion attach workbox-gpu</code></div>
+      <div class="ev-row"><span>local desktop</span><b><i class="beat"></i>connected</b></div>
+      <div class="ev-row"><span>workbox-gpu (SSH)</span><b><i class="beat"></i>connected</b></div>
+    </div>
+  </a>
+</div>
+
+<a class="cloud-teaser" href="https://github.com/OthinusG/warpai/blob/main/docs/MCP-API.md" id="compare">
+  <div>
+    <span class="cloud-label">Native MCP Coordination <span>warp-lite-communication</span></span>
+    <h2>38+ Native Tools. Zero Cloud Subscriptions.</h2>
+    <p>Coordinate multi-agent task pools, file reservations, peer reviews, and context publication through built-in MCP tools directly on your local machine.</p>
+  </div>
+  <span class="cloud-cta">Explore MCP API <span aria-hidden="true">&#8594;</span></span>
+</a>
+
+<section class="end" id="install">
+  <div class="in">
+    <h2>Give them somewhere to live.</h2>
+    <p>One command, and nothing else about your workflow changes. The agent CLIs you already run keep working exactly as they did, except now they don't stop when you do.</p>
+    <div class="go">
+      <div class="hd-cmd">
+        <code id="install-cmd-2"><b>$</b>curl -fsSL https://othinusg.github.io/warpai/install.sh | sh</code>
+        <button type="button" id="copy-btn-2" aria-label="Copy install command">copy</button>
+      </div>
+    </div>
+    <div class="meta">
+      macOS: <code>brew install --cask warpai</code> &nbsp;·&nbsp;
+      Windows: <code>winget install Warpai.Warpai</code> &nbsp;—&nbsp;
+      <a href="https://github.com/OthinusG/warpai/releases">all platform downloads &amp; checksums →</a>
     </div>
   </div>
 </section>

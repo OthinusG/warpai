@@ -1,47 +1,59 @@
-{% assign s = site.data.strings[page.lang] %}
 <!doctype html>
-<html lang="{{ s.lang_code }}">
+<html lang="{{ page.lang | default: 'en' }}" data-palette="catppuccin" data-mode="ink">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ s.meta.title }}</title>
-<meta name="description" content="{{ s.meta.description }}">
-<link rel="canonical" href="{{ page.url | absolute_url }}">
-<link rel="alternate" hreflang="en" href="{{ '/' | absolute_url }}">
-<link rel="alternate" hreflang="zh-CN" href="{{ '/zh/' | absolute_url }}">
-<link rel="alternate" hreflang="x-default" href="{{ '/' | absolute_url }}">
-<link rel="icon" type="image/png" href="{{ '/assets/images/warpai-icon.png' | relative_url }}">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="{{ site.title }}">
-<meta property="og:title" content="{{ s.meta.title }}">
-<meta property="og:description" content="{{ s.meta.description }}">
-<meta property="og:url" content="{{ page.url | absolute_url }}">
-<meta property="og:image" content="{{ '/assets/images/warpai-social-preview.jpg' | absolute_url }}">
-<meta property="og:image:alt" content="{{ s.meta.og_alt }}">
-<meta name="twitter:card" content="summary_large_image">
-<script>
-(function () {
-  var t = null;
-  try {
-    var q = new URLSearchParams(location.search).get('theme');
-    if (q === 'dark' || q === 'light') { t = q; localStorage.setItem('warpai-theme', q); }
-    else { t = localStorage.getItem('warpai-theme'); }
-  } catch (e) {}
-  if (t !== 'dark' && t !== 'light') {
-    t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  if (t === 'dark') document.documentElement.classList.add('dark');
-  document.documentElement.style.colorScheme = t;
-})();
-</script>
-<link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | default: 'Warpai: The terminal built for agents' }}</title>
+  <meta name="description" content="{{ page.description | default: 'Warpai is the local-first, GPU-accelerated terminal where coding agents live. Zero telemetry, zero cloud login, isolated worktrees, and guarded PTY delivery.' }}">
+  <meta name="theme-color" content="#17171a">
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <link rel="icon" type="image/png" href="{{ '/assets/images/warpai-icon.png' | relative_url }}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Warpai">
+  <meta property="og:title" content="{{ page.title | default: 'Warpai: The terminal built for agents' }}">
+  <meta property="og:description" content="{{ page.description | default: 'Run them anywhere. Leave them running. Warpai is the agent-native terminal for macOS, Windows and remote Linux.' }}">
+  <meta property="og:url" content="{{ page.url | absolute_url }}">
+  <meta property="og:image" content="{{ '/assets/images/warpai-social-preview.jpg' | absolute_url }}">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script>
+    window.warpaiGround = {
+      read: function () {
+        try {
+          return localStorage.getItem("warpai-theme") === "paper" ? "paper" : "ink";
+        } catch (e) {
+          return "ink";
+        }
+      },
+      apply: function (mode) {
+        var root = document.documentElement;
+        root.setAttribute("data-mode", mode);
+        root.setAttribute("data-palette", mode === "paper" ? "solarized-light" : "catppuccin");
+        return mode;
+      },
+      save: function (mode) {
+        try {
+          localStorage.setItem("warpai-theme", mode);
+        } catch (e) {}
+      },
+    };
+    window.warpaiGround.apply(window.warpaiGround.read());
+  </script>
+
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
 </head>
-<body>
-{% include header.html s=s %}
-<main class="site-main">
-{{ content }}
-</main>
-{% include footer.html s=s %}
-<script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+<body class="site">
+  <div class="hd-frame">
+    {% include header.html %}
+    {{ content }}
+    {% include footer.html %}
+  </div>
+  <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
 </body>
 </html>
