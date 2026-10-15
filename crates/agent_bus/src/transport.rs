@@ -1309,6 +1309,7 @@ impl Broker {
             | Operation::TaskFail { request_id, .. } => state.store.request_seen(&actor.id, request_id)?,
             _ => false,
         };
+        let changes = state.store.mutation_count()?;
         let mut result = state.store.execute(&actor, &run, &request.operation)?;
         if let Operation::AgentAsk { reply_to:Some(parent), .. } = &request.operation {
             state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap().delivered.insert(parent.clone());
@@ -1434,7 +1435,7 @@ impl Broker {
         if matches!(request.operation, Operation::AgentReply { .. }) {
             result["instruction"] = json!("Your correlated result is durably queued for the original sender. Its handling is separate from your completion; do not wait for a reply to this result. Finish any remaining owned work, then announce readiness as your final action.");
         }
-        if request.operation.request_id().is_some() || matches!(request.operation, Operation::AgentAck { .. }) {
+        if changes != state.store.mutation_count()? {
             self.shared.notify_change();
         }
         Ok(result)
@@ -1447,10 +1448,11 @@ impl Broker {
     /// Trusted local panel mutations under the deterministic operator principal.
     pub fn operator(&self, project: &str, operation: &Operation) -> Result<Value> {
         let state = self.store()?;
+        let changes = state.store.mutation_count()?;
         let result = state
             .store
             .execute(&Store::operator(project), crate::storage::OPERATOR_EPOCH, operation);
-        if operation.request_id().is_some() || matches!(operation, Operation::AgentAck { .. }) {
+        if changes != state.store.mutation_count()? {
             self.shared.notify_change();
         }
         result
@@ -1569,6 +1571,7 @@ impl Broker {
             Some(crate::worktrees::Worktree::discover(Path::new(&query.project))?.repository)
         } else { None };
         let mut state = self.store()?;
+        let changes = state.store.mutation_count()?;
         let binding = query.terminal.as_ref().and_then(|terminal| state.terminals.get(terminal));
         let admission = match binding {
             Some(binding) if binding.revoked => "revoked",
@@ -1691,6 +1694,7 @@ impl Broker {
         let roles = state.store.worktree_roles(&project)?;
         let coordinator_online = roles.iter().any(|role| role.role == "coordinator" && role.run.as_ref().is_some_and(|run| orchestration::active_agent(&state, &role.agent, run)));
         let worktree_mode = state.store.worktree_mode(&project)?;
+        if changes != state.store.mutation_count()? { self.shared.notify_change(); }
         drop(state);
         // Git can wait on subprocesses; never hold the native input mutex while querying it.
         let mut branches = HashMap::new();

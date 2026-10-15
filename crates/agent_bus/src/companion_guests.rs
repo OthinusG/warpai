@@ -546,10 +546,10 @@ mod tests {
         assert_eq!(replacement.run, first.run);
         assert!(!replacement.valid && replacement.wake.is_none());
         assert_eq!(projects.guests.runs.lock().unwrap()[&pid].input_epoch, Some(1));
-        let stale_wake = crate::transport::Wake {
-            terminal:first.terminal.clone(), run:Uuid::new_v4().to_string(),
-            message_id:Uuid::new_v4().to_string(), generation:0, task_id:None, revision:None,
-        };
+        let stale_wake: crate::transport::Wake = serde_json::from_value(json!({
+            "terminal":first.terminal, "run":Uuid::new_v4().to_string(),
+            "message_id":Uuid::new_v4().to_string(), "generation":0, "task_id":null, "revision":null,
+        })).unwrap();
         for action in [crate::wsl_setup::NativeAction::Claim { wake:stale_wake.clone() },
             crate::wsl_setup::NativeAction::Validate { wake:stale_wake.clone() },
             crate::wsl_setup::NativeAction::Finish { wake:stale_wake, submitted:true }] {

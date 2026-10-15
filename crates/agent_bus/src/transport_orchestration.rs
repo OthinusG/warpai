@@ -423,6 +423,29 @@ mod tests {
     }
 
     #[test]
+    fn lazy_deadline_notifications_invalidate_otherwise_read_only_queue_cache() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("deadline-revision.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let worker = client(broker, &root, "worker");
+        let mut operation = assign("worker");
+        if let Operation::TaskAssign { execution_timeout_seconds, .. } = &mut operation {
+            *execution_timeout_seconds = Some(1);
+        }
+        let task = call(broker, &issuer, operation).unwrap();
+        call(broker, &worker, Operation::TaskStart { task_id:task["id"].as_str().unwrap().into(),
+            revision:1, expected_version:None, request_id:id() }).unwrap();
+        assert!(broker.pending_work().is_empty());
+        let revision = broker.work_revision();
+        std::thread::sleep(Duration::from_millis(1200));
+        call(broker, &issuer, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap();
+        assert_ne!(broker.work_revision(), revision, "a read can emit a lazy deadline notice");
+        assert!(broker.pending_work().iter().any(|wake| wake.terminal == issuer.terminal));
+    }
+
+    #[test]
     fn blocked_native_sessions_keep_mcp_connected_and_resume_original_queued_work() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

@@ -62,6 +62,7 @@ MCP inbox access while blocked, original-message delivery and unacknowledged rec
 
 The Broker revision invalidates empty-queue reuse on communication/lifecycle changes.
 Unchanged composer guards and read-only MCP queries no longer wake waiting clients.
+SQLite mutation counts still invalidate reuse when a read emits lazy deadline notices.
 Forwarded Stores retain polling; pending work retains settling/retry/cancellation checks.
 The desktop still observes native input/output stamps without copying unchanged grids.
 

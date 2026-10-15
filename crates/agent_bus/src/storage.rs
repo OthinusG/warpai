@@ -763,6 +763,11 @@ impl Store {
         Ok(message)
     }
 
+    /// SQLite includes lazy deadline notifications emitted by otherwise read-only operations.
+    pub(crate) fn mutation_count(&self) -> Result<i64> {
+        self.count("SELECT total_changes() AS count", &[])
+    }
+
     fn count(&self, sql: &str, binds: &[&str]) -> Result<i64> {
         let mut connection = self.connection.borrow_mut();
         let query = diesel::sql_query(sql.to_owned());
