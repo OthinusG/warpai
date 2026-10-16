@@ -24,4 +24,5 @@
   - Added native Windows WSL/WSL2 integration highlights in Section 05 and documentation.
   - Added dedicated Section 06 on landing pages linking to comprehensive multi-agent guides.
   - Split multi-agent documentation into dedicated standalone guides: `project-mode.md` (omnidirectional, non-coding, 6+ domain tutorials) and `worktree-mode.md` (Git parallel coding, Coordinator peer review) alongside `using-warpai-agents.md`. Updated docs sidebar navigation in `_layouts/docs.html` with direct entries.
+  - Streamlined landing page Hero lede and Section 06 copy across both English and Chinese to punchy, &lt;=4 line presentations.
 
