@@ -34,7 +34,7 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. F
     <tr>
       <td><strong>Get Started</strong></td>
       <td><a href="{{ '/docs/install.html' | relative_url }}">Installation Guide</a></td>
-      <td>Direct downloads (macOS, Windows, and Linux Desktop), package managers, Gatekeeper/SmartScreen verification, and Linux Companion.</td>
+      <td>Direct downloads (macOS and Windows Desktop), package managers, Gatekeeper/SmartScreen verification, and Linux Companion for remote hosts.</td>
     </tr>
     <tr>
       <td></td>

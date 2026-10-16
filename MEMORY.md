@@ -42,7 +42,7 @@
   - **Project Mode Right Panel**: Fully restructured Project mode view to independently display `Tasks` (`No tasks on this page.`), `Project` (`This Mac · ~/workplace`), `Agents` (`claude-9c9cfc0c · idle`), and `Focus claude-9c9cf` with `Send to Agent` / `History` actions. Completely removed Coordinator and Worktree nodes in Project mode while preserving their full interactive functionality in Worktree mode.
   - **Data Usage Widget**: Stripped the personal identifier (`· mj`), keeping clean brand name `Codex` and quota metrics (`5h · 1% used`).
 - **Platform Roadmap & Dynamic Task Supervision Updates (2026-10-16)**:
-  - **Linux Desktop Client**: Officially released in **v1.7.0** (supporting Ubuntu 20.04+, Debian, Fedora, Arch on Wayland/X11 via AppImage/.deb/tarball). Updated homepage copy, metadata, and docs across English and Chinese so Linux Desktop is presented as natively supported and released, while Companion continues to cover headless remote SSH/WSL servers.
+  - **Linux Desktop Client**: Initially prepared for **v1.7.0** (Ubuntu 20.04+, Debian, Fedora, Arch on Wayland/X11 via AppImage/.deb/tarball); owner later moved desktop package publication to **v1.7.1** on 2026-10-16. Linux Companion remains available for headless remote SSH/WSL servers.
   - **Dynamic Task Supervision & Continuous Multi-Agent Dispatch**: Synchronized documentation across `_data/strings.yml`, `docs/`, `zh/docs/`, `index.html`, and `zh/index.html` to reflect the newly implemented Agent task logic:
     - Senders/Supervisors can publish tasks to multiple agents continuously at any time without batch boundaries or waiting for prior work to finish.
     - Newly dispatched tasks dynamically enroll into the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and outcomes across turn yields (`warp_agent_ready`).
@@ -107,4 +107,9 @@
   - Overhauled positioning comparison in the main codebase (`main` and `milestone/1.7.0` branches):
     - Expanded `## Warpai 的定位` in `README.zh-CN.md` and `## Where Warpai fits` in `README.md` to cleanly compare all 7 system archetypes (Traditional Terminals, Agent Editors, Full IDEs, Autonomous ADEs/Sandboxes, Multi-Agent Frameworks/Multiplexers, Desktop AI Apps, and Upstream Warp).
     - Replaced Section 2 in `docs/FEATURES.md` (the core Chinese architectural source of truth in the main repo) with the full 7-system benchmark taxonomy and category-by-category 3-column evaluation tables.
+
+- **Release scope correction (2026-10-16)**: Owner removed Linux desktop packages from
+  1.7.0 and moved their release target to 1.7.1. The 1.7.0 release still includes
+  Linux Companion for remote hosts. Landing pages and install guides now describe
+  macOS/Windows desktop downloads and Linux remote Companion separately.
   - Pushed commits directly to `origin/main` (`5d604fe5`) and merged cleanly to `origin/milestone/1.7.0`.

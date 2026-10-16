@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Installation & Setup
-description: "Step-by-step installation instructions for macOS, Windows, Linux Desktop, Linux Companion, package managers, and security verifications."
+description: "Step-by-step installation instructions for macOS and Windows desktops, Linux Companion, package managers, and security verifications."
 section: Getting Started
 doc_id: install
 prev_url: /docs/
@@ -10,7 +10,7 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-Warpai is a native desktop application built in Rust, natively supporting **macOS**, **Windows**, and **Linux**, with first-class remote support for **Linux**, **macOS**, and **Windows** over SSH and Windows **WSL 2** via the standalone **Warpai Companion**.
+Warpai is a native desktop application built in Rust for **macOS** and **Windows**, with first-class remote support for **Linux**, **macOS**, and **Windows** over SSH and Windows **WSL 2** via the standalone **Warpai Companion**.
 
 ---
 
@@ -80,44 +80,6 @@ Warpai is a native desktop application built in Rust, natively supporting **macO
 </div>
 
 ---
-
-### 3. Linux Desktop (x64)
-
-- **System Requirements**: Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch Linux, or other glibc-based distributions; 64-bit x86 architecture; X11 or Wayland display server.
-- **Direct Downloads**:
-  - [Download Warpai Linux AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage)
-  - [Download Warpai Debian / Ubuntu Package (.deb)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb)
-  - [Download Standalone Tarball (.tar.gz)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz)
-
-#### Installation Steps:
-
-- **AppImage (Universal)**:
-  ```bash
-  chmod +x Warpai-1.7.0-linux-x86_64.AppImage
-  ./Warpai-1.7.0-linux-x86_64.AppImage
-  ```
-- **Debian / Ubuntu (.deb)**:
-  ```bash
-  sudo dpkg -i warpai_1.7.0_amd64.deb || sudo apt-get install -f
-  ```
-- **Standalone Tarball**:
-  ```bash
-  tar -xzf warpai-1.7.0-linux-x86_64.tar.gz
-  ./warpai/warpai
-  ```
-
-<div class="docs-shot-placeholder" data-shot="SHOT-24">
-  <div class="shot-header">
-    <span class="shot-badge">SHOT-24 (P2)</span>
-    <span class="shot-title">Linux Desktop Native Interface</span>
-  </div>
-  <p class="shot-desc">Linux 桌面端原生界面：在 Linux（Ubuntu GNOME/Debian/Fedora）桌面运行 Warpai 原生应用，展示原生窗口阴影、垂直标签栏及 GPU 渲染终端命令行。</p>
-  <div class="shot-meta">
-    <span>建议尺寸: 1440x810 (16:9)</span>
-    <span>目标路径: docs/images/linux-desktop-native.png</span>
-    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
-  </div>
-</div>
 
 ---
 

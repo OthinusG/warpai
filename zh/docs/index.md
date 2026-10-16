@@ -35,7 +35,7 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对�
     <tr>
       <td><strong>快速入门</strong></td>
       <td><a href="{{ '/zh/docs/install.html' | relative_url }}">安装指南</a></td>
-      <td>原生安装包下载（macOS Apple 芯片、Windows x64 与 Linux 桌面端）、系统安全性信任说明、SSH 远程伴侣配置。</td>
+      <td>原生安装包下载（macOS Apple 芯片与 Windows x64）、系统安全性信任说明、Linux SSH 远程伴侣配置。</td>
     </tr>
     <tr>
       <td></td>

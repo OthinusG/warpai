@@ -60,7 +60,7 @@ en:
   pocket:
     kicker: Local and remote
     heading: Same workflow, every machine
-    body: Desktop app for macOS, Windows, and Linux. SSH projects and Companion for headless Linux, macOS, and Windows — the same panels follow you.
+    body: Desktop apps for macOS and Windows. SSH projects and Companion for Linux, macOS, and Windows — the same panels follow you.
     shots:
       - alt: "Warpai desktop workspace with vertical tabs and the collaboration panel"
         title: Warpai
@@ -87,7 +87,7 @@ en:
     note: "© 2026 Warpai · Independently maintained"
   meta:
     title: "Warpai — The terminal built around agents"
-    description: "A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS, Windows, and Linux."
+    description: "A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS and Windows, with Linux remote workspaces."
     og_alt: "Warpai — The terminal built around agents"
 
 zh:
@@ -152,7 +152,7 @@ zh:
   pocket:
     kicker: 本地与远程
     heading: 每台机器，同一套工作流
-    body: 面向 macOS、Windows 与 Linux 的桌面端；无图形界面服务器与远端实例则由 Warpai Companion 伴侣无缝覆盖——同一套面板始终跟随。
+    body: 提供 macOS 与 Windows 桌面端；Linux、macOS 和 Windows 远端实例由 Warpai Companion 伴侣无缝覆盖——同一套面板始终跟随。
     shots:
       - alt: 带垂直标签与协作面板的 Warpai 桌面工作区
         title: Warpai
@@ -179,5 +179,5 @@ zh:
     note: "© 2026 Warpai · 独立维护"
   meta:
     title: "Warpai — 为智能体而生的终端"
-    description: "专为多智能体自主协同打造的原生 GPU 渲染终端。开箱感知 20+ 款 CLI 智能体，提供内存级 VT100 状态跟踪、守护式 PTY 交付、38+ 原生 MCP 工具套件与 Worktree / Project 协作双模式，原生支持 macOS、Windows 与 Linux。"
+    description: "专为多智能体自主协同打造的原生 GPU 渲染终端。开箱感知 20+ 款 CLI 智能体，提供内存级 VT100 状态跟踪、守护式 PTY 交付、38+ 原生 MCP 工具套件与 Worktree / Project 协作双模式，支持 macOS、Windows 桌面端与 Linux 远程工作区。"
     og_alt: "Warpai — 为智能体而生的终端"

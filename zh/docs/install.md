@@ -2,7 +2,7 @@
 layout: docs
 lang: zh
 title: 安装指南
-description: "Warpai 桌面端（macOS Apple 芯片、Windows x64、Linux 桌面端）、Linux 远程伴侣安装说明、安全性信任操作及环境配置。"
+description: "Warpai macOS 与 Windows 桌面端、Linux 远程伴侣的安装说明及安全性信任操作。"
 section: 快速入门
 doc_id: install
 prev_url: /docs/
@@ -11,7 +11,7 @@ next_url: /docs/quick-start.html
 next_title: 快速上手 (5分钟)
 ---
 
-Warpai 是一款基于 Rust 构建的高性能纯原生桌面应用程序，专为 **macOS（Apple 芯片）**、**Windows（x64）** 与 **Linux 桌面端（x64）** 平台提供原生支持，同时通过轻量级远程伴侣（Companion）全面覆盖 SSH 远端 **Linux**、**macOS** 与 **Windows** 环境以及 Windows **WSL 2**。
+Warpai 是一款基于 Rust 构建的高性能原生桌面应用程序，支持 **macOS（Apple 芯片）** 与 **Windows（x64）**；同时通过轻量级远程伴侣（Companion）覆盖 SSH 远端 **Linux**、**macOS** 与 **Windows** 环境以及 Windows **WSL 2**。
 
 ---
 
@@ -81,44 +81,6 @@ Warpai 是一款基于 Rust 构建的高性能纯原生桌面应用程序，专�
 </div>
 
 ---
-
-### 3. Linux 桌面端 (x64)
-
-- **系统要求**：Ubuntu 20.04+、Debian 11+、Fedora 38+、Arch Linux 等主流发行版；64 位 x86 架构；支持 Wayland 与 X11 显示环境。
-- **安装包直链**：
-  - [下载 Warpai Linux AppImage 镜像](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage)
-  - [下载 Warpai Debian / Ubuntu 安装包 (.deb)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb)
-  - [下载独立可执行压缩包 (.tar.gz)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz)
-
-#### 安装与运行步骤：
-
-- **AppImage（免安装通用格式）**：
-  ```bash
-  chmod +x Warpai-1.7.0-linux-x86_64.AppImage
-  ./Warpai-1.7.0-linux-x86_64.AppImage
-  ```
-- **Debian / Ubuntu 安装包 (.deb)**：
-  ```bash
-  sudo dpkg -i warpai_1.7.0_amd64.deb || sudo apt-get install -f
-  ```
-- **独立解压包**：
-  ```bash
-  tar -xzf warpai-1.7.0-linux-x86_64.tar.gz
-  ./warpai/warpai
-  ```
-
-<div class="docs-shot-placeholder" data-shot="SHOT-24">
-  <div class="shot-header">
-    <span class="shot-badge">SHOT-24 (P2)</span>
-    <span class="shot-title">Linux 桌面端原生界面</span>
-  </div>
-  <p class="shot-desc">Linux 桌面端原生界面：在 Linux（Ubuntu GNOME/Debian/Fedora）桌面运行 Warpai 原生应用，展示原生窗口阴影、垂直标签栏及 GPU 渲染终端命令行。</p>
-  <div class="shot-meta">
-    <span>建议尺寸: 1440x810 (16:9)</span>
-    <span>目标路径: docs/images/linux-desktop-native.png</span>
-    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
-  </div>
-</div>
 
 ---
 
