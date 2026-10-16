@@ -53,9 +53,10 @@ Warpai provides two first-class modes tailored for different problem domains:
 Warpai v1.7.0 introduces **Dynamic Task Supervision**:
 
 1. **On-the-fly task dispatching**: Any supervising Agent or Coordinator can dynamically publish tasks to multiple agents at any time, adapting flexibly as execution unfolds rather than relying on static, upfront batch plans.
-2. **Dynamic supervision list enrollment**: Newly dispatched tasks immediately join the primary Agent's live **Supervision Task List**. The supervising agent actively tracks task lifecycle states (`assigned`, `in_progress`, `submitted_for_review`).
-3. **Active task retirement**: Once an assigned agent completes its deliverable and submits accepted evidence or code diffs, the task automatically exits the supervision list.
-4. **Guarded inbox delivery**: Busy agents receive incoming tasks and messages in arrival order without unexpected process interruptions. Timeouts never prematurely restart in-flight work.
+2. **Persistent task queuing & sequential execution**: Dispatched tasks enter durable recipient queues (`queued`). Workers execute one task at a time (`running`), preventing dirty working tree contention, and pop queued items sequentially via `warp_task_start` upon submission.
+3. **Dynamic supervision list enrollment**: Newly dispatched tasks immediately join the primary Agent's live **Supervision Task List**. The supervising agent actively tracks task lifecycle states (`assigned`, `in_progress`, `submitted_for_review`).
+4. **Active task retirement**: Once an assigned agent completes its deliverable and submits accepted evidence or code diffs, the task automatically exits the supervision list.
+5. **Guarded inbox delivery**: Busy agents receive incoming tasks and messages in arrival order without unexpected process interruptions. Timeouts never prematurely restart in-flight work.
 
 ```mermaid
 flowchart TB
