@@ -2,7 +2,7 @@
 layout: docs
 lang: zh
 title: 安装指南
-description: "Warpai macOS 与 Windows 桌面端、Linux 远程伴侣的安装说明及安全性信任操作。"
+description: "Warpai 1.7.1 在 macOS、Windows 与 Linux 桌面端的安装说明，以及 Linux 远程伴侣和安全性信任操作。"
 section: 快速入门
 doc_id: install
 prev_url: /docs/
@@ -11,7 +11,7 @@ next_url: /docs/quick-start.html
 next_title: 快速上手 (5分钟)
 ---
 
-Warpai 是一款基于 Rust 构建的高性能原生桌面应用程序，支持 **macOS（Apple 芯片）** 与 **Windows（x64）**；同时通过轻量级远程伴侣（Companion）覆盖 SSH 远端 **Linux**、**macOS** 与 **Windows** 环境以及 Windows **WSL 2**。
+Warpai 1.7.1 是一款原生桌面应用程序，支持 **macOS（Apple 芯片）**、**Windows（x64）** 与 **Linux**。Linux 桌面端提供 x64 和 ARM64 安装包。连接 SSH 远端 **Linux**、**macOS**、**Windows** 主机及 Windows **WSL 2**，请使用独立的 **Warpai Companion**。
 
 ---
 
@@ -25,7 +25,7 @@ Warpai 是一款基于 Rust 构建的高性能原生桌面应用程序，支持 
   brew install --cask OthinusG/tap/warpai
   ```
 - **安装包直链**：
-  - [下载 Warpai macOS 版 (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg)
+  - [下载 Warpai 1.7.1 macOS 版 (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-macos-arm64.dmg)
 
 #### 安装步骤：
 1. 双击打开下载的 `.dmg` 磁盘镜像文件。
@@ -60,10 +60,10 @@ Warpai 是一款基于 Rust 构建的高性能原生桌面应用程序，支持 
 
 - **系统要求**：Windows 10 (1903 及更高版本) 或 Windows 11；64 位 x86 处理器架构。
 - **安装包直链**：
-  - [下载 Warpai Windows 安装包 (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe)
+  - [下载 Warpai 1.7.1 Windows 安装包 (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiSetup-1.7.1-windows-x64.exe)
 
 #### 安装步骤：
-1. 双击运行下载的 `WarpaiSetup-1.7.0-windows-x64.exe` 安装文件。
+1. 双击运行 `WarpaiSetup-1.7.1-windows-x64.exe`。
 2. 若 Windows Defender SmartScreen 弹出拦截窗 <em>“Windows 已保护你的电脑”</em>，请点击 <strong>“更多信息”</strong>，随后点击 <strong>“仍要运行”</strong>。
 3. 按照安装向导完成安装，桌面快捷方式与开始菜单将自动生成。
 
@@ -81,6 +81,35 @@ Warpai 是一款基于 Rust 构建的高性能原生桌面应用程序，支持 
 </div>
 
 ---
+
+---
+
+### 3. Linux 桌面端（x64 与 ARM64）
+
+- **系统要求**：64 位 x86 或 ARM 处理器，glibc 2.31 或更高版本。
+- 以下命令以 x64 文件名为例；ARM64 系统请将文件名中的 `x64` 替换为 `arm64`。
+- **Ubuntu / Debian（.deb）**：
+  - [x64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.deb) · [ARM64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.deb)
+  ```bash
+  sudo apt install ./Warpai-1.7.1-linux-x64.deb
+  ```
+- **Fedora / RHEL（.rpm）**：
+  - [x64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.rpm) · [ARM64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.rpm)
+  ```bash
+  sudo dnf install ./Warpai-1.7.1-linux-x64.rpm
+  ```
+- **Arch Linux（.pkg.tar.zst）**：
+  - [x64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.pkg.tar.zst) · [ARM64 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.pkg.tar.zst)
+  ```bash
+  sudo pacman -U ./Warpai-1.7.1-linux-x64.pkg.tar.zst
+  ```
+- **AppImage**：[x64](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.AppImage) · [ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.AppImage)
+  ```bash
+  chmod +x Warpai-1.7.1-linux-x64.AppImage
+  ./Warpai-1.7.1-linux-x64.AppImage
+  ```
+
+请按处理器架构选择对应安装包。发布页同时提供校验和文件。
 
 ---
 

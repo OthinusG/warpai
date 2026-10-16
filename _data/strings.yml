@@ -15,12 +15,12 @@ en:
     language: Switch to Chinese
     theme: Toggle color theme
   header:
-    download: "Download 1.6.2"
+    download: "Download 1.7.1"
   badge: "Free · Open source · Local-first"
   hero:
     subtitle: The terminal built around agents
     lead: Make an Agent session the unit of work. Collaborate omnidirectionally in Project mode, or lead parallel feature development across isolated Git worktrees.
-    cta: "Download 1.6.2"
+    cta: "Download 1.7.1"
     doc_link: Read the README
     platforms_label: Supported platforms
     features_label: Main features
@@ -31,7 +31,7 @@ en:
       - File tree & editor
       - Code review
       - No account · No telemetry
-    note: "v1.6.2 · macOS ad-hoc signed · SHA-256 checksums with every release"
+    note: "v1.7.1 · macOS, Windows & Linux desktop · SHA-256 checksums with every release"
     shot_alt: "Warpai workspace with vertical tabs, a source editor and an agent collaboration panel"
   panel:
     kicker: Collaboration panel
@@ -60,7 +60,7 @@ en:
   pocket:
     kicker: Local and remote
     heading: Same workflow, every machine
-    body: Desktop apps for macOS and Windows. SSH projects and Companion for Linux, macOS, and Windows — the same panels follow you.
+    body: Desktop apps for macOS, Windows, and Linux. SSH projects and Companion for Linux, macOS, and Windows — the same panels follow you.
     shots:
       - alt: "Warpai desktop workspace with vertical tabs and the collaboration panel"
         title: Warpai
@@ -72,7 +72,7 @@ en:
     kicker: Get started
     heading_line: Bring your agents to
     body: One project, many agents, one coordinated workflow — locally or over SSH.
-    primary: "Download 1.7.0"
+    primary: "Download 1.7.1"
     secondary: All downloads
   footer:
     links:
@@ -87,7 +87,7 @@ en:
     note: "© 2026 Warpai · Independently maintained"
   meta:
     title: "Warpai — The terminal built around agents"
-    description: "A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS and Windows, with Linux remote workspaces."
+    description: "A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS, Windows, and Linux desktops, with remote workspaces."
     og_alt: "Warpai — The terminal built around agents"
 
 zh:
@@ -107,12 +107,12 @@ zh:
     language: 切换到英文
     theme: 切换主题
   header:
-    download: 下载 1.6.2
+    download: 下载 1.7.1
   badge: "免费 · 开源 · 本地优先"
   hero:
     subtitle: 为智能体而生的终端
     lead: 让每个智能体会话成为工作单元。在 Project 模式下全向协作互通消息，或在隔离的 Git worktree 中并行推进代码开发。
-    cta: 下载 1.6.2
+    cta: 下载 1.7.1
     doc_link: 阅读 README
     platforms_label: 支持平台
     features_label: 主要功能
@@ -123,7 +123,7 @@ zh:
       - 文件树与编辑器
       - 代码审查
       - 免账号 · 免遥测
-    note: "v1.6.2 · macOS ad-hoc 签名 · 每个版本附带 SHA-256 校验"
+    note: "v1.7.1 · 支持 macOS、Windows 与 Linux 桌面端 · 每个版本附带 SHA-256 校验"
     shot_alt: 带垂直标签、源码编辑器与智能体协作面板的 Warpai 工作区
   panel:
     kicker: 协作面板
@@ -152,7 +152,7 @@ zh:
   pocket:
     kicker: 本地与远程
     heading: 每台机器，同一套工作流
-    body: 提供 macOS 与 Windows 桌面端；Linux、macOS 和 Windows 远端实例由 Warpai Companion 伴侣无缝覆盖——同一套面板始终跟随。
+    body: 提供 macOS、Windows 与 Linux 桌面端；Linux、macOS 和 Windows 远端实例也可通过 Warpai Companion 伴侣接入——同一套面板始终跟随。
     shots:
       - alt: 带垂直标签与协作面板的 Warpai 桌面工作区
         title: Warpai
@@ -164,7 +164,7 @@ zh:
     kicker: 开始使用
     heading_line: 把智能体带进
     body: 一个项目，多个智能体，一套协作工作流——本地或远程。
-    primary: 下载 1.7.0
+    primary: 下载 1.7.1
     secondary: 全部下载
   footer:
     links:
@@ -179,5 +179,5 @@ zh:
     note: "© 2026 Warpai · 独立维护"
   meta:
     title: "Warpai — 为智能体而生的终端"
-    description: "专为多智能体自主协同打造的原生 GPU 渲染终端。开箱感知 20+ 款 CLI 智能体，提供内存级 VT100 状态跟踪、守护式 PTY 交付、38+ 原生 MCP 工具套件与 Worktree / Project 协作双模式，支持 macOS、Windows 桌面端与 Linux 远程工作区。"
+    description: "专为多智能体自主协同打造的原生 GPU 渲染终端。开箱感知 20+ 款 CLI 智能体，提供内存级 VT100 状态跟踪、守护式 PTY 交付、38+ 原生 MCP 工具套件与 Worktree / Project 协作双模式，支持 macOS、Windows 与 Linux 桌面端及远程工作区。"
     og_alt: "Warpai — 为智能体而生的终端"

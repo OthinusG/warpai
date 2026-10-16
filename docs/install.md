@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Installation & Setup
-description: "Step-by-step installation instructions for macOS and Windows desktops, Linux Companion, package managers, and security verifications."
+description: "Step-by-step installation for Warpai 1.7.1 on macOS, Windows, and Linux desktops, plus Linux Companion and security verification."
 section: Getting Started
 doc_id: install
 prev_url: /docs/
@@ -10,7 +10,7 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-Warpai is a native desktop application built in Rust for **macOS** and **Windows**, with first-class remote support for **Linux**, **macOS**, and **Windows** over SSH and Windows **WSL 2** via the standalone **Warpai Companion**.
+Warpai 1.7.1 is a native desktop application for **macOS**, **Windows**, and **Linux**. Linux desktop packages are available for x64 and ARM64. For remote **Linux**, **macOS**, and **Windows** hosts and Windows **WSL 2**, use the standalone **Warpai Companion**.
 
 ---
 
@@ -24,7 +24,7 @@ Warpai is a native desktop application built in Rust for **macOS** and **Windows
   brew install --cask OthinusG/tap/warpai
   ```
 - **Direct Download**:
-  - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg)
+  - [Download Warpai 1.7.1 for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-macos-arm64.dmg)
 
 #### Installation Steps:
 1. Open the downloaded `.dmg` disk image.
@@ -59,10 +59,10 @@ Warpai is a native desktop application built in Rust for **macOS** and **Windows
 
 - **System Requirements**: Windows 10 (version 1903+) or Windows 11; 64-bit x86 architecture.
 - **Direct Download**:
-  - [Download Warpai Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe)
+  - [Download Warpai 1.7.1 Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiSetup-1.7.1-windows-x64.exe)
 
 #### Installation Steps:
-1. Double-click the installer executable.
+1. Double-click `WarpaiSetup-1.7.1-windows-x64.exe`.
 2. If Windows Defender SmartScreen displays *"Windows protected your PC"*, click **More info** followed by **Run anyway**.
 3. Follow the wizard. A desktop shortcut and Start Menu entry will be created.
 
@@ -80,6 +80,35 @@ Warpai is a native desktop application built in Rust for **macOS** and **Windows
 </div>
 
 ---
+
+---
+
+### 3. Linux Desktop (x64 and ARM64)
+
+- **System requirements**: 64-bit x86 or ARM processor and glibc 2.31 or newer.
+- The commands below use x64 filenames; replace `x64` with `arm64` on ARM64 systems.
+- **Ubuntu / Debian (.deb)**:
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.deb) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.deb)
+  ```bash
+  sudo apt install ./Warpai-1.7.1-linux-x64.deb
+  ```
+- **Fedora / RHEL (.rpm)**:
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.rpm) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.rpm)
+  ```bash
+  sudo dnf install ./Warpai-1.7.1-linux-x64.rpm
+  ```
+- **Arch Linux (.pkg.tar.zst)**:
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.pkg.tar.zst) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.pkg.tar.zst)
+  ```bash
+  sudo pacman -U ./Warpai-1.7.1-linux-x64.pkg.tar.zst
+  ```
+- **AppImage**: [x64](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.AppImage) · [ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.AppImage)
+  ```bash
+  chmod +x Warpai-1.7.1-linux-x64.AppImage
+  ./Warpai-1.7.1-linux-x64.AppImage
+  ```
+
+Use the package matching your processor architecture. Release checksums are published alongside the installers.
 
 ---
 

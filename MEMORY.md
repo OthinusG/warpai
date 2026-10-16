@@ -108,6 +108,10 @@
     - Expanded `## Warpai 的定位` in `README.zh-CN.md` and `## Where Warpai fits` in `README.md` to cleanly compare all 7 system archetypes (Traditional Terminals, Agent Editors, Full IDEs, Autonomous ADEs/Sandboxes, Multi-Agent Frameworks/Multiplexers, Desktop AI Apps, and Upstream Warp).
     - Replaced Section 2 in `docs/FEATURES.md` (the core Chinese architectural source of truth in the main repo) with the full 7-system benchmark taxonomy and category-by-category 3-column evaluation tables.
 
+- **Warpai 1.7.1 Release (2026-10-17)**:
+  - Published the Linux desktop release for x64 and ARM64 with `.deb`, `.rpm`, Arch `.pkg.tar.zst`, and AppImage packages; the install guide now documents glibc 2.31+ and package-specific commands in English and Chinese.
+  - Updated the Homebrew tap cask to 1.7.1 after independently confirming the Apple Silicon DMG SHA-256 against the release checksum and GitHub asset digest.
+
 - **Release scope correction (2026-10-16)**: Owner removed Linux desktop packages from
   1.7.0 and moved their release target to 1.7.1. The 1.7.0 release still includes
   Linux Companion for remote hosts. Landing pages and install guides now describe
