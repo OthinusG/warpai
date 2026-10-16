@@ -9,26 +9,26 @@
 ### 为 Agent 协作而生的终端工作空间。
 
 把一次 Agent 会话当作工作的基本单元。在项目中共享协作，或选择一位 Coordinator，
-让多个 Agent 在独立 Git worktree 中并行开发。Warpai 以全功能原生终端为基础，桌面支持 macOS 和 Windows，
+让多个 Agent 在独立 Git worktree 中并行开发。Warpai 以全功能原生终端为基础，桌面原生支持 macOS、Windows 和 Linux，
 在远程 Linux、macOS 和 Windows 上也能保持同样的 Agent、文件和审阅工作流。
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.6.5](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.7.0](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
+[官方文档](https://othinusg.github.io/warpai/zh/) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/badge/release-1.6.5-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)
+[![版本](https://img.shields.io/badge/release-1.7.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
+[![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
 
 </div>
 
-![Warpai macOS 工作空间：垂直标签页、源码编辑器与 Agent 任务面板](docs/images/warpai-workspace.png)
+![Warpai 三栏全景协同工作空间](docs/images/warpai-hero-showcase.png)
 
-*现有 macOS 原生界面截图，采用垂直标签页和默认 Claude Warm Light 主题。
-项目与 Agent 为测试样例；[查看截图来源](docs/images/README.zh-CN.md)。*
+*Warpai 三栏全景工作空间（默认 Claude Warm Light 暖光主题与垂直标签页）：左侧 Agent 协同面板与动态监督任务列表、中间 GPU 原生终端与独立执行块、右侧 Project Explorer 与内置源码编辑器。*
 
 <a id="agents-as-the-unit-of-work"></a>
 
@@ -37,210 +37,146 @@
 Agent 不只是代码旁边的聊天窗口。它可以接手一项具体工作、汇报进展、向其他 Agent 求助，
 并把结果交给同伴审阅。Warpai 让多个 Agent 会话共享同一个项目上下文，也给它们一个协同工作的地方。
 
-科研、写作和共享项目通信可以使用 **Project** 模式，消息、任务和历史集中在项目中。
-所有项目 Agent 均可查看进展、待回答问题和执行不确定状态，决定重试已停止的工作、换人或验收。
-问题与答案关联原任务，忙碌时保留返回结果并按到达顺序处理；超时不会自动重跑。
-同一 Git 仓库的并行开发可以使用 **Worktree** 模式：从任意 worktree 的在线 Agent 中选择 Coordinator。
-同仓库的 Agent 自动参与，同一 worktree 内可以直接通信，不同 worktree 通过 Coordinator 通信。Coordinator 负责拆解任务、传递上下文、收集结果、
-安排交叉审阅并决定集成哪些成果。审阅者可以要求修改，执行任务的 Agent 修改后再次提交。
-你始终决定目标、范围和最终结果。
+### 两种专属协作模式
 
-### 示例：让一支 Agent 团队交付一个功能
+Warpai 针对不同业务形态提供两种第一公民协作模式：
 
-例如，增加数据导出功能时，切换到 Worktree 模式并选择 Coordinator，为 API、命令行入口
-和测试通过原有 worktree 入口分别创建新 tab，再在对应目录启动 Agent；
-创建 worktree 不会启动 Agent。Coordinator 分派任务、要求 Agent 互相审阅，再整合通过审阅的
-结果、验证组合后的改动并完成最终 Git 提交。消息、任务、验证材料和审阅决定贯穿整个过程。
+- **Git Worktree 并发编码模式**：专为高纪律软件工程打造。每个功能分支或子任务对应一个物理隔离的独立 Git 工作树目录。文件变更与编译缓存完全解耦，彻底避免分支切换冲突与未提交改动互相污染。支持从任意活跃会话指定一位 **Coordinator（协调者）**，负责拆解需求、派发任务、组织自动化对等代码审阅（Peer Review diffs），并将验收通过的代码安全合并至主干。
+- **Project 全向协同模式**：专为跨领域与非编码场景打造（科研论文、文献综述、量化金融、报告撰写与专利法务）。打破传统单一指挥链与主从层级，所有 Agent 在扁平网状拓扑中对等协作。任意 Agent 均可自由发起定向问答、发布共享上下文契约、在公共任务池中分发与认领任务。无需创建 Git 仓库，可在任意普通文件夹中即开即用。
+
+### 动态任务监督列表（v1.7.0 重磅升级）
+
+在 1.7.0 版本中，Warpai 全面重构并升级了任务协同逻辑：
+
+1. **随时动态发布任务**：主 Agent 或 Coordinator 可以随时向多个 Agent 动态派发任务，根据项目推进过程灵活扩充，无需在启动前僵化预设全部任务。
+2. **加入动态监督列表**：新发布的任务会自动加入主 Agent 的**监督任务列表（Supervision Task List）**，主 Agent 持续跟踪任务的生命周期流转（`assigned`、`in_progress`、`submitted_for_review`）。
+3. **完成主动退出列表**：被分派的 Agent 在执行完毕并提交测试材料或代码改动后，经过验证或审阅通过，任务主动从监督列表中移出归档。
+4. **守卫收件箱队列**：处于忙碌状态的 Agent 会按到达顺序排队处理外部任务和消息，防止进程意外被抢占打断；超时不会无故自动重跑已终止的工作。
 
 ```mermaid
 flowchart TB
-    Goal["你选择活动 Coordinator"] --> Lead["Coordinator 拆解任务并分派工作"]
-    Lead -->|下达任务| Team
-    subgraph Team["多个 Agent 并行工作、互通进展"]
+    Goal["你的目标与指令"] --> Coordinator["活动 Coordinator / 主 Agent"]
+    Coordinator -->|动态派发新任务| TaskPool["动态监督任务列表<br/>(随时加入监督 · 验收完成后主动退出)"]
+    TaskPool --> Team
+    subgraph Team["多个并发 CLI Agent (独立会话)"]
         direction LR
-        Build["Agent A · Worktree A<br/>实现功能"]
-        Test["Agent B · Worktree B<br/>测试与验证"]
-        Docs["Agent C · Worktree C<br/>撰写文档"]
+        AgentA["Agent A · Worktree A<br/>业务功能实现"]
+        AgentB["Agent B · Worktree B<br/>自动化测试与验证"]
+        AgentC["Agent C · Project 目录<br/>技术文档与规范契约"]
     end
-    Team -->|汇报结果| Review["Coordinator 安排交叉审阅"]
+    Team -->|提交成果材料| Review["Coordinator 交叉审阅"]
     Review -->|需要修改| Team
-    Review -->|通过审阅| Delivery["Coordinator 整合、验证并提交"]
+    Review -->|通过审阅| Delivery["Coordinator 验证整合并提交主干"]
 ```
 
-科研、分析、撰写和事实核查可以继续使用 Project 模式：划分任务、汇总交付，无需配置 worktree。
+## 一个工作空间跑通全协作闭环
 
-## 一个工作空间，覆盖从分工到交付
+Warpai 将 Agent 管理与日常项目工作深度融合在单一桌面应用中，避免在终端、外部 Web 看板、文件管理器与代码审阅工具之间频繁来回跳转：
 
-Warpai 把 Agent 管理、项目文件和日常开发工具放在同一应用中，减少在终端、独立 Agent 管理器、
-文件浏览器和审阅工具之间来回切换。
+- **左侧 Agent 协同面板**：
+  - 实时监控活跃 CLI Agent 会话细粒度状态（`idle` 空闲、`busy` 忙碌、`waiting_for_input` 等待输入、`waiting_for_dependents` 等待前置依赖、`waiting_for_message` 等待消息）。
+  - 直观追踪**动态监督任务列表**、任务分配流转及同伴提交的验收证据。
+  - 一键平滑切换 **Project 模式** 与 **Worktree 模式**；支持从任意活动目录切换 Coordinator。
+  - 面板底部提供可独立滚动的 **Data usage** 用量栏，实时显示各大模型服务商的配额进度条与账户余额。
+- **中间 GPU 加速原生终端**：
+  - 基于 Rust `wgpu` 与 `winit` 构建的高性能硬件加速终端渲染管线。
+  - 独立命令块（Blocks）设计：独立退出状态码、耗时统计与专属复制/分享。
+  - 垂直标签栏、自由分屏、智能命令补全、模糊命令面板以及防休眠控制。
+- **右侧 Project Explorer 与内置轻量编辑器**：
+  - 轻松浏览、创建、重命名与删除本地及远程 SSH 文件。
+  - 内置源码与文本编辑器，支持语法高亮、行号显示以及 Vim 快捷键操作。
+  - 实时 Markdown 双栏渲染，完美支持数学公式、架构图表与媒体展示。
+  - 本地与远程 Git 改动可视化双栏差异对比（Code Review）。
 
-- **左侧 Agent 面板：**管理和切换项目中的 Agent 会话，跟进在线状态与任务进度，发送消息、分派任务
-  并审阅提交结果。在协作面板顶部切换 Project / Worktree，从任意 checkout 选择或切换 Coordinator；
-  创建 worktree 使用原有入口并打开新 tab，紧凑摘要可以展开查看目录详情。
-- **全功能终端：**运行常用 Shell、Git、构建工具、脚本、开发服务器和长时间任务。GPU 渲染、
-  命令分块、垂直标签页、分屏、补全、命令搜索、主题和保持唤醒控制，方便并行工作与长时间任务。
-- **右侧项目面板：**浏览、创建、重命名和删除项目文件，点击代码或文本即可在内置编辑器中打开，
-  使用 Vim 模式，并预览 Markdown 和支持的文件格式。本地与 SSH 项目都跟随当前焦点终端的工作目录。
-- **审阅 Agent 结果：**查看提交的文件和报告，在协作面板中验收任务或要求修改。
-- **Code Review：**在原有面板中查看本地或 SSH 仓库的 Git 差异，并在现有编辑器中打开
-  变更文件。远程 Git 写操作继续在 SSH 终端中完成。
+## 使用你已经选择的 Agent 生态
 
-Warpai 既能承担 Agent 工作台，也能作为轻量级开发环境；简单编辑、文件预览和任务验收不必再切到
-另一个应用。需要深入语言导航、调试器或扩展生态时，仍可与完整 IDE 配合使用。
+Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、Gemini CLI、Cursor、Qoder、Goose、Hermes、OpenCode、Antigravity CLI、Trae 等。各 Agent 继续沿用各自的服务商、本地环境变量与鉴权体系；Warpai 充当底层轻量协同中枢。
 
-## 使用你已经选择的 Agent
+在 **Settings > Features > Agent communication** 中开启协同支持。协同体系基于内置的 `warp-lite-communication` 原生 MCP 服务，提供 **38+ 项标准工具接口**，覆盖任务分派、状态汇报、交叉审阅、上下文共享以及非阻塞文件锁（File Reservations）。
 
-Warpai 支持 20 多种 CLI Agent 类型，包括 Codex、Claude Code、Gemini、Cursor、Qoder 等。
-Agent 继续使用各自的服务商与认证方式，Warpai 提供共同的项目协作工作流。可用性取决于本机安装的
-Agent 及版本；当前支持范围见[兼容性指南](docs/AGENTS.zh-CN.md)。
+### 多服务商用量实时监控
 
-在 **Settings > Features > Agent communication** 中选择允许参与的 Agent。同一项目里的 Agent
-可以互发消息、接收委派任务、提交验证材料并参与审阅；不同项目相互隔离。排队任务会等到接收方
-Agent 就绪，Warpai 不会代替你处理权限请求。
-
-先通过原有流程启动 Agent，再选择 Coordinator。没有活动 Agent 时，Worktree 协调操作不可用。
-参与关系跟随 Agent 实际所在的 checkout，不会移动或重启进程。Coordinator 可随时切换，
-选择在切换 pane、tab 和 project 后仍保留，直到该 Agent 退出或 Warpai 关闭。
-模式切换只改变面板视图并保留 Project 历史；接受任务不会自动合并分支。
-
-Agent 无法加入时，设置页会显示具体的设置错误。一键清理可以移除受支持、已安装 Agent 中的
-Warpai 通信配置，保留其他集成设置，方便重新选择参与协作的 Agent。
-
-协作面板底部的 **Data usage** 显示已连接服务商账户的用量。在
-**Settings > Features > Data usage** 中添加账户并选择显示项。用量区域独立滚动，
-最多显示四行，浏览任务时仍可查看账户名称、Agent 图标、配额进度条和可用余额。
-账户配置跨工作区和重启保留；重启后重新获取用量。认证使用本机 CLI 当前登录或保存在
-系统安全存储中的凭据。[服务商指南](specs/agent-communication-v2/USAGE-PROVIDERS.md)列出可用来源。
+协作面板底部的 **Data usage** 栏支持同时添加多个服务商账户。在 **Settings > Features > Data usage** 中配置展示项。用量区域支持独立滚动，常驻显示服务商图标、账户标识、配额进度条与可用代币余额，切换任务与查看进度时一目了然。
 
 <a id="remote-workflow"></a>
 
 ## 远程也能完成同样的工作流
 
-**本地与远端保持同样的工作体验：**Agent 管理与协作、完整终端、文件管理、应用内编辑和文档预览
-都可以在远程项目中使用。在终端连接 Linux、macOS 或 Windows 主机，进入项目目录后，
-工作空间就会跟随该终端的远程 `cd`。
+**本地与远端保持完全一致的工作体验：**Agent 管理与协同、完整终端、文件管理、应用内编辑与文档预览均无缝延伸至远程环境。在终端中通过 SSH 连接任意 Linux、macOS 或 Windows 机器并进入项目目录，整个 Warpai 工作空间便会自动跟随焦点终端的远程 `cd` 进行漫游。
 
-通信跟随焦点终端独立判断：本地使用本地开关，WSL 使用对应发行版和账号设置，SSH 使用远端
-Companion 状态。直接输入终端命令进入 SSH 或 WSL 同样适用，关闭本地通信不会禁用远端。
-
-远程协作视图同样支持 Project / Worktree，显示 Agent、消息、任务和结果。在同一 SSH 主机、
-账号内，可以像本地一样从任意 checkout 选择或切换 Coordinator。各 worktree
-保持自己的文件、编辑器和 Review 根目录；独立 clone、不同主机或账号、本地与远程环境相互隔离。
+独立的 **Warpai Companion** 为远端主机赋能：
+- **自带私有 Git 运行时**：远程主机**无需预装** Git、Python、Node.js、tmux 或 socat 即可直接使用完整的文件与 Agent 协作功能。
+- **按需启动与零常驻开销**：连接时自动唤醒，空闲 60 秒后自动退出，绝不侵占服务器宝贵内存。
+- **断网防丢保护**：网络发生波动或断开时，未保存的远程文件修改将妥善保留在本地防丢缓存中。
 
 ![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
-*现有 SSH 项目原生应用截图。详见[截图来源](docs/images/README.zh-CN.md)。*
-
-Project Explorer 可以浏览远程项目，创建、重命名和删除文件。点击代码或文本，就能在原有内置
-编辑器中打开；报告可以直接预览 Markdown、图片和链接，修改后保存到远程主机。切换目录或终端后，已打开的文件仍绑定
-原远程项目；连接中断或保存冲突时，未保存的修改会保留。
-
-例如，连接科研服务器进入分析项目，让一位 Agent 处理数据、一位检查分析脚本，另一位撰写报告。
-它们工作时，你可以在 Warpai 中打开生成的脚本，预览带图表的报告，审阅修改并直接修正内容。
-主 Agent 再把结果整理成最终交付。数据与计算留在服务器上，任务协调、文件检查、预览和审阅仍在
-同一个应用中完成。
-
-远程开发机可使用 Worktree 模式，在隔离目录中分别实现功能、运行测试和维护文档；检查文件与
-变更后，由 Coordinator 整合并提交通过审阅的结果。科研团队仍可使用 Project 模式，无需创建 worktree。
+*SSH 远程工作空间原生运行截图：远程 Agent 接管与 SFTP 文件树联动。详见[截图来源说明](docs/images/README.zh-CN.md)。*
 
 ## 不止软件开发
 
-只要工作能拆成任务，并能借助 CLI Agent、脚本或项目文件处理，就可以用 Warpai 组织 Agent 团队。
-这类工作往往需要研究、分析、撰写和复核，而不需要完整、重量级的编程 IDE。
+只要工作能拆解为任务，并能借助 CLI Agent、自动化脚本或项目文件处理，都可以使用 Warpai 组织专属 Agent 团队：
 
-| 工作类型 | Agent 团队示例 |
+| 工作场景 | Agent 团队分工示例 |
 | --- | --- |
-| **科研与数据分析** | 主 Agent 规划文献梳理；一位 Agent 提取研究方法，另一位分析不同数据集，第三位核对计算和来源。主 Agent 把结果整理成研究笔记或报告。 |
-| **写作与知识工作** | 一位 Agent 搭建报告结构，一位搜集支撑材料，另一位检查表达、逻辑与一致性。主 Agent 处理分歧并汇总成稿。 |
-| **商业分析与运营** | 分别委派市场或政策研究、数据整理、流程文档和事实核查，再基于材料共同整理决策简报。 |
-| **软件开发** | 使用 Worktree 模式，将实现、测试和文档分给独立 checkout 中的 Agent，由明确选择的 Coordinator 安排交叉审阅、集成成果并完成最终提交。 |
-
-你可以让 Python、R、Shell、Git 和现有命令行工具与 Agent 配合工作。Warpai 不要求把科研、
-写作、分析或运营工作改造成 IDE 工程，也不把单一模型服务商设为工作中心。
+| **科研文献与数据分析** | 主 Agent 规划综述结构；一位 Agent 提取论文研究方法，另一位使用 Python/R 脚本清洗分析数据集，第三位核对公式推导与 DOI 引文链路。主 Agent 统筹汇总为学术初稿。 |
+| **写作与知识工程** | 一位 Agent 梳理报告大纲框架，一位搜集事实支撑材料，另一位负责文字润色与术语统一。主 Agent 处理分歧并完成定稿。 |
+| **量化金融与商业分析** | 委派不同 Agent 分别执行市场数据抓取、风险模型回测、行业研报分析与合规核验，最后汇聚为高管决策简报。 |
+| **软件架构与开发** | 采用 Worktree 模式，将功能实现、单元测试与架构文档分配到独立分支目录中并行推进。由 Coordinator 统一把关交叉审阅并集成提交。 |
 
 ## Warpai 的定位
 
-Zed 和 VS Code 从代码编辑器出发，把 Agent 工作流整合进代码环境。Warpai 从另一端出发：以完整
-终端和项目工作空间为基础，把多个独立 CLI Agent 作为主要工作者。它的核心是跨 Agent 的共同协作
-闭环——主 Agent 拆解、同伴执行、提交结果、审阅返工、汇总交付；本地与 SSH 项目都适用。
-
 | 对比对象 | Warpai 的工作流侧重 |
 | --- | --- |
-| **代码编辑器，例如 [Zed](https://zed.dev/docs/ai/overview) 和 [VS Code](https://code.visualstudio.com/docs/agents/overview)** | 以终端和独立 CLI Agent 会话为中心，在项目范围内协调多个 Agent，而不把每个 Agent 都当成编辑器中的独立对话线程。 |
-| **AI 终端，例如 [Warp](https://www.warp.dev/terminal)** | 侧重在同一项目中协作调度多种独立安装的 CLI Agent，并提供完整终端与项目工具。 |
-| **Agent 工作区，例如 [Conductor](https://www.conductor.build/)** | 使用你安装的 Agent，在本地项目或你选择的 SSH 环境中工作，不依赖 Warpai 托管的云工作区。 |
-| **完整 IDE** | 为代码和非代码任务提供终端优先的 Agent 管理、文件工具、预览和任务验收；需要专业开发工具时，可与 IDE 配合使用。 |
-
-各产品适合不同工作流。Zed 提供 Agent 面板、并行 Agent 和线程管理；VS Code 将 Agent 与编辑器、
-调试器和扩展整合；Warp 同时提供终端、代码编辑及本地和云端 Agent；Conductor 主打云端 Agent 沙箱。
-[Zed 官方说明](https://zed.dev/docs/ai/overview)、[VS Code 官方说明](https://code.visualstudio.com/docs/agents/overview)、
-[Warp 产品介绍](https://www.warp.dev/terminal)与[Conductor 产品介绍](https://www.conductor.build/)介绍了各自当前的选择。
+| **代码编辑器（[Zed](https://zed.dev/docs/ai/overview)、[VS Code](https://code.visualstudio.com/docs/agents/overview)）** | 以原生终端和独立安装的 CLI Agent 会话为中心，在项目级组织多 Agent 协同体系，而不是把每个 Agent 都作为编辑器侧边栏里的单一聊天会话。 |
+| **AI 终端（[Warp](https://www.warp.dev/terminal)）** | 侧重在同一项目中深度调度多种独立 CLI Agent、动态任务监督与 Git worktree 并发编码，兼具全功能原生终端。 |
+| **Agent 工作区（[Conductor](https://www.conductor.build/)）** | 在你本地设备或自有 SSH 服务器中使用你已安装的工具链运行，无强制云端账号绑定或厂商锁定。 |
+| **完整 IDE** | 提供终端优先、轻量敏捷的 Agent 协作、文件查看与任务验收环境；在需要深度语言 AST 级别的复杂重构或专用调试器时，可与专业 IDE 优势互补。 |
 
 ## 技术栈
 
-Warpai 是使用 **Rust** 编写的原生桌面应用，采用自有 `warpui` UI 工具包、**wgpu** GPU 渲染
-和 **winit** 窗口层。Agent 协作状态使用本地 SQLite 存储。桌面应用支持 macOS 和 Windows；
-SSH 项目由匹配版本的 Warpai companion 提供远端支持。
+Warpai 是一款使用 **Rust** 编写的高性能原生桌面应用，采用自有 `warpui` UI 框架、**wgpu** GPU 硬件渲染管线和 **winit** 跨平台窗口层。协同状态全部保存在本地 SQLite 数据库中。Warpai 原生支持 **macOS、Windows 和 Linux**。
 
 <a id="get-warpai"></a>
+
 ## 下载与安装
 
-**[Warpai 1.6.5](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)** 将 Agent 协作、文件管理、
-应用内编辑和预览整合进本地与 SSH 项目的完整工作流。
+**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** 正式推出 Linux 原生桌面端、动态任务监督列表、跨平台 Agent 协同与远程 SSH 无缝工作空间。
 
-在 **Settings > Appearance > Language** 中选择 English、简体中文或繁體中文，
-重启后应用界面语言。桌面设置和持久数据使用 `~/.config/warpai`；升级时从
-`~/.config/.warpai` 导入缺失数据，保留旧数据用于恢复，并优先保留新目录已有值。
+在 **Settings > Appearance > Language** 中选择 English、简体中文或繁體中文，重启即可生效。应用配置和持久数据存储在本地 `~/.config/warpai`。
 
-| 平台 | 下载 | 安装 |
+### 桌面端安装包（v1.7.0）
+
+| 平台 | 下载地址 | 安装方式 |
 | --- | --- | --- |
-| **macOS 11.0（Big Sur）或更高版本 · Apple 芯片** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications。 |
-| **Windows · x64** | [安装器](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiSetup-1.6.5-windows-x64.exe) | 运行安装器。 |
+| **macOS 11.0+（Big Sur+）· Apple 芯片** | [DMG 镜像](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications 目录。 |
+| **Windows 10/11 · x64** | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe) | 运行安装向导即可。 |
+| **Linux · x64（Ubuntu, Debian, Fedora, Arch）** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage) · [.deb](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb) · [.tar.gz](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz) | `chmod +x Warpai-*.AppImage && ./Warpai-*.AppImage` 或 `sudo dpkg -i warpai_*.deb` |
 
-macOS 应用采用临时签名，尚未进行公证。若首次启动被系统拦截，请确认下载来源后，在
-**System Settings > Privacy & Security > Open Anyway** 中批准打开。Windows 可能要求确认
-运行未签名安装器。发布页面提供校验和。
+*macOS 说明：应用采用临时签名。若首次打开被拦截，请前往“系统设置 > 隐私与安全性”点击“仍要打开”，或在终端执行 `xattr -d com.apple.quarantine /Applications/Warpai.app`。*
 
-在 **Settings > About** 点击 **Update** 检查新版本。发现新版后，**Download**
-会打开当前平台安装包的下载直链。开启 **Check for updates on startup** 后，
-Warpai 每次启动检查一次更新。下载后按上方说明安装。
+### 远程 Companion（v5.4.0）
 
-### 远程 companion
+Warpai Companion 为远程 Linux、macOS 和 Windows 主机提供轻量项目环境：
 
-**Warpai Companion 5.3.0** 为远程 Linux、macOS 和 Windows 主机提供项目工作空间。
-组件自带私有 Git；Warpai 的远程文件、Review 和 Agent 通信基础功能无需另装 Git、Python、
-Node、tmux 或 socat。第三方 Agent 仍使用各自的运行环境。Companion 按需启动，
-空闲 60 秒自动退出。按你要连接的远程主机选择安装包。
+| 远程主机 | 下载包 | 安装命令 |
+| --- | --- | --- |
+| **Linux x64**（Ubuntu 20.04+, Debian, RHEL） | [独立运行包](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
+| **macOS Apple 芯片** | [DMG 安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-macos-arm64.dmg) | 复制 `warpai-companion` 至 `~/.config/warpai/bin/` |
+| **Windows x64** | [EXE 安装包](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-windows-x64-setup.exe) | 在远程主机运行安装程序。 |
 
-本地桌面的 Git 功能需要 PATH 中可用的系统 Git。请安装 Git 并重启 Warpai，
-再使用本地工作树协作、工作树管理或 Git Review。SSH／WSL 的依赖见
-[功能依赖记录](docs/FEATURE-DEPENDENCIES.md)。
+## 本地优先与隐私安全
 
-| 远程主机 | 下载 |
-| --- | --- |
-| Linux x64（基于 Ubuntu 22.04 构建） | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-linux-x64.run) |
-| macOS 11.0（Big Sur）或更高版本 · Apple 芯片 | [安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-macos-arm64.dmg) |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-windows-x64-setup.exe) |
-
-## 本地优先
-
-Warpai 不要求 Warpai 云端账号、登录或订阅，产品中不包含捆绑云端 AI、计费和遥测入口。
-你选择的 CLI Agent 继续使用各自的认证与设置；Shell 命令、SSH 连接和 Agent 服务商仍会按照
-各自行为使用网络。
+Warpai 绝不强制要求云端账号、注册登录或按月订阅，应用内部不包含任何捆绑云端 AI、计费拦截或遥测追踪代码。你所配置的 CLI Agent 沿用其自有的本地凭据与鉴权机制。
 
 ## 开发与贡献
 
-从[开发指南](docs/DEVELOPMENT.zh-CN.md)、[Agent 规则（英文）](AGENTS.md)和
-[SSH 计划（英文）](specs/agent-communication-v2/PLAN.md)开始。构建和发布直接使用仓库中
-已提交的源码。验证及兼容性详情见[发布规范（英文）](specs/RELEASE.md)和
-[Agent 兼容性指南](docs/AGENTS.zh-CN.md)。
-
-反馈问题时请提供版本、操作系统、复现步骤与预期行为，省略凭据和私人项目内容。
+请参阅[开发指南（中文）](docs/DEVELOPMENT.zh-CN.md)、[Agent 规则约定](AGENTS.md)以及 [MCP 协同技术规范](docs/FEATURE-DEPENDENCIES.md)。
 
 <details>
-<summary>贡献者必须保留的终端核心路径</summary>
+<summary>贡献者核心代码保留守卫（Contributor Guardrails）</summary>
 
-保留以下渲染、输入与模型路径。将其整体替换为占位实现，不是有效的编译修复；需要同时验证终端行为。
+请保留以下渲染、输入与模型关键路径。将其整体替换为占位实现不被视为有效修复：
 
 - `app/src/terminal/view.rs`
 - `app/src/terminal/input.rs`
@@ -255,8 +191,6 @@ Warpai 不要求 Warpai 云端账号、登录或订阅，产品中不包含捆�
 
 ## 致谢与许可证
 
-Warpai 独立维护，源自 [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite)
-与 [Warp](https://github.com/warpdotdev/warp)，与上游 Warp 团队没有隶属或背书关系，保留原有版权与署名。
+Warpai 独立维护，源自 [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite) 与 [Warp](https://github.com/warpdotdev/warp)，与上游 Warp 团队无隶属或背书关系，保留原有版权与署名。
 
-源码采用 [AGPL-3.0-only](LICENSE-AGPL)；原始 `warpui`、`warpui_core` 子库保留
-[MIT 许可证](LICENSE-MIT)。出处与商标说明见 [fork notice（英文）](FORK_NOTICE.md)。
+源码采用 [AGPL-3.0-only](LICENSE-AGPL) 开源许可证；原始 `warpui`、`warpui_core` 等子库保留 [MIT 许可证](LICENSE-MIT)。完整说明见 [fork notice](FORK_NOTICE.md)。
