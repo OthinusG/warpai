@@ -80,15 +80,8 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
             </button>
           </div>
           <div class="mock-chrome-right">
-            <button type="button" class="mock-chrome-btn" id="mock-btn-new-tab-top" title="New Terminal / Tab" aria-label="New Tab">+</button>
-            <button type="button" class="mock-chrome-btn" id="mock-btn-layout-split" title="Split Layout" aria-label="Layout">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg>
-            </button>
             <button type="button" class="mock-chrome-btn" id="mock-theme-toggle-btn" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
-            </button>
-            <button type="button" class="mock-chrome-btn" id="mock-btn-toggle-collab" title="Toggle Collaboration Panel" aria-label="Toggle Collaboration Panel">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="6 3 11 8 6 13"/></svg>
             </button>
           </div>
         </div>
@@ -105,7 +98,6 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
               <button type="button" class="mock-mini-icon-btn" title="Filter Settings">
                 <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4"/><circle cx="5" cy="4" r="1.5"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="11" cy="12" r="1.5"/></svg>
               </button>
-              <button type="button" class="mock-mini-icon-btn" id="mock-btn-new-tab" title="New Tab">+</button>
             </div>
 
             <div class="mock-vtabs-group-header">warpai-gh-pages</div>
@@ -124,13 +116,13 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                 </div>
               </div>
 
-              <!-- Tab 2: warpai-gh-pages (Spiral Icon) -->
+              <!-- Tab 2: codex (Spiral Icon) -->
               <div class="mock-vtab" data-agent="warpai">
                 <div class="mock-vtab-badge mock-badge-warpai">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="1"/></svg>
                 </div>
                 <div class="mock-vtab-content">
-                  <div class="mock-vtab-name">warpai-gh-pages</div>
+                  <div class="mock-vtab-name">codex</div>
                   <div class="mock-vtab-branch">
                     <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> gh-pages
                   </div>
@@ -231,7 +223,7 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                       </div>
                       <div class="mock-dsh-status-block">
                         <div class="mock-dsh-path-row">
-                          <span class="dim">/Users/wqin/workplace/warpai-gh-pages:gh-pages</span>
+                          <span class="dim">~/workplace/warpai-gh-pages:gh-pages</span>
                           <span class="dim">dsh-tui v0.14.0</span>
                         </div>
                         <div class="mock-dsh-item active">▸ DSH · dsh-core v0.2.0-rc.2</div>
@@ -254,27 +246,6 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                   <!-- Right Sub-Pane: Codex Terminal -->
                   <div class="mock-subpane mock-subpane-codex">
                     <div class="mock-subpane-body">
-                      <div class="mock-term-line dim">~/workplace (14.951s)</div>
-                      <div class="mock-term-line mock-cmd-line">
-                        <span class="green">codex</span> <span class="dim">'--no-daemon' '-c' 'mcp_servers.warp-lite-communication={command="/Applications/Warpai.app/Contents/MacOS/warpai-agent",args=["mcp","--native-directory"],env_vars=["WARP_AGENT_ENDPOINT","WARP_AGENT_CAPABILITY","WARP_TERMINAL_SESSION_UUID"],enabled=true}' -c 'model_reasoning_effort="medium"'</span>
-                      </div>
-                      <div class="mock-term-line dim" style="margin-top:4px;">~/workplace (0.023s)</div>
-                      <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> <span class="mock-term-path">warpai-gh-pages</span></div>
-                      <div class="mock-term-line dim" style="margin-top:4px;">
-                        ~/workplace/warpai-gh-pages git:(gh-pages) (1m 19.00s)
-                      </div>
-                      <div class="mock-term-line mock-cmd-line">
-                        <span class="green">codex</span> <span class="dim">'-c' 'mcp_servers.warp-lite-communication={command="/Applications/Warpai.app/Contents/MacOS/warpai-agent",args=["mcp","--native-directory"],env_vars=["WARP_AGENT_ENDPOINT","WARP_AGENT_CAPABILITY","WARP_TERMINAL_SESSION_UUID"],enabled=true}' '--no-daemon'</span>
-                      </div>
-
-                      <!-- Update Available Card -->
-                      <div class="mock-update-box">
-                        <div>✨ <strong>Update available!</strong> 0.162.1 -&gt; 0.163.0</div>
-                        <div style="margin-top:2px;">Run <code class="mock-code-link" id="mock-codex-upgrade-cmd">brew upgrade --cask codex</code> to update.</div>
-                        <div class="dim" style="margin-top:4px;">See full release notes:</div>
-                        <div class="mock-link-blue">https://github.com/openai/codex/releases/latest</div>
-                      </div>
-
                       <!-- OpenAI Codex Banner -->
                       <div class="mock-codex-banner">
                         <div><strong>&gt;_ OpenAI Codex (v0.162.1)</strong></div>
@@ -362,7 +333,7 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                       </div>
                       <div class="mock-dsh-status-block">
                         <div class="mock-dsh-path-row">
-                          <span class="dim">/Users/wqin/workplace/warpai-gh-pages:gh-pages</span>
+                          <span class="dim">~/workplace/warpai-gh-pages:gh-pages</span>
                           <span class="dim">dsh-tui v0.14.0</span>
                         </div>
                         <div class="mock-dsh-item active">▸ DSH · dsh-core v0.2.0-rc.2</div>
@@ -382,21 +353,6 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                   <!-- Right Sub-Pane: Codex Terminal with active prompt -->
                   <div class="mock-subpane mock-subpane-codex">
                     <div class="mock-subpane-body">
-                      <div class="mock-term-line dim">~/workplace (14.951s)</div>
-                      <div class="mock-term-line mock-cmd-line">
-                        <span class="green">codex</span> <span class="dim">'--no-daemon' '-c' 'mcp_servers.warp-lite-communication={...}'</span>
-                      </div>
-                      <div class="mock-term-line dim" style="margin-top:4px;">~/workplace (0.023s)</div>
-                      <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> <span class="mock-term-path">warpai-gh-pages</span></div>
-                      <div class="mock-term-line dim" style="margin-top:4px;">
-                        ~/workplace/warpai-gh-pages git:(gh-pages) (1m 26.00s)
-                      </div>
-                      <div class="mock-update-box">
-                        <div>✨ <strong>Update available!</strong> 0.162.1 -&gt; 0.163.0</div>
-                        <div style="margin-top:2px;">Run <code class="mock-code-link">brew upgrade --cask codex</code> to update.</div>
-                        <div class="dim" style="margin-top:4px;">See full release notes:</div>
-                        <div class="mock-link-blue">https://github.com/openai/codex/releases/latest</div>
-                      </div>
                       <div class="mock-codex-banner">
                         <div><strong>&gt;_ OpenAI Codex (v0.162.1)</strong></div>
                         <div class="dim">~/workplace/warpai-gh-pages</div>
@@ -426,39 +382,10 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                 </div>
               </div>
 
-              <!-- SCREEN 3: Claude Code (From Screenshot 11.54.07.png) -->
+              <!-- SCREEN 3: Claude Code (From Screenshot 12.42.08.png) -->
               <div class="mock-term-screen" data-screen="claude">
                 <div class="mock-single-pane">
                   <div class="mock-single-pane-body">
-                    <div class="mock-term-line dim">~ (5.246s)</div>
-                    <div class="mock-term-line mock-cmd-line"><span class="green">claude</span></div>
-
-                    <!-- Interactive Trust Workspace Box -->
-                    <div class="mock-trust-box">
-                      <div class="mock-warning-header">Accessing workspace:</div>
-                      <div class="mock-warning-path"><strong>/Users/wqin</strong></div>
-                      <div class="mock-warning-desc">Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.</div>
-                      <div class="mock-warning-note">Claude Code'll be able to read, edit, and execute files here.</div>
-                      <div class="dim" style="margin: 4px 0;"><a href="javascript:void(0)" class="mock-link-underline">Security guide</a></div>
-                      <div class="mock-trust-choices" id="mock-trust-choices">
-                        <div class="mock-choice-row" data-choice="exit">
-                          <span class="mock-choice-pointer"> </span> No, exit
-                        </div>
-                        <div class="mock-choice-row active" data-choice="trust">
-                          <span class="mock-choice-pointer">❯</span> Yes, I trust this folder
-                        </div>
-                      </div>
-                      <div class="dim" style="font-size:10px; margin-top:4px;">Enter to confirm · Esc to cancel</div>
-                    </div>
-
-                    <div class="mock-term-line dim" style="margin-top: 6px;">~ (0.023s)</div>
-                    <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> workplace/gameset-1/</div>
-                    <div class="mock-term-line dim mock-prompt-git-header">
-                      <span>~/workplace/gameset-1 git:(main) 1 * +0 -0 (3m 18.00s)</span>
-                      <span class="mock-header-action-icons">🔖 ⧉ ⋮</span>
-                    </div>
-                    <div class="mock-term-line mock-cmd-line"><span class="green">claude</span></div>
-
                     <!-- Claude Robot Mascot & Info -->
                     <div class="mock-claude-banner-card">
                       <div class="mock-claude-robot-art">
@@ -494,7 +421,6 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
 
                     <div class="mock-claude-status-line">
                       <span>⏸ manual mode on · ↩ for agents</span>
-                      <span class="mock-coral-note">Not logged in · Run /login</span>
                     </div>
                   </div>
 
@@ -513,18 +439,10 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                 </div>
               </div>
 
-              <!-- SCREEN 4: Antigravity CLI (From Screenshot 11.54.33.png) -->
+              <!-- SCREEN 4: Antigravity CLI (From Screenshot 12.45.47.png) -->
               <div class="mock-term-screen" data-screen="agy">
                 <div class="mock-single-pane">
                   <div class="mock-single-pane-body">
-                    <div class="mock-term-line dim">~ (0.027s)</div>
-                    <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> workplace/warpai-gh-pages/</div>
-                    <div class="mock-term-line dim mock-prompt-git-header">
-                      <span>~/workplace/warpai-gh-pages git:(gh-pages) (3m 18.00s)</span>
-                      <span class="mock-header-action-icons">🔖 ⧉ ⋮</span>
-                    </div>
-                    <div class="mock-term-line mock-cmd-line"><span class="green">agy</span></div>
-
                     <!-- Antigravity Rainbow Arch Mascot & Header -->
                     <div class="mock-agy-banner-card">
                       <div class="mock-agy-arch-art">
@@ -634,9 +552,15 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
             <!-- Top Header Icons -->
             <div class="mock-collab-header">
               <div class="mock-header-left-tools">
-                <button type="button" class="mock-tool-btn" title="Split Panel"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg></button>
-                <button type="button" class="mock-tool-btn" title="Dock Panel"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="5" y="5" width="8" height="8" rx="1"/></svg></button>
-                <button type="button" class="mock-tool-btn" title="Search"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="Messages">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 3h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V4a1 1 0 0 1 1-1z"/></svg>
+                </button>
+                <button type="button" class="mock-tool-btn" title="Docs">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="2" width="10" height="12" rx="1.5"/><line x1="5.5" y1="5" x2="10.5" y2="5"/><line x1="5.5" y1="8" x2="10.5" y2="8"/></svg>
+                </button>
+                <button type="button" class="mock-tool-btn" title="Search">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></svg>
+                </button>
               </div>
               <button type="button" class="mock-tool-btn mock-close-btn" id="mock-btn-close-collab" title="Close Panel">✕</button>
             </div>
@@ -653,32 +577,81 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
               </div>
             </div>
 
-            <!-- Section 2: Coordinator (in Worktree mode) -->
-            <div class="mock-collab-section" id="mock-section-coordinator">
-              <div class="mock-section-label">
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
-                <span>Coordinator</span>
-              </div>
-              <div class="mock-coordinator-select-wrapper">
-                <div class="mock-coord-dropdown-trigger" id="mock-coord-trigger">
-                  <span class="mock-coord-badge">▲</span>
-                  <span class="mock-coord-name" id="mock-coord-active-name">agy-2de995e3 · gh-pages · 1</span>
-                  <span class="mock-coord-chevron">⌵</span>
+            <!-- Mode Subview 1: Project Mode View (Matching 12.42.08 & 12.43.47) -->
+            <div class="mock-mode-subview" id="mock-view-project">
+              <!-- Tasks -->
+              <div class="mock-collab-section">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4"/></svg>
+                  <span>Tasks</span>
                 </div>
-                <div class="mock-coord-dropdown-menu" id="mock-coord-menu">
-                  <div class="mock-coord-option active" data-coord="agy">▲ agy-2de995e3 · gh-pages · 1</div>
-                  <div class="mock-coord-option" data-coord="claude">✳ claude-9c9cfc0c · main</div>
-                  <div class="mock-coord-option" data-coord="codex">◉ codex-521bc71b · gh-pages</div>
-                  <div class="mock-coord-option" data-coord="dsh">🐳 dsh-43f8a41e · gh-pages</div>
+                <div class="mock-tasks-container">
+                  <div class="mock-tasks-empty-text">No tasks on this page.</div>
                 </div>
               </div>
-              <button type="button" class="mock-new-worktree-btn" id="mock-btn-new-worktree">New worktree</button>
+
+              <!-- Project -->
+              <div class="mock-collab-section mock-project-section">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3a1 1 0 0 1 1-1h4l2 2h4a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3z"/></svg>
+                  <span>Project</span>
+                </div>
+                <div class="mock-project-path-line">This Mac · ~/workplace</div>
+              </div>
+
+              <!-- Agents -->
+              <div class="mock-collab-section mock-project-agents-section">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
+                  <span>Agents</span>
+                </div>
+                <div class="mock-worktree-node">
+                  <div class="mock-worktree-agents" style="padding-left: 2px;">
+                    <div class="mock-agent-item active" data-agent="claude">
+                      <span class="mock-agent-icon" style="color: #d97757;">✳</span> claude-9c9cfc0c · <small class="dim">idle</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Focus & Actions -->
+              <div class="mock-collab-section">
+                <div class="mock-focus-tags">
+                  <button type="button" class="mock-focus-tag" data-focus="claude">Focus claude-9c9cf</button>
+                </div>
+                <div class="mock-tasks-action-row">
+                  <button type="button" class="mock-action-btn mock-btn-send-agent">Send to Agent</button>
+                  <button type="button" class="mock-action-btn mock-btn-history">History</button>
+                </div>
+              </div>
             </div>
 
-            <!-- Section 3: Worktrees (in Worktree mode) / Agents (in Project mode) -->
-            <div class="mock-collab-section">
-              <!-- Worktree Mode View -->
-              <div class="mock-mode-subview active" id="mock-view-worktree">
+            <!-- Mode Subview 2: Worktree Mode View (Matching 12.36.40 & 12.45.47) -->
+            <div class="mock-mode-subview active" id="mock-view-worktree">
+              <!-- Coordinator -->
+              <div class="mock-collab-section" id="mock-section-coordinator">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
+                  <span>Coordinator</span>
+                </div>
+                <div class="mock-coordinator-select-wrapper">
+                  <div class="mock-coord-dropdown-trigger" id="mock-coord-trigger">
+                    <span class="mock-coord-badge">▲</span>
+                    <span class="mock-coord-name" id="mock-coord-active-name">agy-2de995e3 · gh-pages · 1</span>
+                    <span class="mock-coord-chevron">⌵</span>
+                  </div>
+                  <div class="mock-coord-dropdown-menu" id="mock-coord-menu">
+                    <div class="mock-coord-option active" data-coord="agy">▲ agy-2de995e3 · gh-pages · 1</div>
+                    <div class="mock-coord-option" data-coord="claude">✳ claude-9c9cfc0c · main</div>
+                    <div class="mock-coord-option" data-coord="codex">◉ codex-521bc71b · gh-pages</div>
+                    <div class="mock-coord-option" data-coord="dsh">🐳 dsh-43f8a41e · gh-pages</div>
+                  </div>
+                </div>
+                <button type="button" class="mock-new-worktree-btn" id="mock-btn-new-worktree">New worktree</button>
+              </div>
+
+              <!-- Worktrees -->
+              <div class="mock-collab-section">
                 <div class="mock-section-label">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg>
                   <span>Worktrees</span>
@@ -695,46 +668,25 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                 </div>
               </div>
 
-              <!-- Project Mode View (from Screenshot 11.54.07.png) -->
-              <div class="mock-mode-subview" id="mock-view-project">
+              <!-- Tasks -->
+              <div class="mock-collab-section">
                 <div class="mock-section-label">
-                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
-                  <span>Agents</span>
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4"/></svg>
+                  <span>Tasks</span>
                 </div>
-                <div class="mock-worktree-node">
-                  <div class="mock-worktree-agents" style="padding-left: 2px;">
-                    <div class="mock-agent-item active" data-agent="claude">
-                      <span class="mock-agent-icon" style="color: #d97757;">✳</span> claude-9c9cfc0c · <small class="dim">idle</small>
-                    </div>
-                    <div class="mock-agent-item" data-agent="agy">
-                      <span class="mock-agent-icon" style="color: #3fb950;">▲</span> agy-2de995e3 · <small class="dim">worker</small>
-                    </div>
-                    <div class="mock-agent-item" data-agent="dsh">
-                      <span class="mock-agent-icon" style="color: #89b4fa;">🐳</span> dsh-43f8a41e · <small class="dim">listening</small>
-                    </div>
-                  </div>
+                <div class="mock-tasks-container" id="mock-tasks-list">
+                  <div class="mock-tasks-empty-text">No tasks on this page.</div>
                 </div>
-              </div>
-            </div>
-
-            <!-- Section 4: Tasks -->
-            <div class="mock-collab-section">
-              <div class="mock-section-label">
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4"/></svg>
-                <span>Tasks</span>
-              </div>
-              <div class="mock-tasks-container" id="mock-tasks-list">
-                <div class="mock-tasks-empty-text">No tasks on this page.</div>
-              </div>
-              <div class="mock-focus-tags">
-                <button type="button" class="mock-focus-tag" data-focus="agy">Focus agy-2de995e3</button>
-                <button type="button" class="mock-focus-tag" data-focus="dsh">Focus codex-521bc7</button>
-                <button type="button" class="mock-focus-tag" data-focus="dsh">Focus dsh-43f8a41e</button>
-                <button type="button" class="mock-focus-tag" data-focus="claude">Focus claude-9c9cf</button>
-              </div>
-              <div class="mock-tasks-action-row">
-                <button type="button" class="mock-action-btn" id="mock-btn-send-agent">Send to Agent</button>
-                <button type="button" class="mock-action-btn" id="mock-btn-history">History</button>
+                <div class="mock-focus-tags">
+                  <button type="button" class="mock-focus-tag" data-focus="agy">Focus agy-2de995e3</button>
+                  <button type="button" class="mock-focus-tag" data-focus="dsh">Focus codex-521bc7</button>
+                  <button type="button" class="mock-focus-tag" data-focus="dsh">Focus dsh-43f8a41e</button>
+                  <button type="button" class="mock-focus-tag" data-focus="claude">Focus claude-9c9cf</button>
+                </div>
+                <div class="mock-tasks-action-row">
+                  <button type="button" class="mock-action-btn mock-btn-send-agent">Send to Agent</button>
+                  <button type="button" class="mock-action-btn mock-btn-history">History</button>
+                </div>
               </div>
             </div>
 
@@ -750,7 +702,7 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
                 </button>
               </div>
               <div class="mock-usage-body">
-                <div class="mock-usage-agent">Codex · mj</div>
+                <div class="mock-usage-agent">Codex</div>
                 <div class="mock-usage-stat">5h · 1% used</div>
                 <div class="mock-usage-track">
                   <div class="mock-usage-bar" style="width: 1%;"></div>

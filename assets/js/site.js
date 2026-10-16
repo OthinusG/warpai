@@ -214,11 +214,9 @@
       if (mode === "project") {
         if (worktreeView) worktreeView.classList.remove("active");
         if (projectView) projectView.classList.add("active");
-        if (tasksList) tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
       } else {
         if (projectView) projectView.classList.remove("active");
         if (worktreeView) worktreeView.classList.add("active");
-        if (tasksList) tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
       }
     }
 
@@ -377,8 +375,9 @@
     }
 
     // 10. Send to Agent simulation
-    if (btnSendAgent) {
-      btnSendAgent.addEventListener("click", function () {
+    var sendAgentBtns = mock.querySelectorAll(".mock-btn-send-agent, #mock-btn-send-agent");
+    sendAgentBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
         var activeScreen = mock.querySelector(".mock-term-screen.active");
         if (activeScreen) {
           var promptRow = activeScreen.querySelector(".mock-prompt-row");
@@ -392,28 +391,32 @@
           }
         }
       });
-    }
+    });
 
     // 11. History Toggle
     var showingHistory = false;
-    if (btnHistory && tasksList) {
-      btnHistory.addEventListener("click", function () {
+    var historyBtns = mock.querySelectorAll(".mock-btn-history, #mock-btn-history");
+    historyBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
         showingHistory = !showingHistory;
-        if (showingHistory) {
-          tasksList.innerHTML = isZh
-            ? '<div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mock-muted);">' +
-              '<div><b style="color:var(--mock-green);">✔ #2940</b> 分支初始化 (已合并)</div>' +
-              '<div><b style="color:var(--mock-green);">✔ #2941</b> VT100 解析器集成 (已验收)</div>' +
-              '</div>'
-            : '<div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mock-muted);">' +
-              '<div><b style="color:var(--mock-green);">✔ #2940</b> Branch bootstrap (Merged)</div>' +
-              '<div><b style="color:var(--mock-green);">✔ #2941</b> VT100 observer (Accepted)</div>' +
-              '</div>';
-        } else {
-          tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
-        }
+        var allTaskContainers = mock.querySelectorAll(".mock-tasks-container");
+        allTaskContainers.forEach(function (tc) {
+          if (showingHistory) {
+            tc.innerHTML = isZh
+              ? '<div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mock-muted);">' +
+                '<div><b style="color:var(--mock-green);">✔ #2940</b> 分支初始化 (已合并)</div>' +
+                '<div><b style="color:var(--mock-green);">✔ #2941</b> VT100 解析器集成 (已验收)</div>' +
+                '</div>'
+              : '<div style="display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--mock-muted);">' +
+                '<div><b style="color:var(--mock-green);">✔ #2940</b> Branch bootstrap (Merged)</div>' +
+                '<div><b style="color:var(--mock-green);">✔ #2941</b> VT100 observer (Accepted)</div>' +
+                '</div>';
+          } else {
+            tc.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
+          }
+        });
       });
-    }
+    });
 
     // 12. Quota Refresh
     if (btnRefreshQuota) {

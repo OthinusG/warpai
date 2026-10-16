@@ -32,10 +32,13 @@
   - Right column: Agents Collaboration Panel featuring interactive Mode Switcher (`Worktree` vs `Project`), dynamic Coordinator selector, branch/channel lists, dynamic task pool, and data usage counters.
   - Full interaction in vanilla JS: tab switching, mode switching, coordinator changing, branch creation, tag focusing, drawer toggling, sidebars toggle, and in-window theme switching.
   - Bilingual parity across English and Chinese pages with complete styling support for both Light (`paper`) and Dark (`ink`) themes.
-- **Multi-Tab Workbench Mockup Fidelity Overhaul (2026-10-16)**:
-  - Re-implemented landing page mockup across `index.html` and `zh/index.html` based on authentic multi-tab screenshots in `/Users/wqin/Desktop/123`.
-  - Tab 1 (`+ 🐳` / `dsh`): DeepSeek Harness (DSH) pixel whale mascot, DEEPSEEK HARNESS block stencil title, interactive prompt box, model pills, and dual-split screen with Codex CLI (brew upgrade alert, prompt box).
-  - Tab 2 (`warpai-gh-pages`): Spiral logo, active worktree terminal session with prompt focus.
-  - Tab 3 (`* Claude Code`): Interactive safety check trust options (radio toggle `No, exit` vs `Yes, I trust this folder`), terracotta Claude robot mascot, notification toggle chip, and automatic synchronization to Project Mode with `claude-9c9cfc0c · idle`.
-  - Tab 4 (`agy`): Antigravity CLI with rainbow pixel arch mascot, blue peer notification box, live spinner, and expandable MCP tool call payload drawer `(ctrl+o to expand)`.
-  - Comprehensive interactivity: tab switching, mode switching, radio selection, collapsible drawers, search filtering, simulated command executions, and flawless Light/Dark mode toggling via window lightbulb button and site theme engine.
+- **Workbench Mockup Precision Cleanup & Project Mode Redesign (2026-10-16)**:
+  - Addressed 4 annotated feedback screenshots in `/Users/wqin/Desktop/456` across `index.html`, `zh/index.html`, `assets/css/style.css`, and `assets/js/site.js`.
+  - **Window Chrome & Tab Bar**: Removed redundant top window `+` (new tab), split layout button, and right collapse chevron `>`; removed tab search `+` button; renamed Tab 2 label to `codex`. Preserved right panel close button (`✕`) and theme toggle (`☼`).
+  - **Claude Code Screen**: Removed shell execution history, folder trust warnings, workspace confirmation, and the `Not logged in · Run /login` status indicator. Elevated Claude Code banner and prompt line to the top of the terminal body.
+  - **Antigravity Screen**: Removed top shell startup history, allowing the rainbow pixel arch mascot and conversation stream to start cleanly from the top.
+  - **Codex Sub-pane**: Stripped preliminary terminal command output and brew update notice, expanding the OpenAI Codex banner and prompt box to occupy the upper subpane space.
+  - **Path Sanitization**: Replaced all user absolute paths (`/Users/wqin/...`) with sanitized tilde paths (`~/...`) across DSH status blocks, Codex terminals, Claude Code, and Project locations.
+  - **Project Mode Right Panel**: Fully restructured Project mode view to independently display `Tasks` (`No tasks on this page.`), `Project` (`This Mac · ~/workplace`), `Agents` (`claude-9c9cfc0c · idle`), and `Focus claude-9c9cf` with `Send to Agent` / `History` actions. Completely removed Coordinator and Worktree nodes in Project mode while preserving their full interactive functionality in Worktree mode.
+  - **Data Usage Widget**: Stripped the personal identifier (`· mj`), keeping clean brand name `Codex` and quota metrics (`5h · 1% used`).
+

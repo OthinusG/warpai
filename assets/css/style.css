@@ -1245,11 +1245,23 @@ code, pre, kbd, samp {
 .mock-mode-subview {
   display: none;
   flex-direction: column;
-  gap: 5px;
+  gap: 10px;
 }
 
 .mock-mode-subview.active {
   display: flex;
+}
+
+.mock-project-section,
+.mock-project-agents-section {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--mock-border-subtle);
+}
+
+.mock-project-path-line {
+  font-size: 10px;
+  color: var(--mock-text);
+  padding: 2px 0 2px 2px;
 }
 
 .mock-worktree-node {
