@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-15.
+Updated 2026-10-16.
 Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
@@ -26,6 +26,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Project, worktree and Agent ownership
 
+- Dynamic supervision: dispatch anytime; track IDs, retire handled outcomes,
+  retain pending work across yields. No batch/exclusive watch.
 - Warp's native worktree system owns creation, catalog and tabs; creation opens a
   new tab without starting an Agent. No separate worktree registry/session manager.
 - Canonical Git common-directory identity joins registered checkouts/subdirectories,
@@ -37,12 +39,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Non-Git folders are independent canonical-root projects with Worktree unavailable.
   They neither inherit nor clear a Git project's Coordinator. Preserve separate
   clones and SSH host/account/service authorities.
-- Project mode lists online project participants across checkouts, filtering before
-  pagination. Worktree mode permits same-checkout direct messages; cross-checkout
-  communication goes through the selected Coordinator. File authority stays local
-  to each checkout. Panel reads must not change admission/permissions.
-- Mode is project-owned. Any eligible online Agent may replace the Coordinator;
-  demote its predecessor without stopping its process or changing task ownership.
+- Project lists online peers across checkouts before pagination. Worktree allows
+  same-checkout messages; cross-checkout traffic uses the Coordinator. File scope
+  stays checkout-local; panel reads never change admission/permissions.
+- Project owns mode. Eligible online Agents may replace the Coordinator; demote
+  the predecessor without stopping it or changing task ownership.
 - Coordinator belongs to the project and exact native run, surviving pane/tab/
   project/focus changes; only process termination/revocation or app shutdown clears
   it. A same-name restart cannot inherit authority. Handoffs remain bounded and
@@ -50,10 +51,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Remove local worktrees via native Git: confirm/recheck exact registered path;
   protect main/open/locked/dirty/untracked/ignored checkouts; never force/delete
   branches. SSH removal is outside this patch.
-- Sidebar owns sessions; panel owns project messages/tasks/reviews/history.
-  Reuse native widgets/8px spacing. Default closed; preserve focus/drafts.
-- Derive Agent coverage/icons from managed CLIAgent, preserving aliases and custom
-  native-MCP-capable sessions. No duplicate vendor allowlist or shell-tool fallback.
+- Sidebar owns sessions; panel owns messages/tasks/reviews/history. Native widgets,
+  8px spacing, default closed; preserve focus/drafts.
+- Derive coverage/icons from CLIAgent; preserve aliases/custom native MCP sessions.
+  No duplicate vendor allowlist or shell-tool fallback.
 
 ## Usage accounts and native Orca port
 
@@ -110,12 +111,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   does not prove a process stopped; unknown attempts block new ownership until
   explicit guarded reconciliation/override. Preserve unresolved history/export.
 - Audit: MACOS-FIXES-2026-10-12.md. Local/SSH/WSL share results/questions and
-  focused-terminal enablement, including command-entered sessions. Project peers
-  supervise retries/reassignment/review; Worktree allocation is Coordinator-only.
-  Final replies atomically queue results/consume requests; blocked stays unresolved.
-  Persist permission/cancel/disconnect evidence with exact attempts, never drafts
-  or output. Wait receipts retain unacknowledged messages; notifications prove
-  neither execution nor result handling.
+  focused-terminal enablement (also command-entered sessions). Project peers
+  supervise; Worktree allocation is Coordinator-only. Final replies atomically
+  queue results/consume requests; blocked stays unresolved. Persist exact-attempt
+  permission/cancel/disconnect evidence, never drafts/output. Wait receipts retain
+  unacknowledged messages; notifications prove neither execution nor handling.
 - 1.6.4 fixes: specs/agent-communication-v2/FIXES-1.6.4.md. Usage selects
   five-hour OR weekly windows; Antigravity retains Gemini and Claude/GPT pools.
   Composer drafts/attachments stay in memory; owner authorized clearing native PTY

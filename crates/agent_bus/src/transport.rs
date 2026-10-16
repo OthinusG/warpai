@@ -1287,7 +1287,7 @@ impl Broker {
                         .unwrap()
                         .waiting = false;
                     return Ok(
-                        json!({"message": null, "idle": true, "instruction": "Continue waiting until the user stops collaboration."}),
+                        json!({"message": null, "idle": true, "instruction": "No new notification. Reassess new instructions and all outstanding work; continue dispatching or messaging as needed. Wait again only when no immediate action remains, or retain supervision and yield with warp_agent_ready. A timeout is not a task outcome."}),
                     );
                 }
                 state
@@ -1343,7 +1343,7 @@ impl Broker {
             live.activity = Activity::Idle;
             live.readiness_source = "task_finished"; live.observed = Instant::now();
             live.ready = Some(Instant::now());
-            result["instruction"] = json!("Task execution has finished. Before ending your turn, call warp_agent_ready as your final tool action; native completion also restores readiness. Keep polling any other work you are coordinating.");
+            result["instruction"] = json!("Task execution has finished. Before ending your turn, call warp_agent_ready as your final tool action; native completion also restores readiness. Continue coordinating your dynamic supervision set, including any new authorized work.");
         }
         if matches!(request.operation, Operation::AgentList) {
             result.as_array_mut().unwrap().retain(|agent| {
@@ -1431,7 +1431,7 @@ impl Broker {
             Operation::AgentSend { .. } | Operation::AgentReply { .. } | Operation::TaskAssign { .. }
         ) {
             result["delivery"] = json!("queued");
-            result["instruction"] = json!("Work is queued, not completed or acknowledged. The receiver is notified and will process it once ready. By default, monitor every task you delegated: poll warp_agent_list for peer task states, use warp_task_get for results, and warp_agent_wait between polls. Keep coordinating until all delegated tasks are reviewed or the user stops. For ordinary instructions, wait for the recipient's reply before reporting completion.");
+            result["instruction"] = json!("Work is queued, not completed or acknowledged. Add this task or result-bearing message ID to your dynamic supervision set. Continue assigning new authorized tasks and sending messages at any time while other work is outstanding; do not exclusively watch this recipient. Refresh the whole set with warp_task_list, warp_task_get and warp_agent_inbox, including offline assignees. Remove handled final results or resolved terminal task outcomes; submitted tasks await review and blocked or execution-uncertain work remains outstanding. Use warp_agent_wait only when no immediate action is available, then reassess new work before waiting again. You may retain supervision and yield the current turn with warp_agent_ready when no immediate action remains and you own no executing work; do not claim pending work is complete.");
         }
         if matches!(request.operation, Operation::AgentSend { expects_result:false, .. }) {
             result["instruction"] = json!("Your informational notification is durably queued. No processing result was requested; queue admission does not establish that the recipient read it.");

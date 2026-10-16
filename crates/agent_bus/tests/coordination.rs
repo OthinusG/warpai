@@ -335,6 +335,72 @@ fn native_workspace_and_pre_discovery_activity_are_not_heuristic_idle() {
         .contains_key("directory"));
 }
 #[test]
+fn supervision_allows_dispatch_and_completion_while_other_tasks_are_running() {
+    use serde_json::json;
+    let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
+    let broker = &server.broker;
+    let issuer = register(broker, "issuer", "codex");
+    let first = register(broker, "first", "claude");
+    let second = register(broker, "second", "codex");
+    let third = register(broker, "third", "agy");
+    let call = |actor: &Request, operation: Value| {
+        let mut request = actor.clone();
+        request.operation = serde_json::from_value(operation).unwrap();
+        transport::call(&broker.endpoint, &request).unwrap()
+    };
+    let assign = |worker: &Request| {
+        let task = call(&issuer, json!({"op":"task_assign", "to":worker.terminal,
+            "description":"Inspect a separate module", "acceptance":"Report evidence",
+            "request_id":request_id()}));
+        let guidance = task["instruction"].as_str().unwrap();
+        assert!(guidance.contains("Continue assigning new authorized tasks"));
+        assert!(guidance.contains("do not exclusively watch this recipient"));
+        call(worker, json!({"op":"task_start", "task_id":task["id"],
+            "revision":1, "request_id":request_id()}));
+        task
+    };
+    let a = assign(&first);
+    let b = assign(&second);
+    let submitted = call(&first, json!({"op":"task_submit", "task_id":a["id"],
+        "revision":1, "result":"Complete", "evidence":"Checked", "request_id":request_id()}));
+    assert_eq!(submitted["state"], "submitted");
+    let accepted = call(&issuer, json!({"op":"task_review", "task_id":a["id"],
+        "revision":1, "expected_version":submitted["version"], "accepted":true,
+        "feedback":"Verified", "request_id":request_id()}));
+    assert_eq!(accepted["state"], "accepted");
+    let c = assign(&third);
+    let running = call(&issuer, json!({"op":"task_list", "state":"running"}));
+    let active: Vec<_> = running["tasks"].as_array().unwrap().iter().map(|task| &task["id"]).collect();
+    assert_eq!(active, vec![&b["id"], &c["id"]]);
+    assert_eq!(call(&issuer, json!({"op":"task_get", "task_id":a["id"]}))["state"], "accepted");
+
+    let message = call(&issuer, json!({"op":"agent_send", "to":"second",
+        "body":"Confirm the module boundary", "expects_result":true, "request_id":request_id()}));
+    assert!(message["instruction"].as_str().unwrap().contains("Continue assigning new authorized tasks"));
+    call(&second, json!({"op":"agent_reply", "reply_to":message["id"],
+        "body":"Boundary confirmed", "outcome":"succeeded", "request_id":request_id()}));
+    assert_eq!(call(&issuer, json!({"op":"agent_ready"}))["ready"], true);
+    for (worker, task) in [(&second, &b), (&third, &c)] {
+        call(worker, json!({"op":"task_submit", "task_id":task["id"],
+            "revision":1, "result":"Complete", "evidence":"Checked", "request_id":request_id()}));
+    }
+    let inbox = call(&issuer, json!({"op":"agent_inbox"}));
+    let messages = inbox["messages"].as_array().unwrap();
+    for task in [&b, &c] {
+        assert!(messages.iter().any(|message| message["kind"] == "review" && message["task_id"] == task["id"]));
+    }
+    let reply = messages.iter().find(|reply| reply["reply_to"] == message["id"] && reply["kind"] == "result_succeeded").unwrap();
+    call(&issuer, json!({"op":"agent_ack", "message_id":reply["id"]}));
+    for task in [&b, &c] {
+        let current = call(&issuer, json!({"op":"task_get", "task_id":task["id"]}));
+        call(&issuer, json!({"op":"task_review", "task_id":task["id"], "revision":1,
+            "expected_version":current["version"], "accepted":true, "feedback":"Verified", "request_id":request_id()}));
+    }
+    assert!(call(&issuer, json!({"op":"task_list", "state":"running"}))["tasks"].as_array().unwrap().is_empty());
+    assert_eq!(call(&issuer, json!({"op":"task_list", "state":"accepted"}))["tasks"].as_array().unwrap().len(), 3);
+}
+
+#[test]
 fn socket_wait_handoff_and_expired_run_rejection() {
     let server = RunningBroker::start(std::path::Path::new(":memory:")).unwrap();
     let sender = register(&server.broker, "sender", "codex");
