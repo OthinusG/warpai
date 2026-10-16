@@ -554,7 +554,7 @@ as the latest non-prerelease. Immutable tag source:
 
 No desktop or raw companion ZIP is published. Ad-hoc macOS signing and unsigned
 Windows installation remain the documented first-launch constraints.
-# Linux desktop packages (2026-10-16)
+## Linux desktop packages (2026-10-16)
 
 Owner-authorized Linux release engineering is specified in
 [Linux scope and acceptance](linux-desktop/TECH.md). The standalone

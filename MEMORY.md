@@ -7,13 +7,13 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only;
   no personal install/config changes.
-- Monitor cloud runs through completion; diagnose owner errors immediately.
+- Monitor cloud runs hourly through completion; diagnose owner errors immediately.
   Full acceptance gates delivery.
 - 1.6.5 source 9cc8d0b2 passed desktop/WSL and Companion acceptance.
   CI: 38667669349 / 38667672552; release 38682643407 running.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
-  unused branches/worktrees. Linux scope: specs/linux-desktop/TECH.md (Oct16).
+  unused branches/worktrees. Linux: specs/linux-desktop/TECH.md.
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
@@ -182,5 +182,5 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Memory maintenance
 
-Keep under 200 lines / 12 KB; put receipts in specs. Preserve useful evidence;
+Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;
 replace superseded facts.
