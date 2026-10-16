@@ -123,10 +123,16 @@
               <a class="docs-tree-link {% if page.doc_id == 'using' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using.html' | relative_url }}">{% if page.lang == 'zh' %}使用指南总览{% else %}User Guide Overview{% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'using-terminal' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-terminal.html' | relative_url }}">{% if page.lang == 'zh' %}终端与命令块深入{% else %}Terminal &amp; Command Blocks{% endif %}</a>
+              <a class="docs-tree-link {% if page.doc_id == 'project-mode' %}active{% endif %}" href="{{ url_prefix | append: '/docs/project-mode.html' | relative_url }}">{% if page.lang == 'zh' %}Project 模式 (泛行业全向协同){% else %}Project Mode (Omnidirectional){% endif %}</a>
             </li>
             <li class="docs-tree-item">
-              <a class="docs-tree-link {% if page.doc_id == 'using-warpai-agents' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-warpai-agents.html' | relative_url }}">{% if page.lang == 'zh' %}多 Agent 协同工作流{% else %}Multi-Agent Workflows{% endif %}</a>
+              <a class="docs-tree-link {% if page.doc_id == 'worktree-mode' %}active{% endif %}" href="{{ url_prefix | append: '/docs/worktree-mode.html' | relative_url }}">{% if page.lang == 'zh' %}Worktree 模式 (Git 并行编码){% else %}Worktree Mode (Git Parallel){% endif %}</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'using-warpai-agents' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-warpai-agents.html' | relative_url }}">{% if page.lang == 'zh' %}多智能体协同架构{% else %}Multi-Agent Workflows{% endif %}</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'using-terminal' %}active{% endif %}" href="{{ url_prefix | append: '/docs/using-terminal.html' | relative_url }}">{% if page.lang == 'zh' %}终端与命令块深入{% else %}Terminal &amp; Command Blocks{% endif %}</a>
             </li>
           </ul>
         </div>

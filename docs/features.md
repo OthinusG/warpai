@@ -115,9 +115,9 @@ Warpai is the local-first, privacy-focused modern terminal built around autonomo
 - **Zero Global Pollution**: No changes to `~/.zshrc`, `PATH`, or agent global config.
 
 #### 2. Dual Collaboration Modes: Project vs. Worktree
-- **Project Mode**: Flat peer-to-peer collaboration for specifications, literature review, and architecture planning without Git requirements.
-- **Worktree Mode**: Parallel software engineering using isolated Git worktrees. Agents work in separate physical directories to prevent file lock collisions.
-- **Coordinator Pattern**: Designated lead agent plans tasks, delegates to workers, manages peer reviews, and executes clean integrated commits.
+- **Project Mode (Heavily Supporting Non-Coding Workflows)**: Eliminates rigid master-worker hierarchies. All agents act flexibly as Commanders or Workers, freely sending messages, initiating structured Q&A, and pulling tasks from shared pools. Tailored for research writing, creative design, quant finance, patent compliance, media operations, and due diligence without Git constraints.
+- **Worktree Coding Mode (For Git Repositories)**: Beyond the Coordinator who plans and integrates, each agent develops independent features concurrently in isolated physical checkouts, fully preventing lock contention and build cache contamination.
+- **Coordinator & Automated Peer Review**: The lead agent supervises branch dependencies, dispatches tasks, facilitates automated peer reviews (`needs_changes` vs. `accepted`), and executes mainline integration commits.
 
 #### 3. Screen State Machine & Guarded PTY Delivery
 - Built-in VT100 parser tracks ANSI rendering stream into three states: `Working`, `Idle`, and `WaitingApproval`.

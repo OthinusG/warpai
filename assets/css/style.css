@@ -108,6 +108,33 @@ code, pre, kbd, samp {
   background: var(--term-sidebar-bg);
 }
 
+.mock-mode-switch {
+  display: flex;
+  padding: 6px 8px;
+  gap: 6px;
+  background: color-mix(in srgb, var(--term-bg) 65%, transparent);
+  border-bottom: 1px solid var(--term-border);
+}
+
+.mock-mode-switch span {
+  flex: 1;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 4px;
+  border-radius: 3px;
+  color: var(--term-muted);
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.mock-mode-switch span.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .mock-sidebar-title {
   padding: 0.55em 1.1em;
   color: var(--term-muted);

@@ -30,7 +30,7 @@ When you launch Warpai, you will see a clean, three-column desktop workbench:
 └──────────────────┴──────────────────────────────────────────┴──────────────────┘
 ```
 
-1. **Left Panel (Agent Coordination)**: Manage multi-agent collaboration, switch between **Project** and **Worktree** modes, assign tasks, inspect peer reviews, and monitor quota limits.
+1. **Left Panel (Agent Coordination)**: Manage multi-agent collaboration, switch between **Project Mode (omnidirectional messaging for non-coding teams)** and **Worktree Mode (parallel feature coding for Git repos)**, assign tasks, inspect peer reviews, and monitor quota limits.
 2. **Center Stage (GPU Terminal)**: A modern, GPU-rendered command line powered by `wgpu`. Features block-based command execution, autocompletion, vertical tabs, and split panes.
 3. **Right Panel (Project Workbench)**: In-terminal file tree, lightweight code editor with Vim bindings, Markdown document previewer, and Git Code Review.
 

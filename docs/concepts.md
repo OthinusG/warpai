@@ -60,6 +60,7 @@ In serious software development, having multiple agents edit the same Git branch
 - Each feature or module is assigned its own isolated physical Git worktree directory, allowing agents to develop independent features concurrently.
 - Agents operate in complete isolation. Worktree A's experimental changes cannot dirty Worktree B's build artifacts or tests.
 - A designated **Coordinator Agent** presides over the team, orchestrating tasks, supervising automated peer review, and integrating approved code into the main branch.
+- **Dedicated Manuals**: For comprehensive workflows, see our specialized guides: [Project Mode: Omnidirectional Collaboration & Cross-Domain Guide]({{ '/docs/project-mode.html' | relative_url }}) and [Worktree Mode: Parallel Git Software Engineering]({{ '/docs/worktree-mode.html' | relative_url }}).
 
 ---
 

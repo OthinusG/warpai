@@ -84,7 +84,7 @@ Coordinator 将通过 Warpai 内置的 MCP 工具（`warp_task_assign`）向各�
 
 - **全向消息与任务互通**：所有 Agent 都是平等节点。在科研场景中，文献检索 Agent 既可以向论文撰写 Agent 提供引用，也可以向数据绘图 Agent 提议图表样式；模拟审稿人 Agent 更可直接向主笔 Agent 下发修回指令。
 - **动态角色随时切换**：在初始策划阶段 Agent A 是指挥官（Commander），在专业验收阶段 Agent B 则切换为指挥官，实现真正意义上的多智能体自由闭环。
-- **广泛赋能跨学科领域**：详见 [多 Agent 协同工作流]({{ '/zh/docs/using-warpai-agents.html' | relative_url }}) 中的六大实战落地手册。
+- **详尽操作与案例手册**：请参阅独立的 [Project 模式：全向协同与泛行业实战手册]({{ '/zh/docs/project-mode.html' | relative_url }}) 以及 [Worktree 编码模式：Git 并行代码开发完全手册]({{ '/zh/docs/worktree-mode.html' | relative_url }})。
 
 ---
 

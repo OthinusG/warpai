@@ -83,7 +83,7 @@ For non-coding and multi-agent research domains (scientific paper drafting, crea
 
 - **Omnidirectional Messaging & Tasks**: Every agent operates as an equal peer node. In scientific research, a literature retrieval agent supplies citations directly to the manuscript author and recommends plot aesthetics to the data visualization agent, while a mock peer reviewer dispatches revision notices.
 - **Dynamic Role Reversals**: An agent can coordinate a roadmap as Commander in stage 1, then transition to Worker in stage 2 under a specialized QA lead.
-- **Empowering Cross-Disciplinary Domains**: See [Deep Dive: Multi-Agent Workflows]({{ '/docs/using-warpai-agents.html' | relative_url }}) for complete implementation guides across six real-world domains.
+- **Dedicated Implementation Manuals**: For step-by-step procedures and templates, see our dedicated guides on [Project Mode: Omnidirectional Collaboration & Cross-Domain Guide]({{ '/docs/project-mode.html' | relative_url }}) and [Worktree Mode: Parallel Git Software Engineering]({{ '/docs/worktree-mode.html' | relative_url }}).
 
 ---
 

@@ -61,13 +61,17 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
 
 <section class="fig" id="features">
   <div class="fighd">
-    <span>多 Agent 协同沙盘 · 运行在隔离的独立工作树中</span>
-    <span class="r">点击 Agent 或工作区查看终端</span>
+    <span>多智能体双架构协同沙盘 · 支持 Git Worktree 并发独立开发与 Project 全向网状互通</span>
+    <span class="r">点击智能体或工作区查看终端</span>
   </div>
   <div class="plate">
     <figure class="hero-product-shot">
       <div class="herdr-ui-mock" id="herd-mock" role="img" aria-label="交互式 Warpai 终端工作台沙盘">
         <aside class="mock-sidebar">
+          <div class="mock-mode-switch">
+            <span class="active">Project 模式</span>
+            <span>Worktree 模式</span>
+          </div>
           <div class="mock-sidebar-half">
             <div class="mock-sidebar-title">工作区 / 分支</div>
             <div class="mock-space active" data-ws="warpai">
@@ -255,7 +259,7 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
       <figcaption>多 Agent 并发工作台集中在同一原生视窗中。点击侧边栏或标签页可即时切换。</figcaption>
     </figure>
   </div>
-  <p class="figcap">三个独立工作树，四个并发 Agent，互不干扰。<b>守护式 PTY 交付确保零丢字、零乱序、零冲突。</b></p>
+  <p class="figcap">针对 Git 仓库实行 Worktree 并行开发不同功能，针对泛行业提供 Project 模式让所有智能体互通消息与任务。<b>独家守护式 PTY 交付确保零丢字、零乱序、零冲突。</b></p>
 </section>
 
 <div class="caps">
@@ -319,7 +323,7 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
   <a class="cap" href="{{ '/zh/docs/install.html' | relative_url }}">
     <div class="n"><span>05</span></div>
     <div class="cap-in">
-      <h3>统一连接所有设备，一处掌控。&nbsp;<b class="arw">&#8594;</b></h3>
+      <h3>统一连接所有设备：原生支持 macOS、Windows WSL 与云端 Linux。&nbsp;<b class="arw">&#8594;</b></h3>
       <p>全面覆盖 MacBook、Windows 原生桌面、Windows WSL/WSL2 子系统，以及云端 Linux GPU 服务器。通过 SSH 无缝接入 Warpai 远程伴侣，本地 WSL 发行版与远端 GPU 工作区一屏聚合，支持内置 SFTP 文件互传，操作无任何感知延迟。</p>
     </div>
     <div class="ev">
@@ -329,10 +333,10 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
     </div>
   </a>
 
-  <a class="cap" href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">
+  <a class="cap" href="{{ '/zh/docs/project-mode.html' | relative_url }}">
     <div class="n"><span>06</span></div>
     <div class="cap-in">
-      <h3>不止于 Coding：Git Worktree 与 Project 双协同模式。&nbsp;<b class="arw">&#8594;</b></h3>
+      <h3>专为泛行业赋能：Worktree 编码与 Project 全向协同双模式。&nbsp;<b class="arw">&#8594;</b></h3>
       <p>主流多 Agent 软件往往局限于 Git Worktree 单一代码开发模式。Warpai 针对 Git 代码仓库提供严谨的 <b>Worktree 并发模式</b>：除协调者统筹外，每个 Worktree 可以并行开发不同的功能特性，物理分支隔离互不干扰。在此之上，Warpai 倾力扶持非 Coding 场景，重磅推出 <b>Project 模式</b>：在同一项目空间内，所有 Agent 彻底打破单一上下级限制，均可作为指挥官（Commander）或工人（Worker），互相通信、提问应答与流转任务！全面赋能：<b>科研论文写作与审稿</b>、<b>工业级视觉与多媒体设计</b>、<b>量化投研与金融分析</b>、<b>专利交底挖掘与法务合规</b>、<b>自媒体脚本与矩阵运营</b>、<b>商业尽调与战略情报</b>等 6+ 大泛行业场景。</p>
     </div>
     <div class="ev">

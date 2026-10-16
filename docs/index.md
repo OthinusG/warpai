@@ -66,13 +66,23 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. F
     </tr>
     <tr>
       <td></td>
-      <td><a href="{{ '/docs/using-terminal.html' | relative_url }}">Terminal &amp; Command Blocks</a></td>
-      <td>Master command blocks, smart autocompletion, vertical tabs, project explorer, Vim editor, and Git diff review.</td>
+      <td><a href="{{ '/docs/project-mode.html' | relative_url }}">Project Mode Guide</a></td>
+      <td>Heavily supporting non-coding workflows: omnidirectional messaging and tasks across research, design, finance, and IP.</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/docs/worktree-mode.html' | relative_url }}">Worktree Mode Guide</a></td>
+      <td>Parallel Git software engineering: physical worktree checkouts, Coordinator oversight, and automated peer review.</td>
     </tr>
     <tr>
       <td></td>
       <td><a href="{{ '/docs/using-warpai-agents.html' | relative_url }}">Multi-Agent Workflows</a></td>
-      <td>Worktree concurrent coding mode, Project omnidirectional collaboration, dynamic roles, and 6+ domain guides.</td>
+      <td>Dual-architecture foundations: comparing Worktree coding mode and Project omnidirectional collaboration.</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/docs/using-terminal.html' | relative_url }}">Terminal &amp; Command Blocks</a></td>
+      <td>Master command blocks, smart autocompletion, vertical tabs, project explorer, Vim editor, and Git diff review.</td>
     </tr>
     <tr>
       <td><strong>Ecosystem</strong></td>

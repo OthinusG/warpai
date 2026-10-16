@@ -61,6 +61,7 @@ next_title: 全景特性与原版对比
 - 为每个功能特性分配独立的物理 Git Worktree 目录，每个 Worktree 可以完全独立、并行地开发不同的业务功能特性。
 - 各 Agent 在完全隔离的物理副本中并行编码，Worktree A 的实验性修改绝不会破坏 Worktree B 的编译与测试缓存。
 - 由一名被指定为 **Coordinator（协调者）** 的核心 Agent 统筹全局：拆解任务分配给各个 Worktree 中的 Agent，并在提交后组织自动化对等评审（Peer Review），最终将验收通过的代码合并回主干。
+- **详尽操作与案例手册**：请参阅 [Project 模式：全向协同与泛行业实战手册]({{ '/zh/docs/project-mode.html' | relative_url }}) 以及 [Worktree 编码模式：Git 并行代码开发完全手册]({{ '/zh/docs/worktree-mode.html' | relative_url }})。
 
 ---
 

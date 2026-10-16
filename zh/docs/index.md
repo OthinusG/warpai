@@ -67,13 +67,23 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对�
     </tr>
     <tr>
       <td></td>
-      <td><a href="{{ '/zh/docs/using-terminal.html' | relative_url }}">终端与命令块深入</a></td>
-      <td>命令块交互、智能命令补全、垂直标签页、内置轻量 Vim 编辑器与实时 Markdown 预览。</td>
+      <td><a href="{{ '/zh/docs/project-mode.html' | relative_url }}">Project 模式实战手册</a></td>
+      <td>重点扶持非 Coding 场景：打破层级、全员互通消息与任务，涵盖科研论文、视觉设计、金融量化等 6+ 场景实战教程。</td>
     </tr>
     <tr>
       <td></td>
-      <td><a href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">多 Agent 协同工作流</a></td>
-      <td>Worktree 并发编码模式、Project 泛行业全向网状协同、Commander/Worker 角色互换与 6+ 大实战场景。</td>
+      <td><a href="{{ '/zh/docs/worktree-mode.html' | relative_url }}">Worktree 模式完全手册</a></td>
+      <td>面向 Git 代码仓库的大规模并行开发：物理工作树隔离、多分支并行编码、Coordinator 统筹与自动化对等评审。</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">多智能体协同架构</a></td>
+      <td>Worktree 并发编码模式与 Project 泛行业全向网状协同双架构原理与机制。</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/zh/docs/using-terminal.html' | relative_url }}">终端与命令块深入</a></td>
+      <td>命令块交互、智能命令补全、垂直标签页、内置轻量 Vim 编辑器与实时 Markdown 预览。</td>
     </tr>
     <tr>
       <td><strong>Agent 生态</strong></td>
