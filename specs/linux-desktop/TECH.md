@@ -53,7 +53,7 @@ hosting, release-tag creation or publication is requested in this iteration.
   runner label. Headless X11 smoke checks exercise installed/package contents.
 - Workflow/script syntax and focused package fixtures run locally. Compilation
   and native acceptance run on GitHub, without changing personal installations.
-- Keep awake, Secret Service fallback, native Wayland/global shortcuts and full
-  GNOME/KDE acceptance retain the prior audit's explicit outstanding work. Test
-  artifacts do not establish a publishable Linux release until those gates are
-  resolved or the owner explicitly chooses a reduced feature scope.
+- Keep awake uses the systemd-logind inhibitor API. Secret Service fallback,
+  native Wayland/global shortcuts and full GNOME/KDE acceptance remain separate
+  desktop acceptance work; a missing logind service is reported and degrades to
+  a no-op guard rather than blocking the application startup.

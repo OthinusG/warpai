@@ -81,6 +81,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ${{ github.workspace }}
     env:
       RELEASE_TAG: ${{ needs.target.outputs.tag }}
       WINDOWS_SOURCE: ${{ github.event_name == 'workflow_run' && needs.target.outputs.source || '' }}
@@ -158,6 +159,7 @@ jobs:
         run: |
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
+          cargo test -p prevent_sleep --locked
           cargo test -p warpai --lib language_restart_ --locked
           cargo test -p warpai --lib release_updates::tests --locked
           cargo test -p warp-agent-bus --lib mcp::tests --locked

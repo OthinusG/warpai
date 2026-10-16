@@ -31,6 +31,8 @@ desktop entry and icons; their binaries, Agent bridge and resources live under
 Install system Git for local Worktree and Review features; vendor CLI Agents keep
 their own dependencies and authentication. Minimal desktops also need working
 graphics drivers, fonts, `xdg-utils`, file-dialog support and desktop D-Bus services.
+Keep awake requests use systemd-logind's idle and suspend inhibitor; this feature
+requires a running logind service.
 
 Language changes wait for the old application to exit before restarting. AppImage
 restarts use the original AppImage file, which must remain at its original path.

@@ -28,6 +28,7 @@ Ubuntu 20.04+、Debian 11+、Fedora 32+、Arch，以及 OpenSUSE/SLE 等兼容 R
 位于 `/opt/warpai`。安装过程不添加 APT/YUM/pacman 软件源或上游签名密钥。
 本地 Worktree 和 Review 需要系统 Git；各 CLI Agent 的依赖和认证仍由用户管理。
 精简桌面还需具备图形驱动、字体、`xdg-utils`、文件对话框支持和桌面 D-Bus 服务。
+Keep awake 通过 systemd-logind 阻止空闲和挂起；需要系统正在运行 logind 服务。
 
 切换语言后会等待旧进程退出，再启动新实例。AppImage 会重新执行原始安装包，
 因此该文件必须保留在原路径。更新检查会选择对应架构已发布的 AppImage；原生包

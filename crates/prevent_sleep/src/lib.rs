@@ -6,7 +6,11 @@ mod imp;
 #[path = "windows.rs"]
 mod imp;
 
-#[cfg(not(any(target_os = "macos", windows)))]
+#[cfg(target_os = "linux")]
+#[path = "linux.rs"]
+mod imp;
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 #[path = "noop.rs"]
 mod imp;
 
