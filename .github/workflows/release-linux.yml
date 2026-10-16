@@ -156,10 +156,8 @@ jobs:
         env:
           ASSET_ARCH: ${{ matrix.arch }}
         run: |
-          GIT_CONFIG_COUNT=1 \
-          GIT_CONFIG_KEY_0=safe.directory \
-          GIT_CONFIG_VALUE_0="$(pwd -P)" \
-            bash "$WARPAI_WORKSPACE/script/build-warpai-linux.sh" "$RELEASE_TAG"
+          git config --global --add safe.directory "$(pwd -P)"
+          bash "$WARPAI_WORKSPACE/script/build-warpai-linux.sh" "$RELEASE_TAG"
           echo "LINUX_PACKAGE_PREFIX=Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH" >> "$GITHUB_ENV"
       - name: Verify installed desktop starts under X11
         env:
