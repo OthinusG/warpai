@@ -16,7 +16,7 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   unused branches/worktrees. Linux: specs/linux-desktop/TECH.md; independent
   workflow, triggered after successful Windows packaging or manually. Debian
   container jobs run as root against runner-owned checkouts; scope `safe.directory`
-  to the workspace for Git metadata reads.
+  to the in-container working directory (`pwd`), since host workspace paths differ.
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
