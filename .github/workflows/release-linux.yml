@@ -81,7 +81,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: /__w/warpai/warpai
+        working-directory: /github/workspace
     env:
       RELEASE_TAG: ${{ needs.target.outputs.tag }}
       WINDOWS_SOURCE: ${{ github.event_name == 'workflow_run' && needs.target.outputs.source || '' }}
