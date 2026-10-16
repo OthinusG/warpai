@@ -98,6 +98,10 @@ env -u SOURCE_DATE_EPOCH linuxdeploy \
   --output appimage
 
 APPIMAGE_PATH="$OUT_DIR/$APPIMAGE_NAME"
+LINUXDEPLOY_APPIMAGE_PATH="$OUT_DIR/$APP_NAME-$BUILD_ARCH.AppImage"
+if [[ "$LINUXDEPLOY_APPIMAGE_PATH" != "$APPIMAGE_PATH" ]]; then
+  mv "$LINUXDEPLOY_APPIMAGE_PATH" "$APPIMAGE_PATH"
+fi
 
 # If this is being run within a GitHub action, set an output variable with the
 # location of the AppImage so it can be referenced by subsequent actions.
