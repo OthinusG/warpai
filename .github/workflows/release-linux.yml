@@ -108,7 +108,7 @@ jobs:
             libssl-dev libfreetype6-dev libfontconfig1-dev libexpat1-dev libasound2-dev \
             libx11-dev libx11-xcb-dev libxcb1-dev libxi-dev libxcursor-dev libxkbcommon-x11-dev \
             libwayland-dev libegl1-mesa-dev libgl1-mesa-dev mesa-vulkan-drivers \
-            protobuf-compiler python3 python3-yaml rpm libarchive-tools zstd xz-utils \
+            protobuf-compiler libprotobuf-dev python3 python3-yaml rpm libarchive-tools zstd xz-utils \
             file patchelf desktop-file-utils xvfb xauth x11-utils xdotool imagemagick \
             dbus-x11 fonts-dejavu-core fonts-noto-cjk
           [[ "$(getconf GNU_LIBC_VERSION)" == 'glibc 2.31' ]]
