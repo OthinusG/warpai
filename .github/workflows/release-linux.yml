@@ -11,24 +11,61 @@ on:
         description: 'Build test artifacts without changing a GitHub release'
         type: boolean
         default: true
-  workflow_call:
-    inputs:
-      release_tag:
-        required: true
-        type: string
-      artifact_only:
-        type: boolean
-        default: true
+  workflow_run:
+    workflows: ["Release Windows x64"]
+    types: [completed]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: release-linux-${{ github.ref }}-${{ inputs.release_tag }}-${{ inputs.artifact_only }}
   cancel-in-progress: false
 
 jobs:
+  target:
+    name: Resolve independent Linux release target
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.target.outputs.tag }}
+      source: ${{ steps.target.outputs.source }}
+      artifact_only: ${{ steps.target.outputs.artifact_only }}
+      build: ${{ steps.target.outputs.build }}
+    steps:
+      - name: Read and validate release handoff
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ARTIFACT_ONLY: ${{ inputs.artifact_only }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$SOURCE_RUN_ID" ]]; then
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts" --jq '[.artifacts[] | select(.name == "linux-release-target" and .expired == false)] | length')
+            if [[ "$count" == 0 ]]; then
+              echo 'Windows did not build a package; skipping Linux.'
+              exit 0
+            fi
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name linux-release-target --dir release-target
+            RELEASE_TAG=$(cat release-target/release-tag.txt)
+            ARTIFACT_ONLY=$(cat release-target/artifact-only.txt)
+            SOURCE_SHA=$(cat release-target/source-sha.txt)
+          fi
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$ARTIFACT_ONLY" == true || "$ARTIFACT_ONLY" == false ]]
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "source=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "artifact_only=$ARTIFACT_ONLY" >> "$GITHUB_OUTPUT"
+          echo 'build=true' >> "$GITHUB_OUTPUT"
+
   build:
+    needs: target
+    if: needs.target.outputs.build == 'true'
     name: Linux ${{ matrix.arch }} packages
     strategy:
       fail-fast: false
@@ -45,7 +82,8 @@ jobs:
       run:
         shell: bash
     env:
-      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_TAG: ${{ needs.target.outputs.tag }}
+      WINDOWS_SOURCE: ${{ github.event_name == 'workflow_run' && needs.target.outputs.source || '' }}
       CARGO_HOME: /github/home/.cargo
       RUSTUP_HOME: /github/home/.rustup
       CARGO_BUILD_RUSTFLAGS: '-C symbol-mangling-version=v0'
@@ -75,12 +113,16 @@ jobs:
           [[ "$(getconf GNU_LIBC_VERSION)" == 'glibc 2.31' ]]
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
+          ref: ${{ needs.target.outputs.artifact_only == 'true' && needs.target.outputs.source || format('refs/tags/{0}', needs.target.outputs.tag) }}
           fetch-depth: 0
           lfs: true
       - name: Validate source and package version
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ -n "$WINDOWS_SOURCE" && "$(git rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
+            echo 'Windows/Linux source mismatch' >&2
+            exit 1
+          fi
           git diff --check
           python3 script/test-linux-packaging.py
           bash -n script/build-warpai-linux.sh script/linux/bundle script/linux/bundle_install \
@@ -112,7 +154,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Check desktop configurations and restart regressions
         env:
-          GIT_RELEASE_TAG: ${{ inputs.release_tag }}
+          GIT_RELEASE_TAG: ${{ needs.target.outputs.tag }}
         run: |
           cargo check -p warpai --bin warpai --locked
           cargo check -p warpai --bin warpai --features warp_platform --locked
@@ -149,33 +191,31 @@ jobs:
           if-no-files-found: warn
 
   attach:
-    name: Attach Linux packages to an existing draft
-    if: ${{ !inputs.artifact_only }}
-    needs: build
+    name: Attach Linux packages to the existing release
+    if: needs.target.outputs.artifact_only == 'false'
+    needs: [target, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ format('refs/tags/{0}', inputs.release_tag) }}
+          ref: ${{ format('refs/tags/{0}', needs.target.outputs.tag) }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: Warpai-linux-*
           merge-multiple: true
           path: linux-release
-      - name: Verify provenance, checksums and draft-only target
+      - name: Verify provenance, checksums and existing target
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ needs.target.outputs.tag }}
         run: |
-          gh release view "$RELEASE_TAG" --json isDraft,assets > "$RUNNER_TEMP/warpai-release.json"
+          gh release view "$RELEASE_TAG" --json assets > "$RUNNER_TEMP/warpai-release.json"
           python3 - <<'PY'
           import hashlib, json, os, subprocess
           from pathlib import Path
           release = json.loads((Path(os.environ['RUNNER_TEMP']) / 'warpai-release.json').read_text())
-          if not release['isDraft']:
-              raise SystemExit('Linux assets may only be attached to an existing draft')
           source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
           output = Path('linux-release')
           expected = set()

@@ -54,7 +54,7 @@ macOS bundle 流程一致：保留发布配置的输入法组合文本支持，�
 
 - [桌面通信工作流](../.github/workflows/validate-agent-communication.yml)：macOS、Windows 应用检查、聚焦回归，以及可选原生 UI 截图与调试构建。`protocol_only` 跳过桌面检查，除非启用 `check_app` 或 `capture_ui`；`capture_ui` 构建隔离的调试应用。验证流程不生成桌面安装包。
 - [远程 companion 工作流](../.github/workflows/validate-remote-companion.yml)：三平台协议和进程测试、受控 Linux OpenSSH 验收，以及带源码和摘要清单的 companion 产物。
-- 桌面通信工作流的 `linux_desktop` 选项复用 Linux 发布工作流生成测试包，覆盖两种架构。
+- Linux 发布使用独立工作流，可手动执行，或在 Windows 发布构建成功后自动触发；不并入桌面通信工作流。
 - [当前验收记录（英文）](../specs/agent-communication-v2/QUALITY.md)：替换决策、清理范围和准确源码版本的验证证据。
 
 根据修改的逻辑选择检查。Shell 脚本按 shebang 使用 `bash -n` 或 `zsh -n`。

@@ -45,10 +45,13 @@ use a Debian 11 build environment; package verification checks actual ELF/glibc
 requirements, architecture, version, bridge/resources and desktop identity.
 The workflow runs language-restart regressions, default/`warp_platform` checks,
 and an installed X11 desktop smoke capture. It emits source manifests and SHA-256
-checksums alongside all eight packages. Optional Linux checks in the communication
-workflow call the same artifact-only build rather than duplicate its implementation.
+checksums alongside all eight packages. Linux has its own workflow and run history;
+the communication validation workflow does not invoke it. Successful Windows
+release builds trigger Linux through `workflow_run`, carrying the exact version,
+source commit and artifact-only setting. Failed or skipped Windows builds do not
+start Linux builds. Manual Linux dispatch remains available independently.
 
-To attach packages, first create a reviewed immutable tag and an existing draft
+To attach packages, first create a reviewed immutable tag and an existing
 release, then disable artifact-only. The workflow requires both architectures and
-verifies their source/checksums; existing assets and published releases are refused.
-It never publishes a release. Artifact-only runs do not alter GitHub Releases.
+verifies their source/checksums; existing assets cannot be overwritten. It can add
+assets to a draft or published release, without changing its publication state. Artifact-only runs do not alter GitHub Releases.

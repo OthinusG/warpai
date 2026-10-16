@@ -13,7 +13,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   CI: 38667669349 / 38667672552; release 38682643407 running.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
-  unused branches/worktrees. Linux: specs/linux-desktop/TECH.md.
+  unused branches/worktrees. Linux: specs/linux-desktop/TECH.md; independent
+  workflow, triggered after successful Windows packaging or manually.
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.

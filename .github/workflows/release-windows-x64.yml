@@ -234,3 +234,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
         run: gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"
+
+      - name: Record target for the independent Linux workflow
+        if: steps.check-release.outputs.should_build == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
+          ARTIFACT_ONLY: ${{ github.event.inputs.artifact_only == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p linux-release-target
+          printf '%s\n' "$RELEASE_TAG" > linux-release-target/release-tag.txt
+          printf '%s\n' "$ARTIFACT_ONLY" > linux-release-target/artifact-only.txt
+          git rev-parse HEAD > linux-release-target/source-sha.txt
+
+      - name: Preserve Linux release handoff
+        if: steps.check-release.outputs.should_build == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: linux-release-target
+          path: linux-release-target/
+          if-no-files-found: error
+          retention-days: 7

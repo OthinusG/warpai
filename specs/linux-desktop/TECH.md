@@ -31,7 +31,11 @@ hosting, release-tag creation or publication is requested in this iteration.
 3. Add a standalone Linux release workflow with native x86_64/ARM64 builds, a
    glibc-2.31 build baseline, caches, source provenance and SHA-256 checksums.
    Default to artifact-only validation; tagged uploads may attach new assets to
-   an existing draft only, never overwrite assets or publish a release.
+   an existing release, never overwrite assets or change publication state.
+   Keep Linux independent of communication validation and reusable workflow calls.
+   Successful Windows packaging hands off version, exact source and test mode via
+   an artifact; `workflow_run` starts a separate Linux run. Failures/skips do not
+   start builds; manual dispatch works without a Windows run.
 4. Add Linux asset selection to the existing public update checker. Document
    package installation, runtime requirements and the remaining desktop feature
    acceptance scope in English and Chinese.

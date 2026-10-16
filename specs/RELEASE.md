@@ -562,7 +562,9 @@ Owner-authorized Linux release engineering is specified in
 packages with a verified glibc-2.31 baseline. Native installers include the
 communication bridge and Warpai desktop identity, never upstream update sources.
 Source manifests and architecture-specific SHA-256 files accompany the packages.
-Artifact-only is the default. Tagged attachment requires an existing draft,
+Artifact-only is the default. Tagged attachment requires an existing release,
 matching source, both architectures and no asset collisions; it cannot create
-tags or publish. Existing macOS/Windows/Companion release rules below continue
+tags or change publication state. Successful Windows packaging triggers this
+independent workflow with the same tag/source/test mode; communication validation
+does not invoke Linux. Existing macOS/Windows/Companion release rules continue
 to apply. Linux test builds are not full distribution/desktop acceptance.

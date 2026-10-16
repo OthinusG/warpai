@@ -2,10 +2,6 @@ name: Validate Warpai communication
 on:
   workflow_dispatch:
     inputs:
-      linux_desktop:
-        description: 'Build and verify Linux x86_64/ARM64 desktop test packages'
-        type: boolean
-        default: false
       protocol_only:
         description: 'Run both OS protocol suites; desktop checks require check_app or capture_ui'
         type: boolean
@@ -38,14 +34,6 @@ concurrency:
   group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}-${{ inputs.native_windows_only }}
   cancel-in-progress: true
 jobs:
-  linux:
-    if: ${{ inputs.linux_desktop }}
-    permissions:
-      contents: write
-    uses: ./.github/workflows/release-linux.yml
-    with:
-      release_tag: v0.0.0
-      artifact_only: true
   protocol:
     name: Protocol (${{ matrix.os }})
     if: ${{ !inputs.native_windows_only }}
