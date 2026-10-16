@@ -66,197 +66,393 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
   </div>
   <div class="plate">
     <figure class="hero-product-shot">
-      <div class="herdr-ui-mock" id="herd-mock" role="img" aria-label="交互式 Warpai 终端工作台沙盘">
-        <aside class="mock-sidebar">
-          <div class="mock-mode-switch">
-            <span class="active">Project 模式</span>
-            <span>Worktree 模式</span>
+      <div class="herdr-ui-mock warpai-ui-mock" id="herd-mock" role="region" aria-label="交互式 Warpai 多智能体工作台沙盘">
+        <!-- 1. Window Chrome Topbar -->
+        <div class="mock-chrome">
+          <div class="mock-chrome-left">
+            <div class="mock-traffic-lights" aria-hidden="true">
+              <span class="mock-dot-red"></span>
+              <span class="mock-dot-yellow"></span>
+              <span class="mock-dot-green"></span>
+            </div>
+            <button type="button" class="mock-chrome-btn" id="mock-btn-toggle-sidebar" title="折叠/展开左侧栏" aria-label="折叠左侧栏">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
+            </button>
           </div>
-          <div class="mock-sidebar-half">
-            <div class="mock-sidebar-title">工作区 / 分支</div>
-            <div class="mock-space active" data-ws="warpai">
-              <span class="mock-dot dot-working"></span>
-              <div><strong>warpai</strong><small>main 分支</small></div>
+          <div class="mock-chrome-right">
+            <div class="mock-git-stats" title="Git 代码变更统计">
+              <span class="mock-stat-add">+2329</span>
+              <span class="mock-stat-del">-478</span>
             </div>
-            <div class="mock-space" data-ws="feat-agent-bus">
-              <span class="mock-dot dot-waiting"></span>
-              <div><strong>feat/agent-bus</strong><small>worktree · 等待审批</small></div>
-            </div>
-            <div class="mock-space" data-ws="infra-remote">
-              <span class="mock-dot dot-done"></span>
-              <div><strong>infra/remote</strong><small>workbox-gpu · ssh</small></div>
-            </div>
+            <button type="button" class="mock-chrome-btn" id="mock-theme-toggle-btn" title="切换深浅主题" aria-label="切换深浅主题">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="4"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
+            </button>
+            <button type="button" class="mock-chrome-btn" title="命令菜单" aria-label="命令菜单">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/></svg>
+            </button>
+            <button type="button" class="mock-chrome-btn" title="运行命令" aria-label="运行命令">
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.5 3.5v9l7-4.5-7-4.5z"/></svg>
+            </button>
           </div>
-          <div class="mock-sidebar-half mock-sidebar-agents">
-            <div class="mock-agent-title"><span>agents 实例</span><span>实时状态</span></div>
-            <div class="mock-agent working active" data-agent="claude" data-ws-link="warpai" data-tab-link="main">
-              <span>●</span>
-              <div><strong>claude</strong><small>working · claude code</small></div>
-            </div>
-            <div class="mock-agent waiting" data-agent="codex" data-ws-link="feat-agent-bus" data-tab-link="main">
-              <span>◉</span>
-              <div><strong>codex</strong><small>waiting · 等待审批</small></div>
-            </div>
-            <div class="mock-agent idle" data-agent="gemini" data-ws-link="warpai" data-tab-link="terminal">
-              <span>○</span>
-              <div><strong>gemini</strong><small>idle · gemini cli</small></div>
-            </div>
-            <div class="mock-agent done" data-agent="dsh" data-ws-link="infra-remote" data-tab-link="main">
-              <span>●</span>
-              <div><strong>dsh-tui</strong><small>done · 任务完成</small></div>
-            </div>
-          </div>
-        </aside>
+        </div>
 
-        <section class="mock-main">
-          <!-- Workspace 1: warpai -->
-          <div class="mock-view active" data-view="warpai">
-            <div class="mock-tabs">
-              <span class="active" data-tab="main">claude</span>
-              <span data-tab="terminal">cargo check</span>
-              <span>+</span>
+        <!-- 2. Three-Column App Body -->
+        <div class="mock-app-body">
+          <!-- COLUMN 1: Left Vertical Tabs Sidebar -->
+          <aside class="mock-col-left" id="mock-left-sidebar">
+            <div class="mock-tab-search-bar">
+              <div class="mock-search-input-wrap">
+                <svg class="mock-ic" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                <input type="text" id="mock-search-input" placeholder="搜索标签页..." aria-label="搜索标签页">
+              </div>
+              <button type="button" class="mock-mini-icon-btn" title="Git 分支">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg>
+              </button>
+              <button type="button" class="mock-mini-icon-btn" id="mock-btn-new-tab" title="新建标签页">+</button>
             </div>
-            <div class="mock-panes active" data-tab="main">
-              <div class="mock-pane focused tui" data-title="claude">
-                <div class="cc-header">
-                  <pre class="cc-logo-art"> ▐▛███▜▌
-▝▜█████▛▘
-  ▘▘ ▝▝</pre>
-                  <div class="cc-header-text">
-                    <div><b>Claude Code</b> <span class="dim">v2.1.198</span></div>
-                    <div class="dim">Sonnet 3.7 with high effort · Claude Max</div>
+            <div class="mock-vtabs-container" id="mock-vtabs-list">
+              <!-- Tab 1: Claude Code -->
+              <div class="mock-vtab active" data-agent="claude">
+                <div class="mock-vtab-badge mock-badge-claude">✳</div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">* Claude Code</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                  </div>
+                </div>
+              </div>
+              <!-- Tab 2: agy -->
+              <div class="mock-vtab" data-agent="agy">
+                <div class="mock-vtab-badge mock-badge-agy">▲</div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">agy 智能体</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                  </div>
+                </div>
+              </div>
+              <!-- Tab 3: warpai -->
+              <div class="mock-vtab" data-agent="warpai">
+                <div class="mock-vtab-badge mock-badge-warpai">◉</div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">warpai (Codex)</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                  </div>
+                </div>
+              </div>
+              <!-- Tab 4: dsh -->
+              <div class="mock-vtab" data-agent="dsh">
+                <div class="mock-vtab-badge mock-badge-dsh">✦</div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">* 🍃 dsh-tui</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- COLUMN 2: Center Terminal Area -->
+          <main class="mock-col-center">
+            <div class="mock-terminal-screens">
+              <!-- Screen 1: Claude Code (from screenshot) -->
+              <div class="mock-term-screen active" data-screen="claude">
+                <div class="mock-term-line mock-path-line">
+                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span> <span>20 • <b class="green">+2329</b> <b class="red">-478</b> (0.034s)</span>
+                </div>
+                <div class="mock-term-line mock-term-cmd">clear</div>
+                <div class="mock-term-line mock-path-line" style="margin-top: 6px;">
+                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span> <span>20 • <b class="green">+2329</b> <b class="red">-478</b> (1m 52.00s)</span>
+                </div>
+                <div class="mock-term-line mock-term-cmd">claude</div>
+
+                <!-- Claude Code Mascot & Session Info -->
+                <div class="mock-claude-banner">
+                  <pre class="mock-claude-crab"> █ █ 
+█████
+█ █ █</pre>
+                  <div class="mock-claude-info">
+                    <div class="mock-claude-title"><strong>Claude Code</strong> <span class="dim">v2.1.280</span></div>
+                    <div class="dim">Haiku 4.5 · API Usage Billing</div>
                     <div class="dim">~/workplace/warpai</div>
                   </div>
                 </div>
-                <br>
-                <div><b>❯</b> 实现守护式 PTY 交付，并验证 VT100 终端流状态机</div>
-                <br>
-                <div><span class="cc-bullet">●</span> 验证 <code>crates/agent_bus</code>: 内存级 ANSI 观察器精准解析 <code>Working</code>、<code>WaitingApproval</code> 与 <code>Idle</code> 状态。</div>
-                <br>
-                <div><span class="cc-bullet">●</span> 计划：</div>
-                <div class="dim">&nbsp;&nbsp;· crates/pty — 拦截输入直到终端提示符完全就绪</div>
-                <div class="dim">&nbsp;&nbsp;· crates/agent_bus — 高危命令触发 WaitingApproval 标签页指示与桌面通知</div>
-                <br>
-                <div><b>❯</b> 执行聚焦测试并更新工程文档</div>
-                <br>
-                <div><span class="cc-working"><span class="braille-spinner">⠋</span> 编译中…</span> <span class="dim">(<span id="cc-timer">13m 36s</span> · 按 esc 中断)</span></div>
-                <div class="tui-bottom">
-                  <div class="cc-rule"></div>
-                  <div><b>❯</b> <span class="cursor"></span></div>
-                  <div class="cc-rule"></div>
-                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-cyan">~/workplace/warpai</span><span class="cc-gy"> &gt; </span><span class="cc-yellow">main *</span><span class="green"> ↑1</span><span class="cc-gy"> &gt; ctx ──────── </span><span class="green">14%</span><span class="cc-gy"> 142k/1M</span></div>
-                  <div class="cc-status">&nbsp;&nbsp;<span class="cc-coral">⏵⏵ 守护式 PTY 交付已激活</span> <span class="dim">(输入与终端状态严格对齐，零丢字)</span></div>
-                </div>
-              </div>
 
-              <div class="mock-pane" data-title="cargo">
-                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
-                <div><b>❯</b> <span class="cmd">cargo</span> check -p warpai --bin warpai</div>
-                <div class="dim">   Compiling warpai-agent-bus v1.6.5</div>
-                <div class="dim">   Compiling warpai v1.6.5 (/Users/wqin/workplace/warpai)</div>
-                <div><span class="time">16:42:01</span> <span class="blue">[agent_bus]</span> VT100 屏幕观察器已挂载</div>
-                <div><span class="time">16:42:02</span> <span class="green">状态变更</span> → Working</div>
-                <br>
-                <div><span class="badge">cargo</span> <span class="green">check clean</span> 耗时 2.14s</div>
-                <br>
-                <div class="url-line">┃ 守护式 PTY&nbsp;&nbsp; <span>与 VT100 输入循环严格同步</span></div>
-                <div class="dim">  零外部遥测 · 本地套接字安全通道就绪</div>
-                <br>
-                <div><span class="time">16:42:03</span> <span class="green">持续监听工作树文件变更...</span></div>
-              </div>
-            </div>
-
-            <div class="mock-panes single" data-tab="terminal">
-              <div class="mock-pane focused">
-                <div class="mock-prompt"><span>~/workplace/warpai</span> <em>main</em></div>
-                <div><b>❯</b> <span class="cmd">git</span> status --short</div>
-                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/claude.toml</div>
-                <div><span class="green">M</span> crates/agent_bus/src/screen_detection/manifests/codex.toml</div>
-                <div><span class="blue">??</span> docs/FEATURES.md</div>
-                <div><span class="blue">??</span> docs/CLI-AGENTS.md</div>
-                <br>
-                <div class="dim">无任何遥测依赖。二进制产物 100% 独立可运行。</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Workspace 2: feat/agent-bus -->
-          <div class="mock-view" data-view="feat-agent-bus">
-            <div class="mock-tabs">
-              <span class="active" data-tab="main">codex</span>
-              <span data-tab="tests">单元测试</span>
-              <span>+</span>
-            </div>
-            <div class="mock-panes single active" data-tab="main">
-              <div class="mock-pane focused tui">
-                <div><span class="cx-bullet">•</span> <b>探索代码库</b></div>
-                <div class="dim">&nbsp;&nbsp;└ crates/agent_bus/src/screen_detection/vt100.rs</div>
-                <br>
-                <div><span class="cx-bullet">•</span> <b>运行测试套件</b></div>
-                <div class="dim">&nbsp;&nbsp;└ cargo test -p agent_bus</div>
-                <div class="dim">&nbsp;&nbsp;└ 28 passed · 0 failed · 1.4s</div>
-                <br>
-                <div><span class="cx-bullet">•</span> <b>Warpai Guard 拦截器已激活：</b></div>
-                <div class="warpai-guard-box">
-                  <div class="warpai-guard-title"><span class="pulse-dot"></span> [WaitingApproval] Agent 请求执行提权指令：</div>
-                  <div><span class="cmd">cargo</span> test -p warpai -- --nocapture</div>
-                  <div class="dim">Warpai 已暂停 PTY 交互通道，等待人工审批授权。</div>
-                  <div class="warpai-guard-options">
-                    <div class="selected">❯ 1. 单次执行授权 (按回车)</div>
-                    <div class="dim">&nbsp;&nbsp;2. 对当前任务会话全部放行</div>
-                    <div class="dim">&nbsp;&nbsp;3. 拒绝并挂起该 Agent (按 esc)</div>
+                <!-- Warpai Peer Notification Callout Box -->
+                <div class="mock-peer-callout-box">
+                  <div class="mock-callout-main">
+                    <span class="mock-callout-chevron">❯</span> Warpai peer work is waiting (message <code>2942a9d6-d004-4b31-a6a3-7d82a0326264</code>). Call <code>warp_agent_inbox</code>, process this message or task, and acknowledge it through MCP. Before ending your turn, call <code>warp_agent_ready</code>.
+                  </div>
+                  <div class="mock-callout-sub">
+                    └ <span class="coral">Not logged in · Please run /login</span>
                   </div>
                 </div>
-                <div class="tui-bottom">
-                  <div class="cc-rule"></div>
-                  <div><b>›</b> <span class="cursor"></span></div>
-                  <br>
-                  <div class="dim">gpt-5.5 · ~/workplace/warpai · worktree/feat-agent-bus · WaitingApproval</div>
+
+                <div class="mock-term-status-note">* Sautéed for 0s · done 17:46</div>
+
+                <!-- Active Prompt line -->
+                <div class="mock-prompt-row">
+                  <span class="mock-prompt-char">❯</span>
+                  <span class="mock-term-cursor"></span>
+                </div>
+
+                <!-- Bottom hint bar inside terminal -->
+                <div class="mock-term-status-footer">
+                  <div class="mock-footer-left">⏸ 手动模式开启 · 智能体待命中</div>
+                  <div class="mock-footer-right">
+                    <span class="coral">未登录 · 请运行 /login</span>
+                    <span class="yellow">发现新版本！运行: brew upgrade claude-code</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Screen 2: agy (Google Antigravity) -->
+              <div class="mock-term-screen" data-screen="agy">
+                <div class="mock-term-line mock-path-line">
+                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span>
+                </div>
+                <div class="mock-term-line mock-term-cmd">agy --model gemini-2.5-pro</div>
+                <div class="mock-term-line" style="margin: 6px 0;">
+                  <strong>▲ Antigravity 智能体 v2.0</strong> · <span class="green">已接入 Warpai 通信总线</span>
+                </div>
+                <div class="mock-term-line"><b>❯</b> 收到协调者派发任务：执行跨文献证据链检索并校验核心论点。</div>
+                <div class="mock-term-line dim">   调用工具: search_academic_papers (查询: "高温超导微观机理与界面效应")</div>
+                <div class="mock-term-line dim">   在 Nature 与 Science 旗舰期刊命中 14 篇高被引文献。</div>
+                <div class="mock-term-line"><span class="green">✔</span> 证据链结构化抽取完成。调用 <code>warp_context_publish</code> 发布共享上下文契约。</div>
+                <div class="mock-prompt-row">
+                  <span class="mock-prompt-char">▲</span>
+                  <span class="mock-term-cursor"></span>
+                </div>
+              </div>
+
+              <!-- Screen 3: warpai (Codex CLI + Guard Interceptor) -->
+              <div class="mock-term-screen" data-screen="warpai">
+                <div class="mock-term-line mock-path-line">
+                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span>
+                </div>
+                <div class="mock-term-line mock-term-cmd">codex</div>
+                <div class="mock-term-line" style="margin: 6px 0;">
+                  <strong>◉ OpenAI Codex CLI</strong> · <span class="green">守护式 PTY 监控中</span>
+                </div>
+                <div class="mock-term-line"><b>❯</b> 正在修改 crates/agent_bus/src/lib.rs...</div>
+                <div class="mock-peer-callout-box" style="border-color: #ff6b80;">
+                  <div style="color: #ff6b80; font-weight: 700; font-size: 11px; margin-bottom: 4px;">
+                    ● [WaitingApproval] Agent 请求执行提权系统指令：
+                  </div>
+                  <div class="mock-term-line"><span class="mock-term-cmd">cargo</span> test -p warpai-core -- --nocapture</div>
+                  <div class="dim" style="margin: 4px 0;">Warpai 已暂停 PTY 交互通道并向系统推送桌面通知。对应状态 Tab 标签已高亮。</div>
+                  <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
+                    <div style="color: var(--mock-accent); font-weight: 700;">❯ 1. 单次执行授权 (按回车 Enter)</div>
+                    <div class="dim">&nbsp;&nbsp;2. 对当前任务会话全部放行</div>
+                    <div class="dim">&nbsp;&nbsp;3. 拒绝执行并挂起该 Agent (按 Esc)</div>
+                  </div>
+                </div>
+                <div class="mock-prompt-row">
+                  <span class="mock-prompt-char">›</span>
+                  <span class="mock-term-cursor"></span>
+                </div>
+              </div>
+
+              <!-- Screen 4: dsh (Remote Linux Companion) -->
+              <div class="mock-term-screen" data-screen="dsh">
+                <div class="mock-term-line mock-path-line">
+                  <span class="mock-term-path">wqin@workbox-gpu:~/warpai$</span>
+                </div>
+                <div class="mock-term-line mock-term-cmd">warpai companion attach workbox-gpu</div>
+                <div class="mock-term-line dim">基于 SFTP over SSH 隧道 · 有界分块流式传输 · Linux x86_64</div>
+                <div class="mock-term-line"><span class="green">✔</span> 远程伴侣通道已建立 · PTY 输入输出流物理隔离 · 零延迟损耗</div>
+                <div class="mock-term-line dim">   守护进程就绪: 监听 /home/wqin/.config/warpai/companion.sock</div>
+                <div class="mock-term-line"><span class="green">ready</span> 正在等待多智能体任务池派发工单...</div>
+                <div class="mock-prompt-row">
+                  <span class="mock-prompt-char">$</span>
+                  <span class="mock-term-cursor"></span>
                 </div>
               </div>
             </div>
 
-            <div class="mock-panes single" data-tab="tests">
-              <div class="mock-pane focused">
-                <div class="mock-prompt"><span>~/workplace/warpai/worktrees/agent-bus</span> <em>feat/agent-bus</em></div>
-                <div><b>❯</b> <span class="cmd">cargo</span> nextest run</div>
-                <div><span class="green">PASS</span> [   0.042s] agent_bus::tests::test_claude_working_pattern</div>
-                <div><span class="green">PASS</span> [   0.038s] agent_bus::tests::test_codex_approval_pattern</div>
-                <div><span class="green">PASS</span> [   0.040s] agent_bus::tests::test_idle_drain</div>
-                <div><span class="dim">Summary [ 0.120s ]: 3 tests run: 3 passed, 0 failed</span></div>
+            <!-- Interactive File Explorer Drawer -->
+            <div class="mock-file-drawer" id="mock-file-drawer">
+              <div class="mock-file-drawer-header">
+                <span>🗎 项目文件树</span>
+                <button type="button" class="mock-drawer-close" id="mock-close-drawer">✕</button>
+              </div>
+              <div class="mock-file-tree">
+                <div>▼ <b>warpai/</b></div>
+                <div class="mock-tree-indent">▶ crates/agent_bus/</div>
+                <div class="mock-tree-indent">▶ crates/pty/</div>
+                <div class="mock-tree-indent">▼ docs/</div>
+                <div class="mock-tree-indent-2">• project-mode.md</div>
+                <div class="mock-tree-indent-2">• worktree-mode.md</div>
+                <div class="mock-tree-indent">• Cargo.toml</div>
               </div>
             </div>
-          </div>
 
-          <!-- Workspace 3: infra/remote -->
-          <div class="mock-view" data-view="infra-remote">
-            <div class="mock-tabs">
-              <span class="active" data-tab="main">companion</span>
-              <span data-tab="logs">服务端日志</span>
-              <span>+</span>
+            <!-- Bottom Command Chips Bar (Screenshot Replica) -->
+            <div class="mock-chips-bar">
+              <button type="button" class="mock-bottom-chip mock-chip-claude-notify" id="mock-chip-notify" title="点击关闭通知提示">
+                <span class="mock-chip-sparkle">✳</span> ⤓ <span class="mock-chip-text">启用 Claude Code 桌面通知</span> <span class="mock-chip-x">✕</span>
+              </button>
+              <button type="button" class="mock-bottom-chip mock-chip-plus" title="添加快捷操作">+</button>
+              <span class="mock-bottom-chip mock-chip-stats">▤ 20 • <b class="green">+2329</b> <b class="red">-478</b></span>
+              <button type="button" class="mock-bottom-chip mock-chip-btn" id="mock-btn-explorer" title="展开/收起文件管理器">
+                🗎 <span class="mock-btn-explorer-text">文件管理器</span>
+              </button>
+              <button type="button" class="mock-bottom-chip mock-chip-btn" id="mock-btn-rich-input" title="富文本模式">
+                🗖 <span class="mock-btn-rich-text">富文本输入 ^G</span>
+              </button>
+              <span class="mock-chips-spacer"></span>
+              <span class="mock-bottom-chip mock-chip-branch" title="当前 Git 分支">
+                <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+              </span>
             </div>
-            <div class="mock-panes single active" data-tab="main">
-              <div class="mock-pane focused">
-                <div class="mock-prompt"><span>wqin@workbox-gpu</span> <em>远程伴侣进程</em></div>
-                <div><b>❯</b> <span class="cmd">warpai-companion</span> --listen 127.0.0.1:2222</div>
-                <div class="dim">基于 SFTP over SSH 隧道 · 有界分块传输 · Linux x86_64</div>
-                <div><span class="time">16:40:12</span> 伴侣通道已建立 · PTY 输入输出流完全隔离</div>
-                <div><span class="time">16:40:15</span> 远端 Agent 池初始化完成：4 个并发 Worker</div>
-                <div><span class="time">16:41:00</span> dsh-tui 在独立工作树完成任务 #104 <span class="green">成功</span></div>
-                <br>
-                <div><span class="badge">remote</span> <span class="green">已连接</span> 运行时间 2h 14m · 极低网络抖动</div>
+          </main>
+
+          <!-- COLUMN 3: Right Agents Collaboration Panel (Screenshot Replica) -->
+          <aside class="mock-col-right" id="mock-right-panel">
+            <!-- Top Header Icons -->
+            <div class="mock-collab-header">
+              <div class="mock-header-left-tools">
+                <button type="button" class="mock-tool-btn" title="分屏"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="固定面板"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="5" y="5" width="8" height="8" rx="1"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="搜索"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></svg></button>
+              </div>
+              <button type="button" class="mock-tool-btn mock-close-btn" id="mock-btn-toggle-collab" title="关闭面板">✕</button>
+            </div>
+
+            <!-- Section 1: Agents Collaboration Mode -->
+            <div class="mock-collab-section">
+              <div class="mock-section-label">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
+                <span>智能体协作模式</span>
+              </div>
+              <div class="mock-mode-pill-container">
+                <button type="button" class="mock-pill-btn" data-mode="project" id="mock-pill-project">Project 模式</button>
+                <button type="button" class="mock-pill-btn active" data-mode="worktree" id="mock-pill-worktree">Worktree 模式</button>
               </div>
             </div>
-            <div class="mock-panes single" data-tab="logs">
-              <div class="mock-pane focused">
-                <div class="dim">[daemon] 监听 /home/wqin/.config/warpai/companion.sock</div>
-                <div><span class="green">就绪</span> 等待桌面客户端接入协同会话</div>
+
+            <!-- Section 2: Coordinator -->
+            <div class="mock-collab-section" id="mock-section-coordinator">
+              <div class="mock-section-label">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
+                <span>协调者</span>
+              </div>
+              <div class="mock-coordinator-select-wrapper">
+                <div class="mock-coord-dropdown-trigger" id="mock-coord-trigger">
+                  <span class="mock-coord-badge">✳</span>
+                  <span class="mock-coord-name" id="mock-coord-active-name">claude-d56fefff · fix/agy-us...</span>
+                  <span class="mock-coord-chevron">⌵</span>
+                </div>
+                <div class="mock-coord-dropdown-menu" id="mock-coord-menu">
+                  <div class="mock-coord-option active" data-coord="claude">✳ claude-d56fefff (协调者)</div>
+                  <div class="mock-coord-option" data-coord="agy">▲ agy-e01359de</div>
+                  <div class="mock-coord-option" data-coord="codex">◉ codex-dbf18ab7</div>
+                  <div class="mock-coord-option" data-coord="dsh">🪪 dsh-13678e2c</div>
+                </div>
+              </div>
+              <button type="button" class="mock-new-worktree-btn" id="mock-btn-new-worktree">+ 新建工作树</button>
+            </div>
+
+            <!-- Section 3: Worktrees (in Worktree mode) / Project Spaces (in Project mode) -->
+            <div class="mock-collab-section">
+              <!-- Worktree View -->
+              <div class="mock-mode-subview active" id="mock-view-worktree">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg>
+                  <span>工作树</span>
+                </div>
+                <div class="mock-worktree-node">
+                  <div class="mock-worktree-pill active">
+                    <span class="mock-arrow">▶</span> fix/agy-usage-window-labels
+                  </div>
+                  <div class="mock-worktree-agents">
+                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">🪪</span> dsh-13678e2c</div>
+                    <div class="mock-agent-item" data-agent="agy"><span class="mock-agent-icon">▲</span> agy-e01359de</div>
+                    <div class="mock-agent-item active" data-agent="claude"><span class="mock-agent-icon">✳</span> claude-d56fefff · <small class="mock-coord-tag">协调者</small></div>
+                    <div class="mock-agent-item" data-agent="warpai"><span class="mock-agent-icon">◉</span> codex-dbf18ab7</div>
+                  </div>
+                </div>
+                <div class="mock-worktree-node" style="margin-top: 6px;">
+                  <div class="mock-worktree-pill">
+                    <span class="mock-arrow">▶</span> gh-pages
+                  </div>
+                  <div class="mock-worktree-empty">无在线智能体</div>
+                </div>
+              </div>
+
+              <!-- Project View -->
+              <div class="mock-mode-subview" id="mock-view-project">
+                <div class="mock-section-label">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12v10H2zM2 6h12M6 6v7"/></svg>
+                  <span>项目空间与团队</span>
+                </div>
+                <div class="mock-worktree-node">
+                  <div class="mock-worktree-pill active">
+                    <span class="mock-arrow">📁</span> research-manuscript/
+                  </div>
+                  <div class="mock-worktree-agents">
+                    <div class="mock-agent-item active" data-agent="claude"><span class="mock-agent-icon">✳</span> claude · <small class="mock-coord-tag">指挥官</small></div>
+                    <div class="mock-agent-item" data-agent="agy"><span class="mock-agent-icon">▲</span> agy · <small class="dim">文献检索与审计</small></div>
+                    <div class="mock-agent-item" data-agent="warpai"><span class="mock-agent-icon">◉</span> codex · <small class="dim">数据统计与作图</small></div>
+                  </div>
+                </div>
+                <div class="mock-worktree-node" style="margin-top: 6px;">
+                  <div class="mock-worktree-pill">
+                    <span class="mock-arrow">📁</span> industrial-design/
+                  </div>
+                  <div class="mock-worktree-agents">
+                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">🪪</span> dsh · <small class="dim">素材渲染</small></div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+
+            <!-- Section 4: Tasks -->
+            <div class="mock-collab-section">
+              <div class="mock-section-label">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4"/></svg>
+                <span>任务面板</span>
+              </div>
+              <div class="mock-tasks-container" id="mock-tasks-list">
+                <div class="mock-tasks-empty-text">当前工作区无待办任务。</div>
+              </div>
+              <div class="mock-focus-tags">
+                <button type="button" class="mock-focus-tag" data-focus="agy">聚焦 agy-e01359de</button>
+                <button type="button" class="mock-focus-tag" data-focus="claude">聚焦 claude-d56fe</button>
+                <button type="button" class="mock-focus-tag" data-focus="warpai">聚焦 codex-dbf18a</button>
+                <button type="button" class="mock-focus-tag" data-focus="dsh">聚焦 dsh-13678e2c</button>
+              </div>
+              <div class="mock-tasks-action-row">
+                <button type="button" class="mock-action-btn" id="mock-btn-send-agent">发送至智能体</button>
+                <button type="button" class="mock-action-btn" id="mock-btn-history">任务历史</button>
+              </div>
+            </div>
+
+            <!-- Section 5: Data Usage (Bottom Widget) -->
+            <div class="mock-data-usage-widget">
+              <div class="mock-usage-header">
+                <div class="mock-usage-title">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M4 11l3-4 3 2 2-4"/></svg>
+                  <span>数据用量与配额</span>
+                </div>
+                <button type="button" class="mock-usage-refresh-btn" id="mock-btn-refresh-quota" title="刷新配额">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 8a5.5 5.5 0 0 1 9.3-3.9L14 6M13.5 8a5.5 5.5 0 0 1-9.3 3.9L2 10"/><path d="M14 2v4h-4M2 14v-4h4"/></svg>
+                </button>
+              </div>
+              <div class="mock-usage-body">
+                <div class="mock-usage-agent">Codex · mj</div>
+                <div class="mock-usage-stat">5小时 · 已用 3%</div>
+                <div class="mock-usage-track">
+                  <div class="mock-usage-bar" style="width: 28%;"></div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
-      <figcaption>多 Agent 并发工作台集中在同一原生视窗中。点击侧边栏或标签页可即时切换。</figcaption>
+      <figcaption>多智能体并发工作台集中在同一原生视窗中。点击标签页、模式切换或聚焦链接可即时交互。</figcaption>
     </figure>
   </div>
   <p class="figcap">针对 Git 仓库实行 Worktree 并行开发不同功能，针对泛行业提供 Project 模式让所有智能体互通消息与任务。<b>独家守护式 PTY 交付确保零丢字、零乱序、零冲突。</b></p>

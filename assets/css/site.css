@@ -635,7 +635,8 @@ body.site .fighd .r {
 body.site .plate {
   border: 1px solid var(--line2);
   overflow: hidden;
-  aspect-ratio: 1438 / 640;
+  aspect-ratio: 16 / 9.4;
+  min-height: 520px;
   background: var(--term-bg);
 }
 
@@ -658,15 +659,7 @@ body.site .plate .warpai-ui-mock {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  font-size: clamp(0.58rem, 0.92cqw, 0.92rem);
-}
-
-body.site .plate .mock-main {
-  min-height: 0;
-}
-
-body.site .plate .mock-panes {
-  grid-template-rows: minmax(0, 1fr);
+  font-size: clamp(0.55rem, 0.88cqw, 0.88rem);
 }
 
 body.site .figcap {

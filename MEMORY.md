@@ -25,4 +25,10 @@
   - Added dedicated Section 06 on landing pages linking to comprehensive multi-agent guides.
   - Split multi-agent documentation into dedicated standalone guides: `project-mode.md` (omnidirectional, non-coding, 6+ domain tutorials) and `worktree-mode.md` (Git parallel coding, Coordinator peer review) alongside `using-warpai-agents.md`. Updated docs sidebar navigation in `_layouts/docs.html` with direct entries.
   - Streamlined landing page Hero lede and Section 06 copy across both English and Chinese to punchy, &lt;=4 line presentations.
-
+- **Product Showcase Mockup Overhaul (2026-10-16)**:
+  - Redesigned landing page mockup widget in `index.html` and `zh/index.html` to faithfully replicate the authentic 3-column Warpai application layout from `/Users/wqin/Desktop/截屏2026-10-15 17.46.51.png`.
+  - Left column: Window controls, tab search filter, session list with active indicators, badges, and bottom action links (File Explorer, History).
+  - Center column: Terminal viewport running interactive multi-agent session (`claude`, `agy`, `warpai`, `dsh`), ASCII mascot, dark-styled peer notification callout box with interactive focus tags, and command bar.
+  - Right column: Agents Collaboration Panel featuring interactive Mode Switcher (`Worktree` vs `Project`), dynamic Coordinator selector, branch/channel lists, dynamic task pool, and data usage counters.
+  - Full interaction in vanilla JS: tab switching, mode switching, coordinator changing, branch creation, tag focusing, drawer toggling, sidebars toggle, and in-window theme switching.
+  - Bilingual parity across English and Chinese pages with complete styling support for both Light (`paper`) and Dark (`ink`) themes.
