@@ -18,6 +18,38 @@ Coordinator-only. Busy queues preserve arrival order across all three transports
 Native notification submission is not handling: wake selection skips previously
 submitted messages, while inbox/wait retains unacknowledged history for recovery.
 
+### Dynamic supervision (2026-10-16)
+
+The issuer (or selected Worktree Coordinator) maintains an evolving set of
+outstanding task IDs and result-bearing message IDs. Sending or assigning work
+returns queue admission immediately; it never creates an exclusive watch on its
+recipient. New authorized tasks and messages may be issued at any point during
+supervision and join this set immediately. There is no dispatch phase or fixed
+batch boundary. Handle incoming results, questions and new instructions alongside
+dispatch, without waiting for an earlier recipient to finish.
+
+Remove work from active supervision only after handling its final result or
+resolved terminal task outcome. Submitted tasks remain until review; blocked,
+cancel-requested and execution-uncertain work remains outstanding. Preserve task
+history and message acknowledgements; removal from supervision is not deletion.
+Retry or reassignment retains the existing revision/run safeguards.
+
+Use inbox/task reads to refresh the whole outstanding set, including offline
+assignees, rather than tracking only the last recipient. `agent_wait` is an
+optional bounded wait when no action is available. On timeout, reassess new work
+and the current set; do not enter an unconditional wait loop. An Agent may finish
+its current turn with `agent_ready` when no immediate action remains and it owns
+no executing work, retaining outstanding supervision for notification-driven
+resumption. Reporting pending work never claims overall completion.
+
+Acceptance: while A is running, assign B; after A is reviewed, assign C while B
+is still running. The supervisor can exchange messages and receive B/C results
+without A remaining in its active set. Verify queued-send guidance and shared
+MCP instructions, plus a Broker regression covering this interleaving. Local,
+SSH and WSL reuse the same bridge/Broker contract; no wire/schema changes or
+additional scheduler are required. Run the existing cloud protocol suites on
+macOS and Windows and preserve Worktree allocation/review permissions.
+
 ## Native state and connection separation (2026-10-15)
 
 Local, native WSL and Companion-owned SSH PTYs share screen classification.
