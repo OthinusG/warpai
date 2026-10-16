@@ -120,7 +120,7 @@ jobs:
       - name: Validate source and package version
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          if [[ -n "$WINDOWS_SOURCE" && "$(git -C "$WARPAI_WORKSPACE" rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
+          if [[ -n "$WINDOWS_SOURCE" && "$(git -c safe.directory="$WARPAI_WORKSPACE" -C "$WARPAI_WORKSPACE" rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
             echo 'Windows/Linux source mismatch' >&2
             exit 1
           fi
