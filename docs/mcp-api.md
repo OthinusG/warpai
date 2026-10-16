@@ -78,6 +78,19 @@ Warpai implements an asynchronous, continuous multi-agent task supervision archi
 2. **Dynamic Enrolment in Supervision List**: Every newly dispatched task automatically joins the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and verification states across turn yields (`warp_agent_ready`).
 3. **Active Exit Upon Completion**: Tasks can enter the supervision list at any time, and actively/automatically leave the list as soon as their terminal outcome is handled and accepted, keeping the supervising agent's focus clean without stale polling loops.
 
+<div class="docs-shot-placeholder" data-shot="SHOT-26">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-26 (P1)</span>
+    <span class="shot-title">Continuous Dispatch & Dynamic Supervision List</span>
+  </div>
+  <p class="shot-desc">动态任务监督与随时派发：协同面板 Tasks 区域特写，展示主 Agent 动态监督列表接纳随时派发的多分支任务，呈现 in_progress 实时进展及完成后自动退出。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1200x650</span>
+    <span>目标路径: docs/images/mcp-dynamic-task-supervision.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ---
 
 ## 2. Agent Communication & Readiness Tools

@@ -576,6 +576,31 @@
   color: var(--yellow, #f9e2af);
 }
 
+/* Figures & Embedded Media */
+.docs-figure {
+  margin: 28px 0;
+  text-align: center;
+}
+
+.docs-figure img,
+.docs-article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  display: block;
+  margin: 0 auto;
+}
+
+.docs-figure figcaption {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
 /* 6. Pagination Footer */
 .docs-pagination {
   display: flex;

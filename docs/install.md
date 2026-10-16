@@ -106,6 +106,19 @@ Warpai is a native desktop application built in Rust, natively supporting **macO
   ./warpai/warpai
   ```
 
+<div class="docs-shot-placeholder" data-shot="SHOT-24">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-24 (P2)</span>
+    <span class="shot-title">Linux Desktop Native Interface</span>
+  </div>
+  <p class="shot-desc">Linux 桌面端原生界面：在 Linux（Ubuntu GNOME/Debian/Fedora）桌面运行 Warpai 原生应用，展示原生窗口阴影、垂直标签栏及 GPU 渲染终端命令行。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/linux-desktop-native.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ---
 
 ## Remote Workspaces & Companions

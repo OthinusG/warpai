@@ -60,6 +60,19 @@ Warpai 通过内存级 VT100 ANSI 观察器实时追踪所有 Agent 的状态：
 2. 在左侧协同面板顶部，点击 **项目（Project）** 标签切换进入 Project 模式。
 3. 协同面板将即时显示当前工作空间内注册的所有活跃 Agent 实例列表及其实时状态。
 
+<div class="docs-shot-placeholder" data-shot="SHOT-15">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-15 (P1)</span>
+    <span class="shot-title">Project 模式多智能体平权协同全景</span>
+  </div>
+  <p class="shot-desc">Project 模式多智能体协同：非 Git 目录下多个 Agent（如 Claude + Codex）通过消息通信、互答疑问与发布共享上下文契约。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/project-mode-collaboration.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### 第 2 步：跨 Agent 点对点通信（P2P Messaging）
 当任意 Agent 需要向同伴下发任务、移交中间数据或同步结论时，调用原生通信工具：
 ```json
@@ -81,6 +94,19 @@ Warpai 通过内存级 VT100 ANSI 观察器实时追踪所有 Agent 的状态：
 }
 ```
 被提问的 Agent 会在其收件箱中收到专属 Question 工单，调用 `warp_agent_answer` 回填结论，从而解除提问方的等待阻塞。
+
+<div class="docs-shot-placeholder" data-shot="SHOT-27">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-27 (P2)</span>
+    <span class="shot-title">Project 模式跨智能体结构化问答与共享记忆</span>
+  </div>
+  <p class="shot-desc">Project 模式智能体问答与共享记忆：展示跨 Agent 呼出的结构化问答卡片（warp_agent_ask 阻断性咨询）及下方共享全局事实契约（Shared Context）面板。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1100x650</span>
+    <span>目标路径: docs/images/project-mode-qa-context.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
 
 ### 第 4 步：公共任务池管理、动态监督与随时派发（Task Pools & Dynamic Supervision）
 对于复杂多阶段协作，任何具备指挥意图的 Agent 均可创建公共任务池并随时派发任务：

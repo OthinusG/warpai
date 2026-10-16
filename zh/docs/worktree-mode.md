@@ -69,6 +69,19 @@ git worktree add ../my-project-tests feature/tests
 2. 从 **Coordinator** 下拉菜单中选择一名具备全局架构能力的 Agent。
 3. Coordinator 会自动扫描所有活动分支与工作树中 Agent 的运行状态。
 
+<div class="docs-shot-placeholder" data-shot="SHOT-02">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-02 (P0)</span>
+    <span class="shot-title">Worktree 并行研发与 Coordinator 编排</span>
+  </div>
+  <p class="shot-desc">Worktree 并行研发核心流：顶部选定 Coordinator，展示 feature/api、feature/ui、feature/test 三个物理分支 Worktree 各自独立绑定不同 Agent 并行施工。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/warpai-worktree-coordinator.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### 第 4 步：需求拆解与并行任务分发
 向 Coordinator 键入顶层需求：
 > *“我们需要为电商系统开发‘订单导出至 Excel’功能。请拆解任务：由 Worker A 负责后端数据导出 API，由 Worker B 负责前端导出弹窗与下载按钮，由 Worker C 编写端到端回归测试用例。要求分支物理隔离开发，完成后互相评审并集成。”*
@@ -86,6 +99,19 @@ Coordinator 将调用内置 MCP 工具（`warp_task_assign`）随时向各分支
 - **动态监督任务列表**：所有新发布任务自动加入 Coordinator 的监督任务列表，进行持续状态追踪。
 - **完成主动退出列表**：任务在开发与对等评审期间全程处于监督中，一旦被接受（`accepted`）并完成集成，主动且自动退出监督任务列表。
 
+<div class="docs-shot-placeholder" data-shot="SHOT-16">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-16 (P1)</span>
+    <span class="shot-title">Coordinator 任务分发与拓扑依赖设置</span>
+  </div>
+  <p class="shot-desc">Coordinator 任务分发对话框：展示任务标题、指派目标分支、详细说明与前置拓扑依赖设置界面。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1100x700</span>
+    <span>目标路径: docs/images/worktree-task-assignment.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### 第 5 步：独立并发开发与本地证据收集
 各 Worker 收到工单后，在其独立物理副本中编写代码与测试：
 - Worker A 修改 Rust/Go 后端代码，`cargo check` 仅编译本地 `target/`，丝毫不影响 Worker B 的前端构建。
@@ -98,6 +124,19 @@ Coordinator 将调用内置 MCP 工具（`warp_task_assign`）随时向各分支
 3. **审阅判决**：
    - `needs_changes`：审阅员发现性能问题或代码异味，打回修回；Worker 自动接收具体意见并重构。
    - `accepted`：审阅员确认验证通过，签署准入许可。
+
+<div class="docs-shot-placeholder" data-shot="SHOT-03">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-03 (P0)</span>
+    <span class="shot-title">自动化代码对等审查与 Git 差异面板</span>
+  </div>
+  <p class="shot-desc">同行审查闭环：展示 Worker 提交任务后，Reviewer Agent 给出审查意见（Accepted / Needs Changes），右侧展现 Git 差异审查面板高亮对比。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/warpai-peer-review-diff.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
 
 ### 第 7 步：Coordinator 主干整合与交付
 所有并行子任务全部通过验收后：

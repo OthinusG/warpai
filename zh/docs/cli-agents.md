@@ -13,6 +13,19 @@ next_title: 原生 MCP 协同工具体系
 
 本指南提供 Warpai 原生深度集成的 20+ 款命令行 AI 编码 Agent 在 **macOS**、**Windows** 与 **Linux** 环境下的安装命令、账号鉴权步骤与运行说明。
 
+<div class="docs-shot-placeholder" data-shot="SHOT-25">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-25 (P2)</span>
+    <span class="shot-title">20+ 款 CLI 智能体生态运行实景</span>
+  </div>
+  <p class="shot-desc">20+ 款 CLI 智能体生态：Warpai 窗口中多标签/分屏同时运行 Claude Code、OpenAI Codex、Antigravity、Gemini 等不同智能体 CLI，展示零配置状态感知与环境隔离。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/cli-agents-ecosystem.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ---
 
 ## 快速参考索引表

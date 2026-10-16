@@ -79,6 +79,19 @@ Warpai 采用异步非阻塞的持续多任务动态监督机制：
 2. **新发布任务自动入队监督**：只要通过 `warp_task_assign` 或携带 `expects_result=true` 的 `warp_agent_send` 派发了新任务，其标识符即刻自动加入主 Agent 的动态监督任务列表（Dynamic Supervision Set）。主 Agent 即使调用 `warp_agent_ready` 出让轮次，也不会丢失对未决任务的持久跟踪。
 3. **任务完成主动退出列表**：任务可随时动态加入监督，一旦任务完成验收（`accepted`）或处理完终态结果，该任务便会主动并自动从监督列表中退出，无需繁复的僵尸轮询，确保在途清单始终干净精准。
 
+<div class="docs-shot-placeholder" data-shot="SHOT-26">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-26 (P1)</span>
+    <span class="shot-title">动态任务监督与随时派发列表实景</span>
+  </div>
+  <p class="shot-desc">动态任务监督与随时派发：协同面板 Tasks 区域特写，展示主 Agent 动态监督列表接纳随时派发的多分支任务，呈现 in_progress 实时进展及完成后自动退出。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1200x650</span>
+    <span>目标路径: docs/images/mcp-dynamic-task-supervision.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ---
 
 ## 2. 智能体通信与就绪同步工具集

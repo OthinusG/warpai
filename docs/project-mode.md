@@ -59,6 +59,19 @@ Warpai tracks each agent’s execution cycle in memory via its zero-overhead VT1
 2. In the upper-left collaboration panel, click **Project** to switch into Project Mode.
 3. The panel displays all active agent instances registered in the current workspace alongside their real-time states.
 
+<div class="docs-shot-placeholder" data-shot="SHOT-15">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-15 (P1)</span>
+    <span class="shot-title">Project Mode Flat Collaboration</span>
+  </div>
+  <p class="shot-desc">Project 模式多智能体协同：非 Git 目录下多个 Agent（如 Claude + Codex）通过消息通信、互答疑问与发布共享上下文契约。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/project-mode-collaboration.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### Step 2: Point-to-Point Messaging (P2P Messaging)
 When an agent needs to assign work, pass intermediate data, or synchronize findings with a peer:
 ```json
@@ -80,6 +93,19 @@ When an agent encounters a domain outside its scope and needs blocking input fro
 }
 ```
 The target agent receives a formal Question card and responds via `warp_agent_answer`, unblocking the inquirer.
+
+<div class="docs-shot-placeholder" data-shot="SHOT-27">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-27 (P2)</span>
+    <span class="shot-title">Structured Q&A Protocol & Shared Memory Context</span>
+  </div>
+  <p class="shot-desc">Project 模式智能体问答与共享记忆：展示跨 Agent 呼出的结构化问答卡片（warp_agent_ask 阻断性咨询）及下方共享全局事实契约（Shared Context）面板。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1100x650</span>
+    <span>目标路径: docs/images/project-mode-qa-context.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
 
 ### Step 4: Public Task Pool Management, Continuous Dispatch & Dynamic Supervision
 For multi-stage pipelines, any agent can orchestrate tasks and task pools dynamically:

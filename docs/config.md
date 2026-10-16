@@ -45,9 +45,9 @@ To allow local agents to communicate over the embedded MCP bus:
 
 ---
 
-## Theme Customization: Claude Warm Light
+## Theme Customization: Claude Warm Light & Ink Pure Dark
 
-Warpai ships with the signature **Claude Warm Light** theme as its default light appearance, offering warm sepia paper tones, subtle borders, and readable syntax colors.
+Warpai ships with two signature themes: the default **Claude Warm Light** (warm sepia paper tones, subtle borders, and readable syntax colors) and **Ink Pure Dark** (deep black backgrounds, vibrant syntax contrast, and muted panel accents).
 
 <div class="docs-shot-placeholder" data-shot="SHOT-21">
   <div class="shot-header">
@@ -58,6 +58,19 @@ Warpai ships with the signature **Claude Warm Light** theme as its default light
   <div class="shot-meta">
     <span>建议尺寸: 1440x810 (16:9)</span>
     <span>目标路径: docs/images/appearance-claude-warm-light.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
+<div class="docs-shot-placeholder" data-shot="SHOT-28">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-28 (P2)</span>
+    <span class="shot-title">Ink Pure Dark Theme Presentation</span>
+  </div>
+  <p class="shot-desc">Ink 纯黑经典暗色主题全景：展示 Warpai 切换至 Ink Pure Dark 主题下的深黑底色、高对比度霓虹/柔光语法高亮及暗调协同面板。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/appearance-ink-pure-dark.png</span>
     <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
   </div>
 </div>

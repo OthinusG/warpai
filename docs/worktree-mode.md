@@ -68,6 +68,19 @@ Switch to each tab and launch your chosen CLI agent:
 2. Click the **Coordinator** dropdown and select an architecturally capable agent.
 3. The Coordinator automatically scans all active worktree branches and agent states.
 
+<div class="docs-shot-placeholder" data-shot="SHOT-02">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-02 (P0)</span>
+    <span class="shot-title">Worktree Mode with Coordinator</span>
+  </div>
+  <p class="shot-desc">Worktree 并行研发核心流：顶部选定 Coordinator，展示 feature/api、feature/ui、feature/test 三个物理分支 Worktree 各自独立绑定不同 Agent 并行施工。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/warpai-worktree-coordinator.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### Step 4: Requirement Scoping & Task Dispatch
 Provide your high-level objective to the Coordinator:
 > *"Implement an Excel export feature. Delegate the backend API to Worker A, frontend download modals to Worker B, and regression test suites to Worker C. Have them develop in parallel and peer review each other before final integration."*
@@ -85,6 +98,19 @@ The Coordinator invokes native MCP tools (`warp_task_assign`) to dispatch tasks 
 - **Dynamic Supervision List**: Every newly dispatched task automatically enters the Coordinator's dynamic supervision list.
 - **Active Exit Upon Completion**: Tasks remain under supervision throughout implementation and peer review, actively leaving the list once accepted and integrated.
 
+<div class="docs-shot-placeholder" data-shot="SHOT-16">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-16 (P1)</span>
+    <span class="shot-title">Task Assignment & Pool Dialog</span>
+  </div>
+  <p class="shot-desc">Coordinator 任务分发对话框：展示任务标题、指派目标分支、详细说明与前置拓扑依赖设置界面。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1100x700</span>
+    <span>目标路径: docs/images/worktree-task-assignment.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ### Step 5: Concurrent Development & Local Evidence Collection
 Each worker develops inside its isolated physical directory:
 - Worker A updates Rust/Go backend code and compiles local `target/` without dirtying Worker B's frontend workspace.
@@ -97,6 +123,19 @@ Once coding is complete, the peer review pipeline activates:
 3. **Verdict**:
    - `needs_changes`: Reviewer flags issues or bugs; worker automatically receives actionable feedback and refactors.
    - `accepted`: Reviewer approves the changes.
+
+<div class="docs-shot-placeholder" data-shot="SHOT-03">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-03 (P0)</span>
+    <span class="shot-title">Peer Review & Integration Verdict</span>
+  </div>
+  <p class="shot-desc">同行审查闭环：展示 Worker 提交任务后，Reviewer Agent 给出审查意见（Accepted / Needs Changes），右侧展现 Git 差异审查面板高亮对比。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/warpai-peer-review-diff.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
 
 ### Step 7: Mainline Integration & Final Commit
 When all parallel subtasks are verified and accepted:

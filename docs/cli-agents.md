@@ -12,6 +12,19 @@ next_title: Native MCP Tools API
 
 This guide provides end-to-end instructions for installing, authenticating, and running the 20+ command-line AI coding agents supported natively by Warpai across **macOS**, **Windows**, and **Linux**, utilizing standard package managers (Homebrew, npm, pip, winget, scoop, etc.).
 
+<div class="docs-shot-placeholder" data-shot="SHOT-25">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-25 (P2)</span>
+    <span class="shot-title">Multi-Agent CLI Ecosystem in Action</span>
+  </div>
+  <p class="shot-desc">20+ 款 CLI 智能体生态：Warpai 窗口中多标签/分屏同时运行 Claude Code、OpenAI Codex、Antigravity、Gemini 等不同智能体 CLI，展示零配置状态感知与环境隔离。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/cli-agents-ecosystem.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
 ---
 
 ## Quick Reference Summary

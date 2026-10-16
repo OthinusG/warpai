@@ -46,19 +46,32 @@ Warpai 实时监听该文件的变动。在 `settings.toml` 中手动修改或�
 
 ---
 
-## 外观主题定制：Claude Warm Light 经典暖光
+## 外观主题定制：Claude Warm Light 经典暖光 与 Ink 纯黑暗调
 
-Warpai 默认搭载备受喜爱的 **Claude Warm Light** 作为旗舰浅色主题，提供如同暖色纸张一般的沉浸式舒适质感、细腻的边框与极高可读性的语法高亮。
+Warpai 原生搭载两款核心主题：默认的 **Claude Warm Light**（温暖纸张质感、极佳可读性的浅色暖调）与 **Ink Pure Dark**（纯黑极客底色、高对比度霓虹/柔光暗调）。
 
 <div class="docs-shot-placeholder" data-shot="SHOT-21">
   <div class="shot-header">
     <span class="shot-badge">SHOT-21 (P2)</span>
-    <span class="shot-title">Claude Warm Light Theme Presentation</span>
+    <span class="shot-title">Claude Warm Light 经典暖光浅色主题全景</span>
   </div>
   <p class="shot-desc">默认 Claude Warm Light 经典暖光浅色主题全景展示：呈现舒适优雅的暖调质感与高对比度语法配色。</p>
   <div class="shot-meta">
     <span>建议尺寸: 1440x810 (16:9)</span>
     <span>目标路径: docs/images/appearance-claude-warm-light.png</span>
+    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
+  </div>
+</div>
+
+<div class="docs-shot-placeholder" data-shot="SHOT-28">
+  <div class="shot-header">
+    <span class="shot-badge">SHOT-28 (P2)</span>
+    <span class="shot-title">Ink Pure Dark 纯黑极客暗色主题全景</span>
+  </div>
+  <p class="shot-desc">Ink 纯黑经典暗色主题全景：展示 Warpai 切换至 Ink Pure Dark 主题下的深黑底色、高对比度霓虹/柔光语法高亮及暗调协同面板。</p>
+  <div class="shot-meta">
+    <span>建议尺寸: 1440x810 (16:9)</span>
+    <span>目标路径: docs/images/appearance-ink-pure-dark.png</span>
     <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
   </div>
 </div>

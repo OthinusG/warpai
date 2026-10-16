@@ -53,4 +53,28 @@
     - Replaced struck-out model copy in Claude Code banner from `Haiku 4.5 · API Usage Billing` to `Opus 5.5 · API Usage Billing`.
     - Aligned directory path between Claude Code terminal (`~/workplace/gameset-1`) and Project mode right panel (`This Mac · ~/workplace/gameset-1`).
     - Fixed codex links in Worktree mode right panel: changed `data-agent="warpai"` on `codex-521bc71b` and `data-focus="warpai"` on `Focus codex-521bc7`, ensuring clicking the circled agent item correctly switches to the `codex` page and synchronizes the Coordinator dropdown.
+- **Documentation Screenshot Inventory Audit & 1.7.0 Expansions (2026-10-16)**:
+  - Audited `docs/SCREENSHOT-INVENTORY.xlsx` against the full collection of docs across English and Chinese.
+  - Linked unanchored existing shots to the newly created standalone guides:
+    - SHOT-02 (Worktree with Coordinator), SHOT-16 (Task Assignment & Pool), SHOT-03 (Peer Review Diff) -> `docs/worktree-mode.md`.
+    - SHOT-15 (Project Mode Flat Collaboration) -> `docs/project-mode.md`.
+  - Added 5 new screenshot definitions to cover v1.7.0 additions:
+    - SHOT-24 (P2): Linux Desktop Native Interface (`docs/install.md` Section 3).
+    - SHOT-25 (P2): Multi-Agent CLI Ecosystem in Action (`docs/cli-agents.md`).
+    - SHOT-26 (P1): Continuous Dispatch & Dynamic Supervision List (`docs/mcp-api.md`).
+    - SHOT-27 (P2): Structured Q&A Protocol & Shared Memory Context (`docs/project-mode.md`).
+    - SHOT-28 (P2): Ink Pure Dark Theme Presentation (`docs/config.md`).
+  - Updated `docs/SCREENSHOT-INVENTORY.xlsx` (28 shots total) and embedded all corresponding `docs-shot-placeholder` blocks in both English and Chinese markdown documents.
+- **SHOT-01 Hero Showcase Ingestion & Main Repository README Overhaul for v1.7.0 (2026-10-16)**:
+  - Ingested `/Users/wqin/Desktop/01.png` into `docs/images/warpai-hero-showcase.png` and `assets/images/warpai-hero-showcase.png`.
+  - Replaced `SHOT-01` placeholder block in `docs/index.md` and `zh/docs/index.md` with responsive embedded figure and caption.
+  - Added `.docs-figure`, `.docs-figure img`, and `figcaption` styling to `assets/css/docs.css`.
+  - Updated row for SHOT-01 in `docs/SCREENSHOT-INVENTORY.xlsx` to `Completed` with link `docs/images/warpai-hero-showcase.png` via Python openpyxl.
+  - Summarized and regenerated `README.md` and `README.zh-CN.md` reflecting v1.7.0:
+    - Retained badge bandtags bumped to v1.7.0 (macOS | Windows | Linux desktop) and header social preview banner.
+    - Updated hero screenshot to `warpai-hero-showcase.png`.
+    - Documented **Dynamic Task Supervision List** (continuous multi-agent dispatch, dynamic enrollment in supervision list, and active exit upon verified completion).
+    - Structured both Git Worktree Coding Mode and Omnidirectional Project Mode with updated Mermaid architecture diagrams.
+    - Formally recorded Native Linux Desktop client downloads (AppImage, deb, tarball) and 20+ CLI agent ecosystem.
+  - Created commit on dedicated branch `feat/readme-v1.7.0` (`1fb9c7d0`) in the main repository, and saved reference copies in the active workspace root as `README.main.md` and `README.zh-CN.main.md`.
 

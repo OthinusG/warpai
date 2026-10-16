@@ -12,18 +12,10 @@ Welcome to the official documentation for **Warpai** — the local-first, privac
 
 Warpai elevates independent CLI Agent sessions into first-class units of work. For software engineering, Warpai provides a disciplined **Git Worktree Coding Mode** to develop features concurrently in isolated branches with automated peer reviews. For cross-domain and non-coding workflows, Warpai delivers an omnidirectional **Project Mode**, breaking rigid hierarchies so all agents freely exchange messages and tasks across scientific research, visual design, quant finance, and patent compliance.
 
-<div class="docs-shot-placeholder" data-shot="SHOT-01">
-  <div class="shot-header">
-    <span class="shot-badge">SHOT-01 (P0)</span>
-    <span class="shot-title">Warpai All-in-One Hero Workspace</span>
-  </div>
-  <p class="shot-desc">三栏全景视觉：左侧 Agent 协同面板（多 Agent 在线状态与任务池）、中间 GPU 终端执行代码块（Claude Warm Light 主题 + 垂直标签页）、右侧展示 Project Explorer 与代码文件。</p>
-  <div class="shot-meta">
-    <span>建议尺寸: 1920x1080 (16:9)</span>
-    <span>目标路径: docs/images/warpai-hero-showcase.png</span>
-    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
-  </div>
-</div>
+<figure class="docs-figure">
+  <img src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai All-in-One Hero Workspace" width="100%">
+  <figcaption>Warpai 3-Column Hero Workspace: Left Agent Collaboration Panel &amp; Task Pool, Center GPU Terminal (Claude Warm Light theme), Right Project Explorer &amp; Live Editor</figcaption>
+</figure>
 
 ---
 
