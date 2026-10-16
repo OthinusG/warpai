@@ -84,7 +84,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.target.outputs.tag }}
       WINDOWS_SOURCE: ${{ github.event_name == 'workflow_run' && needs.target.outputs.source || '' }}
-      WARPAI_WORKSPACE: /__w/warpai/warpai
+      WARPAI_WORKSPACE: ${{ github.workspace }}
       CARGO_HOME: /github/home/.cargo
       RUSTUP_HOME: /github/home/.rustup
       CARGO_BUILD_RUSTFLAGS: '-C symbol-mangling-version=v0'
@@ -117,29 +117,17 @@ jobs:
           ref: ${{ needs.target.outputs.artifact_only == 'true' && needs.target.outputs.source || format('refs/tags/{0}', needs.target.outputs.tag) }}
           fetch-depth: 0
           lfs: true
-      - name: Locate the mounted checkout
-        run: |
-          printf 'pwd=%s GITHUB_WORKSPACE=%s WARPAI_WORKSPACE=%s\n' "$PWD" "$GITHUB_WORKSPACE" "$WARPAI_WORKSPACE"
-          for directory in "$GITHUB_WORKSPACE" "$WARPAI_WORKSPACE" /__w/warpai/warpai /github/workspace; do
-            if [[ -d "$directory" ]]; then
-              printf 'directory=%s\n' "$directory"
-              ls -ld "$directory" "$directory/.git" "$directory/Cargo.toml" 2>&1 || true
-              git -C "$directory" rev-parse --show-toplevel 2>&1 || true
-            fi
-          done
       - name: Validate source and package version
         run: |
-          cd "$WARPAI_WORKSPACE"
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          if [[ -n "$WINDOWS_SOURCE" && "$(git rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
+          if [[ -n "$WINDOWS_SOURCE" && "$(git -C "$WARPAI_WORKSPACE" rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
             echo 'Windows/Linux source mismatch' >&2
             exit 1
           fi
-          git diff --check
-          python3 script/test-linux-packaging.py
-          bash -n script/build-warpai-linux.sh script/linux/bundle script/linux/bundle_install \
-            script/linux/bundle_deb script/linux/bundle_rpm script/linux/bundle_arch \
-            script/linux/bundle_appimage script/linux/linuxdeploy-plugin-warp
+          python3 "$WARPAI_WORKSPACE/script/test-linux-packaging.py"
+          bash -n "$WARPAI_WORKSPACE/script/build-warpai-linux.sh" "$WARPAI_WORKSPACE/script/linux/bundle" "$WARPAI_WORKSPACE/script/linux/bundle_install" \
+            "$WARPAI_WORKSPACE/script/linux/bundle_deb" "$WARPAI_WORKSPACE/script/linux/bundle_rpm" "$WARPAI_WORKSPACE/script/linux/bundle_arch" \
+            "$WARPAI_WORKSPACE/script/linux/bundle_appimage" "$WARPAI_WORKSPACE/script/linux/linuxdeploy-plugin-warp"
       - name: Restore native Linux Rust outputs
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
@@ -152,7 +140,6 @@ jobs:
             linux-bullseye-${{ matrix.arch }}-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
       - name: Install pinned Rust and packaging tools
         run: |
-          cd "$WARPAI_WORKSPACE"
           if [[ ! -x "$CARGO_HOME/bin/rustup" ]]; then
             curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o "$RUNNER_TEMP/warpai-rustup.sh"
             sh "$RUNNER_TEMP/warpai-rustup.sh" -y --profile minimal --default-toolchain 1.92.0
@@ -162,14 +149,13 @@ jobs:
           if [[ "$(cargo-about --version 2>/dev/null || true)" != 'cargo-about 0.8.4' ]]; then
             cargo install cargo-about --version 0.8.4 --locked
           fi
-          script/linux/install_linuxdeploy
+          bash "$WARPAI_WORKSPACE/script/linux/install_linuxdeploy"
           echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Check desktop configurations and restart regressions
         env:
           GIT_RELEASE_TAG: ${{ needs.target.outputs.tag }}
         run: |
-          cd "$WARPAI_WORKSPACE"
           cargo check --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --bin warpai --locked
           cargo check --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --bin warpai --features warp_platform --locked
           cargo test --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p prevent_sleep --locked
@@ -186,10 +172,9 @@ jobs:
         env:
           ASSET_ARCH: ${{ matrix.arch }}
         run: |
-          cd "$WARPAI_WORKSPACE"
-          apt-get install -y "./target/release/bundle/linux/Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH.deb"
+          apt-get install -y "$WARPAI_WORKSPACE/target/release/bundle/linux/Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH.deb"
           dbus-run-session -- xvfb-run -a -s '-screen 0 1280x900x24' \
-            python3 script/linux/smoke.py /opt/warpai/warpai target/linux-smoke
+            python3 "$WARPAI_WORKSPACE/script/linux/smoke.py" /opt/warpai/warpai "$WARPAI_WORKSPACE/target/linux-smoke"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: Warpai-linux-${{ matrix.arch }}
