@@ -86,4 +86,11 @@
     - Rework re-queuing upon review changes requested (`accepted: false` -> increment revision -> `queued`).
     - Automatic prerequisite unblocking (`blocked` -> `queued`).
     - Active execution slot release on submission (`warp_task_submit` -> `submitted`), allowing immediate activation of the next queued task.
+- **Hero Showcase Re-Crop & Privacy Masking (2026-10-16)**:
+  - Re-processed SHOT-01 from raw screenshot `/Users/wqin/Desktop/截屏2026-10-16 15.37.07.png`:
+    - Cropped strictly to window border coordinates `(x: 11..3817, y: 15..2093)` (size: `3806 x 2078`), stripping out all surrounding wallpaper and drop shadows.
+    - Anti-aliased corner alpha mask applied with defringing against Warm Light background to preserve native macOS window rounded corners.
+    - Privacy mask seamlessly erased account names `· mj` and `· othinusg` in the Data usage widget (`[233, 232, 229]`), leaving only clean agent names (`Codex`, `Antigravity`).
+  - Deployed to `gh-pages` (`docs/images/warpai-hero-showcase.png`, `assets/images/warpai-hero-showcase.png`).
+  - Replaced image in repository `main` and `milestone/1.7.0` branches (`docs/images/warpai-hero-showcase.png`), and synchronized task queuing bullet points into `README.md` and `README.zh-CN.md`.
 
