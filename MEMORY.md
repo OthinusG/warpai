@@ -100,7 +100,11 @@
     - Synchronized site descriptions in `_config.yml` and `_data/strings.yml`.
   - Overhauled `docs/features.md` and `zh/docs/features.md` to resolve table crowding:
     - Replaced the wide, cramped 7-column table with an executive 3-column summary taxonomy (`System Archetype | Representative Systems | Warpai Advantage`).
-    - Broke down comparisons item-by-item across the 7 categories (Traditional Terminals, Agent-Enabled Editors, Traditional IDEs, Autonomous ADEs/Sandboxes, Multi-Agent Frameworks/Multiplexers, Desktop AI Apps, and Upstream Warp), each equipped with deep analysis and a clean, spacious 3-column comparison table (`Dimension | Warpai | Baseline`).
-
-
-
+- **Chinese Documentation & Positioning Alignment across Repositories (2026-10-16)**:
+  - Synchronized Chinese documentation navigation, titles, and cross-references on `gh-pages`:
+    - Updated sidebar menu label in `_layouts/docs.html` to `全景功能矩阵与体系对比` (English: `Features Matrix & Agent Systems Comparison`).
+    - Aligned docs index table in `zh/docs/index.md` and bottom navigation card in `zh/docs/using.md` with the 7-system benchmark description.
+  - Overhauled positioning comparison in the main codebase (`main` and `milestone/1.7.0` branches):
+    - Expanded `## Warpai 的定位` in `README.zh-CN.md` and `## Where Warpai fits` in `README.md` to cleanly compare all 7 system archetypes (Traditional Terminals, Agent Editors, Full IDEs, Autonomous ADEs/Sandboxes, Multi-Agent Frameworks/Multiplexers, Desktop AI Apps, and Upstream Warp).
+    - Replaced Section 2 in `docs/FEATURES.md` (the core Chinese architectural source of truth in the main repo) with the full 7-system benchmark taxonomy and category-by-category 3-column evaluation tables.
+  - Pushed commits directly to `origin/main` (`5d604fe5`) and merged cleanly to `origin/milestone/1.7.0`.
