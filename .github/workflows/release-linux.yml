@@ -117,6 +117,16 @@ jobs:
           ref: ${{ needs.target.outputs.artifact_only == 'true' && needs.target.outputs.source || format('refs/tags/{0}', needs.target.outputs.tag) }}
           fetch-depth: 0
           lfs: true
+      - name: Locate the mounted checkout
+        run: |
+          printf 'pwd=%s GITHUB_WORKSPACE=%s WARPAI_WORKSPACE=%s\n' "$PWD" "$GITHUB_WORKSPACE" "$WARPAI_WORKSPACE"
+          for directory in "$GITHUB_WORKSPACE" "$WARPAI_WORKSPACE" /__w/warpai/warpai /github/workspace; do
+            if [[ -d "$directory" ]]; then
+              printf 'directory=%s\n' "$directory"
+              ls -ld "$directory" "$directory/.git" "$directory/Cargo.toml" 2>&1 || true
+              git -C "$directory" rev-parse --show-toplevel 2>&1 || true
+            fi
+          done
       - name: Validate source and package version
         run: |
           cd "$WARPAI_WORKSPACE"
