@@ -93,4 +93,13 @@
     - Privacy mask seamlessly erased account names `· mj` and `· othinusg` in the Data usage widget (`[233, 232, 229]`), leaving only clean agent names (`Codex`, `Antigravity`).
   - Deployed to `gh-pages` (`docs/images/warpai-hero-showcase.png`, `assets/images/warpai-hero-showcase.png`).
   - Replaced image in repository `main` and `milestone/1.7.0` branches (`docs/images/warpai-hero-showcase.png`), and synchronized task queuing bullet points into `README.md` and `README.zh-CN.md`.
+- **SHOT-19 Ingestion, Ecosystem Comparison Matrix & Landing Reorganization (2026-10-16)**:
+  - Processed and cleaned raw screenshot `/Users/wqin/Desktop/19.png` (Data usage & Quota monitor footer) to `docs/images/data-usage-quota-footer.png` and `assets/images/data-usage-quota-footer.png`.
+  - Replaced placeholder in `docs/quick-start.md` and `zh/docs/quick-start.md` with responsive embedded figure, and marked Row 20 in `docs/SCREENSHOT-INVENTORY.xlsx` as Completed.
+  - Overhauled `docs/features.md` and `zh/docs/features.md` from a narrow Warp comparison into an exhaustive benchmark against 7 mainstream agent system archetypes: Traditional Terminals (Ghostty, Kitty, Windows Terminal, Alacritty, iTerm2, WezTerm), Agent-enabled Editors (Zed, Cursor, Windsurf, Trae), Traditional IDEs (VS Code, JetBrains), Autonomous Dev Environments (Orca, Conductor, OpenDevin, Devin), Multi-Agent Managers (Herdr, AutoGen, CrewAI), Desktop AI Apps (ChatGPT Desktop, Claude Desktop), and Upstream Warp.
+  - Reorganized landing page cards in `index.html` and `zh/index.html`:
+    - Merged blocks 02 (VT100 observer) and 03 (Guarded PTY delivery) into a concise 4-line block 02 while retaining the animated terminal typing tape.
+    - Promoted Native MCP Coordination (`warp-lite-communication` 38+ tools, queues, file reservation) to become the new block 03.
+    - Repurposed the `#compare` teaser banner into an Ecosystem Benchmark card linking directly to language-specific features pages (`/docs/features.html` and `/zh/docs/features.html`).
+
 

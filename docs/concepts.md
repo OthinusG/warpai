@@ -7,7 +7,7 @@ doc_id: concepts
 prev_url: /docs/quick-start.html
 prev_title: Quick Start (5 Min)
 next_url: /docs/features.html
-next_title: Features Matrix & Comparison
+next_title: Features Matrix & Agent Systems Comparison
 ---
 
 Understanding Warpai’s underlying design principles will help you unlock the full power of autonomous multi-agent engineering.

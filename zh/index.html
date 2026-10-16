@@ -730,24 +730,27 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
   <a class="cap" href="{{ '/zh/docs/concepts.html' | relative_url }}">
     <div class="n"><span>02</span></div>
     <div class="cap-in">
-      <h3>无需逐个翻找停滞的终端。&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Warpai 内置 VT100 屏幕观察器，直接在内存中解析原始终端 ANSI 流，精准识别每个 Agent 的状态：Working（执行中）、WaitingApproval（等待审批）与 Idle（空闲就绪）。当 Agent 需要授权时，标签页与侧边栏状态指示即时切换为 WaitingApproval，并触发系统桌面通知，无需逐屏翻找排查。</p>
+      <h3>VT100 屏幕观察器与守护式 PTY 交付。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>内置 VT100 屏幕观察器在内存中精准解析 ANSI 流，实时感知 Working、WaitingApproval 与 Idle 状态。当 Agent 需要授权时即刻桌面提醒，无需逐屏翻找排查。配套守护式 PTY 交付，确保仅在 CLI 处于稳定提示符时投递输入，彻底杜绝丢键与并发撞车。</p>
     </div>
     <div class="ev" aria-hidden="true">
       <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
       <div class="ev-row"><span>warpai (main)</span><b><i class="w"></i>working</b></div>
-      <div class="ev-row"><span>infra/remote</span><b><i class="i"></i>idle</b></div>
+      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
     </div>
   </a>
 
-  <a class="cap" href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">
+  <a class="cap" href="{{ '/zh/docs/mcp-api.html' | relative_url }}">
     <div class="n"><span>03</span></div>
     <div class="cap-in">
-      <h3>守护式 PTY 交互交付。&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>普通终端在 Agent 持续输出或重绘时容易吞掉键盘输入或导致指令错乱。Warpai 实行守护式 PTY 交付，确保只有在底层 CLI 处于真正且稳定的提示符状态时才投递字符，彻底杜绝丢键与并发撞车。</p>
+      <h3>原生 MCP 协同体系：38+ 内置工具。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>智能体之间通过内置的 <code>warp-lite-communication</code> 原生 MCP 服务高效协作。提供具备依赖解析与任务排队的多 Agent 任务池、原子级文件并发预订、对等代码评审（Peer Review）与跨智能体上下文广播，全程本地化运行，零云端订阅与外部依赖。</p>
     </div>
-    <div class="ev">
-      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>warp-lite-communication</span><b><i class="beat"></i>运行中 (stdio)</b></div>
+      <div class="ev-row"><span>任务池与排队调度</span><b>warp_task_claim · progress · submit</b></div>
+      <div class="ev-row"><span>并发文件锁定与上下文</span><b>warp_file_reserve · context_publish</b></div>
+      <div class="ev-note">38+ 个本地 MCP 工具 &middot; 零 API Key &middot; Stdio 物理隔离</div>
     </div>
   </a>
 
@@ -799,13 +802,13 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
   </a>
 </div>
 
-<a class="cloud-teaser" href="{{ '/zh/docs/mcp-api.html' | relative_url }}" id="compare">
+<a class="cloud-teaser" href="{{ '/zh/docs/features.html' | relative_url }}" id="compare">
   <div>
-    <span class="cloud-label">原生 MCP 协同工具体系 <span>warp-lite-communication</span></span>
-    <h2>38+ 原生工具，零云端订阅与网络依赖。</h2>
-    <p>通过内置的 MCP 工具集，在本地直接调度多 Agent 任务池、文件并发锁定、对等评审（Peer Review）与上下文同步。</p>
+    <span class="cloud-label">全景架构评测 <span>功能特性与主流 Agent 体系对比</span></span>
+    <h2>专为多智能体自主协同打造的工业级运行底座。</h2>
+    <p>横向对比传统终端（Ghostty、Kitty）、Agent 编辑器（Zed、Cursor）、传统 IDE（VS Code）、自主沙箱（Orca、OpenDevin）、智能体管理工具（Herdr）、桌面客户端及原版 Warp，全方位展现 Warpai 在本地优先、无缝调度与多 Agent 协同的核心优势。</p>
   </div>
-  <span class="cloud-cta">查看 MCP API 规范 <span aria-hidden="true">&#8594;</span></span>
+  <span class="cloud-cta">查看完整对比矩阵 <span aria-hidden="true">&#8594;</span></span>
 </a>
 
 <section class="end" id="install">

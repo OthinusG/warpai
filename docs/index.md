@@ -48,7 +48,7 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. F
     </tr>
     <tr>
       <td></td>
-      <td><a href="{{ '/docs/features.html' | relative_url }}">Features Matrix &amp; Warp Comparison</a></td>
+      <td><a href="{{ '/docs/features.html' | relative_url }}">Features Matrix &amp; Agent Systems Comparison</a></td>
       <td>Comprehensive comparison of Warpai vs. upstream Warp and traditional terminal emulators.</td>
     </tr>
     <tr>

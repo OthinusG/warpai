@@ -99,15 +99,7 @@ Never run unexpectedly into a rate limit in the middle of a complex multi-step r
 1. Look at the **Data Usage** footer at the bottom of the left collaboration panel.
 2. It displays live quota consumption bars, remaining hourly/weekly reset windows, and balance information for your connected providers.
 
-<div class="docs-shot-placeholder" data-shot="SHOT-19">
-  <div class="shot-header">
-    <span class="shot-badge">SHOT-19 (P2)</span>
-    <span class="shot-title">Data Usage &amp; Quota Monitor Footer</span>
-  </div>
-  <p class="shot-desc">多模型额度大盘特写：左侧面板底部展示 4 个供应商（Claude, Codex, Gemini, Cursor）的用量百分比条、5小时/周重置倒计时与美元余额。</p>
-  <div class="shot-meta">
-    <span>建议尺寸: 800x400 (2:1)</span>
-    <span>目标路径: docs/images/data-usage-quota-footer.png</span>
-    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
-  </div>
-</div>
+<figure class="docs-figure">
+  <img src="{{ '/docs/images/data-usage-quota-footer.png' | relative_url }}" alt="Data Usage & Quota Monitor Footer" style="max-width: 480px; width: 100%;">
+  <figcaption>Multi-provider quota monitor footer displaying live consumption bars, reset windows, and provider accounts.</figcaption>
+</figure>

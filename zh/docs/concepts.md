@@ -8,7 +8,7 @@ doc_id: concepts
 prev_url: /docs/quick-start.html
 prev_title: 快速上手 (5分钟)
 next_url: /docs/features.html
-next_title: 全景特性与原版对比
+next_title: 全景功能矩阵与市面体系对比
 ---
 
 深入理解 Warpai 的底层设计哲学与架构原理，将帮助你充分释放多 Agent 自主协同开发的巨大威力。

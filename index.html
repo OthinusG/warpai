@@ -730,24 +730,27 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
   <a class="cap" href="{{ '/docs/concepts.html' | relative_url }}">
     <div class="n"><span>02</span></div>
     <div class="cap-in">
-      <h3>You never hunt for the stuck one.&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Warpai's built-in VT100 screen observer analyzes raw terminal output in memory, identifying every agent's state: Working, WaitingApproval, or Idle. When an agent stops and needs permission, the status tab badge immediately updates to WaitingApproval and triggers desktop notifications—no more pane-by-pane searching.</p>
+      <h3>VT100 screen observer &amp; guarded PTY delivery.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>In-memory VT100 observer tracks Working, WaitingApproval, and Idle states across all terminal panes. When an agent pauses for approval, status badges update instantly with desktop alerts—no pane hunting. Guarded PTY delivery holds keystrokes until agent CLIs reach a true prompt, preventing garbled input and clobbered executions.</p>
     </div>
     <div class="ev" aria-hidden="true">
       <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
       <div class="ev-row"><span>warpai (main)</span><b><i class="w"></i>working</b></div>
-      <div class="ev-row"><span>infra/remote</span><b><i class="i"></i>idle</b></div>
+      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
     </div>
   </a>
 
-  <a class="cap" href="{{ '/docs/using-warpai-agents.html' | relative_url }}">
+  <a class="cap" href="{{ '/docs/mcp-api.html' | relative_url }}">
     <div class="n"><span>03</span></div>
     <div class="cap-in">
-      <h3>Guarded PTY delivery.&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Ordinary terminals drop inputs or clobber commands when an agent CLI is redrawing or busy thinking. Warpai gates PTY delivery so instructions only land when the agent CLI is at a true input prompt, preventing garbled keystrokes and unintended execution.</p>
+      <h3>Native MCP coordination: 38+ built-in tools.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Autonomous agents collaborate seamlessly through our embedded <code>warp-lite-communication</code> MCP server. Features native task pools with priority claiming, atomic file reservations, peer review checkpoints, thread-safe memory sharing, and asynchronous task queues without cloud subscriptions or network dependencies.</p>
     </div>
-    <div class="ev">
-      <div class="tape" aria-hidden="true"><b>$</b><span data-tape></span></div>
+    <div class="ev" aria-hidden="true">
+      <div class="ev-row"><span>warp-lite-communication</span><b><i class="beat"></i>active (stdio)</b></div>
+      <div class="ev-row"><span>Task Pool &amp; Queues</span><b>warp_task_claim · progress · submit</b></div>
+      <div class="ev-row"><span>File Lock &amp; Context</span><b>warp_file_reserve · context_publish</b></div>
+      <div class="ev-note">38+ native MCP tools &middot; Zero API keys &middot; Stdio isolation</div>
     </div>
   </a>
 
@@ -799,13 +802,13 @@ description: "The agent-native, local-first collaboration terminal. Featuring is
   </a>
 </div>
 
-<a class="cloud-teaser" href="{{ '/docs/mcp-api.html' | relative_url }}" id="compare">
+<a class="cloud-teaser" href="{{ '/docs/features.html' | relative_url }}" id="compare">
   <div>
-    <span class="cloud-label">Native MCP Coordination <span>warp-lite-communication</span></span>
-    <h2>38+ Native Tools. Zero Cloud Subscriptions.</h2>
-    <p>Coordinate multi-agent task pools, file reservations, peer reviews, and context publication through built-in MCP tools directly on your local machine.</p>
+    <span class="cloud-label">Ecosystem Benchmark <span>Features &amp; Comparison Matrix</span></span>
+    <h2>Built for Autonomous Multi-Agent Workflows.</h2>
+    <p>How Warpai compares against traditional terminals (Ghostty, Kitty), agent editors (Zed, Cursor), IDEs (VS Code), autonomous dev sandboxes (Orca, OpenDevin), agent managers (Herdr), desktop apps, and upstream Warp.</p>
   </div>
-  <span class="cloud-cta">Explore MCP API <span aria-hidden="true">&#8594;</span></span>
+  <span class="cloud-cta">Explore Comparison Matrix <span aria-hidden="true">&#8594;</span></span>
 </a>
 
 <section class="end" id="install">

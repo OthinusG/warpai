@@ -100,15 +100,7 @@ Warpai 内置的高性能 VT100 屏幕观察器在内存中解析 ANSI 流，实
 1. 观察左侧协作面板底部的 **用量大盘（Data Usage）**。
 2. 实时展示已连接供应商的 Quota 消耗百分比进度条、5小时/周重置倒计时以及实时余额。
 
-<div class="docs-shot-placeholder" data-shot="SHOT-19">
-  <div class="shot-header">
-    <span class="shot-badge">SHOT-19 (P2)</span>
-    <span class="shot-title">Data Usage &amp; Quota Monitor Footer</span>
-  </div>
-  <p class="shot-desc">多模型额度大盘特写：左侧面板底部展示 4 个供应商（Claude, Codex, Gemini, Cursor）的用量百分比条、5小时/周重置倒计时与美元余额。</p>
-  <div class="shot-meta">
-    <span>建议尺寸: 800x400 (2:1)</span>
-    <span>目标路径: docs/images/data-usage-quota-footer.png</span>
-    <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
-  </div>
-</div>
+<figure class="docs-figure">
+  <img src="{{ '/docs/images/data-usage-quota-footer.png' | relative_url }}" alt="多模型用量大盘与配额监控底部组件" style="max-width: 480px; width: 100%;">
+  <figcaption>协作面板底部的数据用量监控组件：实时展示各模型服务商（Codex、Antigravity 等）的 Quota 消耗比例、限额重置窗口与可用状态。</figcaption>
+</figure>

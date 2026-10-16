@@ -49,7 +49,7 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对�
     </tr>
     <tr>
       <td></td>
-      <td><a href="{{ '/zh/docs/features.html' | relative_url }}">全景特性与原版对比</a></td>
+      <td><a href="{{ '/zh/docs/features.html' | relative_url }}">全景功能矩阵与市面体系对比</a></td>
       <td>Warpai 与上游 Warp 原版的深度功能对比：彻底剥离遥测、零云端依赖与原生多 Agent 底座。</td>
     </tr>
     <tr>
