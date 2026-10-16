@@ -1,6 +1,5 @@
-use std::os::fd::OwnedFd;
-
 use zbus::blocking::{Connection, Proxy};
+use zbus::zvariant::OwnedFd;
 
 /// Holds logind's inhibitor descriptor for the lifetime of the guard.
 pub struct Guard {
