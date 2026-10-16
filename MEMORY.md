@@ -159,6 +159,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Native lifecycle repair checkpoint
 
+- 1.7.0 AppImage packaging must unset `SOURCE_DATE_EPOCH` only for linuxdeploy:
+  appimagetool also passes `-mkfs-time`, and squashfs-tools rejects both.
+- 1.7.0 changes shared agent_bus MCP guidance; Companion must be versioned 5.4.0
+  (protocol major stays 1), with WSL package/version checks kept in sync.
+
 - 1.6.5 work follows Herdr 2f3432c6 manifests (Apache-2.0): owner approved known
   Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
   connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.

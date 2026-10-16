@@ -88,7 +88,7 @@ EXTRA_EXECUTABLES=()
 if [[ "$PACKAGE_NAME" == warpai ]]; then
   EXTRA_EXECUTABLES+=(--executable "${STAGE_DIR}${OPT_DIR}/warpai-agent")
 fi
-linuxdeploy \
+env -u SOURCE_DATE_EPOCH linuxdeploy \
   --appdir "$APP_DIR" \
   --executable "${STAGE_DIR}${OPT_DIR}/$BINARY_NAME" \
   --desktop-file "$STAGE_DIR/usr/share/applications/$BUNDLE_ID.desktop" \
