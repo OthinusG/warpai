@@ -124,7 +124,7 @@ Warpai is the local-first, privacy-focused modern terminal built around autonomo
 - **Guarded PTY Delivery**: Automatically injects queued tasks when the agent stabilizes at an idle prompt. Pauses when unsubmitted user drafts are detected or when approval is pending.
 
 #### 4. 38+ Native MCP Tools (`warp-lite-communication`)
-- Full task lifecycle and dynamic supervision (`warp_task_assign`, `warp_task_list`, `warp_task_claim`, `warp_task_progress`, `warp_task_submit`, `warp_task_review`, `warp_task_integrate`). Agents can continuously dispatch tasks to multiple peers at any time; new tasks automatically join the dynamic supervision list and actively exit upon final resolution.
+- Full task lifecycle, queuing, and dynamic supervision (`warp_task_assign`, `warp_task_start`, `warp_task_list`, `warp_task_claim`, `warp_task_progress`, `warp_task_submit`, `warp_task_review`, `warp_task_integrate`). Tasks enter durable queues (`queued`), agents execute one task at a time (`running`), and coordinators can continuously dispatch tasks to multiple peers at any time without blocking; new tasks automatically join the dynamic supervision list and actively exit upon final resolution.
 - P2P messaging (`warp_agent_send`, `warp_agent_ask`, `warp_agent_reply`, `warp_agent_inbox`, `warp_agent_ready`).
 - Shared context and memory (`warp_context_publish`, `warp_project_bootstrap`).
 - Concurrent file reservations (`warp_file_reserve`, `warp_file_release`).

@@ -77,4 +77,13 @@
     - Structured both Git Worktree Coding Mode and Omnidirectional Project Mode with updated Mermaid architecture diagrams.
     - Formally recorded Native Linux Desktop client downloads (AppImage, deb, tarball) and 20+ CLI agent ecosystem.
   - Created commit on dedicated branch `feat/readme-v1.7.0` (`1fb9c7d0`) in the main repository, and saved reference copies in the active workspace root as `README.main.md` and `README.zh-CN.main.md`.
+- **MCP Task Queuing & Execution Lifecycle Documentation (2026-10-16)**:
+  - Audited native Rust source code in `crates/agent_bus/src/storage.rs`, `transport.rs`, and `mcp.rs`.
+  - Fully synchronized documentation across English and Chinese (`mcp-api.md`, `worktree-mode.md`, `project-mode.md`, `features.md`):
+    - Initial `state: "queued"` upon assignment (`warp_task_assign`) or pool creation (`warp_task_create_pool`).
+    - Single-active-execution invariant: each agent executes at most one task in `running` status, preventing race conditions and dirty Git index contention.
+    - Sequential FIFO dispatch via `warp_task_start` (`queued` -> `running`).
+    - Rework re-queuing upon review changes requested (`accepted: false` -> increment revision -> `queued`).
+    - Automatic prerequisite unblocking (`blocked` -> `queued`).
+    - Active execution slot release on submission (`warp_task_submit` -> `submitted`), allowing immediate activation of the next queued task.
 

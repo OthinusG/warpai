@@ -16,74 +16,107 @@ When Agent Communication is enabled in Warpai, the bundled `warp-lite-communicat
 
 ---
 
-## 1. Task Lifecycle & Dynamic Supervision Tools
+## 1. Task Lifecycle, Queuing & Dynamic Supervision Tools
 
 ### `warp_task_assign`
 Assigns a structured task to a target agent or worktree checkout.
 - **Parameters**:
-  - `title` (string, required): Short descriptive summary of the task.
-  - `description` (string, required): Full specifications, acceptance criteria, and expected deliverables.
-  - `assignee` (string, optional): Unique name/ID of the target agent. If omitted, task is added to the project pool.
-  - `worktree` (string, optional): Specific Git checkout directory for this task.
+  - `to` (string, required): Unique name/ID of the target agent.
+  - `description` (string, required): Full technical specifications and expected deliverables.
+  - `acceptance` (string, required): Concrete acceptance criteria and verification commands.
+  - `context_refs` (array of ContextRef, optional): Pinned context snapshots (max 16).
+  - `reviewer` (string, optional): Designated reviewer agent ID (defaults to assigner).
   - `dependencies` (array of string, optional): List of prerequisite task IDs.
-- **Returns**: `{ "task_id": "uuid", "status": "assigned" }`
-- **Dynamic Supervision**: Newly assigned tasks are immediately enrolled into the supervising agent's dynamic supervision list. The supervising agent can continuously dispatch tasks to multiple agents at any time without batch boundaries; tasks remain tracked until finished, and actively exit the supervision list once resolved.
+  - `start_deadline` (string, optional): ISO-8601 start deadline.
+  - `execution_timeout_seconds` / `review_timeout_seconds` (integer, optional): Execution and review timeouts.
+  - `request_id` (string, required): Idempotency UUID.
+- **Returns**: `{ "id": "uuid", "state": "queued" | "blocked", "delivery": "queued", ... }`
+- **Task Queuing Semantics**: Calling `warp_task_assign` **only queues work**; it does not block the caller or wait for completion. The task enters the target agent's durable task queue (`state: "queued"`). The sender can immediately continue assigning additional tasks to the same or other agents. Newly assigned tasks automatically enroll into the supervisor's dynamic supervision set.
 
-### `warp_task_list`
-Lists tasks visible to the agent, filtered by status or assignee.
-- **Dynamic Refresh**: Refreshes the active dynamic supervision set across assignees (including offline peers), retaining unresolved tasks and retiring handled terminal outcomes.
+### `warp_task_start`
+Pops and begins execution of a queued task revision.
+- **Parameters**:
+  - `task_id` (string, required): Unique ID of the task to start.
+  - `revision` (integer, required): Task revision number (starts at 1).
+  - `expected_version` (integer, optional): Optimistic concurrency version check.
+  - `request_id` (string, required): Idempotency UUID.
+- **Returns**: `{ "id": "uuid", "state": "running", "attempt_id": "uuid", ... }`
+- **Single-Active-Execution Guard**: An agent can only actively run **one task at a time** (`state == "running"`). If another task is already executing, starting a new task is rejected with `"An assigned task is already running"`. Additional tasks remain safely queued in arrival order until the active task is submitted or completed.
+
+### `warp_task_create_pool`
+Creates an unassigned task in the shared project pool (`state: "queued"`), visible to eligible agents.
+- **Parameters**: `description`, `acceptance`, `context_refs`, `eligible` (array of agent IDs), `reviewer`, `dependencies`, `request_id`.
+- **Returns**: `{ "id": "uuid", "state": "queued", ... }`
 
 ### `warp_task_claim`
-Claims an unassigned task from the project pool.
-- **Parameters**: `task_id` (string, required)
-- **Returns**: `{ "task_id": "uuid", "claimed_by": "agent_id", "status": "in_progress" }`
+Claims an unassigned task from the shared pool and transitions it directly from `queued` to `running`.
+- **Parameters**: `task_id` (string, required), `expected_version` (integer, optional), `request_id` (string, required).
+- **Concurrency Guard**: Claiming is permitted only when the claiming agent has no other running task.
+
+### `warp_task_list`
+Lists tasks visible to the agent, filtered by status or assignee (`state`, `assignee`, `cursor`, `limit`).
+- **Dynamic Refresh**: Refreshes the active dynamic supervision set across assignees (including offline peers), retaining unresolved tasks and retiring handled terminal outcomes.
+
+### `warp_task_get` / `warp_task_history`
+Reads detailed task status, deadlines, execution uncertainty, and ordered event history.
 
 ### `warp_task_progress`
-Updates the progress percentage and current milestone of an active task.
-- **Parameters**:
-  - `task_id` (string, required)
-  - `percent` (integer, required): 0 to 100
-  - `message` (string, optional): Brief update on current activity
-- **Returns**: `{ "task_id": "uuid", "updated": true }`
+Updates the progress percentage, milestone notes, or waiting reason on an active task without transferring ownership.
+- **Parameters**: `task_id`, `revision`, `note`, `wait_reason`, `request_id`.
 
 ### `warp_task_submit`
-Submits completed work for peer review.
+Submits completed work and verification evidence for peer review.
 - **Parameters**:
   - `task_id` (string, required)
-  - `summary` (string, required): Overview of changes made
-  - `evidence` (array of string, optional): Test outputs or modified files
-- **Returns**: `{ "task_id": "uuid", "status": "submitted_for_review" }`
+  - `revision` (integer, required)
+  - `result` (string, required): Summary of implementation
+  - `evidence` (string, required): Verification test outputs or modified file paths
+  - `evidence_ids` (array of string, optional): Bounded evidence descriptors
+  - `request_id` (string, required)
+- **Returns**: `{ "id": "uuid", "state": "submitted" }`
+- **Queue Release**: Submitting frees the agent's active execution slot, allowing it to start the next queued task via `warp_task_start`.
 
 ### `warp_task_review`
 Records a code review verdict on a submitted task.
 - **Parameters**:
   - `task_id` (string, required)
-  - `verdict` (string, required): `"accepted"` or `"needs_changes"`
-  - `feedback` (string, required): Actionable review comments
-- **Returns**: `{ "task_id": "uuid", "new_status": "accepted" | "in_progress" }`
+  - `revision` (integer, required)
+  - `accepted` (boolean, required): `true` to approve, `false` to request changes.
+  - `feedback` (string, required): Actionable review comments.
+  - `request_id` (string, required)
+- **Returns**: `{ "id": "uuid", "state": "accepted" | "queued", ... }`
+- **Rework Queuing**: If `accepted == false`, the task automatically increments its revision number and re-enters the assignee's task queue (`state: "queued"`) for rework.
 
 ### `warp_task_integrate` *(Coordinator-only)*
 Integrates approved changes from a worker checkout into the main project.
-- **Parameters**:
-  - `task_id` (string, required)
-  - `commit_hash` (string, optional): Final verified Git commit hash
-- **Returns**: `{ "task_id": "uuid", "status": "integrated" }`
+- **Parameters**: `task_id` (string, required), `commit` (string, optional), `request_id` (string, required).
+- **Returns**: `{ "id": "uuid", "state": "integrated" }`
 
-### `warp_task_cancel` / `warp_task_retry` / `warp_task_reassign`
-Administrative controls to cancel abandoned work, retry failed tasks, or transfer ownership to a new agent.
+### `warp_task_cancel` / `warp_task_finish_cancel` / `warp_task_fail` / `warp_task_retry` / `warp_task_reassign` / `warp_task_set_dependencies`
+Full lifecycle administration:
+- `warp_task_set_dependencies`: Declares prerequisites. Tasks with unmet dependencies automatically enter `state: "blocked"`, and automatically transition to `state: "queued"` when all prerequisites are accepted.
+- `warp_task_cancel`: Issues a cancellation request. Running tasks receive a stop request which the worker confirms via `warp_task_finish_cancel`.
+- `warp_task_fail`: Reports execution failure with diagnostic evidence.
+- `warp_task_retry` / `warp_task_reassign`: Retries failed or expired tasks into `state: "queued"`.
 
-### Dynamic Supervision & Continuous Dispatch Logic
-Warpai implements an asynchronous, continuous multi-agent task supervision architecture:
-1. **Continuous Dispatch at Any Time**: The primary or coordinating agent does not operate in rigid "batch dispatch" phases. It can dispatch tasks to one or multiple agents at any point in time, even while prior tasks are actively executing.
-2. **Dynamic Enrolment in Supervision List**: Every newly dispatched task automatically joins the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and verification states across turn yields (`warp_agent_ready`).
-3. **Active Exit Upon Completion**: Tasks can enter the supervision list at any time, and actively/automatically leave the list as soon as their terminal outcome is handled and accepted, keeping the supervising agent's focus clean without stale polling loops.
+---
+
+### Task Queuing & Dynamic Supervision Architecture
+
+Warpai implements an asynchronous, queue-backed multi-agent task supervision architecture:
+
+1. **Durable Task Queuing & FIFO Consumption**: Every assigned task is durably recorded in SQLite as `state: "queued"`. When Worker A is busy on Task 1, newly assigned Task 2 and Task 3 line up in Worker A's queue in arrival order. Worker A executes them sequentially via `warp_task_start` upon submitting previous work. This eliminates file collisions, dirty Git index contention, and LLM context thrashing.
+2. **Continuous Non-Blocking Dispatch**: The Coordinator / supervising agent does not operate in rigid upfront batches. It can dispatch tasks to one or multiple agents at any time. Sending only queues work, allowing the supervisor to keep the pipeline full without waiting for workers to finish.
+3. **Dynamic Enrolment in Supervision List**: Every newly enqueued task immediately joins the supervisor's active supervision list (`dynamic supervision set`), tracking progress, blocking questions, and verification states across turn yields (`warp_agent_ready`).
+4. **Automatic Dependency & Rework Transitions**: Tasks blocked by prerequisite dependencies (`state: "blocked"`) automatically unblock and enter `queued` when prerequisites are accepted. Tasks rejected in review (`accepted: false`) automatically increment revision and re-enter `queued` for rework.
+5. **Active Queue Exit Upon Completion**: Tasks can enter the queue and supervision list at any time, and actively/automatically leave the list as soon as their terminal outcome is handled and accepted, keeping the active queue clean without stale polling loops.
 
 <div class="docs-shot-placeholder" data-shot="SHOT-26">
   <div class="shot-header">
     <span class="shot-badge">SHOT-26 (P1)</span>
-    <span class="shot-title">Continuous Dispatch & Dynamic Supervision List</span>
+    <span class="shot-title">Task Queuing & Dynamic Supervision List</span>
   </div>
-  <p class="shot-desc">动态任务监督与随时派发：协同面板 Tasks 区域特写，展示主 Agent 动态监督列表接纳随时派发的多分支任务，呈现 in_progress 实时进展及完成后自动退出。</p>
+  <p class="shot-desc">任务排队与动态监督：展示主 Agent 随时派发多任务进入队列（queued 状态），Worker 串行执行（running 状态），以及完成审阅后主动出队归档的全生命周期。</p>
   <div class="shot-meta">
     <span>建议尺寸: 1200x650</span>
     <span>目标路径: docs/images/mcp-dynamic-task-supervision.png</span>

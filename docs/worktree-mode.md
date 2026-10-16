@@ -94,8 +94,9 @@ The Coordinator invokes native MCP tools (`warp_task_assign`) to dispatch tasks 
   "dependencies": []
 }
 ```
+- **Task Queuing**: Newly assigned tasks enter the worker's durable task queue (`state: "queued"`). Each worker executes one task at a time (`state: "running"`). If multiple subtasks are dispatched to the same worker, they queue up safely in arrival order; the worker pops and executes them sequentially via `warp_task_start` upon submitting previous work.
 - **Continuous Multi-Agent Dispatch**: The Coordinator can assign work to multiple agents across branches at any time without waiting for prior tasks to finish.
-- **Dynamic Supervision List**: Every newly dispatched task automatically enters the Coordinator's dynamic supervision list.
+- **Dynamic Supervision List**: Every newly enqueued task automatically enters the Coordinator's dynamic supervision list.
 - **Active Exit Upon Completion**: Tasks remain under supervision throughout implementation and peer review, actively leaving the list once accepted and integrated.
 
 <div class="docs-shot-placeholder" data-shot="SHOT-16">

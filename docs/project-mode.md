@@ -107,12 +107,13 @@ The target agent receives a formal Question card and responds via `warp_agent_an
   </div>
 </div>
 
-### Step 4: Public Task Pool Management, Continuous Dispatch & Dynamic Supervision
+### Step 4: Public Task Pool Management, Task Queuing & Dynamic Supervision
 For multi-stage pipelines, any agent can orchestrate tasks and task pools dynamically:
-1. **Continuous Multi-Agent Dispatch**: Agents can publish new tasks to one or more peer agents at any time. There is no rigid batch boundary or requirement to wait for existing tasks to finish.
-2. **Dynamic Supervision List**: Newly dispatched tasks automatically join the supervising agent's dynamic supervision list (`warp_task_list`), maintaining durable visibility across agent turns.
-3. **Autonomous Claiming & Execution**: Idle workers call `warp_task_claim` to pull tasks matching their capabilities, reporting progress via `warp_task_progress`.
-4. **Active Exit Upon Completion**: Workers submit deliverables via `warp_task_submit`. Once the outcome is accepted or handled, the task actively and automatically exits the supervision list.
+1. **Durable Task Queuing & FIFO Execution**: All assigned tasks and shared pool items enter durable queues (`state: "queued"`). Each agent executes one task at a time (`state: "running"`). Senders queue multiple tasks without blocking, and workers execute them sequentially in arrival order via `warp_task_start`.
+2. **Continuous Multi-Agent Dispatch**: Agents can publish new tasks to one or more peer agents at any time. There is no rigid batch boundary or requirement to wait for existing tasks to finish.
+3. **Dynamic Supervision List**: Newly enqueued tasks automatically join the supervising agent's dynamic supervision list (`warp_task_list`), maintaining durable visibility across agent turns.
+4. **Autonomous Claiming & Execution**: Idle workers call `warp_task_claim` to pull unassigned tasks from the pool when their running slot is free, reporting progress via `warp_task_progress`.
+5. **Active Exit Upon Completion**: Workers submit deliverables via `warp_task_submit`. Once the outcome is accepted or handled, the task actively and automatically exits the supervision list.
 
 ### Step 5: Shared Global Context & Knowledge Publication
 To prevent knowledge drift across agents, teams expose milestone facts in shared context memory:
