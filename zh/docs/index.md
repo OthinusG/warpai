@@ -9,9 +9,9 @@ next_url: /docs/install.html
 next_title: 安装指南
 ---
 
-欢迎查阅 **Warpai** 官方技术文档 —— 专为 Coding Agent 协作而生的本地优先、高隐私原生终端工作空间。
+欢迎查阅 **Warpai** 官方技术文档 —— 专为多 Agent 深度协同打造的本地优先、高隐私原生终端工作空间。
 
-Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。你可以在完全隔离的 Git Worktree 中并行编排 20+ 款主流命令行 Agent，集中监管功能并行开发、执行全自动对等评审（Peer Review），并在高性能 GPU 加速终端中整合代码交付。
+Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对代码工程，Warpai 提供严格的 **Git Worktree 并发编码模式**，支持在物理隔离的分支中并行开发不同功能并执行自动化对等评审；针对泛行业与非 Coding 场景，重磅提供 **Project 全向协同模式**，打破单一指挥链，让所有 Agent 自由互通消息与任务，在科研论文、视觉设计、量化金融、专利法务等场景中高效攻坚。
 
 <div class="docs-shot-placeholder" data-shot="SHOT-01">
   <div class="shot-header">
@@ -53,7 +53,7 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。你可�
     <tr>
       <td><strong>核心架构</strong></td>
       <td><a href="{{ '/zh/docs/concepts.html' | relative_url }}">核心概念与安全保障</a></td>
-      <td>深入解析守护式 PTY 交付、VT100 内存屏幕观察器、Git Worktree 物理隔离与 Coordinator 协同模式。</td>
+      <td>深入解析守护式 PTY 交付、VT100 内存屏幕观察器、Git Worktree 物理隔离与 Project 全向协同模式。</td>
     </tr>
     <tr>
       <td></td>
@@ -73,7 +73,7 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。你可�
     <tr>
       <td></td>
       <td><a href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">多 Agent 协同工作流</a></td>
-      <td>团队模式与 Worktree 模式、Coordinator 分工派发、对等评审（Peer Review）与 SSH 远程漫游。</td>
+      <td>Worktree 并发编码模式、Project 泛行业全向网状协同、Commander/Worker 角色互换与 6+ 大实战场景。</td>
     </tr>
     <tr>
       <td><strong>Agent 生态</strong></td>
@@ -105,4 +105,4 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。你可�
 
 1. **本地优先与纯粹隐私**：零遥测埋点、零云端账号壁垒、不锁定专有闭源模型。你的代码、Shell 命令与 Agent 交互内容均保留在本地受控环境中，绝不在未经许可的情况下外传。
 2. **开放无界的 Agent 生态**：不强推任何内置单一模型订阅。直接复用你熟悉的 CLI Agent 工具（Claude Code、Codex、Cursor、Gemini 等），沿用现有 API 密钥与授权。
-3. **面向工业级工程规模打造**：严肃的软件开发绝非单个对话窗口所能承载。通过物理隔离的 Git Worktree、独立工作分支与 Coordinator 统一调度，构筑多智能体并行交付的稳固基石。
+3. **双架构驱动规模化协同**：严肃的代码工程借助物理隔离的 Git Worktree 独立开发不同功能；跨领域的泛行业协作通过 Project 模式打破层级、全员互通消息与任务，构筑多智能体并行交付的坚实基石。

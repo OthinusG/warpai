@@ -61,8 +61,8 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
     <tr>
       <td><strong>多 Agent 编排协同</strong></td>
       <td>仅支持单聊对话侧边栏。</td>
-      <td><strong>双协同模式 (项目模式 / 工作树模式)</strong></td>
-      <td>支持多 Agent 跨物理分支并行开发，全自动任务分派与交叉审阅。</td>
+      <td><strong>双协同架构 (Git Worktree 并发模式 + Project 全向模式)</strong></td>
+      <td>针对代码研发提供 Worktree 物理隔离并行开发与对等评审；针对非 Coding（科研论文、视觉设计、金融量化、专利合规等）提供 Project 全向消息与任务互通，所有 Agent 兼具指挥官与工人身份。</td>
     </tr>
     <tr>
       <td><strong>终端屏幕感知</strong></td>

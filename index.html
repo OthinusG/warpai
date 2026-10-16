@@ -2,15 +2,15 @@
 layout: default
 lang: en
 title: "Warpai: The terminal built for agents"
-description: "Run them anywhere. Leave them running. Warpai is the agent-native, local-first terminal for macOS, Windows and remote Linux."
+description: "The agent-native, local-first collaboration terminal. Featuring isolated Git Worktree parallel coding and omnidirectional Project mode, built for macOS, Windows, WSL, and Linux."
 ---
 
 <header class="hd-hero">
   <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases">Warpai 1.6.5 is out · Native Multi-Agent Terminal <span aria-hidden="true">↗</span></a>
   <div class="in">
     <div class="hd-eyebrow"><s></s>the agent-native terminal</div>
-    <h1>The terminal built for agents. <em>Native, local-first, fearless.</em></h1>
-    <p class="lede">Warpai is where your coding agents live. However many you run, across however many projects, each in its own terminal. <b>Zero telemetry, zero cloud login, isolated worktrees, and guarded PTY delivery.</b></p>
+    <h1>The terminal built for agents. <em>Native, local-first, multi-agent.</em></h1>
+    <p class="lede">Warpai is where your multi-agent teams live and collaborate. However many agents you run across projects, each operates in its own native terminal. <b>Dual-architecture multi-agent coordination: isolated Git Worktrees for concurrent feature coding &amp; flexible Project mode for omnidirectional messaging, with zero telemetry and guarded PTY delivery.</b></p>
     <div class="go">
       <a class="btn-download-hero" href="{{ '/docs/install.html' | relative_url }}">
         <span>Download Warpai</span>
@@ -275,7 +275,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     <div class="n"><span>02</span></div>
     <div class="cap-in">
       <h3>You never hunt for the stuck one.&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Warpai's built-in VT100 screen observer analyzes raw terminal output in memory, identifying every agent's state: Working, WaitingApproval, or Idle. When an agent stops and needs permission, the tab pulses coral immediately—no more pane-by-pane searching.</p>
+      <p>Warpai's built-in VT100 screen observer analyzes raw terminal output in memory, identifying every agent's state: Working, WaitingApproval, or Idle. When an agent stops and needs permission, the status tab badge immediately updates to WaitingApproval and triggers desktop notifications—no more pane-by-pane searching.</p>
     </div>
     <div class="ev" aria-hidden="true">
       <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
@@ -320,12 +320,25 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
     <div class="n"><span>05</span></div>
     <div class="cap-in">
       <h3>All your machines. One Warpai.&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Your MacBook, your Windows desktop, or a remote Linux GPU box. Connect over SSH with the Warpai Remote Companion; your remote workspaces and agents sit alongside local ones with full SFTP file transfer and zero latency penalty.</p>
+      <p>Your MacBook, your Windows desktop, native Windows WSL/WSL2 environments, or a remote Linux GPU box. Seamlessly aggregate local WSL instances and remote machines over SSH with Warpai Companion, complete with integrated SFTP file transfer and zero latency penalty.</p>
     </div>
     <div class="ev">
       <div class="machine-cmd"><b>$</b> <code>warpai companion attach workbox-gpu</code></div>
-      <div class="ev-row"><span>local desktop</span><b><i class="beat"></i>connected</b></div>
+      <div class="ev-row"><span>local desktop / Windows WSL2</span><b><i class="beat"></i>ready</b></div>
       <div class="ev-row"><span>workbox-gpu (SSH)</span><b><i class="beat"></i>connected</b></div>
+    </div>
+  </a>
+
+  <a class="cap" href="{{ '/docs/using-warpai-agents.html' | relative_url }}">
+    <div class="n"><span>06</span></div>
+    <div class="cap-in">
+      <h3>Beyond coding: Dual Worktree &amp; Project collaboration modes.&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>Most multi-agent tooling forces a rigid, single-paradigm worktree workflow. Warpai delivers a dedicated <b>Worktree Coding Mode</b> for Git repositories: beyond the coordinator, every agent develops features concurrently in isolated worktrees without branch or cache collisions. For non-coding and cross-domain teams, Warpai introduces <b>Project Mode</b>: all agents communicate and dispatch tasks omnidirectionally—acting flexibly as commanders or workers. Powering <b>Scientific Research &amp; Peer Review</b>, <b>Creative &amp; Industrial Design</b>, <b>Quantitative Finance &amp; Risk Analytics</b>, <b>Patent Extraction &amp; Legal Compliance</b>, <b>Multimedia Content &amp; Matrix Operations</b>, and <b>Due Diligence &amp; Market Intelligence</b>.</p>
+    </div>
+    <div class="ev">
+      <div class="ev-row"><span>Git Worktree Mode</span><b>Concurrent feature coding · Zero branch conflicts</b></div>
+      <div class="ev-row"><span>Project Mode</span><b>Omnidirectional messaging &amp; dynamic roles</b></div>
+      <div class="ev-note">Built for Research · Design · Finance · Patents · Media · Business Intelligence</div>
     </div>
   </a>
 </div>
@@ -342,7 +355,7 @@ description: "Run them anywhere. Leave them running. Warpai is the agent-native,
 <section class="end" id="install">
   <div class="in">
     <h2>Give them somewhere to live.</h2>
-    <p>The terminal built for agents. Native, local-first, fearless.</p>
+    <p>The terminal built for agents. Native, local-first, multi-agent.</p>
     <div class="go">
       <a class="btn-download-hero" href="{{ '/docs/install.html' | relative_url }}">
         <span>Download Warpai</span>

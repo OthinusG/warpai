@@ -2,15 +2,15 @@
 layout: default
 lang: zh
 title: "Warpai: 专为 Agent 打造的原生终端"
-description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计的本地优先多 Agent 原生终端，支持 macOS、Windows 与 Linux 远程伴侣。"
+description: "专为多 Agent 打造的本地优先原生协同终端。支持 Git Worktree 隔离开发与 Project 全向协同双架构，适配 macOS、Windows、WSL 与 Linux 远程伴侣。"
 ---
 
 <header class="hd-hero">
   <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases">Warpai 1.6.5 已发布 · 原生多 Agent 协同终端 <span aria-hidden="true">↗</span></a>
   <div class="in">
     <div class="hd-eyebrow"><s></s>the agent-native terminal</div>
-    <h1>专为 Agent 打造的终端。<em>纯净原生，本地优先，无惧中断。</em></h1>
-    <p class="lede">Warpai 是你的 Coding Agent 专属工作台。无论你在多少个项目中并行启动多少个 Agent，每个 Agent 都运行在独立终端中。<b>零遥测、零云端登录墙、Git Worktree 隔离开发、以及独家守护式 PTY 交付。</b></p>
+    <h1>专为 Agent 打造的终端。<em>纯净原生，本地优先，多智能体协同。</em></h1>
+    <p class="lede">Warpai 是专为多 Agent 深度协作打造的专属工作台。无论你在多少个项目中并行启动多少个 Agent，每个 Agent 都运行在独立原生终端中。<b>零遥测、零云端登录墙、独创 Git Worktree 并发独立开发与 Project 全向互通协作双架构、以及独家守护式 PTY 交付。</b></p>
     <div class="go">
       <a class="btn-download-hero" href="{{ '/zh/docs/install.html' | relative_url }}">
         <span>下载 Warpai</span>
@@ -131,7 +131,7 @@ description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计�
                 <br>
                 <div><span class="cc-bullet">●</span> 计划：</div>
                 <div class="dim">&nbsp;&nbsp;· crates/pty — 拦截输入直到终端提示符完全就绪</div>
-                <div class="dim">&nbsp;&nbsp;· crates/agent_bus — 高危命令触发珊瑚色审批提示</div>
+                <div class="dim">&nbsp;&nbsp;· crates/agent_bus — 高危命令触发 WaitingApproval 标签页指示与桌面通知</div>
                 <br>
                 <div><b>❯</b> 执行聚焦测试并更新工程文档</div>
                 <br>
@@ -275,7 +275,7 @@ description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计�
     <div class="n"><span>02</span></div>
     <div class="cap-in">
       <h3>无需逐个翻找停滞的终端。&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>Warpai 内置 VT100 屏幕观察器，直接在内存中解析原始终端 ANSI 流，精准识别每个 Agent 的状态：Working（执行中）、WaitingApproval（等待审批）与 Idle（空闲就绪）。当 Agent 需要授权时，标签页与侧边栏即时亮起珊瑚红光，无需逐屏排查。</p>
+      <p>Warpai 内置 VT100 屏幕观察器，直接在内存中解析原始终端 ANSI 流，精准识别每个 Agent 的状态：Working（执行中）、WaitingApproval（等待审批）与 Idle（空闲就绪）。当 Agent 需要授权时，标签页与侧边栏状态指示即时切换为 WaitingApproval，并触发系统桌面通知，无需逐屏翻找排查。</p>
     </div>
     <div class="ev" aria-hidden="true">
       <div class="ev-row"><span>feat/agent-bus</span><b><i class="b"></i>waiting approval</b></div>
@@ -320,12 +320,25 @@ description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计�
     <div class="n"><span>05</span></div>
     <div class="cap-in">
       <h3>统一连接所有设备，一处掌控。&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>无论是 MacBook、Windows 台式机，还是云端 Linux GPU 服务器。通过 SSH 接入 Warpai 远程伴侣，远端工作区与本地工作区无缝聚合，支持 SFTP 文件传输，无任何感知延迟。</p>
+      <p>全面覆盖 MacBook、Windows 原生桌面、Windows WSL/WSL2 子系统，以及云端 Linux GPU 服务器。通过 SSH 无缝接入 Warpai 远程伴侣，本地 WSL 发行版与远端 GPU 工作区一屏聚合，支持内置 SFTP 文件互传，操作无任何感知延迟。</p>
     </div>
     <div class="ev">
       <div class="machine-cmd"><b>$</b> <code>warpai companion attach workbox-gpu</code></div>
-      <div class="ev-row"><span>本地桌面终端</span><b><i class="beat"></i>已连接</b></div>
+      <div class="ev-row"><span>本地桌面 / Windows WSL2</span><b><i class="beat"></i>已就绪</b></div>
       <div class="ev-row"><span>workbox-gpu (SSH)</span><b><i class="beat"></i>已连接</b></div>
+    </div>
+  </a>
+
+  <a class="cap" href="{{ '/zh/docs/using-warpai-agents.html' | relative_url }}">
+    <div class="n"><span>06</span></div>
+    <div class="cap-in">
+      <h3>不止于 Coding：Git Worktree 与 Project 双协同模式。&nbsp;<b class="arw">&#8594;</b></h3>
+      <p>主流多 Agent 软件往往局限于 Git Worktree 单一代码开发模式。Warpai 针对 Git 代码仓库提供严谨的 <b>Worktree 并发模式</b>：除协调者统筹外，每个 Worktree 可以并行开发不同的功能特性，物理分支隔离互不干扰。在此之上，Warpai 倾力扶持非 Coding 场景，重磅推出 <b>Project 模式</b>：在同一项目空间内，所有 Agent 彻底打破单一上下级限制，均可作为指挥官（Commander）或工人（Worker），互相通信、提问应答与流转任务！全面赋能：<b>科研论文写作与审稿</b>、<b>工业级视觉与多媒体设计</b>、<b>量化投研与金融分析</b>、<b>专利交底挖掘与法务合规</b>、<b>自媒体脚本与矩阵运营</b>、<b>商业尽调与战略情报</b>等 6+ 大泛行业场景。</p>
+    </div>
+    <div class="ev">
+      <div class="ev-row"><span>Git Worktree 并发模式</span><b>并行开发不同功能 · 物理隔离零冲突</b></div>
+      <div class="ev-row"><span>Project 全向协同模式</span><b>全员互通消息与任务 · 角色灵活转换</b></div>
+      <div class="ev-note">重点扶持科研论文 · 视觉设计 · 金融量化 · 专利合规 · 矩阵运营 · 商业情报</div>
     </div>
   </a>
 </div>
@@ -342,7 +355,7 @@ description: "随时运行，无惧关闭。Warpai 是专为编码 Agent 设计�
 <section class="end" id="install">
   <div class="in">
     <h2>给你的 Agent 一个真正的家。</h2>
-    <p>专为 Agent 打造的终端。纯净原生，本地优先，无惧中断。</p>
+    <p>专为 Agent 打造的终端。纯净原生，本地优先，多智能体协同。</p>
     <div class="go">
       <a class="btn-download-hero" href="{{ '/zh/docs/install.html' | relative_url }}">
         <span>下载 Warpai</span>

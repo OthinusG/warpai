@@ -19,7 +19,7 @@ en:
   badge: "Free · Open source · Local-first"
   hero:
     subtitle: The terminal built around agents
-    lead: Make an Agent session the unit of work. Collaborate in a shared project, or select a Coordinator to lead parallel development across isolated Git worktrees.
+    lead: Make an Agent session the unit of work. Collaborate omnidirectionally in Project mode, or lead parallel feature development across isolated Git worktrees.
     cta: "Download 1.6.2"
     doc_link: Read the README
     platforms_label: Supported platforms
@@ -111,7 +111,7 @@ zh:
   badge: "免费 · 开源 · 本地优先"
   hero:
     subtitle: 为智能体而生的终端
-    lead: 让每个智能体会话成为工作单元。在共享项目中协作，或指定协调者，在隔离的 Git worktree 中并行推进开发。
+    lead: 让每个智能体会话成为工作单元。在 Project 模式下全向协作互通消息，或在隔离的 Git worktree 中并行推进代码开发。
     cta: 下载 1.6.2
     doc_link: 阅读 README
     platforms_label: 支持平台

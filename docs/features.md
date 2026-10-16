@@ -60,8 +60,8 @@ Warpai is the local-first, privacy-focused modern terminal built around autonomo
     <tr>
       <td><strong>Multi-Agent Coordination</strong></td>
       <td>Single chat assistant sidebar only.</td>
-      <td><strong>Dual Modes (Project / Worktree)</strong></td>
-      <td>Orchestrate multiple agents in parallel across isolated Git branches.</td>
+      <td><strong>Dual Architecture (Worktree Mode + Project Mode)</strong></td>
+      <td>Isolated Git worktrees for concurrent code development and peer reviews; omnidirectional messaging &amp; dynamic Commander/Worker roles for non-coding workflows (research, design, finance, IP).</td>
     </tr>
     <tr>
       <td><strong>Screen State Detection</strong></td>

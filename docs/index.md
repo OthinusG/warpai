@@ -8,9 +8,9 @@ next_url: /docs/install.html
 next_title: Installation & Setup
 ---
 
-Welcome to the official documentation for **Warpai** — the local-first, privacy-focused modern terminal built around autonomous AI coding agents.
+Welcome to the official documentation for **Warpai** — the local-first, privacy-focused modern terminal built around autonomous multi-agent teams.
 
-Warpai elevates independent CLI Agent sessions into first-class units of work. It allows you to orchestrate 20+ command-line agents across isolated Git worktrees, supervise parallel feature implementation, conduct automated peer reviews, and integrate changes within a high-performance, GPU-accelerated terminal.
+Warpai elevates independent CLI Agent sessions into first-class units of work. For software engineering, Warpai provides a disciplined **Git Worktree Coding Mode** to develop features concurrently in isolated branches with automated peer reviews. For cross-domain and non-coding workflows, Warpai delivers an omnidirectional **Project Mode**, breaking rigid hierarchies so all agents freely exchange messages and tasks across scientific research, visual design, quant finance, and patent compliance.
 
 <div class="docs-shot-placeholder" data-shot="SHOT-01">
   <div class="shot-header">
@@ -52,7 +52,7 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. I
     <tr>
       <td><strong>Architecture</strong></td>
       <td><a href="{{ '/docs/concepts.html' | relative_url }}">Core Concepts &amp; Safety</a></td>
-      <td>Deep dive into guarded PTY delivery, VT100 in-memory screen observation, and Worktree isolation.</td>
+      <td>Deep dive into guarded PTY delivery, VT100 in-memory screen observation, Worktree isolation, and Project mode.</td>
     </tr>
     <tr>
       <td></td>
@@ -72,7 +72,7 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. I
     <tr>
       <td></td>
       <td><a href="{{ '/docs/using-warpai-agents.html' | relative_url }}">Multi-Agent Workflows</a></td>
-      <td>Coordinate agent teams, run Worktree branches, assign tasks, conduct peer reviews, and connect over SSH.</td>
+      <td>Worktree concurrent coding mode, Project omnidirectional collaboration, dynamic roles, and 6+ domain guides.</td>
     </tr>
     <tr>
       <td><strong>Ecosystem</strong></td>
@@ -104,4 +104,4 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. I
 
 1. **Local-First & Absolute Privacy**: Zero telemetry, zero cloud accounts, and no closed-source models. Your code, shell commands, and agent prompts never leave your trusted environment without your explicit instruction.
 2. **Open Agent Ecosystem**: We do not lock you into a proprietary AI. Use your existing CLI agents (Claude Code, Codex, Cursor, Gemini, Qoder, etc.) with your own keys and accounts.
-3. **Engineered for Scale**: Real-world software engineering cannot be solved in a single chat box. Parallel Git worktrees, isolated branches, and designated Coordinator supervision provide the structure needed for autonomous multi-agent delivery.
+3. **Dual Architecture for Scalable Coordination**: Rigorous software engineering leverages physically isolated Git Worktrees for concurrent feature development; cross-disciplinary teams harness omnidirectional Project mode to communicate and dispatch tasks freely.

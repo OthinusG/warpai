@@ -34,27 +34,32 @@ Warpai supports two complementary collaboration models, toggled at the top of th
 ┌─────────────────────────────────┬─────────────────────────────────┐
 │          PROJECT MODE           │          WORKTREE MODE          │
 │                                 │                                 │
-│ • Flat, peer-to-peer network    │ • Hierarchical Coordinator flow │
-│ • No Git repository required    │ • Requires a Git repository     │
-│ • Shared single workspace       │ • Isolated physical worktrees   │
-│ • Ideal for: Research, design,  │ • Ideal for: Feature build,     │
-│   documentation, data analysis  │   refactoring, parallel tests   │
+│ • Omnidirectional mesh network  │ • Coordinator-led oversight     │
+│ • All agents act as Commander/  │ • Tailored for Git repositories │
+│   Worker dynamically            │ • Physically isolated worktrees │
+│ • Cross-agent messaging & tasks │ • Zero build cache collisions   │
+│ • Works in any standard folder  │ • Ideal for: Concurrent feature │
+│ • Heavily supports non-coding:  │   coding, large refactors, and  │
+│   research, design, finance, IP │   parallel regression suites    │
 └─────────────────────────────────┴─────────────────────────────────┘
 ```
 
-### Project Mode (Shared Research & Brainstorming)
-In **Project Mode**, all active agents in the project communicate in a shared collaborative context.
-- Agents can message any peer, exchange information, and delegate subtasks.
-- Tasks, context resources, and project memories are visible to all project participants.
-- Operates in any folder (Git or non-Git), making it ideal for research notes, specs, and architectural exploration.
+### Project Mode (Omnidirectional Collaboration Beyond Coding)
+Most multi-agent tooling treats the Git Worktree as the sole unit of parallel execution. While effective for traditional coding, this model is overly rigid for research writing, visual design, quantitative finance, patent drafting, and content strategy.
+
+Warpai heavily champions cross-domain and non-coding applications with **Project Mode**:
+- **Dynamic Role Reversals**: Break rigid master-worker hierarchies. Any agent can act as Commander to dispatch roadmaps, or as Worker to execute and submit deliverables.
+- **Omnidirectional Communication**: Agents freely send messages, initiate structured Q&A, and claim work items from a shared task pool.
+- **Zero Git Lock-In**: Launch directly within standard folders or cloud drives, collaboratively processing Markdown, DOCX drafts, PDFs, CSV datasets, PNGs, and SVG assets.
+- **Broad Domain Coverage**: Powering six major fields including scientific research & peer review, creative design, quant finance, patent compliance, media operations, and due diligence intelligence.
 
 ### Worktree Mode (Parallel Software Engineering)
-When working on real codebases, having multiple agents edit the same physical files at the same time leads to file conflicts, compilation race conditions, and context poisoning.
+In serious software development, having multiple agents edit the same Git branch causes merge conflicts, lock contention, and corrupted build caches.
 
-**Worktree Mode solves this using Git's native worktree mechanism**:
-- Each feature, module, or test suite is assigned its own isolated checkout branch in a separate directory.
-- Agents operate in physical isolation. Changes in Worktree A cannot break the build in Worktree B.
-- A designated **Coordinator Agent** presides over the team, orchestrating tasks, reviewing submitted diffs, and integrating approved code into the main branch.
+**Worktree Mode eliminates this friction with physical isolation**:
+- Each feature or module is assigned its own isolated physical Git worktree directory, allowing agents to develop independent features concurrently.
+- Agents operate in complete isolation. Worktree A's experimental changes cannot dirty Worktree B's build artifacts or tests.
+- A designated **Coordinator Agent** presides over the team, orchestrating tasks, supervising automated peer review, and integrating approved code into the main branch.
 
 ---
 
@@ -87,7 +92,7 @@ Using dedicated behavioral manifests (`crates/agent_bus/src/screen_detection/man
     <tr>
       <td><strong><code>WaitingApproval</code></strong></td>
       <td>Agent triggered a safety prompt (e.g., confirming file writes or high-risk commands).</td>
-      <td>Holds delivery; pulses tab coral and alerts the developer for interactive review.</td>
+      <td>Holds delivery; updates status tab indicator to WaitingApproval and dispatches a desktop notification for review.</td>
     </tr>
   </tbody>
 </table>

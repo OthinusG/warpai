@@ -2,7 +2,7 @@
 layout: docs
 lang: zh
 title: 使用指南总览
-description: "Warpai 核心工程工作流完全指南：Git Worktree 并行开发、Coordinator 任务委派、自动化对等评审及内置工作台。"
+description: "Warpai 核心工程工作流完全指南：Git Worktree 并行代码开发、Project 全向网状协同、Coordinator 任务委派、自动化对等评审及内置工作台。"
 section: 使用指南
 doc_id: using
 prev_url: /docs/features.html
@@ -11,13 +11,13 @@ next_url: /docs/using-terminal.html
 next_title: 终端与命令块深入
 ---
 
-本指南全面介绍 Warpai 在真实工程场景中的核心工作流：从跨 Git Worktree 并行调度多 Agent 研发小队，到终端内置代码编辑、自动化对等评审（Peer Review）与远端 SSH 开发。
+本指南全面介绍 Warpai 在真实工程与跨学科场景中的核心工作流：从跨 Git Worktree 并行调度多 Agent 研发小队、在 Project 模式下组织泛行业网状协作，到终端内置代码编辑、自动化对等评审（Peer Review）与远端 SSH 开发。
 
 ---
 
-## 典型工作流 1：借助 Git Worktree 进行大规模并行开发
+## 典型工作流 1：面向 Git 仓库的 Worktree 并行开发模式
 
-Warpai 最具生产力的杀手级工作流是 **工作树模式（Worktree Mode）**。通过将每个功能特性分配到独立的物理 Git Worktree 中，多个 CLI Agent 可完全并发编写代码，互不污染彼此的文件系统与编译器缓存。
+针对严肃的代码工程项目，Warpai 提供工业级的 **工作树模式（Worktree Mode）**。通过将每个功能特性分配到独立的物理 Git Worktree 中，多个 CLI Agent 可完全并发编写代码，互不污染彼此的分支、文件锁与编译器缓存。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -26,7 +26,7 @@ Warpai 最具生产力的杀手级工作流是 **工作树模式（Worktree Mode
 │   2. 为不同模块创建独立的物理工作树（如 api、ui、tests）                     │
 │   3. 在对应工作树标签页中分别启动你的 CLI Agent                             │
 │   4. 在下拉列表中选择你的 Coordinator（协调者）Agent                        │
-│   5. Coordinator 将分解后的子任务与上下文分派给各个 Worker                  │
+│   5. Coordinator 统筹需求，将子任务与上下文分派给各个独立分支               │
 │   6. 各 Worker 在物理隔离环境中并行编码，完成后提交差异并进行对等评审       │
 │   7. Coordinator 汇总验收，验证通过后整合代码并完成最终 Git 提交            │
 │                                                                             │
@@ -35,7 +35,7 @@ Warpai 最具生产力的杀手级工作流是 **工作树模式（Worktree Mode
 
 ### 分步操作指南：
 
-#### 1. 为功能模块创建工作树
+#### 1. 为功能特性创建物理工作树
 运行标准 Git 命令或使用工作树快捷向导：
 ```bash
 git worktree add ../my-project-api feature/rest-api
@@ -52,7 +52,7 @@ git worktree add ../my-project-tests feature/integration-tests
 
 #### 3. 指定 Coordinator（协调者）
 在左侧协同面板中：
-1. 将模式切换开关从 **项目（Project）** 切换为 **工作树（Worktree）**。
+1. 将模式切换开关切换为 **工作树（Worktree）**。
 2. 点击 **Coordinator** 下拉菜单，选择具备架构全局掌控力的核心 Agent。
 3. 选定后，Coordinator 将获得所有活动分支与工作树中 Agent 的全局全景视图。
 
@@ -64,9 +64,33 @@ Coordinator 将通过 Warpai 内置的 MCP 工具（`warp_task_assign`）向各�
 
 ---
 
-## 典型工作流 2：自动化代码对等评审与集成管道
+## 典型工作流 2：面向泛行业的 Project 全向网状协同模式（重点扶持）
 
-Warpai 在各 Agent 之间构建了全闭环的对等代码评审（Peer Review）机制：
+对于非 Coding 场景（科研论文写作、视觉与多媒体设计、量化与金融分析、专利挖掘与法律合规、新媒体矩阵运营、商业尽职调查等），纯 Git 分支模型往往显得过于沉重和局限。Warpai 重点扶持并提供了 **项目模式（Project Mode）**：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   1. 在协同面板顶部切换至“项目模式”（Project Mode）                          │
+│   2. 无需 Git 仓库，在本地任意工作空间或同步盘中直接启动多个 Agent          │
+│   3. 打破单一指挥链：所有 Agent 既可以作为指挥官也可以作为工人              │
+│   4. 任意 Agent 之间全向双向互发消息（warp_agent_send / reply）             │
+│   5. 遇到专业盲区时发起结构化提问与应答（warp_agent_ask / answer）          │
+│   6. 通过公共任务池自由认领任务并流转（warp_task_create_pool / claim）     │
+│   7. 阶段性产出发布为全局共享上下文契约（warp_context_publish / get）        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **全向消息与任务互通**：所有 Agent 都是平等节点。在科研场景中，文献检索 Agent 既可以向论文撰写 Agent 提供引用，也可以向数据绘图 Agent 提议图表样式；模拟审稿人 Agent 更可直接向主笔 Agent 下发修回指令。
+- **动态角色随时切换**：在初始策划阶段 Agent A 是指挥官（Commander），在专业验收阶段 Agent B 则切换为指挥官，实现真正意义上的多智能体自由闭环。
+- **广泛赋能跨学科领域**：详见 [多 Agent 协同工作流]({{ '/zh/docs/using-warpai-agents.html' | relative_url }}) 中的六大实战落地手册。
+
+---
+
+## 典型工作流 3：自动化代码对等评审与集成管道
+
+在工作树模式下，Warpai 在各 Agent 之间构建了全闭环的对等代码评审（Peer Review）机制：
 
 1. **成果提交**：当 Worker 完成功能编写后，通过 `warp_task_submit` 提交测试材料与 Diff 补丁。
 2. **指派审阅**：Coordinator 通过 `warp_task_review` 指派另一名同伴 Agent 担任 Reviewer。
@@ -74,16 +98,6 @@ Warpai 在各 Agent 之间构建了全闭环的对等代码评审（Peer Review�
    - 若发现逻辑缺陷或风格问题，Reviewer 将任务标记为 `needs_changes` 并附带具体修改建议。Worker 的收件箱会自动收到返修提醒并开始修正。
    - 验证无误后，Reviewer 将任务标记为 `accepted`。
 4. **统一整合**：Coordinator 调用 `warp_task_integrate`，将特性分支合并入主干，运行全量验证测试并创建标准 Git Commit。
-
----
-
-## 典型工作流 3：面向调研、推演与技术写作的平面协作
-
-对于非代码工程任务（学术文献综述、竞品调研、商业策划书撰写、系统架构设计），请使用 **项目模式（Project Mode）**：
-
-- **无需 Git 仓库**：在本地任意文件夹或网盘同步盘中均可即时开启。
-- **共享全局上下文**：各 Agent 通过 `warp_context_publish` 共享研究笔记、参考文献与阶段性结论。
-- **协同澄清疑难**：负责检索的 Agent 可通过 `warp_agent_ask` 向负责事实核查的 Agent 发起询问，并通过 `warp_agent_reply` 获取结构化答复。
 
 ---
 

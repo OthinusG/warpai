@@ -1,95 +1,109 @@
 ---
 layout: docs
-title: User Guide Overview
-description: "Comprehensive guide to engineering workflows in Warpai: Git worktree parallel development, coordinator delegation, and in-terminal tooling."
+title: "User Guide Overview"
+description: "Comprehensive guide to Warpai's core engineering and cross-domain workflows: Git Worktree parallel coding, Project omnidirectional collaboration, coordinator task pools, and automated peer review."
 section: Using Warpai
 doc_id: using
 prev_url: /docs/features.html
-prev_title: Features Matrix & Comparison
+prev_title: Features & Warp Comparison
 next_url: /docs/using-terminal.html
 next_title: Terminal & Command Blocks
 ---
 
-This guide covers real-world engineering workflows with Warpai, from orchestrating parallel agent squads across Git worktrees to in-terminal code editing and remote SSH development.
+This guide covers Warpai's primary workflows across software engineering and multi-agent cross-domain teams: from concurrent feature development in isolated Git worktrees and omnidirectional Project mode to integrated terminal editing, peer review pipelines, and remote SSH/WSL setups.
 
 ---
 
-## Workflow 1: Parallel Development with Git Worktrees
+## Workflow 1: Parallel Development with Git Worktrees (For Software Coding)
 
-The ultimate multi-agent workflow in Warpai is **Worktree Mode**. By isolating each feature into a dedicated Git worktree, multiple CLI agents work concurrently without corrupting each other's files or compiler caches.
+Warpai's flagship workflow for software repositories is **Worktree Mode**. By allocating each feature to an isolated physical Git worktree, multiple CLI agents write code concurrently without dirtying branches or invalidating build caches.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                                                             │
-│   1. Switch to Worktree Mode (Collaboration Panel top bar)                  │
-│   2. Create separate worktrees for each component (e.g. api, ui, db)        │
-│   3. Launch your CLI agents in their respective worktree tabs               │
-│   4. Select your Coordinator Agent from the dropdown                        │
-│   5. The Coordinator assigns tasks and context to worker checkouts          │
-│   6. Workers build in parallel, submit diffs, and conduct peer review       │
-│   7. The Coordinator reviews, integrates, and makes the final Git commit    │
+│   1. Switch to "Worktree" mode at the top of the collaboration panel        │
+│   2. Create isolated physical worktrees for each feature (api, ui, tests)   │
+│   3. Launch your preferred CLI agent inside each corresponding tab          │
+│   4. Select a Coordinator agent from the dropdown                           │
+│   5. Coordinator scopes requirements and dispatches tasks to worktrees      │
+│   6. Workers develop concurrently in isolation and submit diffs for review  │
+│   7. Coordinator verifies results and integrates changes into the main repo │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Step-by-Step Instructions:
 
-#### 1. Create Worktrees for Your Features
-Run standard Git commands or use the worktree helper:
+#### 1. Create Physical Worktrees for Features
+Run standard Git commands or use Warpai's worktree wizard:
 ```bash
 git worktree add ../my-project-api feature/rest-api
 git worktree add ../my-project-ui feature/frontend-components
 git worktree add ../my-project-tests feature/integration-tests
 ```
-Each worktree opens in a new tab, pinned to its physical directory.
+Each worktree opens in its own vertical tab, locking its working directory.
 
-#### 2. Launch Agents in Each Checkout
-Switch to the respective tabs and start your agents:
+#### 2. Launch Agents in Each Worktree
+Switch to each tab and launch your chosen agent:
 - In `../my-project-api`: launch `claude` or `codex`
 - In `../my-project-ui`: launch `cursor-agent` or `trae`
 - In `../my-project-tests`: launch `gemini` or `agy`
 
-#### 3. Select the Coordinator
+#### 3. Designate the Coordinator
 In the left collaboration panel:
-1. Switch the mode selector from **Project** to **Worktree**.
-2. Click the **Coordinator** dropdown and select the agent responsible for architectural leadership.
-3. The selected Coordinator receives a unified view of all active checkouts and workers.
+1. Switch the mode toggle from **Project** to **Worktree**.
+2. Click the **Coordinator** dropdown and select an agent with strong architectural oversight.
+3. The Coordinator receives a unified view of all active worktree branches and agent states.
 
-#### 4. Delegate & Monitor
-Prompt your Coordinator:
-> *"We need to add a user export feature. Please break down the work: delegate the backend endpoints to Worker A, frontend download UI to Worker B, and integration tests to Worker C. Oversee peer review and integrate when ready."*
+#### 4. Dispatch Requirements and Supervise Execution
+Provide your high-level objective to the Coordinator:
+> *"Implement a data export feature. Delegate the REST API to Worker A, frontend download components to Worker B, and integration tests to Worker C. Have them peer-review each other before final integration."*
 
-The Coordinator uses Warpai's built-in MCP tools (`warp_task_assign`) to dispatch tasks. Workers receive their tasks automatically when idle.
-
----
-
-## Workflow 2: Automated Peer Review & Integration Pipeline
-
-Warpai provides an automated, structured peer review cycle directly between agents:
-
-1. **Submission**: When a worker finishes, it submits evidence and a diff summary via `warp_task_submit`.
-2. **Review Assignment**: The Coordinator assigns a peer agent as reviewer via `warp_task_review`.
-3. **Review Decision**:
-   - If issues are detected, the reviewer flags the task as `needs_changes` with explicit comments. The worker automatically receives the revision request.
-   - Once satisfied, the reviewer marks the task as `accepted`.
-4. **Integration**: The Coordinator runs `warp_task_integrate`, merges the branch into main, executes the test suite, and creates the final commit.
+The Coordinator dispatches tasks via Warpai's native MCP tool (`warp_task_assign`). Workers automatically pull tasks when idle.
 
 ---
 
-## Workflow 3: Flat Collaboration for Research & Writing
+## Workflow 2: Omnidirectional Project Mode (For Cross-Disciplinary & Non-Coding Teams)
 
-When working on non-code projects (literature reviews, competitive analysis, business proposals, documentation), use **Project Mode**:
+For non-coding and multi-agent research domains (scientific paper drafting, creative design, quantitative finance, patent drafting, content operations, and business intelligence), rigid Git branching is unnecessary. Warpai delivers full first-class support for **Project Mode**:
 
-- **No Git Required**: Operates in any directory or shared folder.
-- **Shared Context**: Agents publish shared research notes and references using `warp_context_publish`.
-- **Collaborative Problem Solving**: An agent researching a topic can ask clarifying questions to a fact-checker agent using `warp_agent_ask` and receive structured callbacks via `warp_agent_reply`.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   1. Switch to "Project" mode at the top of the collaboration panel         │
+│   2. No Git repo required: launch agents inside any folder or cloud drive   │
+│   3. Break rigid hierarchies: all agents act as Commanders or Workers       │
+│   4. Direct two-way messaging across any agent (warp_agent_send / reply)    │
+│   5. Structured Q&A channels for peer inquiries (warp_agent_ask / answer)   │
+│   6. Autonomous task claiming from public pools (warp_task_create_pool)     │
+│   7. Expose verified milestones via shared memory (warp_context_publish)    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Omnidirectional Messaging & Tasks**: Every agent operates as an equal peer node. In scientific research, a literature retrieval agent supplies citations directly to the manuscript author and recommends plot aesthetics to the data visualization agent, while a mock peer reviewer dispatches revision notices.
+- **Dynamic Role Reversals**: An agent can coordinate a roadmap as Commander in stage 1, then transition to Worker in stage 2 under a specialized QA lead.
+- **Empowering Cross-Disciplinary Domains**: See [Deep Dive: Multi-Agent Workflows]({{ '/docs/using-warpai-agents.html' | relative_url }}) for complete implementation guides across six real-world domains.
 
 ---
 
-## Workflow 4: The In-Terminal Developer Workbench
+## Workflow 3: Automated Peer Review & Integration Pipeline
 
-Keep your hands on the keyboard and reduce mental overhead:
-- **Project Explorer**: Navigate files and create directories directly alongside your terminal.
-- **Lightweight Editor with Vim Bindings**: Edit configs and scripts in-app with `:w`, `:q`, and modal navigation.
-- **Live Markdown Preview**: Instant visual verification of documentation, tables, and images.
-- **Native Git Diff Review**: Review additions and deletions before committing without opening a heavyweight IDE.
+Inside Worktree Mode, completed tasks are never blindly merged into `main`. Instead, Warpai enforces an automated peer review loop:
+
+1. **Submission**: When a worker finishes coding, it calls `warp_task_submit` with test logs (`warp_evidence_add`) and git diffs.
+2. **Review Assignment**: Coordinator assigns another available agent as reviewer (`warp_task_review`).
+3. **Review Verdict**:
+   - `needs_changes`: Reviewer flags issues or anti-patterns; worker receives actionable feedback and refactors.
+   - `accepted`: Reviewer approves the changes.
+4. **Integration**: Coordinator calls `warp_task_integrate` to merge the branch into `main`, execute regression tests, and create a clean Git commit.
+
+---
+
+## Workflow 4: The Terminal-Integrated Workbench
+
+Keep your hands on the keyboard without switching windows:
+- **Project Explorer**: Browse, create, and manage files alongside your terminal panes.
+- **Integrated Code Editor & Vim Modes**: Edit configuration files and scripts directly with `:w` and `:q` keybindings.
+- **Live Markdown Preview**: Render technical documentation, tables, and diagrams instantly.
+- **Native Git Diff Inspector**: Review modifications side-by-side before committing.
