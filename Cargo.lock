@@ -9215,6 +9215,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parking_lot",
  "windows 0.62.2",
+ "zbus",
 ]
 
 [[package]]
