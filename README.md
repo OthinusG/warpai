@@ -131,12 +131,15 @@ Warpai is useful wherever complex work can be decomposed into tasks and handled 
 
 ## Where Warpai fits
 
-| Compared with | Warpai's focus |
-| --- | --- |
-| **Code editors ([Zed](https://zed.dev/docs/ai/overview), [VS Code](https://code.visualstudio.com/docs/agents/overview))** | Centers the native terminal and independently installed CLI Agent sessions; coordinates multi-agent teams at the project level rather than treating each agent as a conversational editor subpanel. |
-| **AI terminals ([Warp](https://www.warp.dev/terminal))** | Focuses on coordinating multi-agent CLI teams, dynamic task supervision, and isolated Git worktree checkouts alongside native terminal features. |
-| **Agent workspaces ([Conductor](https://www.conductor.build/))** | Runs directly inside your local or private SSH environments with your own installed tools, with zero mandatory cloud accounts or vendor lock-in. |
-| **Full IDEs** | Provides a lightweight, agent-first terminal workbench with integrated file tools, diff review, and document preview. Pairs cleanly with dedicated IDEs when deep language AST refactoring or native debuggers are needed. |
+| System Archetype | Representative Tools | Warpai's Workflow & Architectural Focus |
+| --- | --- | --- |
+| **Traditional Terminals** | [Ghostty](https://ghostty.org/), [Kitty](https://sw.kovidgoyal.net/kitty/), [Windows Terminal](https://github.com/microsoft/terminal), [Alacritty](https://alacritty.org/) | Retains native GPU acceleration and minimal latency while adding in-memory VT100 screen tracking and guarded PTY delivery to eliminate dropped keystrokes during agent redrawing. |
+| **Agent-Enabled Editors** | [Zed](https://zed.dev/docs/ai/overview), [Cursor](https://www.cursor.com/), [Windsurf](https://codeium.com/windsurf), [Trae](https://www.trae.ai/) | Replaces single-workspace edit collisions with physical Git Worktree isolation; natively manages 20+ independent CLI agents with zero vendor cloud lock-in. |
+| **Full IDEs** | [VS Code](https://code.visualstudio.com/docs/agents/overview), [JetBrains](https://www.jetbrains.com/) (IntelliJ IDEA), Eclipse | Fast startup (<100ms) and low memory footprint; serves as an agile multi-agent hub that complements heavy IDEs without terminal lag or runaway CPU consumption. |
+| **Autonomous ADEs & Sandboxes** | [Orca](https://github.com/orca-ai), [Conductor](https://www.conductor.build/), [OpenDevin](https://github.com/All-Hands-AI/OpenHands), Devin | 100% local-first without multi-gigabyte Docker container overhead or costly cloud subscriptions; source code and secrets never leave your local hardware or private SSH nodes. |
+| **Multi-Agent Frameworks & Multiplexers** | [Herdr](https://github.com/herdr), [AutoGen](https://microsoft.github.io/autogen/), [CrewAI](https://www.crewai.com/), tmux scripts | Blends a modern GUI terminal workbench (tabs, splits, diffs, editor) with an industrial-grade local SQLite MCP coordination bus (38+ native tools, task pools, peer reviews). |
+| **Desktop AI Chat Apps** | [ChatGPT Desktop](https://chatgpt.com/), [Claude Desktop](https://claude.ai/download), TypingMind | Eliminates repetitive copy-paste context switching; agents run directly inside genuine terminal sessions to read/write code, run tests, and gate high-risk actions. |
+| **Upstream Warp** | [Warp](https://www.warp.dev/terminal) | Deeply strips 51+ proprietary cloud files, Sentry telemetry, and mandatory login paywalls (100% AGPL-3.0 open source), while adding native 20+ CLI agent sensing and dual collaboration modes. |
 
 ## Technology
 

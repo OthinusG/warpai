@@ -127,12 +127,15 @@ Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、G
 
 ## Warpai 的定位
 
-| 对比对象 | Warpai 的工作流侧重 |
-| --- | --- |
-| **代码编辑器（[Zed](https://zed.dev/docs/ai/overview)、[VS Code](https://code.visualstudio.com/docs/agents/overview)）** | 以原生终端和独立安装的 CLI Agent 会话为中心，在项目级组织多 Agent 协同体系，而不是把每个 Agent 都作为编辑器侧边栏里的单一聊天会话。 |
-| **AI 终端（[Warp](https://www.warp.dev/terminal)）** | 侧重在同一项目中深度调度多种独立 CLI Agent、动态任务监督与 Git worktree 并发编码，兼具全功能原生终端。 |
-| **Agent 工作区（[Conductor](https://www.conductor.build/)）** | 在你本地设备或自有 SSH 服务器中使用你已安装的工具链运行，无强制云端账号绑定或厂商锁定。 |
-| **完整 IDE** | 提供终端优先、轻量敏捷的 Agent 协作、文件查看与任务验收环境；在需要深度语言 AST 级别的复杂重构或专用调试器时，可与专业 IDE 优势互补。 |
+| 对比体系分类 | 代表性工具 | Warpai 的工作流与架构优势 |
+| --- | --- | --- |
+| **传统终端** | [Ghostty](https://ghostty.org/)、[Kitty](https://sw.kovidgoyal.net/kitty/)、[Windows Terminal](https://github.com/microsoft/terminal)、[Alacritty](https://alacritty.org/) | 保持原生 GPU 极速渲染与超低延迟的同时，内置内存级 VT100 屏幕状态观察器与守护式 PTY 交付，避免 Agent 输出吞键，提供多 Agent 统一状态面板。 |
+| **Agent 文本编辑器** | [Zed](https://zed.dev/docs/ai/overview)、[Cursor](https://www.cursor.com/)、[Windsurf](https://codeium.com/windsurf)、[Trae](https://www.trae.ai/) | 打破单工作区文件写踩踏；以物理 Git Worktree 隔离多 Agent 并行开发，原生纳管 20+ 款独立 CLI Agent，零厂商云端绑定。 |
+| **传统综合 IDE** | [VS Code](https://code.visualstudio.com/docs/agents/overview)、[JetBrains](https://www.jetbrains.com/)（IntelliJ IDEA）、Eclipse | 极速启动与超轻量内存开销；专注作为多 Agent 敏捷协同中枢，与传统重型 IDE 优势互补，告别 IDE 内置终端发热卡顿。 |
+| **自主 ADE 与沙盒** | [Orca](https://github.com/orca-ai)、[Conductor](https://www.conductor.build/)、[OpenDevin](https://github.com/All-Hands-AI/OpenHands)、Devin | 100% 本地优先，免去数十 GB Docker 镜像或高昂云端账单；代码与凭据不出本地设备或自有 SSH 服务器，无数据泄露风险。 |
+| **多 Agent 框架与平铺工具** | [Herdr](https://github.com/herdr)、[AutoGen](https://microsoft.github.io/autogen/)、[CrewAI](https://www.crewai.com/)、tmux 脚本 | 将现代化 GUI 终端工作台（多标签、分屏、Diff、编辑器）与工业级本地 MCP 协同总线（38+ 原生工具、异步任务池、对等互审）深度融合。 |
+| **桌面端 AI 对话应用** | [ChatGPT Desktop](https://chatgpt.com/)、[Claude Desktop](https://claude.ai/download)、TypingMind | 消除跨应用复制粘贴内耗；直接在真实系统终端与项目目录中自主执行命令、读写文件、跑通测试并在高危节点精准请求授权。 |
+| **原版 Warp** | [Warp](https://www.warp.dev/terminal) | 彻底剔除 51+ 个云端 AI 文件、Sentry 遥测与强制邮箱登录墙（AGPL-3.0 完全开源），新增 20+ 款独立 CLI 自动挂载与双重协同架构。 |
 
 ## 技术栈
 
