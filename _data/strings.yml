@@ -87,7 +87,7 @@ en:
     note: "© 2026 Warpai · Independently maintained"
   meta:
     title: "Warpai — The terminal built around agents"
-    description: "Warpai manages Agent sessions as the unit of work — a full-featured native terminal for macOS and Windows, with project coordination locally and over SSH."
+    description: "A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS, Windows, and Linux."
     og_alt: "Warpai — The terminal built around agents"
 
 zh:
@@ -179,5 +179,5 @@ zh:
     note: "© 2026 Warpai · 独立维护"
   meta:
     title: "Warpai — 为智能体而生的终端"
-    description: "Warpai 以智能体会话为工作单元：面向 macOS 与 Windows 的全功能原生终端，本地与 SSH 远程共用一套项目协作流程。"
+    description: "专为多智能体自主协同打造的原生 GPU 渲染终端。开箱感知 20+ 款 CLI 智能体，提供内存级 VT100 状态跟踪、守护式 PTY 交付、38+ 原生 MCP 工具套件与 Worktree / Project 协作双模式，原生支持 macOS、Windows 与 Linux。"
     og_alt: "Warpai — 为智能体而生的终端"

@@ -15,104 +15,54 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
 
 ---
 
-## 1. 行业主流 Agent 管理体系全景横评
+## 1. 行业主流 Agent 管理体系全景速览
 
-为清晰展现 Warpai 在现代开发者工具链中的定位，下表将 Warpai 与业内七类主流系统架构进行了全维度对比：
+为清晰展现 Warpai 在现代开发者工具链中的定位，下表将 Warpai 与业内七类主流系统架构的定位与差异化破局点进行全景速览：
 
 <div class="table-wrapper">
 <table>
   <thead>
     <tr>
-      <th>对比维度</th>
-      <th>Warpai</th>
-      <th>传统终端<br><small>Ghostty, Kitty, Windows Terminal, Alacritty, iTerm2</small></th>
-      <th>带 Agent 编辑器 &amp; IDE<br><small>Zed, Cursor, Windsurf, VS Code, JetBrains</small></th>
-      <th>自主 ADE / 沙盒新秀<br><small>Orca, Conductor, OpenDevin, Devin</small></th>
-      <th>多 Agent 框架 / 脚本<br><small>Herdr, AutoGen, CrewAI, tmux 脚本</small></th>
-      <th>桌面对话应用 &amp; 原版 Warp<br><small>ChatGPT Desktop, Claude Desktop, Warp 原版</small></th>
+      <th style="width: 25%;">系统体系分类</th>
+      <th style="width: 35%;">代表性工具</th>
+      <th style="width: 40%;">Warpai 核心差异化破局点</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><strong>核心协作范式</strong></td>
-      <td><strong>以 Agent 会话为工作单元的原生终端工作台</strong></td>
-      <td>被动的字符光栅化器 / PTY 宿主</td>
-      <td>以文本文件与缓冲区为中心的编辑面板</td>
-      <td>重型 Docker / 云端虚拟机沙盒</td>
-      <td>Python 代码抽象库或终端分屏平铺脚本</td>
-      <td>孤立的聊天窗口 / 云端 AI 侧边栏</td>
+      <td><strong>1. 传统高性能终端</strong></td>
+      <td>Ghostty、Kitty、Windows Terminal、Alacritty、iTerm2、WezTerm</td>
+      <td>在完整保留 GPU 极致渲染速度的基础上，独家首创内存级 VT100 状态追踪、守护式 PTY 交付与多 Agent 协同面板。</td>
     </tr>
     <tr>
-      <td><strong>本地优先与隐私保障</strong></td>
-      <td><strong>100% 纯本地优先 · 0 KB 遥测埋点 · 零登录墙</strong></td>
-      <td>纯本地优先 · 零遥测（视具体终端而定）</td>
-      <td>混合型 · 通常需要云端账号与数据打点</td>
-      <td>强依赖云端托管或重型本地容器</td>
-      <td>纯本地执行，但缺乏可视化集成工作台</td>
-      <td>强制云端账号、登录墙验证与遥测采集</td>
+      <td><strong>2. 带 Agent 文本编辑器</strong></td>
+      <td>Zed、Cursor、Windsurf、Trae</td>
+      <td>打破单工作区文件写踩踏，以物理 Git Worktree 物理隔离多 Agent 并发开发，开箱拥抱 20+ 款独立 CLI Agent，零厂商云端绑定。</td>
     </tr>
     <tr>
-      <td><strong>CLI Agent 生态支持</strong></td>
-      <td><strong>开放生态：原生感知 20+ 款独立 CLI Agent</strong><br><small>（Claude Code、Codex、Gemini、Antigravity、Cursor、Trae 等）</small></td>
-      <td>仅能运行二进制命令，零 Agent 状态感知</td>
-      <td>绑定厂商自家模型或封闭的编辑器插件</td>
-      <td>仅运行沙盒内绑定的专用智能体</td>
-      <td>依赖 Python 代码声明或底层纯文本窗格</td>
-      <td>绑定单一厂商的 Web 对话助手</td>
+      <td><strong>3. 传统综合 IDE</strong></td>
+      <td>VS Code、JetBrains (IntelliJ IDEA)、Eclipse</td>
+      <td>&lt;100ms 极速启动、极低内存开销；作为敏捷的多 Agent 协同中枢，与传统 IDE 互补联动，告别 IDE 终端卡顿发热。</td>
     </tr>
     <tr>
-      <td><strong>并发隔离与冲突防护</strong></td>
-      <td><strong>物理 Git Worktree 隔离 + Project 全向模式</strong><br><small>多分支并行施工，彻底杜绝 Git 锁争用与脏写冲突</small></td>
-      <td>无（多个终端标签页共用同一物理目录）</td>
-      <td>单一工作区检出（多智能体同时写入必然冲突）</td>
-      <td>分离的容器环境（占用海量内存与磁盘镜像）</td>
-      <td>原生目录（无自动化 Git Worktree 隔离保障）</td>
-      <td>无（无法直接访问本地项目文件与 Git）</td>
+      <td><strong>4. 自主 ADE 与沙盒</strong></td>
+      <td>Orca、Conductor、OpenDevin (All-Hands)、Devin、SWE-agent</td>
+      <td>100% 纯本地优先，彻底摆脱多 GB 的 Docker 镜像开销与昂贵云端月费，源码与密钥不出本地硬件，零隐私泄露风险。</td>
     </tr>
     <tr>
-      <td><strong>屏幕状态感知与输入守护</strong></td>
-      <td><strong>VT100 屏幕观察器 + 独家守护式 PTY 交付</strong><br><small>识别 Working/Idle/WaitingApproval；绝不吞键乱码</small></td>
-      <td>无（Agent 持续输出时用户打字会丢键或乱序）</td>
-      <td>基础内置终端，缺乏 PTY 输入安全门禁</td>
-      <td>Web 虚拟伪终端 / 远端流式渲染</td>
-      <td>启发式简单轮询或原始 send-keys 盲注</td>
-      <td>无原生终端运行时环境</td>
+      <td><strong>5. 多 Agent 框架与复用器</strong></td>
+      <td>Herdr、AutoGen、CrewAI、ChatDev、tmux / zellij 脚本</td>
+      <td>将现代化 GUI 终端工作台（标签、分屏、Diff、编辑器）与工业级 SQLite 原生 MCP 协同总线（38+ 工具、持久化队列、评审）完美融合。</td>
     </tr>
     <tr>
-      <td><strong>结构化协同总线协议</strong></td>
-      <td><strong>38+ 项原生 MCP 工具集（`warp-lite-communication`）</strong><br><small>持久化队列、FIFO 消费、点对点问答、文件并发锁</small></td>
-      <td>无（纯字符流）</td>
-      <td>私有内部编辑器扩展 API</td>
-      <td>自定义封闭的 HTTP / WebSocket 协议</td>
-      <td>纯 Python 内部调用，脱离原生终端工作台</td>
-      <td>封闭私有通信协议</td>
+      <td><strong>6. 桌面端 AI 客户端</strong></td>
+      <td>ChatGPT Desktop、Claude Desktop、TypingMind</td>
+      <td>彻底消除跨窗口复制粘贴内耗，直接在真实终端会话中由 Agent 自主读写代码、运行构建、跑通测试并在关键节点授权。</td>
     </tr>
     <tr>
-      <td><strong>任务排队与串行执行</strong></td>
-      <td><strong>持久化 FIFO 任务队列（`warp_task_start`）</strong><br><small>单任务独占运行锁，彻底避免工作区并发写入踩踏</small></td>
-      <td>无</td>
-      <td>无（需用户手工一条条黏贴运行 Prompt）</td>
-      <td>云端后端排队</td>
-      <td>需用户自行编写自动化脚本调度</td>
-      <td>单一上下文线性对话队列</td>
-    </tr>
-    <tr>
-      <td><strong>泛行业非 Coding 支持</strong></td>
-      <td><strong>Project 全向协同模式</strong><br><small>深度赋能科研论文、视觉设计、量化金融、专利合规、新媒体</small></td>
-      <td>无</td>
-      <td>使用别扭（界面与快捷键完全为代码开发定制）</td>
-      <td>基本仅服务于 SWE-bench / GitHub 编程基准</td>
-      <td>框架代码层面（无开箱即用的 GUI 界面）</td>
-      <td>通用文本问答，但与本地工具链彻底脱节</td>
-    </tr>
-    <tr>
-      <td><strong>资源开销与启动速度</strong></td>
-      <td><strong>秒级启动 (&lt;100ms) · 零 Docker 依赖 · 极低系统占用</strong></td>
-      <td>极速启动 (&lt;50ms)</td>
-      <td>中等至较重（500MB - 2GB 内存开销）</td>
-      <td>极其笨重（数 GB Docker 镜像 / 虚拟机开销）</td>
-      <td>轻量级，但需要繁琐的终端脚本与环境配置</td>
-      <td>中等 Electron / Webview 资源开销</td>
+      <td><strong>7. 上游原版 Warp 终端</strong></td>
+      <td>原版 Warp</td>
+      <td>彻底剥离全部 51+ 个云端 AI 文件、Sentry 遥测与强制邮箱登录墙（AGPL-3.0 开源），新增 20+ 款 CLI 智能体感知与双协作模式。</td>
     </tr>
   </tbody>
 </table>
@@ -120,60 +70,344 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
 
 ---
 
-## 2. 深度分类对比剖析
+## 2. 七大体系分条横向深度评测
 
-### 1. 传统终端模拟器（Ghostty, Kitty, Windows Terminal, Alacritty, iTerm2, WezTerm）
-- **核心优势**：极致的 GPU 硬件加速文本渲染（OpenGL、Metal、Vulkan）、极高吞吐率与超低内存开销。
+### 1. Warpai vs. 传统终端模拟器
+**代表系统**：Ghostty、Kitty、Windows Terminal、Alacritty、iTerm2、WezTerm。
+
+- **核心优势**：极致的 GPU 硬件加速文本渲染（Metal、DirectX、Vulkan、OpenGL）、极高吞吐率、极低延迟与极小基础内存开销。
 - **面对自主 Agent 协作时的局限**：
   - **缺乏 Agent 生命周期感知**：传统终端将 Agent 命令行输出视为不透明的字节流。当 Agent 中途停下等待审批（如询问 `[y/N]` 或执行高危 Bash 命令）时，用户必须在一堆标签页中肉眼翻找，频繁出现“以为在跑实际早已卡死”的情况。
   - **输入吞键与命令踩踏**：在 Agent 大模型高速输出或重绘屏幕时，向普通终端键入指令往往会发生丢键、乱序或破坏光标位置。
   - **无协同原语**：原生终端无法进行跨标签页的任务分派、进度监听、持久化队列与工作区分离管理。
-- **Warpai 的破局之道**：Warpai 完整继承了顶尖 GPU 终端的极速渲染（Rust + `wgpu`），同时在内存中内置 **VT100 屏幕观察器**、**独家守护式 PTY 交付**与专有 Agent 协作面板，让命令行智能体拥有可感知的工业级调度中枢。
 
-### 2. 带 Agent 功能的现代文本编辑器（Zed, Cursor, Windsurf, Trae）
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">传统终端基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Agent 状态感知</strong></td>
+      <td><strong>内存级 VT100 屏幕观察器</strong>：直接在内存中解析 ANSI 流，精准感知 <code>Working</code>、<code>WaitingApproval</code> 与 <code>Idle</code>，卡点时毫秒级推送桌面通知。</td>
+      <td><strong>被动字符光栅化</strong>：对底层运行状态无任何感知，Agent 阻塞时只能被动等待人工逐屏排查。</td>
+    </tr>
+    <tr>
+      <td><strong>输入安全与可靠性</strong></td>
+      <td><strong>独家守护式 PTY 交付</strong>：精确把控终端输入时机，仅在底层 CLI 处于稳定可交互提示符时投递指令，有未提交草稿时自动暂停注入。</td>
+      <td><strong>无缓冲直接写入</strong>：在 Agent 流式输出或全屏 TUI 刷新时输入，极易造成丢键、指令乱码与非预期执行。</td>
+    </tr>
+    <tr>
+      <td><strong>协作调度总线</strong></td>
+      <td><strong>内置原生 MCP 服务（<code>warp-lite-communication</code>）</strong>：提供 38+ 项原生工具，支持持久化任务队列、FIFO 排队激活、文件原子锁与对等评审。</td>
+      <td><strong>无任何协同协议</strong>：各窗格为彼此隔离的纯字符环境，窗格间无法进行结构化消息互通。</td>
+    </tr>
+    <tr>
+      <td><strong>工作区并发隔离</strong></td>
+      <td><strong>Worktree 编码与 Project 全向双模式</strong>：物理隔离 Git 分支检出，杜绝代码冲突；非编程场景全员扁平协作。</td>
+      <td><strong>单一共享目录</strong>：多窗格默认在同一物理文件夹下执行，并发写入直接导致 Git 锁冲突与文件踩踏。</td>
+    </tr>
+    <tr>
+      <td><strong>渲染与工作台体验</strong></td>
+      <td>GPU 渲染核心 + <strong>原子级命令块</strong>、垂直标签、原生分屏、内置轻量文件树、代码编辑器与侧边栏实时 Git Diff 视图。</td>
+      <td>高性能纯文本网格渲染，但缺乏命令块交互、内嵌文件树、Diff 对比与可视化工作台支持。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 完整继承了顶尖 GPU 终端的亚毫秒级渲染速度与超低资源开销，同时补齐了多智能体运行所必需的生命周期监控、输入安全门禁与协同底座。
+
+---
+
+### 2. Warpai vs. 带 Agent 功能的现代文本编辑器
+**代表系统**：Zed、Cursor、Windsurf、Trae。
+
 - **核心优势**：出色的行内代码补全（Inline Completion）、代码语义检索与文件缓冲区直接覆写。
 - **面对多 Agent 并发开发时的局限**：
   - **以代码文件为中心，而非以 Agent 为中心**：编辑器的舞台永远属于文件树与代码编辑区，Agent 沦为侧边栏挂件或内嵌弹出层，无法独立掌控外部多样化的 CLI 原生工具链。
   - **单一物理工作区写冲突**：当多个 Agent 试图同时推进不同的业务功能时，它们共享同一个物理 Git 检出目录。并发写入会立即导致 Git 索引锁争用、脏工作树冲突与编译缓存踩踏。
   - **云端服务绑定与生态锁定**：大多数 Agent 编辑器强依赖厂商自建的云端中转网关与特定订阅模式，无法自由平替为您本地已有的 20+ 独立 CLI Agent。
-- **Warpai 的破局之道**：Warpai 将 **Agent 会话作为最核心的工作单元**。在 **Git Worktree 编码模式** 下，系统为每个任务分配物理独立的 Git 工作树，互不干扰并行施工，并通过 `warp_task_review` 闭环自动化对等评审，从根本上终结分支冲突。
 
-### 3. 传统综合 IDE（VS Code, JetBrains / IntelliJ IDEA, Eclipse）
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">Agent 文本编辑器基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>核心操作单元</strong></td>
+      <td><strong>以 Agent 会话为第一工作单元</strong>：专为运行、监控与编排完整 Agent 进程打造的原生终端工作台。</td>
+      <td><strong>以文本缓冲区为第一单元</strong>：以文件编辑为主视角，智能体仅为从属的侧边栏或对话挂件。</td>
+    </tr>
+    <tr>
+      <td><strong>并发隔离与分支防冲突</strong></td>
+      <td><strong>物理 Git Worktree 隔离机制</strong>：每个编程 Agent 独占独立的物理 Git 工作树，多分支并行开发零锁争用。</td>
+      <td><strong>单一检出目录</strong>：多 Agent 同时写文件会引发 Git index.lock 报错、未提交更改覆盖与缓存污染。</td>
+    </tr>
+    <tr>
+      <td><strong>CLI 生态开放度</strong></td>
+      <td><strong>全开放生态（感知 20+ 款独立 CLI）</strong>：开箱接入 Claude Code、Codex、Antigravity、Gemini CLI、Cursor Agent、Trae、Goose 等。</td>
+      <td><strong>厂商生态绑定</strong>：绑定厂商专有编辑器扩展插件、专用云端模型中转接口与按人头月费订阅。</td>
+    </tr>
+    <tr>
+      <td><strong>隐私保护与数据自主</strong></td>
+      <td><strong>100% 纯本地优先 · 0 KB 遥测打点</strong>：零登录墙、零远端代码审查、零数据分析。AGPL-3.0 协议全开源。</td>
+      <td><strong>云端代理中转</strong>：代码上下文、Prompt 历史记录与使用行为数据高频上传至厂商云端服务器。</td>
+    </tr>
+    <tr>
+      <td><strong>泛行业非 Coding 场景</strong></td>
+      <td><strong>Project 全向协同模式</strong>：开箱赋能学术科研论文、视觉设计、量化金融、专利合规、新媒体矩阵与商业尽调。</td>
+      <td><strong>受限于代码文件</strong>：交互设计完全围绕源代码展开，在非代码泛业务团队中无法自然施展。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Agent 编辑器适合人机共写单文件，而 Warpai 提供了多分支物理隔离与开放 CLI 底座，是真正支撑多智能体团队兵团化并发作战的指挥中心。
+
+---
+
+### 3. Warpai vs. 传统综合 IDE
+**代表系统**：VS Code、JetBrains (IntelliJ IDEA, WebStorm, PyCharm)、Eclipse。
+
 - **核心优势**：深度的编程语言 AST 语法树解析、工业级断点调试器与成熟庞大的插件生态系统。
 - **面对多 Agent 体系时的局限**：
   - **体积庞大笨重、资源开销极高**：IDE 启动慢、常态占用数 GB 内存。在同一 IDE 内并发多开 3–5 个大模型 Agent 及其对应的语言服务器时，极易引发严重卡顿与发热降频。
   - **终端沦为二等公民**：IDE 内置终端只是边缘附属窗口，没有专用的 Agent 状态监控、缺乏跨会话协作总线与自动化分发机制。
-- **Warpai 的破局之道**：Warpai 打造了启动时间小于 100 毫秒的轻量敏捷 Agent 终端工作台，与传统 IDE 形成完美互补：日常使用 Warpai 调度多 Agent 在独立分支上并行开发与自动化验证；在需要进行复杂 AST 重构或单步打断点时，随时用你喜爱的专业 IDE 打开对应目录协同作业。
+  - **界面元素过载**：将终端、文件树、调试控制台、扩展面板与 AI 侧边栏塞进单一窗口，造成严重的视觉干扰与操作卡顿。
 
-### 4. 自主 ADE 与云端智能体沙盒（Orca, Conductor, OpenDevin / All-Hands, Devin, SWE-agent）
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">传统综合 IDE 基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>启动速度与内存开销</strong></td>
+      <td><strong>秒级冷启动 (&lt;100ms)</strong>：原生 Rust 编写，极小基础内存占用，GPU 加速光栅化，零冗余后台语法预编译索引开销。</td>
+      <td><strong>资源负担沉重 (1.5–3+ GB 内存)</strong>：启动漫长，后台不间断的重型索引严重消耗电量并导致多 Agent 卡顿。</td>
+    </tr>
+    <tr>
+      <td><strong>终端架构层级</strong></td>
+      <td><strong>一等公民 GPU 终端核心</strong>：原生原子命令块、内存 VT100 状态解析器、守护式 PTY 交付与垂直标签管理。</td>
+      <td><strong>边缘附属小面板</strong>：基于 Webview/pty 的基础模拟器，无进程状态感知、无任务排队与输入防护。</td>
+    </tr>
+    <tr>
+      <td><strong>多 Agent 调度中枢</strong></td>
+      <td><strong>内置协调者（Coordinator）与对等评审</strong>：自动化分发任务、代码评审检查点（<code>warp_task_review</code>）与主干受控集成。</td>
+      <td><strong>无原生协同机制</strong>：插件市场各 AI 插件各自为政，插件间缺乏共享通信总线与互锁机制。</td>
+    </tr>
+    <tr>
+      <td><strong>开发者工具链协同</strong></td>
+      <td><strong>与 IDE 敏捷互补</strong>：日常用 Warpai 调度多 Agent 在独立分支上并行开发与测试；需要复杂单步断点调试时再用 IDE 介入。</td>
+      <td><strong>单体大一统陷阱</strong>：试图在单个笨重窗口中包揽一切，带来严重的卡顿与上下文切换成本。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 并不试图替代深度的单步调试器；它用极速轻量的多 Agent 指挥中心替代了 IDE 笨拙脆弱的内置终端，两者优势互补。
+
+---
+
+### 4. Warpai vs. 自主 ADE 与云端智能体沙盒
+**代表系统**：Orca、Conductor、OpenDevin (All-Hands)、Devin、SWE-agent。
+
 - **核心优势**：在封闭的沙盒中自主循环执行任务，隔离系统环境风险。
 - **日常本地开发时的局限**：
   - **重型 Docker 容器开销**：运行本地 ADE 往往需要拉取数 GB 的 Docker 镜像、配置复杂的卷挂载，并承受虚拟机级别的性能折损与磁盘占用。
   - **云端锁定与昂贵成本**：商业托管型 ADE 普遍采用高昂的月度订阅制，并且要求将您的核心源代码上传到外部云服务器运行。
   - **脱离本地宿主环境**：容器或云端沙盒无法直接沿用你宿主机已配置好的 SSH 密钥、Shell 配置文件、专有硬件设备（如本地 GPU、外接测试板卡）或私有内网服务。
-- **Warpai 的破局之道**：**100% 纯本地优先，彻底告别重型 Docker**。Warpai 直接调度操作系统原生进程与 Git Worktree，零资源浪费；连接远程服务器时仅需轻量级单文件 Companion，免装 Python、Node.js 等任何外部依赖，原生穿透内网。
 
-### 5. 多智能体编排框架与平铺工具（Herdr, AutoGen, CrewAI, ChatDev, tmux 脚本）
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">自主 ADE / 沙盒基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>基础设施依赖</strong></td>
+      <td><strong>100% 纯本地优先 · 零 Docker 依赖</strong>：直接基于本地操作系统原生运行，远程服务器通过轻量单二进制伴侣透明穿透。</td>
+      <td><strong>重型容器 / 虚拟机依赖</strong>：依赖后台 Docker 服务守护进程、数 GB 容器基础镜像或云端沙盒虚拟机。</td>
+    </tr>
+    <tr>
+      <td><strong>数据主权与代码安全</strong></td>
+      <td><strong>100% 隐私安全 · 0 KB 遥测</strong>：所有代码、API 密钥、命令输出与 Git 历史完全停留在本地物理磁盘，绝不上云。</td>
+      <td><strong>云端托管 / 源码外传</strong>：商业 ADE 强制将企业核心资产代码和执行过程上传至第三方云端执行机。</td>
+    </tr>
+    <tr>
+      <td><strong>宿主环境无缝接入</strong></td>
+      <td><strong>原生系统环境直接可用</strong>：智能体直接调用本地 SSH 配置、私有密钥、内网代理、本地 GPU 显卡与专用硬件调试器。</td>
+      <td><strong>沙盒容器隔离壁垒</strong>：难以直接访问本地硬件驱动、私有网络映射与宿主机现存的复杂工具链配置。</td>
+    </tr>
+    <tr>
+      <td><strong>使用成本与订阅门槛</strong></td>
+      <td><strong>完全免费开源 (AGPL-3.0)</strong>：自带自有 API 或本地大模型即可运行，零平台抽成与人头许可费。</td>
+      <td><strong>高昂商业订阅</strong>：高昂的月度席位订阅费（$50–$500+/月），且按次计费或按算力点数昂贵扣费。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 在保证多智能体并发开发与分支物理隔离的前提下，彻底摒弃了数 GB 的 Docker 容器包袱与隐私外泄隐患。
+
+---
+
+### 5. Warpai vs. 多智能体编排框架与平铺工具
+**代表系统**：Herdr、AutoGen、CrewAI、ChatDev、tmux / zellij 脚本。
+
 - **核心优势**：在代码层面抽象多智能体对话逻辑（AutoGen/CrewAI），或通过终端复用器进行平铺切分（Herdr、tmux）。
 - **面对交互式软件工程时的局限**：
   - **缺乏可视化交互工作台**：纯 Python 框架运行在无头黑盒中，缺乏直观的项目树浏览、Markdown 图文渲染与可视化的 Git Diff 审查界面。
   - **复用器缺乏结构化协作总线**：`tmux` 或 `herdr` 仅能切分终端窗格，没有内置的 SQLite 协作协议总线，缺乏任务持久化排队、依赖自动解封、对等审阅与配额大盘监管。
-- **Warpai 的破局之道**：Warpai 将现代 GUI 终端工作台的直观易用与底层 **`warp-lite-communication` 原生 MCP 总线**（38+ 项工具，覆盖任务全生命周期、FIFO 排队激活、点对点结构化问答与文件独占锁）深度融合。
+  - **监控负担大**：通过纯 CLI 滚屏日志监控多个无头智能体极度烧脑且容易遗漏异常。
 
-### 6. 桌面端 AI 客户端应用（ChatGPT Desktop, Claude Desktop, TypingMind）
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">多 Agent 框架与平铺工具基线</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>可视化集成工作台</strong></td>
+      <td><strong>原生 GUI 现代化工作台</strong>：现代 GPU 终端、垂直标签、原生分屏、交互式文件树、内置轻量编辑器与侧边栏实时 Git Diff。</td>
+      <td><strong>无头 CLI / 原始窗格平铺</strong>：无头 Python 纯命令行输出，或单纯切分文本窗格，缺乏可视化代码与差异审查。</td>
+    </tr>
+    <tr>
+      <td><strong>结构化协同总线协议</strong></td>
+      <td><strong>内置原生 MCP 服务（<code>warp-lite-communication</code>）</strong>：38+ 项工具支持 SQLite 任务排队、依赖解析、点对点问答与文件锁。</td>
+      <td><strong>脆弱按键盲注或纯内存态</strong>：终端复用器依赖易错的 <code>send-keys</code>；Python 框架状态随进程退出即丢。</td>
+    </tr>
+    <tr>
+      <td><strong>人机协同监管效率</strong></td>
+      <td><strong>动态监督任务池与即时告警</strong>：实时 Working/WaitingApproval/Idle 状态徽标与系统级桌面弹窗通知。</td>
+      <td><strong>人工肉眼轮询日志</strong>：需不断使用 <code>tail -f</code> 查看多进程终端日志，或自行搭建笨重的 Web 仪表盘。</td>
+    </tr>
+    <tr>
+      <td><strong>任务排队与单任务独占</strong></td>
+      <td><strong>持久化 FIFO 任务排队</strong>：任务进池安全排队（<code>warp_task_assign</code>），每 Agent 单一活跃任务独占（<code>warp_task_start</code>），防索引争用。</td>
+      <td><strong>需自行编码调度</strong>：无内置进程安全独占锁，需开发者自行编写复杂的并发控制脚本。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 成功兼具了现代桌面终端的高颜值与交互直观性，以及工业级 MCP 协同总线的持久化调度能力。
+
+---
+
+### 6. Warpai vs. 桌面端 AI 客户端应用
+**代表系统**：ChatGPT Desktop、Claude Desktop、TypingMind。
+
 - **核心优势**：界面精美极简，适合发散式对话与探索性问答。
-- **工程落地的局限**：
+- **面对工程落地时的局限**：
   - **彻底脱离开发环境**：桌面端对话应用无法直接感知本地文件目录，无法执行编译器构建、无法运行自动化测试，更无法管理 Git 分支。
   - **极度繁重的复制粘贴**：开发者必须在对话框与终端之间频繁来回搬运 Prompt、报错日志与代码片段。
-- **Warpai 的破局之道**：Warpai 直接托管并运行真实的 CLI Agent，让大模型在真实终端中自主读写代码、运行构建测试与提交分支，并在关键节点由用户随时一键把控审批。
+  - **单线程对话瓶颈**：仅支持单线线性对话，无法并发推进多功能分支与对等代码审查。
 
-### 7. 上游原版 Warp 终端
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">桌面端 AI 客户端基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>真实运行时执行能力</strong></td>
+      <td><strong>原生终端物理环境</strong>：真实 CLI Agent 在真实 PTY 会话中自主读写文件、运行编译、执行测试并操作 Git 分支。</td>
+      <td><strong>隔离的聊天沙盒</strong>：无法直接与本地编译器、构建工具、调试器或测试套件发生交互。</td>
+    </tr>
+    <tr>
+      <td><strong>工作流自动化程度</strong></td>
+      <td><strong>零复制粘贴流转</strong>：智能体在用户把控下自主闭环推进，证据链与结果一目了然。</td>
+      <td><strong>高强度人工搬运</strong>：开发者充当“人工剪贴板搬运工”，在聊天框和终端之间不断切换复制。</td>
+    </tr>
+    <tr>
+      <td><strong>多 Agent 并发并行</strong></td>
+      <td><strong>同时编排 10+ 个智能体会话</strong>：多智能体在独立 Worktree 或 Project 频道中协同工作并进行对等评审。</td>
+      <td><strong>单线线性交流</strong>：单一会话窗口，无法进行多分支、跨角色的多任务并行推进。</td>
+    </tr>
+    <tr>
+      <td><strong>模型与 Agent 自由度</strong></td>
+      <td><strong>自由接入 20+ 款独立 CLI Agent</strong>：Claude Code、Codex、Antigravity、Gemini CLI、Cursor Agent、Goose 等全支持。</td>
+      <td><strong>单一厂商绑死</strong>：严格绑定该桌面客户端所属的特定云端模型服务。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 将 AI 从只能提建议的“外部咨询顾问”，变成了直接在终端中写代码、跑测试、打胜仗的“实战攻坚队员”。
+
+---
+
+### 7. Warpai vs. 上游原版 Warp 终端
+**代表系统**：原版 Warp。
+
 - **核心优势**：开创了原子级命令块（Command Blocks）与现代终端交互界面。
 - **面对多 Agent 生态时的局限**：
   - **强制云端登录墙与隐私侵犯**：必须使用邮箱注册登录方可使用，且内置持续的 Sentry 崩溃与用量埋点采集。
   - **封闭绑定的单一云端 AI**：仅支持其专有云端小助手，无法直接接入和调度你本地自选的各类独立 CLI Agent。
   - **单一单聊架构**：仅支持单一侧边栏对话，缺乏多 Agent 协同体系、无 Worktree 分支隔离与任务队列机制。
-- **Warpai 的破局之道**：彻底剥离全部 51+ 个云端 AI 文件与隐私打点代码，**100% 自由开源（AGPL-3.0）**，无需注册登录即可离线运行；全面支持 **20+ 款独立 CLI Agent**，提供双协作模式、38+ 项原生 MCP 工具与多模型用量大盘。
+
+<div class="table-wrapper">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 25%;">评估维度</th>
+      <th style="width: 40%;">Warpai 解决方案</th>
+      <th style="width: 35%;">原版 Warp 基线表现</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>隐私合规与账号门槛</strong></td>
+      <td><strong>100% 纯净剔除 · 0 KB 遥测 · 零登录墙</strong>：彻底移除全部 51+ 个云端 AI 文件与打点上报代码。AGPL-3.0 协议全开源。</td>
+      <td><strong>强制云端登录墙</strong>：必须注册邮箱账号登录，常驻后台遥测与命令用量数据上报。</td>
+    </tr>
+    <tr>
+      <td><strong>Agent 生态支持</strong></td>
+      <td><strong>开箱感知 20+ 款独立 CLI Agent</strong>：通过专用 VT100 描述清单精准感知 Claude Code、Codex、Antigravity、Gemini 等状态。</td>
+      <td><strong>仅限专有云端小助手</strong>：完全无法感知或协同外部的各类独立 CLI 智能体。</td>
+    </tr>
+    <tr>
+      <td><strong>团队与并发协作架构</strong></td>
+      <td><strong>Worktree 编码与 Project 全向双模式</strong>：物理隔离 Git 分支检出，支持协调者调度、对等评审与非代码泛行业全向协作。</td>
+      <td><strong>单人单机终端</strong>：缺乏多 Agent 分支隔离、无任务池分发、无角色流转与评审机制。</td>
+    </tr>
+    <tr>
+      <td><strong>协作总线与用量底栏</strong></td>
+      <td><strong>内置 38+ 项原生 MCP 工具 + 多模型配额底栏</strong>：任务排队、文件锁、评审检查点，底栏实时监控多平台 Token 额度。</td>
+      <td><strong>封闭私有云后端</strong>：无本地 MCP 协作服务，配额仅服务于自家订阅体系。</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+**Warpai 核心代差**：Warpai 将终端从云端账号与遥测监控的束缚中彻底解放出来，升级为真正掌控在开发者手中的工业级多智能体指挥中枢。
 
 ---
 

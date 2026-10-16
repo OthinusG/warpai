@@ -1,5 +1,5 @@
 title: Warpai
-description: The terminal built around agents. Agent management and project coordination with a full-featured native terminal for macOS and Windows, locally and over SSH.
+description: A native GPU-accelerated terminal for autonomous multi-agent teams. Run 20+ CLI agents with in-memory VT100 tracking, guarded PTY, 38+ native MCP tools, and Worktree/Project collaboration on macOS, Windows, and Linux.
 url: https://othinusg.github.io
 baseurl: /warpai
 plugins:
