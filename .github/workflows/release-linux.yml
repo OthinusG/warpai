@@ -120,7 +120,10 @@ jobs:
       - name: Validate source and package version
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          if [[ -n "$WINDOWS_SOURCE" && "$(git -c safe.directory="$(pwd)" -C "$WARPAI_WORKSPACE" rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
+          # The container path differs from the runner's exported workspace path.
+          checkout_root="$(git -c safe.directory='*' -C "$WARPAI_WORKSPACE" rev-parse --show-toplevel)"
+          actual_source="$(git -c safe.directory="$checkout_root" -C "$WARPAI_WORKSPACE" rev-parse HEAD)"
+          if [[ -n "$WINDOWS_SOURCE" && "$actual_source" != "$WINDOWS_SOURCE" ]]; then
             echo 'Windows/Linux source mismatch' >&2
             exit 1
           fi
