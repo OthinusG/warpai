@@ -206,6 +206,22 @@
     var btnRefreshQuota = mock.querySelector("#mock-btn-refresh-quota");
     var btnNewTab = mock.querySelector("#mock-btn-new-tab");
 
+    // Helper: set mode
+    function setCollabMode(mode) {
+      modeBtns.forEach(function (b) {
+        b.classList.toggle("active", b.getAttribute("data-mode") === mode);
+      });
+      if (mode === "project") {
+        if (worktreeView) worktreeView.classList.remove("active");
+        if (projectView) projectView.classList.add("active");
+        if (tasksList) tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
+      } else {
+        if (projectView) projectView.classList.remove("active");
+        if (worktreeView) worktreeView.classList.add("active");
+        if (tasksList) tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
+      }
+    }
+
     // 1. Switch Vertical Tab
     function switchTab(agentId) {
       if (!agentId) return;
@@ -218,6 +234,18 @@
       agentItems.forEach(function (item) {
         item.classList.toggle("active", item.getAttribute("data-agent") === agentId);
       });
+
+      // Synchronize collaboration mode to match authentic state from screenshots
+      if (agentId === "claude") {
+        setCollabMode("project");
+      } else {
+        setCollabMode("worktree");
+        if (coordName) {
+          if (agentId === "agy") coordName.textContent = "agy-2de995e3 · gh-pages · 1";
+          else if (agentId === "dsh") coordName.textContent = "dsh-43f8a41e · gh-pages";
+          else coordName.textContent = "agy-2de995e3 · gh-pages · 1";
+        }
+      }
     }
 
     vtabs.forEach(function (tab) {
@@ -241,29 +269,10 @@
     // 2. Collaboration Mode Switcher (Project vs Worktree)
     var isZh = document.documentElement.lang === "zh";
     var defaultEmptyTasksText = isZh ? "当前工作区无待办任务。" : "No tasks on this page.";
-    var projectTasksHtml = isZh
-      ? '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">' +
-        '<div style="font-size:9.5px;padding:3px 6px;background:var(--mock-border-subtle);border-radius:3px;"><span style="color:#d97757;font-weight:700;">任务 #2942</span> 行业数据回归分析 (执行中)</div>' +
-        '<div style="font-size:9.5px;padding:3px 6px;background:var(--mock-border-subtle);border-radius:3px;"><span style="color:#3fb950;font-weight:700;">任务 #2943</span> 论文初稿交叉审稿 (待审批)</div>' +
-        '</div>'
-      : '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">' +
-        '<div style="font-size:9.5px;padding:3px 6px;background:var(--mock-border-subtle);border-radius:3px;"><span style="color:#d97757;font-weight:700;">Task #2942</span> Data regression &amp; Sharpe ratio (Running)</div>' +
-        '<div style="font-size:9.5px;padding:3px 6px;background:var(--mock-border-subtle);border-radius:3px;"><span style="color:#3fb950;font-weight:700;">Task #2943</span> Manuscript peer review (Pending)</div>' +
-        '</div>';
 
     modeBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var mode = btn.getAttribute("data-mode");
-        modeBtns.forEach(function (b) { b.classList.toggle("active", b === btn); });
-        if (mode === "project") {
-          if (worktreeView) worktreeView.classList.remove("active");
-          if (projectView) projectView.classList.add("active");
-          if (tasksList) tasksList.innerHTML = projectTasksHtml;
-        } else {
-          if (projectView) projectView.classList.remove("active");
-          if (worktreeView) worktreeView.classList.add("active");
-          if (tasksList) tasksList.innerHTML = '<div class="mock-tasks-empty-text">' + defaultEmptyTasksText + '</div>';
-        }
+        setCollabMode(btn.getAttribute("data-mode"));
       });
     });
 
@@ -287,25 +296,28 @@
       });
     }
 
-    // 4. File Explorer Drawer
-    if (btnExplorer && fileDrawer) {
-      btnExplorer.addEventListener("click", function () {
-        fileDrawer.classList.toggle("open");
+    // 4. File Explorer Drawer Toggles
+    var explorerOpeners = mock.querySelectorAll(".mock-btn-open-explorer, #mock-btn-explorer");
+    explorerOpeners.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (fileDrawer) fileDrawer.classList.toggle("open");
       });
-    }
-    if (closeDrawer && fileDrawer) {
-      closeDrawer.addEventListener("click", function () {
-        fileDrawer.classList.remove("open");
+    });
+    var drawerClosers = mock.querySelectorAll(".mock-drawer-close");
+    drawerClosers.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (fileDrawer) fileDrawer.classList.remove("open");
       });
-    }
+    });
 
-    // 5. Dismiss Notification Chip
-    if (chipNotify) {
-      chipNotify.addEventListener("click", function () {
-        chipNotify.style.opacity = "0";
-        setTimeout(function () { chipNotify.style.display = "none"; }, 150);
+    // 5. Dismiss / Toggle Notification Chip in Claude screen
+    var chipNotifies = mock.querySelectorAll(".mock-chip-claude-notify");
+    chipNotifies.forEach(function (chip) {
+      chip.addEventListener("click", function (e) {
+        chip.style.opacity = "0";
+        setTimeout(function () { chip.style.display = "none"; }, 150);
       });
-    }
+    });
 
     // 6. Sidebar & Panel Toggles
     if (btnToggleSidebar && leftSidebar) {
@@ -313,21 +325,26 @@
         leftSidebar.classList.toggle("collapsed");
       });
     }
-    if (btnToggleCollab && rightPanel) {
-      btnToggleCollab.addEventListener("click", function () {
-        rightPanel.classList.toggle("collapsed");
+    var closeCollabBtns = mock.querySelectorAll("#mock-btn-toggle-collab, #mock-btn-close-collab");
+    closeCollabBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (rightPanel) rightPanel.classList.toggle("collapsed");
       });
-    }
+    });
 
-    // 7. Theme Toggle in Mock Window
-    if (btnTheme && window.warpaiGround) {
-      btnTheme.addEventListener("click", function () {
-        var current = window.warpaiGround.read();
-        var next = current === "paper" ? "ink" : "paper";
-        window.warpaiGround.save(next);
-        window.warpaiGround.apply(next);
+    // 7. Theme Toggle in Mock Window (Lighting Bulb Icon)
+    var themeBtns = mock.querySelectorAll("#mock-theme-toggle-btn");
+    themeBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (window.warpaiGround) {
+          var current = window.warpaiGround.read();
+          var next = current === "paper" ? "ink" : "paper";
+          window.warpaiGround.save(next);
+          window.warpaiGround.apply(next);
+          mock.setAttribute("data-mock-theme", next);
+        }
       });
-    }
+    });
 
     // 8. Search Tabs Filter
     if (searchInput) {
@@ -340,7 +357,7 @@
       });
     }
 
-    // 9. Add New Worktree simulation
+    // 9. Add New Worktree Simulation
     if (btnNewWorktree && worktreeView) {
       btnNewWorktree.addEventListener("click", function () {
         var existing = worktreeView.querySelector("#mock-dynamic-worktree");
@@ -352,7 +369,7 @@
           div.className = "mock-worktree-node";
           div.style.marginTop = "6px";
           div.innerHTML = '<div class="mock-worktree-pill active" style="border-color:var(--mock-green);">' +
-            '<span class="mock-arrow">▶</span> feat/new-agent-spec <small style="color:var(--mock-green);font-size:9px;">[new]</small></div>' +
+            '<span class="mock-arrow">▶</span> feat/mcp-agent-bus <small style="color:var(--mock-green);font-size:9px;">[new]</small></div>' +
             '<div class="mock-worktree-agents"><div class="mock-agent-item active" style="color:var(--mock-green);">● claude-worker (ready)</div></div>';
           worktreeView.appendChild(div);
         }
@@ -370,7 +387,7 @@
             msg.className = "mock-term-line";
             msg.style.color = "var(--mock-blue)";
             msg.textContent = isZh ? "✔ 已向智能体输入流投递 warp_agent_send 任务。" : "✔ Dispatched warp_agent_send task to agent stdin.";
-            activeScreen.insertBefore(msg, promptRow);
+            promptRow.parentNode.insertBefore(msg, promptRow);
             setTimeout(function () { msg.remove(); }, 3500);
           }
         }
@@ -410,9 +427,79 @@
       });
     }
 
-    // 13. New Tab
-    if (btnNewTab) {
-      btnNewTab.addEventListener("click", function () {
+    // 13. Interactive Claude Trust Choices (Radio Switcher)
+    var trustChoices = mock.querySelectorAll(".mock-choice-row");
+    trustChoices.forEach(function (row) {
+      row.addEventListener("click", function () {
+        var parent = row.parentNode;
+        parent.querySelectorAll(".mock-choice-row").forEach(function (r) {
+          r.classList.remove("active");
+          var ptr = r.querySelector(".mock-choice-pointer");
+          if (ptr) ptr.textContent = " ";
+        });
+        row.classList.add("active");
+        var activePtr = row.querySelector(".mock-choice-pointer");
+        if (activePtr) activePtr.textContent = "❯";
+      });
+    });
+
+    // 14. Interactive Antigravity Tool Call Expand / Collapse
+    var toolTriggers = mock.querySelectorAll(".mock-collapsible-tool");
+    toolTriggers.forEach(function (trigger) {
+      trigger.addEventListener("click", function () {
+        var drawer = trigger.querySelector(".mock-tool-detail-drawer");
+        if (drawer) drawer.classList.toggle("open");
+      });
+    });
+
+    // 15. Interactive DSH Model Pills
+    var dshPills = mock.querySelectorAll(".mock-dsh-pill");
+    dshPills.forEach(function (pill) {
+      pill.addEventListener("click", function () {
+        dshPills.forEach(function (p) { p.classList.remove("active"); });
+        pill.classList.add("active");
+      });
+    });
+
+    // 16. Interactive DSH Input Box click simulation
+    var dshInputBoxes = mock.querySelectorAll(".mock-dsh-input-box");
+    dshInputBoxes.forEach(function (box) {
+      box.addEventListener("click", function () {
+        var textEl = box.querySelector(".mock-dsh-input-text");
+        if (textEl) {
+          textEl.textContent = isZh ? "/deepseek-flash 分析高通量材料文献证据链" : "/deepseek-flash analyze superconductor mechanism";
+          textEl.style.color = "var(--mock-text)";
+        }
+      });
+    });
+
+    // 17. Interactive Codex Prompt Box click simulation
+    var codexPromptBoxes = mock.querySelectorAll(".mock-codex-prompt-box");
+    codexPromptBoxes.forEach(function (box) {
+      box.addEventListener("click", function () {
+        var ph = box.querySelector(".mock-prompt-placeholder");
+        if (ph) {
+          ph.textContent = "codex review --staged";
+          ph.style.color = "var(--mock-text)";
+        }
+      });
+    });
+
+    // 18. Interactive Codex Upgrade link simulation
+    var codexUpgradeLinks = mock.querySelectorAll(".mock-code-link");
+    codexUpgradeLinks.forEach(function (lnk) {
+      lnk.addEventListener("click", function () {
+        lnk.textContent = isZh ? "正在执行 brew upgrade codex..." : "running brew upgrade codex...";
+        setTimeout(function () {
+          lnk.textContent = isZh ? "已更新至 v0.163.0 最新版 ✔" : "upgraded to v0.163.0 ✔";
+        }, 1200);
+      });
+    });
+
+    // 19. New Tab buttons
+    var newTabBtns = mock.querySelectorAll("#mock-btn-new-tab, #mock-btn-new-tab-top");
+    newTabBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
         var count = vtabs.length + 1;
         var newTab = document.createElement("div");
         newTab.className = "mock-vtab";
@@ -420,12 +507,13 @@
         newTab.innerHTML = '<div class="mock-vtab-badge mock-badge-warpai">✦</div>' +
           '<div class="mock-vtab-content"><div class="mock-vtab-name">tab-' + count + '</div>' +
           '<div class="mock-vtab-branch"><svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> main</div></div>';
-        mock.querySelector("#mock-vtabs-list").appendChild(newTab);
+        var list = mock.querySelector("#mock-vtabs-list");
+        if (list) list.appendChild(newTab);
         newTab.addEventListener("click", function () {
           switchTab("claude");
         });
       });
-    }
+    });
   }
 
   /* 8. Metric Numbers Counter Animation */

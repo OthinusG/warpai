@@ -32,3 +32,10 @@
   - Right column: Agents Collaboration Panel featuring interactive Mode Switcher (`Worktree` vs `Project`), dynamic Coordinator selector, branch/channel lists, dynamic task pool, and data usage counters.
   - Full interaction in vanilla JS: tab switching, mode switching, coordinator changing, branch creation, tag focusing, drawer toggling, sidebars toggle, and in-window theme switching.
   - Bilingual parity across English and Chinese pages with complete styling support for both Light (`paper`) and Dark (`ink`) themes.
+- **Multi-Tab Workbench Mockup Fidelity Overhaul (2026-10-16)**:
+  - Re-implemented landing page mockup across `index.html` and `zh/index.html` based on authentic multi-tab screenshots in `/Users/wqin/Desktop/123`.
+  - Tab 1 (`+ 🐳` / `dsh`): DeepSeek Harness (DSH) pixel whale mascot, DEEPSEEK HARNESS block stencil title, interactive prompt box, model pills, and dual-split screen with Codex CLI (brew upgrade alert, prompt box).
+  - Tab 2 (`warpai-gh-pages`): Spiral logo, active worktree terminal session with prompt focus.
+  - Tab 3 (`* Claude Code`): Interactive safety check trust options (radio toggle `No, exit` vs `Yes, I trust this folder`), terracotta Claude robot mascot, notification toggle chip, and automatic synchronization to Project Mode with `claude-9c9cfc0c · idle`.
+  - Tab 4 (`agy`): Antigravity CLI with rainbow pixel arch mascot, blue peer notification box, live spinner, and expandable MCP tool call payload drawer `(ctrl+o to expand)`.
+  - Comprehensive interactivity: tab switching, mode switching, radio selection, collapsible drawers, search filtering, simulated command executions, and flawless Light/Dark mode toggling via window lightbulb button and site theme engine.

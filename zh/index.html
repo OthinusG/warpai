@@ -71,27 +71,24 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
         <div class="mock-chrome">
           <div class="mock-chrome-left">
             <div class="mock-traffic-lights" aria-hidden="true">
-              <span class="mock-dot-red"></span>
-              <span class="mock-dot-yellow"></span>
-              <span class="mock-dot-green"></span>
+              <span class="mock-dot-red" title="Close"></span>
+              <span class="mock-dot-yellow" title="Minimize"></span>
+              <span class="mock-dot-green" title="Expand"></span>
             </div>
-            <button type="button" class="mock-chrome-btn" id="mock-btn-toggle-sidebar" title="折叠/展开左侧栏" aria-label="折叠左侧栏">
+            <button type="button" class="mock-chrome-btn" id="mock-btn-toggle-sidebar" title="Toggle Left Sidebar" aria-label="Toggle Sidebar">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="6" y1="2" x2="6" y2="14"/></svg>
             </button>
           </div>
           <div class="mock-chrome-right">
-            <div class="mock-git-stats" title="Git 代码变更统计">
-              <span class="mock-stat-add">+2329</span>
-              <span class="mock-stat-del">-478</span>
-            </div>
-            <button type="button" class="mock-chrome-btn" id="mock-theme-toggle-btn" title="切换深浅主题" aria-label="切换深浅主题">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="4"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
+            <button type="button" class="mock-chrome-btn" id="mock-btn-new-tab-top" title="New Terminal / Tab" aria-label="New Tab">+</button>
+            <button type="button" class="mock-chrome-btn" id="mock-btn-layout-split" title="Split Layout" aria-label="Layout">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg>
             </button>
-            <button type="button" class="mock-chrome-btn" title="命令菜单" aria-label="命令菜单">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/></svg>
+            <button type="button" class="mock-chrome-btn" id="mock-theme-toggle-btn" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
             </button>
-            <button type="button" class="mock-chrome-btn" title="运行命令" aria-label="运行命令">
-              <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M4.5 3.5v9l7-4.5-7-4.5z"/></svg>
+            <button type="button" class="mock-chrome-btn" id="mock-btn-toggle-collab" title="Toggle Collaboration Panel" aria-label="Toggle Collaboration Panel">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="6 3 11 8 6 13"/></svg>
             </button>
           </div>
         </div>
@@ -103,51 +100,63 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
             <div class="mock-tab-search-bar">
               <div class="mock-search-input-wrap">
                 <svg class="mock-ic" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-                <input type="text" id="mock-search-input" placeholder="搜索标签页..." aria-label="搜索标签页">
+                <input type="text" id="mock-search-input" placeholder="Search tabs..." aria-label="Search tabs">
               </div>
-              <button type="button" class="mock-mini-icon-btn" title="Git 分支">
-                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg>
+              <button type="button" class="mock-mini-icon-btn" title="Filter Settings">
+                <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="14" y2="4"/><circle cx="5" cy="4" r="1.5"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="11" cy="12" r="1.5"/></svg>
               </button>
-              <button type="button" class="mock-mini-icon-btn" id="mock-btn-new-tab" title="新建标签页">+</button>
+              <button type="button" class="mock-mini-icon-btn" id="mock-btn-new-tab" title="New Tab">+</button>
             </div>
+
+            <div class="mock-vtabs-group-header">warpai-gh-pages</div>
+
             <div class="mock-vtabs-container" id="mock-vtabs-list">
-              <!-- Tab 1: Claude Code -->
-              <div class="mock-vtab active" data-agent="claude">
+              <!-- Tab 1: + 🐳 (DeepSeek Harness + Codex Split) -->
+              <div class="mock-vtab active" data-agent="dsh">
+                <div class="mock-vtab-badge mock-badge-dsh">
+                  <span>🐳</span>
+                </div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">+ 🐳</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> gh-pages
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 2: warpai-gh-pages (Spiral Icon) -->
+              <div class="mock-vtab" data-agent="warpai">
+                <div class="mock-vtab-badge mock-badge-warpai">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="1"/></svg>
+                </div>
+                <div class="mock-vtab-content">
+                  <div class="mock-vtab-name">warpai-gh-pages</div>
+                  <div class="mock-vtab-branch">
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> gh-pages
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 3: * Claude Code (Sun / Asterisk Logo, main branch) -->
+              <div class="mock-vtab" data-agent="claude">
                 <div class="mock-vtab-badge mock-badge-claude">✳</div>
                 <div class="mock-vtab-content">
                   <div class="mock-vtab-name">* Claude Code</div>
                   <div class="mock-vtab-branch">
-                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> main
                   </div>
                 </div>
               </div>
-              <!-- Tab 2: agy -->
+
+              <!-- Tab 4: agy (Antigravity Arch Logo) -->
               <div class="mock-vtab" data-agent="agy">
-                <div class="mock-vtab-badge mock-badge-agy">▲</div>
-                <div class="mock-vtab-content">
-                  <div class="mock-vtab-name">agy 智能体</div>
-                  <div class="mock-vtab-branch">
-                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
-                  </div>
+                <div class="mock-vtab-badge mock-badge-agy">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 14L8 3l5 11"/></svg>
                 </div>
-              </div>
-              <!-- Tab 3: warpai -->
-              <div class="mock-vtab" data-agent="warpai">
-                <div class="mock-vtab-badge mock-badge-warpai">◉</div>
                 <div class="mock-vtab-content">
-                  <div class="mock-vtab-name">warpai (Codex)</div>
+                  <div class="mock-vtab-name">agy</div>
                   <div class="mock-vtab-branch">
-                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
-                  </div>
-                </div>
-              </div>
-              <!-- Tab 4: dsh -->
-              <div class="mock-vtab" data-agent="dsh">
-                <div class="mock-vtab-badge mock-badge-dsh">✦</div>
-                <div class="mock-vtab-content">
-                  <div class="mock-vtab-name">* 🍃 dsh-tui</div>
-                  <div class="mock-vtab-branch">
-                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
+                    <svg viewBox="0 0 16 16" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> gh-pages
                   </div>
                 </div>
               </div>
@@ -157,117 +166,446 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
           <!-- COLUMN 2: Center Terminal Area -->
           <main class="mock-col-center">
             <div class="mock-terminal-screens">
-              <!-- Screen 1: Claude Code (from screenshot) -->
-              <div class="mock-term-screen active" data-screen="claude">
-                <div class="mock-term-line mock-path-line">
-                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span> <span>20 • <b class="green">+2329</b> <b class="red">-478</b> (0.034s)</span>
-                </div>
-                <div class="mock-term-line mock-term-cmd">clear</div>
-                <div class="mock-term-line mock-path-line" style="margin-top: 6px;">
-                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span> <span>20 • <b class="green">+2329</b> <b class="red">-478</b> (1m 52.00s)</span>
-                </div>
-                <div class="mock-term-line mock-term-cmd">claude</div>
+              <!-- SCREEN 1 & 2: DSH + Codex Dual Split Pane (Tabs: dsh & warpai) -->
+              <div class="mock-term-screen active" data-screen="dsh">
+                <div class="mock-split-workspace">
+                  <!-- Left Sub-Pane: DeepSeek Harness -->
+                  <div class="mock-subpane mock-subpane-dsh">
+                    <div class="mock-subpane-body">
+                      <!-- Pixel Whale SVG & Stencil Banner -->
+                      <div class="mock-dsh-hero">
+                        <div class="mock-whale-art">
+                          <svg viewBox="0 0 100 80" width="90" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Tail Fins -->
+                            <rect x="74" y="8" width="6" height="12" fill="#2d5ae8"/>
+                            <rect x="80" y="4" width="6" height="8" fill="#2d5ae8"/>
+                            <rect x="86" y="8" width="6" height="12" fill="#2d5ae8"/>
+                            <rect x="78" y="16" width="6" height="16" fill="#2d5ae8"/>
+                            <rect x="72" y="28" width="8" height="14" fill="#2d5ae8"/>
+                            <!-- Outline -->
+                            <rect x="22" y="22" width="46" height="6" fill="#1b2559"/>
+                            <rect x="16" y="28" width="6" height="34" fill="#1b2559"/>
+                            <rect x="22" y="62" width="56" height="6" fill="#1b2559"/>
+                            <rect x="78" y="42" width="6" height="20" fill="#1b2559"/>
+                            <!-- Main Blue Body -->
+                            <rect x="22" y="28" width="54" height="34" fill="#3060ed"/>
+                            <rect x="68" y="26" width="10" height="18" fill="#3060ed"/>
+                            <!-- White Crescent Belly -->
+                            <rect x="22" y="44" width="28" height="18" fill="#ffffff"/>
+                            <rect x="50" y="48" width="16" height="14" fill="#ffffff"/>
+                            <!-- Eyes -->
+                            <rect x="26" y="34" width="3" height="7" rx="1" fill="#1b2559"/>
+                            <rect x="44" y="34" width="3" height="7" rx="1" fill="#1b2559"/>
+                          </svg>
+                        </div>
+                        <div class="mock-dsh-title-stencil">
+                          <div class="mock-stencil-top">DEEPSEEK</div>
+                          <div class="mock-stencil-sub">HARNESS</div>
+                        </div>
+                      </div>
 
-                <!-- Claude Code Mascot & Session Info -->
-                <div class="mock-claude-banner">
-                  <pre class="mock-claude-crab"> █ █ 
-█████
-█ █ █</pre>
-                  <div class="mock-claude-info">
-                    <div class="mock-claude-title"><strong>Claude Code</strong> <span class="dim">v2.1.280</span></div>
-                    <div class="dim">Haiku 4.5 · API Usage Billing</div>
-                    <div class="dim">~/workplace/warpai</div>
+                      <!-- Input Box -->
+                      <div class="mock-dsh-input-box" id="mock-dsh-input-box" tabindex="0">
+                        <span class="mock-prompt-char">❯</span>
+                        <span class="mock-dsh-input-text" id="mock-dsh-prompt-text">说点什么，或输入 / 看命令...</span>
+                        <span class="mock-term-cursor"></span>
+                      </div>
+
+                      <!-- Model Pills -->
+                      <div class="mock-dsh-pills">
+                        <button type="button" class="mock-dsh-pill active">deepseek-flash</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">Max</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">standard</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">workspace-write</button>
+                      </div>
+
+                      <!-- DSH Navigation & System Info -->
+                      <div class="mock-dsh-sys-links">
+                        <a href="javascript:void(0)" class="mock-dsh-link active">会话与工作区</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">设置</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">内核 · DSH</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">帮助</a>
+                      </div>
+                      <div class="mock-dsh-status-block">
+                        <div class="mock-dsh-path-row">
+                          <span class="dim">/Users/wqin/workplace/warpai-gh-pages:gh-pages</span>
+                          <span class="dim">dsh-tui v0.14.0</span>
+                        </div>
+                        <div class="mock-dsh-item active">▸ DSH · dsh-core v0.2.0-rc.2</div>
+                        <div class="mock-dsh-item dim">Claude · 未安装 · 按 Enter 安装</div>
+                        <div class="mock-dsh-item dim">Codex · codex-cli v0.162.1</div>
+                      </div>
+                    </div>
+
+                    <!-- DSH Bottom Bar -->
+                    <div class="mock-pane-footer">
+                      <button type="button" class="mock-footer-btn" title="Add">+</button>
+                      <span class="mock-footer-btn">± 0</span>
+                      <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                      <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                      <span class="mock-pane-spacer"></span>
+                      <span class="mock-footer-branch">gh-pages</span>
+                    </div>
                   </div>
-                </div>
 
-                <!-- Warpai Peer Notification Callout Box -->
-                <div class="mock-peer-callout-box">
-                  <div class="mock-callout-main">
-                    <span class="mock-callout-chevron">❯</span> Warpai peer work is waiting (message <code>2942a9d6-d004-4b31-a6a3-7d82a0326264</code>). Call <code>warp_agent_inbox</code>, process this message or task, and acknowledge it through MCP. Before ending your turn, call <code>warp_agent_ready</code>.
-                  </div>
-                  <div class="mock-callout-sub">
-                    └ <span class="coral">Not logged in · Please run /login</span>
-                  </div>
-                </div>
+                  <!-- Right Sub-Pane: Codex Terminal -->
+                  <div class="mock-subpane mock-subpane-codex">
+                    <div class="mock-subpane-body">
+                      <div class="mock-term-line dim">~/workplace (14.951s)</div>
+                      <div class="mock-term-line mock-cmd-line">
+                        <span class="green">codex</span> <span class="dim">'--no-daemon' '-c' 'mcp_servers.warp-lite-communication={command="/Applications/Warpai.app/Contents/MacOS/warpai-agent",args=["mcp","--native-directory"],env_vars=["WARP_AGENT_ENDPOINT","WARP_AGENT_CAPABILITY","WARP_TERMINAL_SESSION_UUID"],enabled=true}' -c 'model_reasoning_effort="medium"'</span>
+                      </div>
+                      <div class="mock-term-line dim" style="margin-top:4px;">~/workplace (0.023s)</div>
+                      <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> <span class="mock-term-path">warpai-gh-pages</span></div>
+                      <div class="mock-term-line dim" style="margin-top:4px;">
+                        ~/workplace/warpai-gh-pages git:(gh-pages) (1m 19.00s)
+                      </div>
+                      <div class="mock-term-line mock-cmd-line">
+                        <span class="green">codex</span> <span class="dim">'-c' 'mcp_servers.warp-lite-communication={command="/Applications/Warpai.app/Contents/MacOS/warpai-agent",args=["mcp","--native-directory"],env_vars=["WARP_AGENT_ENDPOINT","WARP_AGENT_CAPABILITY","WARP_TERMINAL_SESSION_UUID"],enabled=true}' '--no-daemon'</span>
+                      </div>
 
-                <div class="mock-term-status-note">* Sautéed for 0s · done 17:46</div>
+                      <!-- Update Available Card -->
+                      <div class="mock-update-box">
+                        <div>✨ <strong>Update available!</strong> 0.162.1 -&gt; 0.163.0</div>
+                        <div style="margin-top:2px;">Run <code class="mock-code-link" id="mock-codex-upgrade-cmd">brew upgrade --cask codex</code> to update.</div>
+                        <div class="dim" style="margin-top:4px;">See full release notes:</div>
+                        <div class="mock-link-blue">https://github.com/openai/codex/releases/latest</div>
+                      </div>
 
-                <!-- Active Prompt line -->
-                <div class="mock-prompt-row">
-                  <span class="mock-prompt-char">❯</span>
-                  <span class="mock-term-cursor"></span>
-                </div>
+                      <!-- OpenAI Codex Banner -->
+                      <div class="mock-codex-banner">
+                        <div><strong>&gt;_ OpenAI Codex (v0.162.1)</strong></div>
+                        <div class="dim">~/workplace/warpai-gh-pages</div>
+                        <div class="mock-tip-line">Tip: Use <code>/title</code> to choose what appears in your terminal's title.</div>
+                      </div>
 
-                <!-- Bottom hint bar inside terminal -->
-                <div class="mock-term-status-footer">
-                  <div class="mock-footer-left">⏸ 手动模式开启 · 智能体待命中</div>
-                  <div class="mock-footer-right">
-                    <span class="coral">未登录 · 请运行 /login</span>
-                    <span class="yellow">发现新版本！运行: brew upgrade claude-code</span>
+                      <!-- Ask Codex Prompt Box -->
+                      <div class="mock-codex-prompt-box" id="mock-codex-prompt-box" tabindex="0">
+                        <div class="mock-prompt-inner">
+                          <span class="mock-prompt-char">❯</span>
+                          <span class="mock-prompt-placeholder" id="mock-codex-prompt-text">Ask Codex to do anything</span>
+                          <span class="mock-term-cursor"></span>
+                        </div>
+                        <div class="mock-prompt-footer">
+                          <span>GPT-6.1-Sol medium</span>
+                          <span class="green">~/workplace/warpai-gh-pages</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Codex Bottom Bar -->
+                    <div class="mock-pane-footer">
+                      <button type="button" class="mock-footer-btn" title="Add">+</button>
+                      <span class="mock-footer-btn">± 0</span>
+                      <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                      <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                      <span class="mock-pane-spacer"></span>
+                      <span class="mock-footer-branch">gh-pages</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Screen 2: agy (Google Antigravity) -->
-              <div class="mock-term-screen" data-screen="agy">
-                <div class="mock-term-line mock-path-line">
-                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span>
-                </div>
-                <div class="mock-term-line mock-term-cmd">agy --model gemini-2.5-pro</div>
-                <div class="mock-term-line" style="margin: 6px 0;">
-                  <strong>▲ Antigravity 智能体 v2.0</strong> · <span class="green">已接入 Warpai 通信总线</span>
-                </div>
-                <div class="mock-term-line"><b>❯</b> 收到协调者派发任务：执行跨文献证据链检索并校验核心论点。</div>
-                <div class="mock-term-line dim">   调用工具: search_academic_papers (查询: "高温超导微观机理与界面效应")</div>
-                <div class="mock-term-line dim">   在 Nature 与 Science 旗舰期刊命中 14 篇高被引文献。</div>
-                <div class="mock-term-line"><span class="green">✔</span> 证据链结构化抽取完成。调用 <code>warp_context_publish</code> 发布共享上下文契约。</div>
-                <div class="mock-prompt-row">
-                  <span class="mock-prompt-char">▲</span>
-                  <span class="mock-term-cursor"></span>
-                </div>
-              </div>
-
-              <!-- Screen 3: warpai (Codex CLI + Guard Interceptor) -->
+              <!-- SCREEN 2: warpai-gh-pages (alias matching tab 2) -->
               <div class="mock-term-screen" data-screen="warpai">
-                <div class="mock-term-line mock-path-line">
-                  <span class="mock-term-path">~/workplace/warpai</span> <span class="mock-term-git">git:(fix/agy-usage-window-labels)</span>
-                </div>
-                <div class="mock-term-line mock-term-cmd">codex</div>
-                <div class="mock-term-line" style="margin: 6px 0;">
-                  <strong>◉ OpenAI Codex CLI</strong> · <span class="green">守护式 PTY 监控中</span>
-                </div>
-                <div class="mock-term-line"><b>❯</b> 正在修改 crates/agent_bus/src/lib.rs...</div>
-                <div class="mock-peer-callout-box" style="border-color: #ff6b80;">
-                  <div style="color: #ff6b80; font-weight: 700; font-size: 11px; margin-bottom: 4px;">
-                    ● [WaitingApproval] Agent 请求执行提权系统指令：
+                <div class="mock-split-workspace">
+                  <!-- Left Sub-Pane: DeepSeek Harness -->
+                  <div class="mock-subpane mock-subpane-dsh">
+                    <div class="mock-subpane-body">
+                      <div class="mock-dsh-hero">
+                        <div class="mock-whale-art">
+                          <svg viewBox="0 0 100 80" width="90" height="72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="74" y="8" width="6" height="12" fill="#2d5ae8"/>
+                            <rect x="80" y="4" width="6" height="8" fill="#2d5ae8"/>
+                            <rect x="86" y="8" width="6" height="12" fill="#2d5ae8"/>
+                            <rect x="78" y="16" width="6" height="16" fill="#2d5ae8"/>
+                            <rect x="72" y="28" width="8" height="14" fill="#2d5ae8"/>
+                            <rect x="22" y="22" width="46" height="6" fill="#1b2559"/>
+                            <rect x="16" y="28" width="6" height="34" fill="#1b2559"/>
+                            <rect x="22" y="62" width="56" height="6" fill="#1b2559"/>
+                            <rect x="78" y="42" width="6" height="20" fill="#1b2559"/>
+                            <rect x="22" y="28" width="54" height="34" fill="#3060ed"/>
+                            <rect x="68" y="26" width="10" height="18" fill="#3060ed"/>
+                            <rect x="22" y="44" width="28" height="18" fill="#ffffff"/>
+                            <rect x="50" y="48" width="16" height="14" fill="#ffffff"/>
+                            <rect x="26" y="34" width="3" height="7" rx="1" fill="#1b2559"/>
+                            <rect x="44" y="34" width="3" height="7" rx="1" fill="#1b2559"/>
+                          </svg>
+                        </div>
+                        <div class="mock-dsh-title-stencil">
+                          <div class="mock-stencil-top">DEEPSEEK</div>
+                          <div class="mock-stencil-sub">HARNESS</div>
+                        </div>
+                      </div>
+                      <div class="mock-dsh-input-box" tabindex="0">
+                        <span class="mock-prompt-char">❯</span>
+                        <span class="mock-dsh-input-text">说点什么，或输入 / 看命令...</span>
+                        <span class="mock-term-cursor"></span>
+                      </div>
+                      <div class="mock-dsh-pills">
+                        <button type="button" class="mock-dsh-pill active">deepseek-flash</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">Max</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">standard</button>
+                        <span class="mock-dot-sep">·</span>
+                        <button type="button" class="mock-dsh-pill">workspace-write</button>
+                      </div>
+                      <div class="mock-dsh-sys-links">
+                        <a href="javascript:void(0)" class="mock-dsh-link active">会话与工作区</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">设置</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">内核 · DSH</a>
+                        <a href="javascript:void(0)" class="mock-dsh-link">帮助</a>
+                      </div>
+                      <div class="mock-dsh-status-block">
+                        <div class="mock-dsh-path-row">
+                          <span class="dim">/Users/wqin/workplace/warpai-gh-pages:gh-pages</span>
+                          <span class="dim">dsh-tui v0.14.0</span>
+                        </div>
+                        <div class="mock-dsh-item active">▸ DSH · dsh-core v0.2.0-rc.2</div>
+                        <div class="mock-dsh-item dim">Claude · 未安装 · 按 Enter 安装</div>
+                        <div class="mock-dsh-item dim">Codex · codex-cli v0.162.1</div>
+                      </div>
+                    </div>
+                    <div class="mock-pane-footer">
+                      <button type="button" class="mock-footer-btn" title="Add">+</button>
+                      <span class="mock-footer-btn">± 0</span>
+                      <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                      <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                      <span class="mock-pane-spacer"></span>
+                      <span class="mock-footer-branch">gh-pages</span>
+                    </div>
                   </div>
-                  <div class="mock-term-line"><span class="mock-term-cmd">cargo</span> test -p warpai-core -- --nocapture</div>
-                  <div class="dim" style="margin: 4px 0;">Warpai 已暂停 PTY 交互通道并向系统推送桌面通知。对应状态 Tab 标签已高亮。</div>
-                  <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
-                    <div style="color: var(--mock-accent); font-weight: 700;">❯ 1. 单次执行授权 (按回车 Enter)</div>
-                    <div class="dim">&nbsp;&nbsp;2. 对当前任务会话全部放行</div>
-                    <div class="dim">&nbsp;&nbsp;3. 拒绝执行并挂起该 Agent (按 Esc)</div>
+                  <!-- Right Sub-Pane: Codex Terminal with active prompt -->
+                  <div class="mock-subpane mock-subpane-codex">
+                    <div class="mock-subpane-body">
+                      <div class="mock-term-line dim">~/workplace (14.951s)</div>
+                      <div class="mock-term-line mock-cmd-line">
+                        <span class="green">codex</span> <span class="dim">'--no-daemon' '-c' 'mcp_servers.warp-lite-communication={...}'</span>
+                      </div>
+                      <div class="mock-term-line dim" style="margin-top:4px;">~/workplace (0.023s)</div>
+                      <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> <span class="mock-term-path">warpai-gh-pages</span></div>
+                      <div class="mock-term-line dim" style="margin-top:4px;">
+                        ~/workplace/warpai-gh-pages git:(gh-pages) (1m 26.00s)
+                      </div>
+                      <div class="mock-update-box">
+                        <div>✨ <strong>Update available!</strong> 0.162.1 -&gt; 0.163.0</div>
+                        <div style="margin-top:2px;">Run <code class="mock-code-link">brew upgrade --cask codex</code> to update.</div>
+                        <div class="dim" style="margin-top:4px;">See full release notes:</div>
+                        <div class="mock-link-blue">https://github.com/openai/codex/releases/latest</div>
+                      </div>
+                      <div class="mock-codex-banner">
+                        <div><strong>&gt;_ OpenAI Codex (v0.162.1)</strong></div>
+                        <div class="dim">~/workplace/warpai-gh-pages</div>
+                        <div class="mock-tip-line">Tip: Use <code>/title</code> to choose what appears in your terminal's title.</div>
+                      </div>
+                      <div class="mock-codex-prompt-box" tabindex="0">
+                        <div class="mock-prompt-inner">
+                          <span class="mock-prompt-char">❯</span>
+                          <span class="mock-prompt-placeholder">Ask Codex to do anything</span>
+                          <span class="mock-term-cursor"></span>
+                        </div>
+                        <div class="mock-prompt-footer">
+                          <span>GPT-6.1-Sol medium</span>
+                          <span class="green">~/workplace/warpai-gh-pages</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mock-pane-footer">
+                      <button type="button" class="mock-footer-btn" title="Add">+</button>
+                      <span class="mock-footer-btn">± 0</span>
+                      <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                      <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                      <span class="mock-pane-spacer"></span>
+                      <span class="mock-footer-branch">gh-pages</span>
+                    </div>
                   </div>
-                </div>
-                <div class="mock-prompt-row">
-                  <span class="mock-prompt-char">›</span>
-                  <span class="mock-term-cursor"></span>
                 </div>
               </div>
 
-              <!-- Screen 4: dsh (Remote Linux Companion) -->
-              <div class="mock-term-screen" data-screen="dsh">
-                <div class="mock-term-line mock-path-line">
-                  <span class="mock-term-path">wqin@workbox-gpu:~/warpai$</span>
+              <!-- SCREEN 3: Claude Code (From Screenshot 11.54.07.png) -->
+              <div class="mock-term-screen" data-screen="claude">
+                <div class="mock-single-pane">
+                  <div class="mock-single-pane-body">
+                    <div class="mock-term-line dim">~ (5.246s)</div>
+                    <div class="mock-term-line mock-cmd-line"><span class="green">claude</span></div>
+
+                    <!-- Interactive Trust Workspace Box -->
+                    <div class="mock-trust-box">
+                      <div class="mock-warning-header">Accessing workspace:</div>
+                      <div class="mock-warning-path"><strong>/Users/wqin</strong></div>
+                      <div class="mock-warning-desc">Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.</div>
+                      <div class="mock-warning-note">Claude Code'll be able to read, edit, and execute files here.</div>
+                      <div class="dim" style="margin: 4px 0;"><a href="javascript:void(0)" class="mock-link-underline">Security guide</a></div>
+                      <div class="mock-trust-choices" id="mock-trust-choices">
+                        <div class="mock-choice-row" data-choice="exit">
+                          <span class="mock-choice-pointer"> </span> No, exit
+                        </div>
+                        <div class="mock-choice-row active" data-choice="trust">
+                          <span class="mock-choice-pointer">❯</span> Yes, I trust this folder
+                        </div>
+                      </div>
+                      <div class="dim" style="font-size:10px; margin-top:4px;">Enter to confirm · Esc to cancel</div>
+                    </div>
+
+                    <div class="mock-term-line dim" style="margin-top: 6px;">~ (0.023s)</div>
+                    <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> workplace/gameset-1/</div>
+                    <div class="mock-term-line dim mock-prompt-git-header">
+                      <span>~/workplace/gameset-1 git:(main) 1 * +0 -0 (3m 18.00s)</span>
+                      <span class="mock-header-action-icons">🔖 ⧉ ⋮</span>
+                    </div>
+                    <div class="mock-term-line mock-cmd-line"><span class="green">claude</span></div>
+
+                    <!-- Claude Robot Mascot & Info -->
+                    <div class="mock-claude-banner-card">
+                      <div class="mock-claude-robot-art">
+                        <svg viewBox="0 0 36 36" width="34" height="34" fill="#c86b58" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="7" y="2" width="6" height="7" rx="1"/>
+                          <rect x="23" y="2" width="6" height="7" rx="1"/>
+                          <rect x="5" y="9" width="26" height="18" rx="2"/>
+                          <rect x="10" y="14" width="5" height="7" rx="1" fill="var(--mock-terminal-bg)"/>
+                          <rect x="21" y="14" width="5" height="7" rx="1" fill="var(--mock-terminal-bg)"/>
+                          <rect x="9" y="27" width="5" height="7" rx="1"/>
+                          <rect x="22" y="27" width="5" height="7" rx="1"/>
+                        </svg>
+                      </div>
+                      <div class="mock-claude-banner-text">
+                        <div class="mock-claude-version"><strong>Claude Code</strong> <span class="dim">v2.1.292</span></div>
+                        <div class="dim">Haiku 4.5 · API Usage Billing</div>
+                        <div class="dim">~/workplace/gameset-1</div>
+                      </div>
+                    </div>
+
+                    <div class="mock-changelog-note">
+                      <strong>Updated to latest. Got 47 features, 420 bugfixes, and 169 other changes.</strong><br>
+                      <span class="dim">code.claude.com/docs/en/changelog for details</span>
+                    </div>
+
+                    <hr class="mock-divider">
+
+                    <!-- Prompt row -->
+                    <div class="mock-prompt-row">
+                      <span class="mock-prompt-char">❯</span>
+                      <span class="mock-term-cursor"></span>
+                    </div>
+
+                    <div class="mock-claude-status-line">
+                      <span>⏸ manual mode on · ↩ for agents</span>
+                      <span class="mock-coral-note">Not logged in · Run /login</span>
+                    </div>
+                  </div>
+
+                  <!-- Claude Bottom Bar with Notification Enable Chip -->
+                  <div class="mock-pane-footer">
+                    <button type="button" class="mock-chip-claude-notify" id="mock-chip-notify" title="Toggle Notifications">
+                      <span class="mock-chip-sparkle">✳</span> ⤓ <span class="mock-chip-text">Enable Claude Code notifications</span> <span class="mock-chip-x" id="mock-chip-x">✕</span>
+                    </button>
+                    <button type="button" class="mock-footer-btn" title="Add">+</button>
+                    <span class="mock-footer-btn">± 0</span>
+                    <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                    <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                    <span class="mock-pane-spacer"></span>
+                    <span class="mock-footer-branch">main</span>
+                  </div>
                 </div>
-                <div class="mock-term-line mock-term-cmd">warpai companion attach workbox-gpu</div>
-                <div class="mock-term-line dim">基于 SFTP over SSH 隧道 · 有界分块流式传输 · Linux x86_64</div>
-                <div class="mock-term-line"><span class="green">✔</span> 远程伴侣通道已建立 · PTY 输入输出流物理隔离 · 零延迟损耗</div>
-                <div class="mock-term-line dim">   守护进程就绪: 监听 /home/wqin/.config/warpai/companion.sock</div>
-                <div class="mock-term-line"><span class="green">ready</span> 正在等待多智能体任务池派发工单...</div>
-                <div class="mock-prompt-row">
-                  <span class="mock-prompt-char">$</span>
-                  <span class="mock-term-cursor"></span>
+              </div>
+
+              <!-- SCREEN 4: Antigravity CLI (From Screenshot 11.54.33.png) -->
+              <div class="mock-term-screen" data-screen="agy">
+                <div class="mock-single-pane">
+                  <div class="mock-single-pane-body">
+                    <div class="mock-term-line dim">~ (0.027s)</div>
+                    <div class="mock-term-line mock-cmd-line"><span class="green">cd</span> workplace/warpai-gh-pages/</div>
+                    <div class="mock-term-line dim mock-prompt-git-header">
+                      <span>~/workplace/warpai-gh-pages git:(gh-pages) (3m 18.00s)</span>
+                      <span class="mock-header-action-icons">🔖 ⧉ ⋮</span>
+                    </div>
+                    <div class="mock-term-line mock-cmd-line"><span class="green">agy</span></div>
+
+                    <!-- Antigravity Rainbow Arch Mascot & Header -->
+                    <div class="mock-agy-banner-card">
+                      <div class="mock-agy-arch-art">
+                        <svg viewBox="0 0 40 44" width="36" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="4" y="32" width="8" height="8" fill="#3b82f6"/>
+                          <rect x="6" y="24" width="8" height="8" fill="#06b6d4"/>
+                          <rect x="8" y="16" width="8" height="8" fill="#22c55e"/>
+                          <rect x="12" y="8" width="8" height="8" fill="#eab308"/>
+                          <rect x="16" y="2" width="8" height="8" fill="#f97316"/>
+                          <rect x="20" y="2" width="8" height="8" fill="#ef4444"/>
+                          <rect x="20" y="8" width="8" height="8" fill="#ec4899"/>
+                          <rect x="24" y="16" width="8" height="8" fill="#a855f7"/>
+                          <rect x="26" y="24" width="8" height="8" fill="#6366f1"/>
+                          <rect x="28" y="32" width="8" height="8" fill="#3b82f6"/>
+                        </svg>
+                      </div>
+                      <div class="mock-agy-banner-text">
+                        <div class="mock-agy-title"><strong>Antigravity CLI 1.3.6</strong></div>
+                        <div class="dim">wqn20121@gmail.com (Google AI Pro)</div>
+                        <div class="dim">Gemini 3.8 Flash (High)</div>
+                        <div class="dim">~/workplace/warpai-gh-pages</div>
+                      </div>
+                    </div>
+
+                    <hr class="mock-divider">
+
+                    <!-- Blue Peer Notification Line -->
+                    <div class="mock-agy-peer-box">
+                      <span class="mock-callout-chevron">❯</span> <strong>Warpai peer work is waiting</strong> (message <code>17911ce5-f62a-463f-8c25-e95e31c886d7</code>). Call <code>warp_agent_inbox</code>, process this message or task, and acknowledge it through MCP. Before ending your turn, call <code>warp_agent_ready</code>.
+                    </div>
+
+                    <!-- Tool Execution Steps -->
+                    <div class="mock-agy-steps">
+                      <div class="mock-step-row dim">○ Thought for 17.5s (The message defines the agent's role as Worktree Coordinator. This involves task assignment and context provision to other agents. Results c...)</div>
+                      <div class="mock-step-row"><span class="green">●</span> <strong>Explored</strong> 4 files (warp_agent_inbox.json, warp_agent_ack.json, warp_agent_ready.json, +1)</div>
+                      <div class="mock-step-row"><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warp-lite-communication/warp_agent_inbox)</div>
+                      <div class="mock-step-row"><span class="green">●</span> <strong>Explored</strong> 1 file (warp_agent_list.json)</div>
+                      <div class="mock-step-row mock-collapsible-tool" id="mock-tool-expand-trigger" title="Click to expand/collapse payload">
+                        <div><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warp-lite-communication/warp_agent_list) <span class="mock-link-underline">(ctrl+o to expand)</span></div>
+                        <div class="mock-tool-detail-drawer" id="mock-tool-detail-drawer">
+                          <pre class="mock-json-preview"><code>{
+  "status": "ready",
+  "coordinator": "agy-2de995e3",
+  "active_worktrees": ["gh-pages", "dsh-43f8a41e", "codex-521bc71b"],
+  "peer_status": {
+    "claude": "idle",
+    "codex": "working",
+    "dsh": "listening"
+  }
+}</code></pre>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mock-term-line" style="margin-top:6px;"><b>&gt;</b> hi</div>
+                    <div class="mock-term-line"><span class="braille-spinner">⠋</span> <span class="dim">Working...</span></div>
+
+                    <hr class="mock-divider">
+
+                    <!-- Prompt row -->
+                    <div class="mock-prompt-row">
+                      <span class="mock-prompt-char">❯</span>
+                      <span class="mock-term-cursor"></span>
+                    </div>
+
+                    <div class="mock-claude-status-line">
+                      <span class="dim">esc to cancel</span>
+                      <span class="dim">Gemini 3.8 Flash · hig</span>
+                    </div>
+                  </div>
+
+                  <!-- Antigravity Bottom Bar -->
+                  <div class="mock-pane-footer">
+                    <button type="button" class="mock-footer-btn" title="Back">⌃</button>
+                    <button type="button" class="mock-footer-btn" title="Add">+</button>
+                    <span class="mock-footer-btn">± 0</span>
+                    <button type="button" class="mock-footer-btn mock-btn-open-explorer" title="Open File Explorer">🗎 File explorer</button>
+                    <button type="button" class="mock-footer-btn" title="Rich Input">🗖 Rich Input ^G</button>
+                    <span class="mock-pane-spacer"></span>
+                    <span class="mock-footer-branch">gh-pages</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -275,37 +613,19 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
             <!-- Interactive File Explorer Drawer -->
             <div class="mock-file-drawer" id="mock-file-drawer">
               <div class="mock-file-drawer-header">
-                <span>🗎 项目文件树</span>
+                <span>🗎 Project File Tree</span>
                 <button type="button" class="mock-drawer-close" id="mock-close-drawer">✕</button>
               </div>
               <div class="mock-file-tree">
-                <div>▼ <b>warpai/</b></div>
-                <div class="mock-tree-indent">▶ crates/agent_bus/</div>
-                <div class="mock-tree-indent">▶ crates/pty/</div>
+                <div>▼ <b>warpai-gh-pages/</b></div>
+                <div class="mock-tree-indent">▶ assets/css/</div>
+                <div class="mock-tree-indent">▶ assets/js/</div>
                 <div class="mock-tree-indent">▼ docs/</div>
                 <div class="mock-tree-indent-2">• project-mode.md</div>
                 <div class="mock-tree-indent-2">• worktree-mode.md</div>
-                <div class="mock-tree-indent">• Cargo.toml</div>
+                <div class="mock-tree-indent">• _config.yml</div>
+                <div class="mock-tree-indent">• index.html</div>
               </div>
-            </div>
-
-            <!-- Bottom Command Chips Bar (Screenshot Replica) -->
-            <div class="mock-chips-bar">
-              <button type="button" class="mock-bottom-chip mock-chip-claude-notify" id="mock-chip-notify" title="点击关闭通知提示">
-                <span class="mock-chip-sparkle">✳</span> ⤓ <span class="mock-chip-text">启用 Claude Code 桌面通知</span> <span class="mock-chip-x">✕</span>
-              </button>
-              <button type="button" class="mock-bottom-chip mock-chip-plus" title="添加快捷操作">+</button>
-              <span class="mock-bottom-chip mock-chip-stats">▤ 20 • <b class="green">+2329</b> <b class="red">-478</b></span>
-              <button type="button" class="mock-bottom-chip mock-chip-btn" id="mock-btn-explorer" title="展开/收起文件管理器">
-                🗎 <span class="mock-btn-explorer-text">文件管理器</span>
-              </button>
-              <button type="button" class="mock-bottom-chip mock-chip-btn" id="mock-btn-rich-input" title="富文本模式">
-                🗖 <span class="mock-btn-rich-text">富文本输入 ^G</span>
-              </button>
-              <span class="mock-chips-spacer"></span>
-              <span class="mock-bottom-chip mock-chip-branch" title="当前 Git 分支">
-                <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg> fix/agy-usage-window-labels
-              </span>
             </div>
           </main>
 
@@ -314,96 +634,84 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
             <!-- Top Header Icons -->
             <div class="mock-collab-header">
               <div class="mock-header-left-tools">
-                <button type="button" class="mock-tool-btn" title="分屏"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg></button>
-                <button type="button" class="mock-tool-btn" title="固定面板"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="5" y="5" width="8" height="8" rx="1"/></svg></button>
-                <button type="button" class="mock-tool-btn" title="搜索"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="Split Panel"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="8" y1="2" x2="8" y2="14"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="Dock Panel"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="5" y="5" width="8" height="8" rx="1"/></svg></button>
+                <button type="button" class="mock-tool-btn" title="Search"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3.5 3.5"/></svg></button>
               </div>
-              <button type="button" class="mock-tool-btn mock-close-btn" id="mock-btn-toggle-collab" title="关闭面板">✕</button>
+              <button type="button" class="mock-tool-btn mock-close-btn" id="mock-btn-close-collab" title="Close Panel">✕</button>
             </div>
 
             <!-- Section 1: Agents Collaboration Mode -->
             <div class="mock-collab-section">
               <div class="mock-section-label">
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
-                <span>智能体协作模式</span>
+                <span>Agents Collaboration Mode</span>
               </div>
               <div class="mock-mode-pill-container">
-                <button type="button" class="mock-pill-btn" data-mode="project" id="mock-pill-project">Project 模式</button>
-                <button type="button" class="mock-pill-btn active" data-mode="worktree" id="mock-pill-worktree">Worktree 模式</button>
+                <button type="button" class="mock-pill-btn" data-mode="project" id="mock-pill-project">Project</button>
+                <button type="button" class="mock-pill-btn active" data-mode="worktree" id="mock-pill-worktree">Worktree</button>
               </div>
             </div>
 
-            <!-- Section 2: Coordinator -->
+            <!-- Section 2: Coordinator (in Worktree mode) -->
             <div class="mock-collab-section" id="mock-section-coordinator">
               <div class="mock-section-label">
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
-                <span>协调者</span>
+                <span>Coordinator</span>
               </div>
               <div class="mock-coordinator-select-wrapper">
                 <div class="mock-coord-dropdown-trigger" id="mock-coord-trigger">
-                  <span class="mock-coord-badge">✳</span>
-                  <span class="mock-coord-name" id="mock-coord-active-name">claude-d56fefff · fix/agy-us...</span>
+                  <span class="mock-coord-badge">▲</span>
+                  <span class="mock-coord-name" id="mock-coord-active-name">agy-2de995e3 · gh-pages · 1</span>
                   <span class="mock-coord-chevron">⌵</span>
                 </div>
                 <div class="mock-coord-dropdown-menu" id="mock-coord-menu">
-                  <div class="mock-coord-option active" data-coord="claude">✳ claude-d56fefff (协调者)</div>
-                  <div class="mock-coord-option" data-coord="agy">▲ agy-e01359de</div>
-                  <div class="mock-coord-option" data-coord="codex">◉ codex-dbf18ab7</div>
-                  <div class="mock-coord-option" data-coord="dsh">🪪 dsh-13678e2c</div>
+                  <div class="mock-coord-option active" data-coord="agy">▲ agy-2de995e3 · gh-pages · 1</div>
+                  <div class="mock-coord-option" data-coord="claude">✳ claude-9c9cfc0c · main</div>
+                  <div class="mock-coord-option" data-coord="codex">◉ codex-521bc71b · gh-pages</div>
+                  <div class="mock-coord-option" data-coord="dsh">🐳 dsh-43f8a41e · gh-pages</div>
                 </div>
               </div>
-              <button type="button" class="mock-new-worktree-btn" id="mock-btn-new-worktree">+ 新建工作树</button>
+              <button type="button" class="mock-new-worktree-btn" id="mock-btn-new-worktree">New worktree</button>
             </div>
 
-            <!-- Section 3: Worktrees (in Worktree mode) / Project Spaces (in Project mode) -->
+            <!-- Section 3: Worktrees (in Worktree mode) / Agents (in Project mode) -->
             <div class="mock-collab-section">
-              <!-- Worktree View -->
+              <!-- Worktree Mode View -->
               <div class="mock-mode-subview active" id="mock-view-worktree">
                 <div class="mock-section-label">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><path d="M4 6v4M4 8a4 4 0 0 1 4-4h2"/></svg>
-                  <span>工作树</span>
+                  <span>Worktrees</span>
                 </div>
-                <div class="mock-worktree-node">
-                  <div class="mock-worktree-pill active">
-                    <span class="mock-arrow">▶</span> fix/agy-usage-window-labels
-                  </div>
-                  <div class="mock-worktree-agents">
-                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">🪪</span> dsh-13678e2c</div>
-                    <div class="mock-agent-item" data-agent="agy"><span class="mock-agent-icon">▲</span> agy-e01359de</div>
-                    <div class="mock-agent-item active" data-agent="claude"><span class="mock-agent-icon">✳</span> claude-d56fefff · <small class="mock-coord-tag">协调者</small></div>
-                    <div class="mock-agent-item" data-agent="warpai"><span class="mock-agent-icon">◉</span> codex-dbf18ab7</div>
-                  </div>
-                </div>
-                <div class="mock-worktree-node" style="margin-top: 6px;">
-                  <div class="mock-worktree-pill">
+                <div class="mock-worktree-node" id="mock-worktrees-list">
+                  <div class="mock-worktree-pill active" data-agent="warpai" style="cursor: pointer;">
                     <span class="mock-arrow">▶</span> gh-pages
                   </div>
-                  <div class="mock-worktree-empty">无在线智能体</div>
+                  <div class="mock-worktree-agents">
+                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">🐳</span> dsh-43f8a41e</div>
+                    <div class="mock-agent-item active" data-agent="agy"><span class="mock-agent-icon">▲</span> agy-2de995e3 · <small class="mock-coord-tag">Coordinator</small></div>
+                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">◉</span> codex-521bc71b</div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Project View -->
+              <!-- Project Mode View (from Screenshot 11.54.07.png) -->
               <div class="mock-mode-subview" id="mock-view-project">
                 <div class="mock-section-label">
-                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12v10H2zM2 6h12M6 6v7"/></svg>
-                  <span>项目空间与团队</span>
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="5" r="3"/><path d="M3 14a5 5 0 0 1 10 0"/></svg>
+                  <span>Agents</span>
                 </div>
                 <div class="mock-worktree-node">
-                  <div class="mock-worktree-pill active">
-                    <span class="mock-arrow">📁</span> research-manuscript/
-                  </div>
-                  <div class="mock-worktree-agents">
-                    <div class="mock-agent-item active" data-agent="claude"><span class="mock-agent-icon">✳</span> claude · <small class="mock-coord-tag">指挥官</small></div>
-                    <div class="mock-agent-item" data-agent="agy"><span class="mock-agent-icon">▲</span> agy · <small class="dim">文献检索与审计</small></div>
-                    <div class="mock-agent-item" data-agent="warpai"><span class="mock-agent-icon">◉</span> codex · <small class="dim">数据统计与作图</small></div>
-                  </div>
-                </div>
-                <div class="mock-worktree-node" style="margin-top: 6px;">
-                  <div class="mock-worktree-pill">
-                    <span class="mock-arrow">📁</span> industrial-design/
-                  </div>
-                  <div class="mock-worktree-agents">
-                    <div class="mock-agent-item" data-agent="dsh"><span class="mock-agent-icon">🪪</span> dsh · <small class="dim">素材渲染</small></div>
+                  <div class="mock-worktree-agents" style="padding-left: 2px;">
+                    <div class="mock-agent-item active" data-agent="claude">
+                      <span class="mock-agent-icon" style="color: #d97757;">✳</span> claude-9c9cfc0c · <small class="dim">idle</small>
+                    </div>
+                    <div class="mock-agent-item" data-agent="agy">
+                      <span class="mock-agent-icon" style="color: #3fb950;">▲</span> agy-2de995e3 · <small class="dim">worker</small>
+                    </div>
+                    <div class="mock-agent-item" data-agent="dsh">
+                      <span class="mock-agent-icon" style="color: #89b4fa;">🐳</span> dsh-43f8a41e · <small class="dim">listening</small>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -413,20 +721,20 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
             <div class="mock-collab-section">
               <div class="mock-section-label">
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4"/></svg>
-                <span>任务面板</span>
+                <span>Tasks</span>
               </div>
               <div class="mock-tasks-container" id="mock-tasks-list">
-                <div class="mock-tasks-empty-text">当前工作区无待办任务。</div>
+                <div class="mock-tasks-empty-text">No tasks on this page.</div>
               </div>
               <div class="mock-focus-tags">
-                <button type="button" class="mock-focus-tag" data-focus="agy">聚焦 agy-e01359de</button>
-                <button type="button" class="mock-focus-tag" data-focus="claude">聚焦 claude-d56fe</button>
-                <button type="button" class="mock-focus-tag" data-focus="warpai">聚焦 codex-dbf18a</button>
-                <button type="button" class="mock-focus-tag" data-focus="dsh">聚焦 dsh-13678e2c</button>
+                <button type="button" class="mock-focus-tag" data-focus="agy">Focus agy-2de995e3</button>
+                <button type="button" class="mock-focus-tag" data-focus="dsh">Focus codex-521bc7</button>
+                <button type="button" class="mock-focus-tag" data-focus="dsh">Focus dsh-43f8a41e</button>
+                <button type="button" class="mock-focus-tag" data-focus="claude">Focus claude-9c9cf</button>
               </div>
               <div class="mock-tasks-action-row">
-                <button type="button" class="mock-action-btn" id="mock-btn-send-agent">发送至智能体</button>
-                <button type="button" class="mock-action-btn" id="mock-btn-history">任务历史</button>
+                <button type="button" class="mock-action-btn" id="mock-btn-send-agent">Send to Agent</button>
+                <button type="button" class="mock-action-btn" id="mock-btn-history">History</button>
               </div>
             </div>
 
@@ -435,17 +743,17 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
               <div class="mock-usage-header">
                 <div class="mock-usage-title">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M4 11l3-4 3 2 2-4"/></svg>
-                  <span>数据用量与配额</span>
+                  <span>Data usage</span>
                 </div>
-                <button type="button" class="mock-usage-refresh-btn" id="mock-btn-refresh-quota" title="刷新配额">
+                <button type="button" class="mock-usage-refresh-btn" id="mock-btn-refresh-quota" title="Refresh Quota">
                   <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 8a5.5 5.5 0 0 1 9.3-3.9L14 6M13.5 8a5.5 5.5 0 0 1-9.3 3.9L2 10"/><path d="M14 2v4h-4M2 14v-4h4"/></svg>
                 </button>
               </div>
               <div class="mock-usage-body">
                 <div class="mock-usage-agent">Codex · mj</div>
-                <div class="mock-usage-stat">5小时 · 已用 3%</div>
+                <div class="mock-usage-stat">5h · 1% used</div>
                 <div class="mock-usage-track">
-                  <div class="mock-usage-bar" style="width: 28%;"></div>
+                  <div class="mock-usage-bar" style="width: 1%;"></div>
                 </div>
               </div>
             </div>
