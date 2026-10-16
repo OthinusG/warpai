@@ -690,3 +690,19 @@ fn repo_name(channel: Channel) -> String {
 #[cfg(test)]
 #[path = "linux_test.rs"]
 mod tests;
+/// Resolve AppImage relaunches to their original file, never the temporary mount.
+pub(super) fn language_restart_target(
+    executable: &std::path::Path,
+    appimage: Option<std::ffi::OsString>,
+    appdir: Option<std::ffi::OsString>,
+) -> std::io::Result<std::path::PathBuf> {
+    let mounted = appdir.as_ref().is_some_and(|directory| {
+        let directory = std::path::Path::new(directory);
+        directory.is_absolute() && executable.starts_with(directory)
+    });
+    if !mounted {
+        return Ok(executable.to_owned());
+    }
+    let image = appimage.map(std::path::PathBuf::from).filter(|path| path.is_absolute() && path.is_file());
+    image.ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Original AppImage is unavailable for restart"))
+}

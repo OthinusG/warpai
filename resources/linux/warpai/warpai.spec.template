@@ -1,0 +1,23 @@
+Name: warpai
+Version: @@VERSION@@
+Release: 1
+Summary: Local-first terminal with independent CLI agent collaboration
+License: AGPL-3.0-only AND MIT
+URL: https://github.com/OthinusG/warpai
+Packager: OthinusG
+Requires: fontconfig, xdg-utils, libEGL.so.1()(64bit), libX11.so.6()(64bit), libxcb.so.1()(64bit), libXcursor.so.1()(64bit), libXi.so.6()(64bit), libxkbcommon-x11.so.0()(64bit), libz.so.1()(64bit)
+%define _build_id_links none
+%define __os_install_post %{nil}
+
+%description
+Warpai provides a native terminal, project tools and multi-agent coordination.
+
+%install
+mkdir -p %{buildroot}
+OPT_DIR=/opt/warpai "@@WORKSPACEROOT@@/script/linux/bundle_install" "%{buildroot}"
+
+%files
+/opt/warpai
+/usr/bin/warpai
+/usr/share/applications/dev.warpai.Warpai.desktop
+/usr/share/icons/hicolor/512x512/apps/dev.warpai.Warpai.png

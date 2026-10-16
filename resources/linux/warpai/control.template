@@ -1,0 +1,11 @@
+Package: warpai
+Version: @@VERSION@@
+Section: utils
+Priority: optional
+Architecture: @@ARCH@@
+Maintainer: OthinusG
+Homepage: https://github.com/OthinusG/warpai
+Depends: libc6 (>= 2.31), fontconfig, libegl1, libwayland-client0, libwayland-egl1, libx11-6, libxcb1, libxcursor1, libxi6, libxkbcommon-x11-0, zlib1g, xdg-utils
+Recommends: libgl1-mesa-dri, adwaita-icon-theme, zenity, gnome-keyring
+Description: Local-first terminal with independent CLI agent collaboration
+ Warpai provides a native terminal, project tools and multi-agent coordination.

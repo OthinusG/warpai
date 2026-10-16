@@ -45,6 +45,8 @@ pub(crate) fn installer_url(tag: &str, os: &str, arch: &str) -> Option<String> {
     let name = match (os, arch) {
         ("macos", "aarch64") => format!("Warpai-{number}-macos-arm64.dmg"),
         ("windows", "x86_64") => format!("WarpaiSetup-{number}-windows-x64.exe"),
+        ("linux", "x86_64") => format!("Warpai-{number}-linux-x64.AppImage"),
+        ("linux", "aarch64") => format!("Warpai-{number}-linux-arm64.AppImage"),
         _ => return None,
     };
     Some(format!("{RELEASES_URL}/download/{tag}/{name}"))
@@ -213,6 +215,8 @@ mod tests {
             assets: [
                 "Warpai-1.4.0-macos-arm64.dmg",
                 "WarpaiSetup-1.4.0-windows-x64.exe",
+                "Warpai-1.4.0-linux-x64.AppImage",
+                "Warpai-1.4.0-linux-arm64.AppImage",
                 "WarpaiCompanion-3.1.0-linux-x64.run",
             ]
             .into_iter()
@@ -227,10 +231,14 @@ mod tests {
             published_installer(&release, "windows", "x86_64").unwrap(),
             format!("{RELEASES_URL}/download/v1.4.0/WarpaiSetup-1.4.0-windows-x64.exe")
         );
+        for (arch, asset) in [("x86_64", "x64"), ("aarch64", "arm64")] {
+            assert_eq!(published_installer(&release, "linux", arch).unwrap(),
+                format!("{RELEASES_URL}/download/v1.4.0/Warpai-1.4.0-linux-{asset}.AppImage"));
+        }
         for (os, arch) in [
             ("macos", "x86_64"),
             ("windows", "aarch64"),
-            ("linux", "x86_64"),
+            ("linux", "riscv64"),
         ] {
             assert!(published_installer(&release, os, arch).is_none());
         }

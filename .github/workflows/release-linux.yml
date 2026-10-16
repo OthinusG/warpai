@@ -1,0 +1,195 @@
+name: Release Warpai Linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Semantic release tag or test package version'
+        required: true
+        type: string
+      artifact_only:
+        description: 'Build test artifacts without changing a GitHub release'
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      artifact_only:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-linux-${{ github.ref }}-${{ inputs.release_tag }}-${{ inputs.artifact_only }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Linux ${{ matrix.arch }} packages
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    container: debian:bullseye
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      CARGO_HOME: /github/home/.cargo
+      RUSTUP_HOME: /github/home/.rustup
+      CARGO_BUILD_RUSTFLAGS: '-C symbol-mangling-version=v0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_PROFILE_RELEASE_DEBUG: '0'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - name: Prepare glibc 2.31 build environment
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates curl git git-lfs build-essential clang cmake pkg-config \
+            libssl-dev libfreetype6-dev libfontconfig1-dev libexpat1-dev libasound2-dev \
+            libx11-dev libx11-xcb-dev libxcb1-dev libxi-dev libxcursor-dev libxkbcommon-x11-dev \
+            libwayland-dev libegl1-mesa-dev libgl1-mesa-dev mesa-vulkan-drivers \
+            protobuf-compiler python3 python3-yaml rpm libarchive-tools zstd xz-utils \
+            file patchelf desktop-file-utils xvfb xauth x11-utils xdotool imagemagick \
+            dbus-x11 fonts-dejavu-core fonts-noto-cjk
+          [[ "$(getconf GNU_LIBC_VERSION)" == 'glibc 2.31' ]]
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
+          fetch-depth: 0
+          lfs: true
+      - name: Validate source and package version
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git diff --check
+          python3 script/test-linux-packaging.py
+          bash -n script/build-warpai-linux.sh script/linux/bundle script/linux/bundle_install \
+            script/linux/bundle_deb script/linux/bundle_rpm script/linux/bundle_arch \
+            script/linux/bundle_appimage script/linux/linuxdeploy-plugin-warp
+      - name: Restore native Linux Rust outputs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            /github/home/.cargo
+            /github/home/.rustup
+            target
+          key: linux-bullseye-${{ matrix.arch }}-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          restore-keys: |
+            linux-bullseye-${{ matrix.arch }}-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+      - name: Install pinned Rust and packaging tools
+        run: |
+          if [[ ! -x "$CARGO_HOME/bin/rustup" ]]; then
+            curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o "$RUNNER_TEMP/warpai-rustup.sh"
+            sh "$RUNNER_TEMP/warpai-rustup.sh" -y --profile minimal --default-toolchain 1.92.0
+          fi
+          export PATH="$CARGO_HOME/bin:$PATH"
+          rustup toolchain install 1.92.0 --profile minimal
+          if [[ "$(cargo-about --version 2>/dev/null || true)" != 'cargo-about 0.8.4' ]]; then
+            cargo install cargo-about --version 0.8.4 --locked
+          fi
+          script/linux/install_linuxdeploy
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Check desktop configurations and restart regressions
+        env:
+          GIT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          cargo check -p warpai --bin warpai --locked
+          cargo check -p warpai --bin warpai --features warp_platform --locked
+          cargo test -p warpai --lib language_restart_ --locked
+          cargo test -p warpai --lib release_updates::tests --locked
+          cargo test -p warp-agent-bus --lib mcp::tests --locked
+      - name: Build and verify all four native package formats
+        env:
+          ASSET_ARCH: ${{ matrix.arch }}
+        run: |
+          bash script/build-warpai-linux.sh "$RELEASE_TAG"
+          echo "LINUX_PACKAGE_PREFIX=Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH" >> "$GITHUB_ENV"
+      - name: Verify installed desktop starts under X11
+        env:
+          ASSET_ARCH: ${{ matrix.arch }}
+        run: |
+          apt-get install -y "./target/release/bundle/linux/Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH.deb"
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1280x900x24' \
+            python3 script/linux/smoke.py /opt/warpai/warpai target/linux-smoke
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-linux-${{ matrix.arch }}
+          path: |
+            target/release/bundle/linux/${{ env.LINUX_PACKAGE_PREFIX }}.*
+            target/release/bundle/linux/manifest-linux-${{ matrix.arch }}.json
+            target/release/bundle/linux/SHA256SUMS-linux-${{ matrix.arch }}.txt
+          if-no-files-found: error
+      - name: Upload Linux desktop smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Warpai-desktop-smoke-linux-${{ matrix.arch }}
+          path: target/linux-smoke
+          if-no-files-found: warn
+
+  attach:
+    name: Attach Linux packages to an existing draft
+    if: ${{ !inputs.artifact_only }}
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ format('refs/tags/{0}', inputs.release_tag) }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: Warpai-linux-*
+          merge-multiple: true
+          path: linux-release
+      - name: Verify provenance, checksums and draft-only target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release view "$RELEASE_TAG" --json isDraft,assets > "$RUNNER_TEMP/warpai-release.json"
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          release = json.loads((Path(os.environ['RUNNER_TEMP']) / 'warpai-release.json').read_text())
+          if not release['isDraft']:
+              raise SystemExit('Linux assets may only be attached to an existing draft')
+          source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          output = Path('linux-release')
+          expected = set()
+          for arch in ['x64', 'arm64']:
+              manifest_name = f'manifest-linux-{arch}.json'
+              manifest = json.loads((output / manifest_name).read_text())
+              if manifest['source'] != source or manifest['release'] != os.environ['RELEASE_TAG']:
+                  raise SystemExit('Linux package source/tag mismatch')
+              prefix = f"Warpai-{os.environ['RELEASE_TAG'][1:]}-linux-{arch}"
+              names = {prefix + '.' + suffix for suffix in ['deb', 'rpm', 'pkg.tar.zst', 'AppImage']}
+              if set(manifest['packages']) != names:
+                  raise SystemExit('Incomplete Linux architecture package set')
+              for name, digest in manifest['packages'].items():
+                  if hashlib.sha256((output / name).read_bytes()).hexdigest() != digest:
+                      raise SystemExit('Linux package checksum mismatch')
+              expected.update(names | {manifest_name, f'SHA256SUMS-linux-{arch}.txt'})
+          if {path.name for path in output.iterdir()} != expected:
+              raise SystemExit('Unexpected Linux release files')
+          if expected & {asset['name'] for asset in release['assets']}:
+              raise SystemExit('Refusing to overwrite existing Linux release assets')
+          PY
+          gh release upload "$RELEASE_TAG" linux-release/*

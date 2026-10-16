@@ -614,7 +614,16 @@ fn language_restart_keeps_paths_literal_and_avoids_installer_flags() {
         assert!(arguments[1].to_str().unwrap().contains("open -n \"$2\""));
         assert!(!arguments[1].to_str().unwrap().contains("$HOME.app"));
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        assert_eq!(command.get_program(), OsStr::new("/bin/sh"));
+        assert_eq!(arguments[3], OsStr::new("12345"));
+        assert_eq!(arguments[4], executable.as_os_str());
+        assert!(arguments[1].to_str().unwrap().contains("kill -0 \"$1\""));
+        assert!(arguments[1].to_str().unwrap().contains("exec \"$2\""));
+        assert!(!arguments[1].to_str().unwrap().contains("$HOME.app"));
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         assert_eq!(command.get_program(), executable.as_os_str());
         assert!(arguments.is_empty());

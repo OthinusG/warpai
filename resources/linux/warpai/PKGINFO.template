@@ -1,0 +1,25 @@
+pkgname = warpai
+pkgbase = warpai
+pkgver = @@VERSION@@-1
+pkgdesc = Local-first terminal with independent CLI agent collaboration
+url = https://github.com/OthinusG/warpai
+builddate = @@BUILDDATE@@
+packager = OthinusG
+size = @@SIZE@@
+arch = @@ARCH@@
+license = AGPL-3.0-only
+license = MIT
+depend = glibc>=2.31
+depend = fontconfig
+depend = libglvnd
+depend = libx11
+depend = libxcb
+depend = libxcursor
+depend = libxi
+depend = libxkbcommon-x11
+depend = wayland
+depend = xdg-utils
+depend = zlib
+optdepend = zenity: file dialogs on GNOME
+optdepend = kdialog: file dialogs on KDE
+optdepend = org.freedesktop.secrets: OS credential storage

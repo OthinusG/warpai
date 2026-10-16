@@ -998,8 +998,21 @@ pub fn spawn_child_if_necessary(app: &mut AppContext) {
     if matches!(status, RelaunchStatus::Requested | RelaunchStatus::RestartRequested) {
         if status == RelaunchStatus::RestartRequested {
             let result = std::env::current_exe()
-                .map(|executable| language_restart_command(&executable, std::process::id()))
-                .and_then(|mut command| command.spawn());
+                .and_then(|executable| {
+                    #[cfg(target_os = "linux")]
+                    let target = linux::language_restart_target(&executable, std::env::var_os("APPIMAGE"), std::env::var_os("APPDIR"))?;
+                    #[cfg(not(target_os = "linux"))]
+                    let target = executable.clone();
+                    let mut command = language_restart_command(&target, std::process::id());
+                    #[cfg(target_os = "linux")]
+                    if target != executable {
+                        // The AppImage loader must establish paths for a fresh mount.
+                        for key in ["APPIMAGE", "APPDIR", "ARGV0", "OWD", "LD_LIBRARY_PATH", "LD_PRELOAD"] {
+                            command.env_remove(key);
+                        }
+                    }
+                    command.spawn()
+                });
             if let Err(error) = result {
                 log::error!("Could not restart Warpai: {error}");
                 relaunch_handle.update(app, |model, ctx| {
@@ -1049,7 +1062,14 @@ fn language_restart_command(executable: &std::path::Path, pid: u32) -> command::
         command.arg(bundle.unwrap_or(executable));
         command
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        let mut command = command::blocking::Command::new("/bin/sh");
+        command.args(["-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; exec \"$2\"", "warpai-language-restart", &pid.to_string()]);
+        command.arg(executable);
+        command
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         let _ = pid;
         // The existing command wrapper lets the new Windows process survive parent shutdown.

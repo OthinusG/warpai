@@ -59,6 +59,9 @@ fi
 
 # Create the /opt install directory inside the AppDir.
 OPT_DIR="$APPDIR/opt/warpdotdev/$WARP_PACKAGE_NAME"
+if [[ "$WARP_PACKAGE_NAME" == warpai ]]; then
+  OPT_DIR="$APPDIR/opt/warpai"
+fi
 mkdir -p "$OPT_DIR"
 
 # Move the binary from usr/bin/ to opt/warpdotdev/<package>/.
@@ -68,7 +71,17 @@ mv "$SRC_BIN" "$OPT_DIR/$WARP_BINARY_NAME"
 # Create a relative symlink so usr/bin/<name> still resolves to the binary.
 # From usr/bin/ to opt/warpdotdev/<package>/ is ../../opt/warpdotdev/<package>/.
 echo "Creating symlink at usr/bin/$WARP_BINARY_NAME"
-ln -s "../../opt/warpdotdev/$WARP_PACKAGE_NAME/$WARP_BINARY_NAME" "$SRC_BIN"
+if [[ "$WARP_PACKAGE_NAME" == warpai ]]; then
+  ln -s "../../opt/warpai/$WARP_BINARY_NAME" "$SRC_BIN"
+  mv "$APPDIR/usr/bin/warpai-agent" "$OPT_DIR/warpai-agent"
+  ln -s ../../opt/warpai/warpai-agent "$APPDIR/usr/bin/warpai-agent"
+  # Relocation changes the path from both executables to linuxdeploy's shared libraries.
+  for executable in "$OPT_DIR/$WARP_BINARY_NAME" "$OPT_DIR/warpai-agent"; do
+    patchelf --set-rpath '$ORIGIN/../../usr/lib' "$executable"
+  done
+else
+  ln -s "../../opt/warpdotdev/$WARP_PACKAGE_NAME/$WARP_BINARY_NAME" "$SRC_BIN"
+fi
 
 # Copy bundled resources alongside the binary.
 DEST_RESOURCES="$OPT_DIR/resources"

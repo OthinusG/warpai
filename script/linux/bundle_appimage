@@ -23,6 +23,9 @@ else
   CHANNEL_SUFFIX="${BINARY_NAME#warp}"
 fi
 PACKAGE_NAME="warp-terminal$CHANNEL_SUFFIX"
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  PACKAGE_NAME=warpai
+fi
 
 
 # Adding NO_STRIP to stop linuxdeploy from attempting to strip symbols
@@ -53,6 +56,7 @@ mkdir -p "$STAGE_DIR"
 # Populate the directory with the package contents, in the appropriate
 # locations.
 OPT_DIR="/opt/warpdotdev/$PACKAGE_NAME"
+[[ "$PACKAGE_NAME" != warpai ]] || OPT_DIR=/opt/warpai
 source "$WORKSPACE_ROOT_DIR/script/linux/bundle_install" "$STAGE_DIR"
 
 # Modify the "Exec=" line in the .desktop file to use the name of the installed
@@ -60,7 +64,10 @@ source "$WORKSPACE_ROOT_DIR/script/linux/bundle_install" "$STAGE_DIR"
 sed -i -E 's/Exec=warp-terminal/Exec=warp/' "$STAGE_DIR/usr/share/applications/$BUNDLE_ID.desktop"
 
 # Find all icon files from inside the package staging directory.
-ICON_FILES=( $(find "$STAGE_DIR/usr/share/icons" -name "*.png") )
+ICON_ARGS=()
+while IFS= read -r -d '' icon; do
+  ICON_ARGS+=(--icon-file "$icon")
+done < <(find "$STAGE_DIR/usr/share/icons" -name '*.png' -print0)
 
 # Make sure there's no lingering AppDir from a previous execution.
 rm -rf "$APP_DIR"
@@ -77,11 +84,16 @@ export WARP_BINARY_NAME="$BINARY_NAME"
 export WARP_PACKAGE_NAME="$PACKAGE_NAME"
 export WARP_BUNDLED_RESOURCES_DIR="${STAGE_DIR}${OPT_DIR}/resources"
 export PATH="$WORKSPACE_ROOT_DIR/script/linux:$PATH"
+EXTRA_EXECUTABLES=()
+if [[ "$PACKAGE_NAME" == warpai ]]; then
+  EXTRA_EXECUTABLES+=(--executable "${STAGE_DIR}${OPT_DIR}/warpai-agent")
+fi
 linuxdeploy \
   --appdir "$APP_DIR" \
   --executable "${STAGE_DIR}${OPT_DIR}/$BINARY_NAME" \
   --desktop-file "$STAGE_DIR/usr/share/applications/$BUNDLE_ID.desktop" \
-  $(for i in "${ICON_FILES[@]}"; do echo "--icon-file $i "; done) \
+  "${ICON_ARGS[@]}" \
+  "${EXTRA_EXECUTABLES[@]}" \
   --plugin warp \
   --output appimage
 

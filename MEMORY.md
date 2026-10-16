@@ -5,17 +5,17 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
 
-- Rust builds/native acceptance run on GitHub; reuse caches.
-  Local syntax/scripts allowed; no personal install/config changes.
-- Monitor cloud runs hourly until done; do not end at dispatch.
-  Owner errors allow immediate diagnosis; full acceptance gates delivery.
+- Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only;
+  no personal install/config changes.
+- Monitor cloud runs through completion; diagnose owner errors immediately.
+  Full acceptance gates delivery.
 - 1.6.5 source 9cc8d0b2 passed desktop/WSL and Companion acceptance.
   CI: 38667669349 / 38667672552; release 38682643407 running.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
-  unused branches/worktrees. Retain four workflows.
-- Release immutable tags through existing workflows; both desktops build the same
-  source. Follow [release gates](specs/RELEASE.md), including five installers and
+  unused branches/worktrees. Linux scope: specs/linux-desktop/TECH.md (Oct16).
+- Release immutable tags through existing workflows; desktops share tagged source.
+  Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
 
 ## Published releases and maintenance
@@ -84,7 +84,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Diagnose actual failed-stage exit/stderr, not failed diagnostic launchers.
   script/diagnose-wsl-companion.bat + .ps1 confirms account/HOME and preserves
   nonsecret stderr; redact configuration JSON/credentials.
-- Language relaunch is cancelable; macOS waits for old PID, Windows isolates jobs.
+- Language restart: cancelable; Unix waits for exit; AppImage reopens its original
+  file. Windows isolates jobs.
 - WSL contract: specs/wsl-1.6.0/TECH.md. Use the Windows-bundled guest binary,
   confirmed WSL 2 distro/user and native integration; preserve opt-outs and guards.
   Account detection needs no Companion; launch text cannot grant account authority.

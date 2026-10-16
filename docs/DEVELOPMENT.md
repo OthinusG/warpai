@@ -8,7 +8,8 @@ repository. The user-facing introduction and download choices are in
 
 ## Scope
 
-- Desktop applications: macOS and Windows x64.
+- Desktop releases: macOS and Windows x64. Linux x86_64/ARM64 release engineering
+  is authorized; [Linux scope and acceptance](../specs/linux-desktop/TECH.md).
 - SSH project environments and the companion: Linux, macOS and Windows.
 - Preserve terminal rendering, input, shell integration and the existing editor.
 - Keep the default application and `warp_platform` checks passing when relevant.
@@ -41,6 +42,16 @@ For macOS packaging, reuse
 [build-warpai-windows.ps1](../script/build-warpai-windows.ps1) and the
 [installer resources](../script/windows/README.md). Preserve existing bundle and
 storage identifiers when changing visible branding.
+
+For Linux, use `bash script/build-warpai-linux.sh vMAJOR.MINOR.PATCH` on a
+native x86_64 or ARM64 build host. The standalone
+[Linux workflow](../.github/workflows/release-linux.yml) builds on Debian 11
+(glibc 2.31) and verifies `.deb`, `.rpm`, `.pkg.tar.zst` and AppImage packages.
+Use artifact-only dispatch to validate a branch. Non-artifact dispatch builds the
+exact tag and only attaches assets to an existing draft; it never creates tags,
+overwrites assets or publishes releases. Packages include `warpai-agent`, desktop
+integration, resources and notices, without installing upstream update sources.
+See [Linux installation and pending acceptance](LINUX.md).
 
 The macOS distributed binary uses `--features release_bundle,extern_plist`,
 matching the inherited macOS bundle path: native release flags include IME

@@ -15,6 +15,21 @@
 
 set -e
 
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  set -o pipefail
+  PKGDIR="$DIST_DIR/warpai-arch"
+  mkdir -p "$PKGDIR"
+  OPT_DIR=/opt/warpai
+  source "$WORKSPACE_ROOT_DIR/script/linux/bundle_install" "$PKGDIR"
+  SIZE="$(du -sb "$PKGDIR" | cut -f1)"
+  sed "s/@@VERSION@@/${GIT_RELEASE_TAG#v}/g; s/@@ARCH@@/$BUILD_ARCH/g; s/@@SIZE@@/$SIZE/g; s/@@BUILDDATE@@/${SOURCE_DATE_EPOCH:-$(date +%s)}/g" \
+    "$WORKSPACE_ROOT_DIR/resources/linux/warpai/PKGINFO.template" > "$PKGDIR/.PKGINFO"
+  cd "$PKGDIR"
+  bsdtar -c --format=mtree --options='!all,use-set,type,uid,gid,mode,time,size,sha256,link' .PKGINFO opt usr | gzip -n > .MTREE
+  bsdtar -c --zstd --uid 0 --gid 0 -f "$OUT_DIR/${APPIMAGE_NAME%.AppImage}.pkg.tar.zst" .PKGINFO .MTREE opt usr
+  exit 0
+fi
+
 # Extract channel suffix from BINARY_NAME
 if [ "$ARTIFACT" = "cli" ]; then
   CHANNEL_SUFFIX="${BINARY_NAME#oz}"

@@ -7,7 +7,8 @@
 
 ## 项目范围
 
-- 桌面应用：macOS 与 Windows x64。
+- 已发布桌面应用：macOS 与 Windows x64。Linux x86_64/ARM64 发布工程已获授权，
+  范围与验收见 [Linux 技术约定](../specs/linux-desktop/TECH.md)。
 - SSH 项目环境及 companion：Linux、macOS 与 Windows。
 - 保留终端渲染、输入、Shell 集成和现有编辑器。
 - 相关修改须保持默认应用与 `warp_platform` 检查通过。
@@ -38,6 +39,13 @@ Windows 打包复用 [build-warpai-windows.ps1](../script/build-warpai-windows.p
 安装器资源说明见 [Windows 安装器文档（英文）](../script/windows/README.md)。
 修改可见品牌名称时，保留原有 bundle 与数据存储标识，避免破坏兼容性。
 
+Linux 使用 `bash script/build-warpai-linux.sh vMAJOR.MINOR.PATCH`，要求原生
+x86_64 或 ARM64 构建主机。[Linux 发布工作流](../.github/workflows/release-linux.yml)
+在 Debian 11（glibc 2.31）环境生成并校验 `.deb`、`.rpm`、`.pkg.tar.zst` 和
+AppImage。默认仅生成测试产物；关闭该选项后，使用准确 tag，只能向已有草稿
+附加附件，不创建 tag、不覆盖附件、不公开发布。安装包包含通信桥、桌面入口、
+资源和许可声明，不添加上游软件源。安装和剩余验收见 [Linux 说明](LINUX.zh-CN.md)。
+
 macOS 分发构建使用 `--features release_bundle,extern_plist`，与仓库现有
 macOS bundle 流程一致：保留发布配置的输入法组合文本支持，应用版本与标识由
 实际安装包的 Info.plist 提供。
@@ -46,6 +54,7 @@ macOS bundle 流程一致：保留发布配置的输入法组合文本支持，�
 
 - [桌面通信工作流](../.github/workflows/validate-agent-communication.yml)：macOS、Windows 应用检查、聚焦回归，以及可选原生 UI 截图与调试构建。`protocol_only` 跳过桌面检查，除非启用 `check_app` 或 `capture_ui`；`capture_ui` 构建隔离的调试应用。验证流程不生成桌面安装包。
 - [远程 companion 工作流](../.github/workflows/validate-remote-companion.yml)：三平台协议和进程测试、受控 Linux OpenSSH 验收，以及带源码和摘要清单的 companion 产物。
+- 桌面通信工作流的 `linux_desktop` 选项复用 Linux 发布工作流生成测试包，覆盖两种架构。
 - [当前验收记录（英文）](../specs/agent-communication-v2/QUALITY.md)：替换决策、清理范围和准确源码版本的验证证据。
 
 根据修改的逻辑选择检查。Shell 脚本按 shebang 使用 `bash -n` 或 `zsh -n`。

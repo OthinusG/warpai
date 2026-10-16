@@ -7,17 +7,17 @@ Type=Application
 Name=Warpai
 GenericName=TerminalEmulator
 
-Exec=warp-terminal-oss %U
-StartupWMClass=dev.warp.WarpOss
+Exec=warpai %U
+StartupWMClass=dev.warpai.Warpai
 
 Keywords=shell;prompt;command;commandline;cmd;
 
-Icon=dev.warp.WarpOss
+Icon=dev.warpai.Warpai
 
 Categories=System;TerminalEmulator;
 
 # Don't run this application within a terminal.
 Terminal=false
 
-# Register ourselves as the handler for warposs:// URLs.
-MimeType=x-scheme-handler/warposs;
+# Register ourselves as the handler for Warpai URLs.
+MimeType=x-scheme-handler/warpai;

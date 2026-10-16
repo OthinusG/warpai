@@ -28,10 +28,6 @@ BUILD_ARCH="$(uname -m)"
 DEBUG=false
 ARTIFACT="app"
 
-# Cache all params so we can pass them to downstream scripts.
-ALL_PARAMS=$@
-
-PARAMS=""
 while (( "$#" )); do
   case "$1" in
     --debug)
@@ -103,15 +99,12 @@ while (( "$#" )); do
         exit 1
       fi
       ;;
-    *) # preserve positional arguments
-      PARAMS="$PARAMS $1"
-      shift
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
       ;;
   esac
 done
-# set positional arguments in their proper place
-eval set -- "$PARAMS"
-
 if [[ $DEBUG = true ]]; then
   CARGO_PROFILE="dev"
 elif [[ $RELEASE_CHANNEL = "local" || $RELEASE_CHANNEL = "dev" ]]; then
@@ -120,7 +113,7 @@ elif [[ $RELEASE_CHANNEL = "local" || $RELEASE_CHANNEL = "dev" ]]; then
   # a normal release build (e.g. in stable).
   CARGO_PROFILE="release-lto-debug_assertions"
 else
-  CARGO_PROFILE="release-lto"
+  CARGO_PROFILE="${CARGO_PROFILE:-release-lto}"
 fi
 
 if [[ "$CARGO_PROFILE" == "dev" ]]; then
@@ -191,6 +184,9 @@ elif [[ "$ARTIFACT" == "app" ]]; then
 fi
 
 BUNDLE_ID="dev.warp.$APP_NAME"
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  BUNDLE_ID="dev.warpai.Warpai"
+fi
 EXECUTABLE_PATH="$CARGO_TARGET_OUTPUT_DIR/$WARP_BIN"
 DEBUG_EXECUTABLE_PATH="$EXECUTABLE_PATH.debug"
 
@@ -198,19 +194,29 @@ DEBUG_EXECUTABLE_PATH="$EXECUTABLE_PATH.debug"
 # binary, as it is read at compile time by Linux autoupdate logic (to know the
 # expected name of the AppImage when downloading updates).
 export APPIMAGE_NAME="$APP_NAME-$BUILD_ARCH.AppImage"
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  [[ "${GIT_RELEASE_TAG:-}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'A semantic release tag is required' >&2; exit 1; }
+  LINUX_ARCH=x64
+  [[ "$BUILD_ARCH" != aarch64 ]] || LINUX_ARCH=arm64
+  export APPIMAGE_NAME="Warpai-${GIT_RELEASE_TAG#v}-linux-$LINUX_ARCH.AppImage"
+fi
 
 # If we only want to check that compilation will succeed, perform the checks
 # then exit.  We use this script to invoke `cargo check` to ensure that we are
 # using the same feature flags and profile that we would be using in production.
 if [[ "$CHECK_ONLY" == "true" ]]; then
-  cargo check -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
+  cargo check -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES" --locked
   exit 0
 fi
 
 # Build the binary.
 if [[ "$BUILD" == "true" ]]; then
   echo "Building and bundling Warp for channel $RELEASE_CHANNEL and bundle id $BUNDLE_ID"
-  cargo build -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES"
+  cargo build -p warpai --profile "$CARGO_PROFILE" --bin "$WARP_BIN" --features "$FEATURES" --locked
+  if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+    cargo build -p warp-agent-bus --profile "$CARGO_PROFILE" --bin warpai-agent --locked
+    strip --strip-all "$CARGO_TARGET_OUTPUT_DIR/warpai-agent"
+  fi
   echo "Making debug copy of '$EXECUTABLE_PATH' at '$DEBUG_EXECUTABLE_PATH'"
   cp "$EXECUTABLE_PATH" "$DEBUG_EXECUTABLE_PATH"
 
@@ -229,7 +235,9 @@ else
 fi
 
 # Prepare bundled resources for CLI builds.
-if [[ "$ARTIFACT" == "cli" ]]; then
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  "$WORKSPACE_ROOT_DIR/script/prepare_bundled_resources" "$CARGO_TARGET_OUTPUT_DIR/resources" "$RELEASE_CHANNEL" "$CARGO_PROFILE"
+elif [[ "$ARTIFACT" == "cli" ]]; then
   echo "Preparing CLI resources directory"
   BUNDLED_RESOURCES_DIR="$OUT_DIR/resources"
   "$WORKSPACE_ROOT_DIR/script/prepare_bundled_resources" "$BUNDLED_RESOURCES_DIR" "$RELEASE_CHANNEL" "$CARGO_PROFILE"

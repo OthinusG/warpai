@@ -554,3 +554,15 @@ as the latest non-prerelease. Immutable tag source:
 
 No desktop or raw companion ZIP is published. Ad-hoc macOS signing and unsigned
 Windows installation remain the documented first-launch constraints.
+# Linux desktop packages (2026-10-16)
+
+Owner-authorized Linux release engineering is specified in
+[Linux scope and acceptance](linux-desktop/TECH.md). The standalone
+`release-linux.yml` produces x86_64/ARM64 `.deb`, `.rpm`, Arch and AppImage
+packages with a verified glibc-2.31 baseline. Native installers include the
+communication bridge and Warpai desktop identity, never upstream update sources.
+Source manifests and architecture-specific SHA-256 files accompany the packages.
+Artifact-only is the default. Tagged attachment requires an existing draft,
+matching source, both architectures and no asset collisions; it cannot create
+tags or publish. Existing macOS/Windows/Companion release rules below continue
+to apply. Linux test builds are not full distribution/desktop acceptance.

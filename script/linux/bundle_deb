@@ -15,6 +15,20 @@
 
 set -e
 
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  PKGDIR="$DIST_DIR/warpai-deb"
+  mkdir -p "$PKGDIR"
+  OPT_DIR=/opt/warpai
+  source "$WORKSPACE_ROOT_DIR/script/linux/bundle_install" "$PKGDIR"
+  ARCH=amd64
+  [[ "$BUILD_ARCH" != aarch64 ]] || ARCH=arm64
+  mkdir -p "$PKGDIR/DEBIAN"
+  sed "s/@@VERSION@@/${GIT_RELEASE_TAG#v}/g; s/@@ARCH@@/$ARCH/g" \
+    "$WORKSPACE_ROOT_DIR/resources/linux/warpai/control.template" > "$PKGDIR/DEBIAN/control"
+  dpkg-deb --root-owner-group --build "$PKGDIR" "$OUT_DIR/${APPIMAGE_NAME%.AppImage}.deb"
+  exit 0
+fi
+
 # Extract channel suffix from BINARY_NAME
 if [ "$ARTIFACT" = "cli" ]; then
   CHANNEL_SUFFIX="${BINARY_NAME#oz}"

@@ -15,6 +15,16 @@
 
 set -e
 
+if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
+  RPMBUILD_DIR="$DIST_DIR/warpai-rpm"
+  mkdir -p "$RPMBUILD_DIR/SPECS"
+  sed "s#@@VERSION@@#${GIT_RELEASE_TAG#v}#g; s#@@WORKSPACEROOT@@#$WORKSPACE_ROOT_DIR#g" \
+    "$WORKSPACE_ROOT_DIR/resources/linux/warpai/warpai.spec.template" > "$RPMBUILD_DIR/SPECS/warpai.spec"
+  rpmbuild -bb "$RPMBUILD_DIR/SPECS/warpai.spec" --target "$BUILD_ARCH" --define "_topdir $RPMBUILD_DIR"
+  cp "$RPMBUILD_DIR/RPMS/$BUILD_ARCH/warpai-${GIT_RELEASE_TAG#v}-1.$BUILD_ARCH.rpm" "$OUT_DIR/${APPIMAGE_NAME%.AppImage}.rpm"
+  exit 0
+fi
+
 # Extract channel suffix from BINARY_NAME
 if [ "$ARTIFACT" = "cli" ]; then
   CHANNEL_SUFFIX="${BINARY_NAME#oz}"
