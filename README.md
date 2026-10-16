@@ -10,292 +10,177 @@
 
 Make an Agent session the unit of work. Collaborate in a shared project, or select
 a Coordinator to lead parallel development across isolated Git worktrees.
-Warpai combines that workflow with a full-featured native terminal for macOS and
-Windows. Keep the same Agent, file and review workflow on remote Linux, macOS and
-Windows machines.
+Warpai combines that workflow with a full-featured native terminal for macOS,
+Windows, and Linux. Keep the same Agent, file, and review workflow on remote
+Linux, macOS, and Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.6.5](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.7.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
+[Documentation](https://othinusg.github.io/warpai/) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.6.5-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)
+[![Release](https://img.shields.io/badge/release-1.7.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
+[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
 
 </div>
 
-![Warpai macOS workspace with vertical tabs, a source editor and an agent task panel](docs/images/warpai-workspace.png)
+![Warpai All-in-One Hero Workspace](docs/images/warpai-hero-showcase.png)
 
-*Existing native macOS screenshot with vertical tabs and the default Claude Warm
-Light theme. Sample project and agents; [screenshot provenance](docs/images/README.md).*
+*Warpai 3-column workspace with vertical tabs and default Claude Warm Light theme: Left Agent collaboration panel with dynamic task supervision, center GPU terminal with command blocks, and right Project Explorer with live editor.*
 
 <a id="agents-as-the-unit-of-work"></a>
 
 ## A workflow designed for the AI era
 
 An Agent is more than a chat window beside your code. It can take ownership of a
-piece of work, report progress, ask another Agent for help and return a result
+piece of work, report progress, ask another Agent for help, and return a result
 for review. Warpai gives those Agent sessions a shared project context and a
 place to coordinate.
 
-Choose **Project** mode for shared project communication, research and writing,
-or **Worktree** mode for parallel changes in one Git repository. Project keeps
-the team's messages, tasks and history together. All Project participants can
-observe progress and pending decisions, retry stopped work, reassign tasks and
-review results. Questions and answers retain their original task; busy Agents
-receive results in arrival order. Timeouts never automatically restart work.
-In Worktree mode, select an active Agent from any checkout as Coordinator. Agents join their
-repository team automatically; same-checkout Agents communicate directly and
-cross-checkout communication goes through the Coordinator. The Coordinator assigns tasks and context, collects results, requests
-peer review and chooses what to integrate. Reviewers can request changes; the
-assigned Agent can continue and submit again. You stay in control of the goal,
-scope and final result.
+### Two specialized collaboration modes
 
-### Example: ship a feature with an Agent team
+Warpai provides two first-class modes tailored for different problem domains:
 
-To add an export feature, switch to Worktree mode and select your Coordinator.
-Create separate worktrees for the API, command line interface and tests. Create worktrees through the existing worktree menu, which opens each in a new
-tab. Start Agents there through your normal Agent workflow. Creating a worktree never starts an Agent. The Coordinator delegates
-the work, asks Agents to review one another, integrates accepted results, checks
-the combined changes and makes the final Git commit. Warpai keeps messages,
-assignments, evidence and review decisions together throughout the process.
+- **Git Worktree Coding Mode**: Built for disciplined software engineering. Each feature or subtask is assigned to an isolated physical Git worktree checkout. Branch checkouts and file writes remain completely decoupled, eliminating Git checkout collisions and dirty working tree contention. An active Agent is selected as **Coordinator** to decompose requirements, assign tasks, orchestrate automated peer reviews (`accepted` vs. `needs_changes`), and integrate verified diffs into the mainline branch.
+- **Omnidirectional Project Mode**: Built for cross-domain and non-coding tasks (scientific research, literature reviews, quantitative finance, report writing, and patent compliance). Project mode breaks rigid single-coordinator hierarchies into an egalitarian mesh network. Any agent can directly message any peer, initiate structured two-way Q&A, publish shared context contracts, and pull work items from a shared task pool. No Git repository is required.
+
+### Dynamic task supervision (v1.7.0)
+
+Warpai v1.7.0 introduces **Dynamic Task Supervision**:
+
+1. **On-the-fly task dispatching**: Any supervising Agent or Coordinator can dynamically publish tasks to multiple agents at any time, adapting flexibly as execution unfolds rather than relying on static, upfront batch plans.
+2. **Dynamic supervision list enrollment**: Newly dispatched tasks immediately join the primary Agent's live **Supervision Task List**. The supervising agent actively tracks task lifecycle states (`assigned`, `in_progress`, `submitted_for_review`).
+3. **Active task retirement**: Once an assigned agent completes its deliverable and submits accepted evidence or code diffs, the task automatically exits the supervision list.
+4. **Guarded inbox delivery**: Busy agents receive incoming tasks and messages in arrival order without unexpected process interruptions. Timeouts never prematurely restart in-flight work.
 
 ```mermaid
 flowchart TB
-    Goal["You select an active Coordinator"] --> Lead["Coordinator splits and assigns work"]
-    Lead -->|Assign tasks| Team
-    subgraph Team["Agents work in parallel and share progress"]
+    Goal["Your Goal & Instructions"] --> Coordinator["Active Coordinator / Lead Agent"]
+    Coordinator -->|Dynamic Task Dispatch| TaskPool["Dynamic Supervision Task List<br/>(Tasks enroll on dispatch & actively exit on completion)"]
+    TaskPool --> Team
+    subgraph Team["Parallel CLI Agents (Independent Sessions)"]
         direction LR
-        Build["Agent A · Worktree A<br/>Implement the feature"]
-        Test["Agent B · Worktree B<br/>Test the behavior"]
-        Docs["Agent C · Worktree C<br/>Write the documentation"]
+        AgentA["Agent A · Worktree A<br/>Feature Implementation"]
+        AgentB["Agent B · Worktree B<br/>Automated Testing & QA"]
+        AgentC["Agent C · Project Explorer<br/>Documentation & Contracts"]
     end
-    Team -->|Report results| Review["Coordinator requests peer review"]
-    Review -->|Needs changes| Team
-    Review -->|Accepted| Delivery["Coordinator integrates, verifies and commits"]
+    Team -->|Submit Evidence| Review["Coordinator & Peer Review"]
+    Review -->|Needs Revision| Team
+    Review -->|Accepted| Delivery["Coordinator Integrates & Commits to Mainline"]
 ```
-
-For research, analysis, drafting and fact-checking, use Project mode to divide
-work and combine the results into one deliverable without worktree setup.
 
 ## One workspace for the whole loop
 
-Warpai brings Agent management and project work into one application, reducing
-the trips between a terminal, a separate Agent dashboard, a file browser and a
-review tool.
+Warpai brings Agent management and project work into one unified application, reducing trips between a terminal, a separate Agent dashboard, a file browser, and a code review tool.
 
-- **Left Agent panel:** manage and switch between project Agent sessions, follow
-  readiness and task status, send messages and review results. Switch between
-  Project and Worktree at the top of the collaboration panel. Select or switch the
-  Coordinator from any checkout; compact summaries expand to show checkout details.
-  Worktree creation uses the existing worktree menu and opens a new tab. History and maintenance remain available when needed.
-- **Full-featured terminal:** run your normal shells, Git, build tools, scripts,
-  development servers and long-running commands. GPU rendering, command blocks,
-  vertical tabs, split panes, command completion, command search, themes and
-  keep-awake controls support parallel work and long sessions.
-- **Right project panel:** browse, create, rename and delete project files;
-  click source or text to open the built-in editor, use Vim mode, and preview
-  Markdown and supported formats. The same tools follow the focused terminal's
-  directory in local and SSH projects.
-- **Review Agent results:** inspect submitted files and reports, then accept
-  Agent tasks or request revisions through the collaboration panel.
-- **Code Review:** inspect local or SSH Git changes in the original Review panel
-  and open changed files in the existing editor. Remote Git writes stay in the
-  SSH terminal.
-
-The lightweight editor and file tools make Warpai a useful agent-first workbench
-without requiring a full IDE for every task. Use a dedicated IDE when you need
-its deeper language-specific navigation, debugging or extension ecosystem.
+- **Left Agent collaboration panel**:
+  - Manage and inspect active CLI Agent sessions with fine-grained lifecycle states (`idle`, `busy`, `waiting_for_input`, `waiting_for_dependents`, `waiting_for_message`).
+  - Follow the **Dynamic Supervision Task List** and inspect evidence submitted by peers.
+  - Switch smoothly between **Project Mode** and **Worktree Mode**; designate or switch the Coordinator from any active checkout.
+  - Monitor token quotas, model providers, and available balances in the scrollable **Data usage** footer.
+- **Center GPU-accelerated terminal**:
+  - High-performance GPU rendering powered by Rust `wgpu` and `winit`.
+  - Discrete command blocks with exit codes, execution duration, and isolated copy/share tools.
+  - Vertical tab management, split panes, intelligent autocompletion, fuzzy command palette, and configurable keep-awake controls.
+- **Right Project Explorer & built-in editor**:
+  - Browse, create, rename, and delete project files locally or across SSH remote hosts.
+  - Built-in text and code editor with syntax highlighting, line numbers, and Vim keybindings.
+  - Live Markdown preview with rendered math formulas, diagrams, and media.
+  - Visual side-by-side Git diff code review for both local and remote checkouts.
 
 ## Use the Agents you already choose
 
-Warpai supports 20+ named CLI Agent types, including Codex, Claude Code, Gemini,
-Cursor, Qoder and others. Agents keep their own providers and authentication;
-Warpai provides the shared project workflow around them. Availability depends on
-the installed Agent and version. See the
-[compatibility guide](specs/agent-communication/COVERAGE.md) for current support.
+Warpai supports **20+ named CLI Agent types**, including Codex, Claude Code, Gemini CLI, Cursor, Qoder, Goose, Hermes, OpenCode, Antigravity CLI, Trae, and more. Agents retain their own vendor accounts, environment variables, and authentication; Warpai provides the local coordination fabric connecting them.
 
-Enable **Settings > Features > Agent communication** and select the Agents for
-your project. Agents in the same project can message one another, receive tasks,
-submit evidence and participate in review. Separate projects remain isolated.
-Queued work waits for the receiving Agent to be ready, and Warpai does not answer
-permission requests on an Agent's behalf.
+Enable **Settings > Features > Agent communication** to select participating agents. Communication is powered by the bundled `warp-lite-communication` MCP server, exposing **38+ native tools** for task assignment, status reporting, peer review, context sharing, and non-blocking file reservations.
 
-Start Agents through their normal workflow before selecting a Coordinator. With no active Agent, Worktree coordination remains unavailable.
-Participation follows the Agent's actual checkout without moving or restarting
-its process. Coordinator selection survives pane, tab and project switches until
-that Agent exits or Warpai closes. You can switch to another online Agent at any time. Switching modes changes the panel view and preserves
-Project history. Accepting a task does not automatically merge branches.
+### Multi-provider quota monitoring
 
-Settings reports useful setup errors when an Agent cannot join. A single cleanup
-action clears Warpai communication settings from supported installed Agents while
-preserving their other integrations, so you can reset participation and choose
-the Agents you want to use.
+The collaboration panel's **Data usage** footer displays connected provider accounts. Configure accounts and thresholds in **Settings > Features > Data usage**. The footer independently scrolls up to four accounts, keeping provider badges, quota progress bars, and token balances visible while you coordinate active tasks.
 
-View your connected provider accounts in the collaboration panel's **Data usage**
-footer. Configure accounts and visibility in **Settings > Features > Data usage**.
-The footer has its own scrolling area with at most four account rows; labels,
-Agent icons, quota bars and available balances remain visible while you browse
-collaboration tasks. Account settings persist across workspaces and restarts;
-usage readings are refreshed after restart. Accounts use the current local CLI
-login or credentials kept in OS secure storage. Available usage sources are
-listed in the [provider guide](specs/agent-communication-v2/USAGE-PROVIDERS.md).
+<a id="remote-work-is-part-of-the-same-workflow"></a>
 
 ## Remote work is part of the same workflow
 
-**The same working loop is available locally and remotely:** Agent management
-and collaboration, a full terminal, file management, in-app editing and document
-previews. Connect to a Linux, macOS or Windows machine in the
-terminal and enter your project directory; the workspace follows that terminal's
-remote `cd`.
+**The exact same working loop is available locally and remotely:** Agent management, terminal execution, file exploration, in-app editing, and code reviews. Connect to any remote Linux, macOS, or Windows host via SSH and navigate to your project directory; the entire workspace automatically follows the focused terminal's remote directory.
 
-The focused terminal selects communication independently: local uses its local
-setting, WSL uses its distribution/account setting, and SSH uses the remote
-Companion. Entering SSH or WSL through a terminal command follows the same rules.
-
-The remote collaboration view supports both Project and Worktree modes, showing
-Agents, conversations, assignments and results. On one SSH host/account, select or switch
-a Coordinator from any checkout just as you do locally.
-Each worktree retains its own file, editor and Review root. Separate clones,
-hosts/accounts and local/remote environments remain isolated.
+The standalone **Warpai Companion** powers remote projects:
+- **Private bundled Git**: Companion includes its own private Git runtime. The remote server does not require Git, Python, Node.js, tmux, or socat to be installed.
+- **On-demand execution**: Companion starts automatically upon connection and terminates after 60 idle seconds, leaving zero residual background memory footprint.
+- **Safety & resilience**: Unsaved remote file edits remain preserved across unexpected network disconnects.
 
 ![Warpai SSH project with a connected remote agent and task](docs/images/warpai-ssh-project.png)
 
-*Existing SSH project screenshot from the native application. See
-[screenshot provenance](docs/images/README.md).*
-
-Project Explorer browses the remote project and lets you create, rename and
-delete files. Click code or text to open the same built-in editor, preview
-Markdown reports with their images and links, and save changes on the remote
-machine. Open files remain attached to their original remote project
-when you change directories or switch terminals. A connection interruption or
-save conflict preserves your unsaved edits.
-
-For example, connect to a research server and enter an analysis project. Ask one
-Agent to process datasets, another to check the scripts and a third to draft the
-report. While they work, open the generated scripts, preview the illustrated
-report, review their changes and make corrections in Warpai. The lead Agent can
-bring those results together while the data and computation stay on the server.
-
-On a remote development machine, use Worktree mode to divide implementation,
-testing and documentation across isolated checkouts. Inspect files and changes,
-then let the Coordinator integrate and commit the accepted result. Research teams
-can keep using Project mode with no worktree setup.
+*SSH remote workspace with live remote agent coordination and SFTP file management. See [screenshot provenance](docs/images/README.md).*
 
 ## Beyond software development
 
-Warpai is useful wherever work can be divided into tasks and handled with CLI
-Agents, scripts or project files. Those workflows often benefit from a shared
-Agent team more than from a full programming IDE.
+Warpai is useful wherever complex work can be decomposed into tasks and handled with CLI Agents, scripts, and project files:
 
-| Work | Example Agent team |
+| Domain | Example Agent Team |
 | --- | --- |
-| **Research and data analysis** | A lead Agent organizes a literature review; one Agent extracts methods, another analyzes separate datasets, and a reviewer checks calculations and source links. The lead combines the results into a research note or report. |
-| **Writing and knowledge work** | Ask one Agent to outline a report, another to gather supporting material, and a third to edit for clarity and consistency. The lead resolves differences and prepares the final draft. |
-| **Business and operations** | Delegate market or policy research, data cleanup, process documentation and a separate fact-check. Review the evidence and consolidate a decision brief in the project. |
-| **Software development** | Use Worktree mode to split implementation, tests and documentation across isolated checkouts. The selected Coordinator arranges peer review, integrates accepted changes and makes the final commit. |
-
-Use the terminal's existing ecosystem—Python, R, shell tools, Git and command-line
-utilities—alongside the Agents you already use. Warpai does not make an IDE or a
-single model provider the center of these workflows.
+| **Research & data science** | A lead Agent designs the literature review; one Agent extracts scientific methodologies, another analyzes datasets with Python/R, and a reviewer verifies calculations and citation DOI links. Results are consolidated into a publication draft. |
+| **Writing & knowledge work** | One Agent structures the document outline, another retrieves supporting evidence, and a third refines tone and consistency. The lead harmonizes disagreements and prepares the final deliverable. |
+| **Quantitative finance & ops** | Delegate market data scraping, statistical modeling, algorithmic backtesting, and automated risk verification. Results are consolidated into an executive decision memo. |
+| **Software development** | Use Worktree mode to distribute feature implementation, unit testing, and documentation across isolated branch checkouts. The Coordinator oversees peer review and integrates accepted changes. |
 
 ## Where Warpai fits
 
-Zed and VS Code center the code editor and integrate Agent workflows into that
-environment. Warpai starts from the other direction: a complete terminal and a
-project workspace where multiple independent CLI Agents are the primary workers.
-Its distinctive value is the shared coordination loop—lead, delegate, report,
-review and integrate—across those Agents, locally or over SSH.
-
 | Compared with | Warpai's focus |
 | --- | --- |
-| **Code editors such as [Zed](https://zed.dev/docs/ai/overview) and [VS Code](https://code.visualstudio.com/docs/agents/overview)** | Keeps the terminal and independently installed CLI Agent sessions at the center; adds project-level coordination across Agents rather than treating each Agent as a separate editor thread. |
-| **AI terminals such as [Warp](https://www.warp.dev/terminal)** | Focuses on coordinating a broad set of independently installed CLI Agents in one project, alongside the full terminal and project tools. |
-| **Agent workspaces such as [Conductor](https://www.conductor.build/)** | Runs the workflow in the local project or your chosen SSH environment with your installed Agents, instead of requiring a hosted Warpai workspace. |
-| **Full IDEs** | Offers terminal-first Agent management, file tools, previews and review for code and non-code work. Use a full IDE when you need its specialized development tools. |
-
-This is a difference in workflow focus, not a claim that one product is best for
-every team. See the linked official product descriptions for their current Agent
-and workspace features.
+| **Code editors ([Zed](https://zed.dev/docs/ai/overview), [VS Code](https://code.visualstudio.com/docs/agents/overview))** | Centers the native terminal and independently installed CLI Agent sessions; coordinates multi-agent teams at the project level rather than treating each agent as a conversational editor subpanel. |
+| **AI terminals ([Warp](https://www.warp.dev/terminal))** | Focuses on coordinating multi-agent CLI teams, dynamic task supervision, and isolated Git worktree checkouts alongside native terminal features. |
+| **Agent workspaces ([Conductor](https://www.conductor.build/))** | Runs directly inside your local or private SSH environments with your own installed tools, with zero mandatory cloud accounts or vendor lock-in. |
+| **Full IDEs** | Provides a lightweight, agent-first terminal workbench with integrated file tools, diff review, and document preview. Pairs cleanly with dedicated IDEs when deep language AST refactoring or native debuggers are needed. |
 
 ## Technology
 
-Warpai is a native desktop application written in **Rust**, using the `warpui`
-UI toolkit, **wgpu** GPU rendering and **winit** windowing. Agent coordination
-uses local SQLite storage. The desktop app targets macOS and Windows; SSH
-projects use a matching Warpai companion on the remote host.
+Warpai is a native desktop application written in **Rust**, utilizing the `warpui` UI framework, **wgpu** GPU rendering, and **winit** window management. Agent coordination states are managed locally via SQLite. Warpai natively targets **macOS, Windows, and Linux**.
+
+<a id="get-warpai"></a>
 
 ## Get Warpai
 
-**[Warpai 1.6.5](https://github.com/OthinusG/warpai/releases/tag/v1.6.5)** brings
-Agent coordination, file management, in-app editing and previews to
-your local and SSH projects, with native WSL 2 workspaces on Windows.
+**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** brings native Linux desktop support, dynamic task supervision, multi-agent coordination, and remote workspaces across all major platforms.
 
-Choose English, 简体中文 or 繁體中文 in **Settings > Appearance > Language**,
-then restart to apply the interface language. Desktop settings and durable data
-use `~/.config/warpai`; upgrades import missing data from `~/.config/.warpai`,
-retain recovery sources and preserve values already stored in the new folder.
+Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Language** and restart to apply. Desktop settings and application data are stored locally in `~/.config/warpai`.
 
-| Platform | Download | Install |
+### Desktop downloads (v1.7.0)
+
+| Platform | Download | Installation |
 | --- | --- | --- |
-| **macOS 11.0 (Big Sur) or newer · Apple silicon** | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg) | Drag **Warpai.app** into Applications. |
-| **Windows · x64** | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiSetup-1.6.5-windows-x64.exe) | Run the installer. |
+| **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
+| **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe) | Run the setup wizard. |
+| **Linux · x64 (Ubuntu, Debian, Fedora, Arch)** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage) · [.deb](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb) · [.tar.gz](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz) | `chmod +x Warpai-*.AppImage && ./Warpai-*.AppImage` or `sudo dpkg -i warpai_*.deb` |
 
-The macOS app is ad-hoc signed, rather than notarized. If macOS blocks its first
-launch, use **System Settings > Privacy & Security > Open Anyway** after checking
-the download source. Windows may ask you to approve an unsigned installer.
-Checksums are included on the release page.
+*macOS Note: Builds are ad-hoc signed. If blocked on first run, click **Open Anyway** under System Settings > Privacy & Security, or run `xattr -d com.apple.quarantine /Applications/Warpai.app`.*
 
-Open **Settings > About** and click **Update** to check for a newer release.
-When one is available, **Download** opens the published installer for your
-platform. Enable **Check for updates on startup** to check once when Warpai starts.
-Install the downloaded package using the instructions above.
+### Remote companion (v5.4.0)
 
-### Remote companion
+Warpai Companion provides the remote server workspace for Linux, macOS, and Windows machines over SSH:
 
-**Warpai Companion 5.3.0** provides the remote workspace on your Linux, macOS or
-Windows machine, including its private Git runtime. Warpai's remote file, Review and
-Agent communication infrastructure requires no separate Git, Python, Node, tmux
-or socat installation. Vendor Agents retain their own requirements. Companion
-starts on demand and exits after 60 idle seconds. Choose the installer for the
-machine you connect to.
-
-Local desktop Git features require system Git on PATH. Install Git and restart
-Warpai before using local Worktree collaboration, worktrees or Git Review.
-See [feature dependencies](docs/FEATURE-DEPENDENCIES.md) for SSH/WSL requirements.
-
-| Remote host | Package |
-| --- | --- |
-| Linux x64 (built on Ubuntu 22.04) | [Installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-linux-x64.run) |
-| macOS 11.0 (Big Sur) or newer · Apple silicon | [Installer DMG](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-macos-arm64.dmg) |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiCompanion-5.3.0-windows-x64-setup.exe) |
+| Remote Host | Package | Installation |
+| --- | --- | --- |
+| **Linux x64** (Ubuntu 20.04+, Debian, RHEL) | [Standalone Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
+| **macOS Apple Silicon** | [DMG Image](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-macos-arm64.dmg) | Copy `warpai-companion` to `~/.config/warpai/bin/` |
+| **Windows x64** | [Setup EXE](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-windows-x64-setup.exe) | Run installer on remote host. |
 
 ## Local by design
 
-Warpai requires no Warpai cloud account, login or subscription. The product
-excludes bundled cloud AI, billing and telemetry surfaces. Your selected CLI
-Agents retain their own authentication and settings. Commands, SSH connections
-and Agent providers may use the network according to their own behavior.
+Warpai requires no cloud account, registration, login, or subscription. The product contains zero bundled cloud AI models, telemetry trackers, or background data harvesting. Your selected CLI Agents retain their own authentication, tokens, and billing.
 
 ## Develop and contribute
 
-Start with the [development guide](docs/DEVELOPMENT.md), [agent guide](AGENTS.md)
-and [SSH plan](specs/agent-communication-v2/PLAN.md). Builds and releases use
-committed repository source. Read the
-[release contract](specs/RELEASE.md) and [Agent compatibility guide](specs/agent-communication/COVERAGE.md)
-for verification and coverage details.
-
-Report bugs with your version, operating system, reproduction steps and expected
-behavior. Omit credentials and private project content.
+Read the [development guide](docs/DEVELOPMENT.md), [agent specifications](AGENTS.md), and [MCP protocol definitions](docs/FEATURE-DEPENDENCIES.md). Builds and releases use committed repository sources.
 
 <details>
 <summary>Terminal core guardrails for contributors</summary>
 
-Preserve these rendering, input and model paths. Replacing them with wholesale
-stubs is not a valid compile fix; verify terminal behavior as well as builds.
+Preserve these rendering, input, and model paths. Replacing them with wholesale stubs is not an acceptable compile fix; verify terminal behavior as well as builds:
 
 - `app/src/terminal/view.rs`
 - `app/src/terminal/input.rs`
@@ -310,10 +195,6 @@ stubs is not a valid compile fix; verify terminal behavior as well as builds.
 
 ## Acknowledgements and license
 
-Warpai is independently maintained and derives from
-[terzigolu/warp-lite](https://github.com/terzigolu/warp-lite) and
-[Warp](https://github.com/warpdotdev/warp). It is not affiliated with or endorsed
-by the upstream Warp team. Original attribution and copyright are retained.
+Warpai is independently maintained and derives from [terzigolu/warp-lite](https://github.com/terzigolu/warp-lite) and [Warp](https://github.com/warpdotdev/warp). It is not affiliated with or endorsed by the upstream Warp team. Original copyright and attribution are retained.
 
-Source is [AGPL-3.0-only](LICENSE-AGPL); the original `warpui` and `warpui_core`
-crates retain their [MIT license](LICENSE-MIT). See the [fork notice](FORK_NOTICE.md).
+Source code is licensed under [AGPL-3.0-only](LICENSE-AGPL); original `warpui` and `warpui_core` crates retain their [MIT license](LICENSE-MIT). See [fork notice](FORK_NOTICE.md).
