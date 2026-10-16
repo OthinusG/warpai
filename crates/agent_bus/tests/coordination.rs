@@ -387,7 +387,7 @@ fn supervision_allows_dispatch_and_completion_while_other_tasks_are_running() {
     let inbox = call(&issuer, json!({"op":"agent_inbox"}));
     let messages = inbox["messages"].as_array().unwrap();
     for task in [&b, &c] {
-        assert!(messages.iter().any(|message| message["kind"] == "result" && message["task_id"] == task["id"]));
+        assert!(messages.iter().any(|message| message["kind"] == "review" && message["task_id"] == task["id"]));
     }
     let reply = messages.iter().find(|reply| reply["reply_to"] == message["id"] && reply["kind"] == "result_succeeded").unwrap();
     call(&issuer, json!({"op":"agent_ack", "message_id":reply["id"]}));

@@ -26,8 +26,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Project, worktree and Agent ownership
 
-- Supervision is dynamic: dispatch anytime, track task/request IDs, retire handled
-  outcomes. No batch/exclusive watch. Retain unresolved work across waits/yields.
+- Dynamic supervision: dispatch anytime; track task/request IDs, retire handled
+  outcomes, retain unresolved work across waits/yields. No batch/exclusive watch.
 - Warp's native worktree system owns creation, catalog and tabs; creation opens a
   new tab without starting an Agent. No separate worktree registry/session manager.
 - Canonical Git common-directory identity joins registered checkouts/subdirectories,
@@ -51,10 +51,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 - Remove local worktrees via native Git: confirm/recheck exact registered path;
   protect main/open/locked/dirty/untracked/ignored checkouts; never force/delete
   branches. SSH removal is outside this patch.
-- Sidebar owns sessions; panel owns project messages/tasks/reviews/history.
-  Reuse native widgets/8px spacing. Default closed; preserve focus/drafts.
-- Derive Agent coverage/icons from managed CLIAgent, preserving aliases and custom
-  native-MCP-capable sessions. No duplicate vendor allowlist or shell-tool fallback.
+- Sidebar owns sessions; panel owns messages/tasks/reviews/history. Native widgets,
+  8px spacing, default closed; preserve focus/drafts.
+- Derive coverage/icons from CLIAgent; preserve aliases/custom native MCP sessions.
+  No duplicate vendor allowlist or shell-tool fallback.
 
 ## Usage accounts and native Orca port
 
