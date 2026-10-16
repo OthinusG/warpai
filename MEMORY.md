@@ -27,8 +27,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Project, worktree and Agent ownership
 
-- Dynamic supervision: dispatch anytime; track IDs, retire handled outcomes,
-  retain pending work across yields. No batch/exclusive watch.
+- Dynamic supervision: dispatch anytime; track task/request IDs, retire handled
+  outcomes, retain unresolved work across waits/yields. No batch/exclusive watch.
 - Warp's native worktree system owns creation, catalog and tabs; creation opens a
   new tab without starting an Agent. No separate worktree registry/session manager.
 - Canonical Git common-directory identity joins registered checkouts/subdirectories,
