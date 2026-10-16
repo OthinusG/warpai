@@ -47,4 +47,10 @@
     - Senders/Supervisors can publish tasks to multiple agents continuously at any time without batch boundaries or waiting for prior work to finish.
     - Newly dispatched tasks dynamically enroll into the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and outcomes across turn yields (`warp_agent_ready`).
     - Once tasks are accepted or terminal outcomes are resolved, they actively and automatically exit the supervision list, eliminating stale polling loops.
+- **Workbench Mockup Precision Polish (2026-10-16)**:
+  - Addressed annotations from Desktop screenshots (`13.34.39` and `13.35.03`):
+    - Removed redundant controls: left sidebar toggle button next to traffic lights (`#mock-btn-toggle-sidebar`) and right panel close button (`#mock-btn-close-collab`).
+    - Replaced struck-out model copy in Claude Code banner from `Haiku 4.5 · API Usage Billing` to `Opus 5.5 · API Usage Billing`.
+    - Aligned directory path between Claude Code terminal (`~/workplace/gameset-1`) and Project mode right panel (`This Mac · ~/workplace/gameset-1`).
+    - Fixed codex links in Worktree mode right panel: changed `data-agent="warpai"` on `codex-521bc71b` and `data-focus="warpai"` on `Focus codex-521bc7`, ensuring clicking the circled agent item correctly switches to the `codex` page and synchronizes the Coordinator dropdown.
 

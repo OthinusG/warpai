@@ -239,9 +239,20 @@
       } else {
         setCollabMode("worktree");
         if (coordName) {
-          if (agentId === "agy") coordName.textContent = "agy-2de995e3 · gh-pages · 1";
-          else if (agentId === "dsh") coordName.textContent = "dsh-43f8a41e · gh-pages";
-          else coordName.textContent = "agy-2de995e3 · gh-pages · 1";
+          var coordBadge = mock.querySelector(".mock-coord-badge");
+          if (agentId === "agy") {
+            coordName.textContent = "agy-2de995e3 · gh-pages · 1";
+            if (coordBadge) coordBadge.textContent = "▲";
+          } else if (agentId === "dsh") {
+            coordName.textContent = "dsh-43f8a41e · gh-pages";
+            if (coordBadge) coordBadge.textContent = "🐳";
+          } else if (agentId === "warpai") {
+            coordName.textContent = "codex-521bc71b · gh-pages";
+            if (coordBadge) coordBadge.textContent = "◉";
+          } else {
+            coordName.textContent = "agy-2de995e3 · gh-pages · 1";
+            if (coordBadge) coordBadge.textContent = "▲";
+          }
         }
       }
     }
