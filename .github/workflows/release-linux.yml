@@ -81,10 +81,10 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: /github/workspace
     env:
       RELEASE_TAG: ${{ needs.target.outputs.tag }}
       WINDOWS_SOURCE: ${{ github.event_name == 'workflow_run' && needs.target.outputs.source || '' }}
+      WARPAI_WORKSPACE: /__w/warpai/warpai
       CARGO_HOME: /github/home/.cargo
       RUSTUP_HOME: /github/home/.rustup
       CARGO_BUILD_RUSTFLAGS: '-C symbol-mangling-version=v0'
@@ -119,6 +119,7 @@ jobs:
           lfs: true
       - name: Validate source and package version
         run: |
+          cd "$WARPAI_WORKSPACE"
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           if [[ -n "$WINDOWS_SOURCE" && "$(git rev-parse HEAD)" != "$WINDOWS_SOURCE" ]]; then
             echo 'Windows/Linux source mismatch' >&2
@@ -141,6 +142,7 @@ jobs:
             linux-bullseye-${{ matrix.arch }}-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
       - name: Install pinned Rust and packaging tools
         run: |
+          cd "$WARPAI_WORKSPACE"
           if [[ ! -x "$CARGO_HOME/bin/rustup" ]]; then
             curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o "$RUNNER_TEMP/warpai-rustup.sh"
             sh "$RUNNER_TEMP/warpai-rustup.sh" -y --profile minimal --default-toolchain 1.92.0
@@ -157,22 +159,24 @@ jobs:
         env:
           GIT_RELEASE_TAG: ${{ needs.target.outputs.tag }}
         run: |
-          cargo check -p warpai --bin warpai --locked
-          cargo check -p warpai --bin warpai --features warp_platform --locked
-          cargo test -p prevent_sleep --locked
-          cargo test -p warpai --lib language_restart_ --locked
-          cargo test -p warpai --lib release_updates::tests --locked
-          cargo test -p warp-agent-bus --lib mcp::tests --locked
+          cd "$WARPAI_WORKSPACE"
+          cargo check --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --bin warpai --locked
+          cargo check --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --bin warpai --features warp_platform --locked
+          cargo test --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p prevent_sleep --locked
+          cargo test --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --lib language_restart_ --locked
+          cargo test --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warpai --lib release_updates::tests --locked
+          cargo test --manifest-path "$WARPAI_WORKSPACE/Cargo.toml" -p warp-agent-bus --lib mcp::tests --locked
       - name: Build and verify all four native package formats
         env:
           ASSET_ARCH: ${{ matrix.arch }}
         run: |
-          bash script/build-warpai-linux.sh "$RELEASE_TAG"
+          bash "$WARPAI_WORKSPACE/script/build-warpai-linux.sh" "$RELEASE_TAG"
           echo "LINUX_PACKAGE_PREFIX=Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH" >> "$GITHUB_ENV"
       - name: Verify installed desktop starts under X11
         env:
           ASSET_ARCH: ${{ matrix.arch }}
         run: |
+          cd "$WARPAI_WORKSPACE"
           apt-get install -y "./target/release/bundle/linux/Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH.deb"
           dbus-run-session -- xvfb-run -a -s '-screen 0 1280x900x24' \
             python3 script/linux/smoke.py /opt/warpai/warpai target/linux-smoke
