@@ -50,7 +50,7 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对�
     <tr>
       <td></td>
       <td><a href="{{ '/zh/docs/features.html' | relative_url }}">全景功能矩阵与市面体系对比</a></td>
-      <td>Warpai 与上游 Warp 原版的深度功能对比：彻底剥离遥测、零云端依赖与原生多 Agent 底座。</td>
+      <td>横向深度对比传统终端、Agent 编辑器、传统 IDE、ADE 新秀、多智能体框架、桌面 AI 与原版 Warp，详述 7 大系统架构差异与 Warpai 核心优势。</td>
     </tr>
     <tr>
       <td><strong>使用指南</strong></td>

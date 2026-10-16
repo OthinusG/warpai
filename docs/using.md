@@ -5,7 +5,7 @@ description: "Comprehensive guide to Warpai's core engineering and cross-domain 
 section: Using Warpai
 doc_id: using
 prev_url: /docs/features.html
-prev_title: Features & Warp Comparison
+prev_title: Features Matrix & Agent Systems Comparison
 next_url: /docs/using-terminal.html
 next_title: Terminal & Command Blocks
 ---

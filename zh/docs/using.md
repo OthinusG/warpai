@@ -6,7 +6,7 @@ description: "Warpai 核心工程工作流完全指南：Git Worktree 并行代�
 section: 使用指南
 doc_id: using
 prev_url: /docs/features.html
-prev_title: 全景特性与原版对比
+prev_title: 全景功能矩阵与市面体系对比
 next_url: /docs/using-terminal.html
 next_title: 终端与命令块深入
 ---
