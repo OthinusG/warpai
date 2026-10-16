@@ -10,8 +10,8 @@
 
 Make an Agent session the unit of work. Collaborate in a shared project, or select
 a Coordinator to lead parallel development across isolated Git worktrees.
-Warpai combines that workflow with a full-featured native terminal for macOS,
-Windows, and Linux. Keep the same Agent, file, and review workflow on remote
+Warpai combines that workflow with a full-featured native terminal for macOS
+and Windows. Keep the same Agent, file, and review workflow on remote
 Linux, macOS, and Windows machines.
 
 **One project · Many agents · One coordinated workflow**
@@ -23,7 +23,7 @@ Linux, macOS, and Windows machines.
 
 [![Release](https://img.shields.io/badge/release-1.7.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
+[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
 
 </div>
@@ -143,13 +143,13 @@ Warpai is useful wherever complex work can be decomposed into tasks and handled 
 
 ## Technology
 
-Warpai is a native desktop application written in **Rust**, utilizing the `warpui` UI framework, **wgpu** GPU rendering, and **winit** window management. Agent coordination states are managed locally via SQLite. Warpai natively targets **macOS, Windows, and Linux**.
+Warpai is a native desktop application written in **Rust**, utilizing the `warpui` UI framework, **wgpu** GPU rendering, and **winit** window management. Agent coordination states are managed locally via SQLite. The published desktop installers target **macOS and Windows**; Linux remains available as a remote host through Companion.
 
 <a id="get-warpai"></a>
 
 ## Get Warpai
 
-**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** brings native Linux desktop support, dynamic task supervision, multi-agent coordination, and remote workspaces across all major platforms.
+**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** brings dynamic task supervision, multi-agent coordination, and remote workspaces across supported platforms.
 
 Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Language** and restart to apply. Desktop settings and application data are stored locally in `~/.config/warpai`.
 
@@ -159,7 +159,6 @@ Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Langu
 | --- | --- | --- |
 | **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
 | **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe) | Run the setup wizard. |
-| **Linux · x64 (Ubuntu, Debian, Fedora, Arch)** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage) · [.deb](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb) · [.tar.gz](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz) | `chmod +x Warpai-*.AppImage && ./Warpai-*.AppImage` or `sudo dpkg -i warpai_*.deb` |
 
 *macOS Note: Builds are ad-hoc signed. If blocked on first run, click **Open Anyway** under System Settings > Privacy & Security, or run `xattr -d com.apple.quarantine /Applications/Warpai.app`.*
 

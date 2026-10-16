@@ -9,7 +9,7 @@
 ### 为 Agent 协作而生的终端工作空间。
 
 把一次 Agent 会话当作工作的基本单元。在项目中共享协作，或选择一位 Coordinator，
-让多个 Agent 在独立 Git worktree 中并行开发。Warpai 以全功能原生终端为基础，桌面原生支持 macOS、Windows 和 Linux，
+让多个 Agent 在独立 Git worktree 中并行开发。Warpai 以全功能原生终端为基础，桌面原生支持 macOS 和 Windows，
 在远程 Linux、macOS 和 Windows 上也能保持同样的 Agent、文件和审阅工作流。
 
 **一个项目 · 多个 Agent · 一条协作工作流**
@@ -21,7 +21,7 @@
 
 [![版本](https://img.shields.io/badge/release-1.7.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
+[![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
 
 </div>
@@ -139,13 +139,13 @@ Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、G
 
 ## 技术栈
 
-Warpai 是一款使用 **Rust** 编写的高性能原生桌面应用，采用自有 `warpui` UI 框架、**wgpu** GPU 硬件渲染管线和 **winit** 跨平台窗口层。协同状态全部保存在本地 SQLite 数据库中。Warpai 原生支持 **macOS、Windows 和 Linux**。
+Warpai 是一款使用 **Rust** 编写的高性能原生桌面应用，采用自有 `warpui` UI 框架、**wgpu** GPU 硬件渲染管线和 **winit** 跨平台窗口层。协同状态全部保存在本地 SQLite 数据库中。当前发布的桌面安装包支持 **macOS 和 Windows**；Linux 主机可通过 Companion 作为远程环境使用。
 
 <a id="get-warpai"></a>
 
 ## 下载与安装
 
-**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** 正式推出 Linux 原生桌面端、动态任务监督列表、跨平台 Agent 协同与远程 SSH 无缝工作空间。
+**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** 带来动态任务监督列表、跨平台 Agent 协同与远程 SSH 工作空间。
 
 在 **Settings > Appearance > Language** 中选择 English、简体中文或繁體中文，重启即可生效。应用配置和持久数据存储在本地 `~/.config/warpai`。
 
@@ -155,7 +155,6 @@ Warpai 是一款使用 **Rust** 编写的高性能原生桌面应用，采用自
 | --- | --- | --- |
 | **macOS 11.0+（Big Sur+）· Apple 芯片** | [DMG 镜像](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications 目录。 |
 | **Windows 10/11 · x64** | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe) | 运行安装向导即可。 |
-| **Linux · x64（Ubuntu, Debian, Fedora, Arch）** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage) · [.deb](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb) · [.tar.gz](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz) | `chmod +x Warpai-*.AppImage && ./Warpai-*.AppImage` 或 `sudo dpkg -i warpai_*.deb` |
 
 *macOS 说明：应用采用临时签名。若首次打开被拦截，请前往“系统设置 > 隐私与安全性”点击“仍要打开”，或在终端执行 `xattr -d com.apple.quarantine /Applications/Warpai.app`。*
 

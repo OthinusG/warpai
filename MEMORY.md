@@ -13,10 +13,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   CI: 38667669349 / 38667672552; release 38682643407 running.
 - Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
-  unused branches/worktrees. Linux: specs/linux-desktop/TECH.md; independent
-  workflow, triggered after successful Windows packaging or manually. Debian
-  container jobs run as root against runner-owned checkouts; scope `safe.directory`
-  to the in-container working directory (`pwd`), since host workspace paths differ.
+  unused branches/worktrees. Linux desktop packages were removed from 1.7.0
+  and moved to 1.7.1 by owner direction on 2026-10-16; the Linux Companion
+  remains in 1.7.0. Workflow: specs/linux-desktop/TECH.md. Debian jobs must scope
+  `safe.directory` to the in-container working directory (`pwd`).
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
