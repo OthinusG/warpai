@@ -82,11 +82,12 @@ Warpai 通过内存级 VT100 ANSI 观察器实时追踪所有 Agent 的状态：
 ```
 被提问的 Agent 会在其收件箱中收到专属 Question 工单，调用 `warp_agent_answer` 回填结论，从而解除提问方的等待阻塞。
 
-### 第 4 步：公共任务池管理与自主认领（Task Pools & Claiming）
-对于复杂多阶段协作，任何具备指挥意图的 Agent 均可创建公共任务池：
-1. **创建任务池与定义工单**：调用 `warp_task_create_pool`，列入子任务序列及其前置依赖。
-2. **工人自主认领**：空闲 Worker Agent 调用 `warp_task_claim` 认领与其领域匹配的任务。
-3. **进度汇报与交付**：Worker 周期性调用 `warp_task_progress` 上报完成进度，完毕后调用 `warp_task_submit` 提交交付物路径。
+### 第 4 步：公共任务池管理、动态监督与随时派发（Task Pools & Dynamic Supervision）
+对于复杂多阶段协作，任何具备指挥意图的 Agent 均可创建公共任务池并随时派发任务：
+1. **随时向多个 Agent 动态派发**：打破固定批次限制，Agent 可在任意时刻向一个或多个同伴发布新任务，无序等待前序任务执行完毕。
+2. **自动进入动态监督任务列表**：新发布的任务自动加入主 Agent 的监督任务列表（`warp_task_list`），全程保持跨轮次的可视化监督。
+3. **工人自主认领与执行**：空闲 Worker Agent 调用 `warp_task_claim` 认领与其领域匹配的任务，周期性调用 `warp_task_progress` 上报完成进度。
+4. **提交与完成主动退出**：Worker 调用 `warp_task_submit` 提交交付物；任务一旦经审阅确认或终态处理完成，便主动并自动从监督列表中退出。
 
 ### 第 5 步：共享全局上下文与动态知识库（Context Publication）
 为防止跨 Agent 协作中的“认知脱节”，各 Agent 可将关键契约持久化至全局上下文区：

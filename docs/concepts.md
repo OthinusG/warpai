@@ -20,7 +20,8 @@ In traditional IDEs and chat-centric AI tools, an AI assistant is typically conf
 
 **Warpai treats an Agent session as an autonomous unit of work**:
 - An agent has its own execution process, working directory, and environment context.
-- It can receive structured tasks with deliverables and acceptance criteria.
+- It can receive structured tasks dispatched dynamically at any time, with explicit deliverables and acceptance criteria.
+- Tasks are tracked in the supervising agent's dynamic supervision list and automatically exit once completed and handled.
 - It can report progress, ask other agents for clarification, request code reviews, and deliver verified diffs.
 - Warpai provides the terminal substrate and coordination bus to let multiple agents collaborate like an organized engineering squad.
 

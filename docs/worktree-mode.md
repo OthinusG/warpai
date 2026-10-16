@@ -72,7 +72,7 @@ Switch to each tab and launch your chosen CLI agent:
 Provide your high-level objective to the Coordinator:
 > *"Implement an Excel export feature. Delegate the backend API to Worker A, frontend download modals to Worker B, and regression test suites to Worker C. Have them develop in parallel and peer review each other before final integration."*
 
-The Coordinator invokes native MCP tools (`warp_task_assign`) to dispatch tasks with dependency tags:
+The Coordinator invokes native MCP tools (`warp_task_assign`) to dispatch tasks to multiple workers at any time:
 ```json
 {
   "task_id": "task-api-export",
@@ -81,6 +81,9 @@ The Coordinator invokes native MCP tools (`warp_task_assign`) to dispatch tasks 
   "dependencies": []
 }
 ```
+- **Continuous Multi-Agent Dispatch**: The Coordinator can assign work to multiple agents across branches at any time without waiting for prior tasks to finish.
+- **Dynamic Supervision List**: Every newly dispatched task automatically enters the Coordinator's dynamic supervision list.
+- **Active Exit Upon Completion**: Tasks remain under supervision throughout implementation and peer review, actively leaving the list once accepted and integrated.
 
 ### Step 5: Concurrent Development & Local Evidence Collection
 Each worker develops inside its isolated physical directory:

@@ -82,7 +82,8 @@ Warpai's built-in VT100 screen observer parses the agent's real-time state:
 ### Try Autonomous Task Queuing:
 1. When your agent is busy (`Working`), queued messages and tasks sit safely in its inbox.
 2. The moment the agent returns to `Idle`, Warpai's **Guarded PTY Delivery** automatically inputs the pending task into the terminal prompt.
-3. **No manual copy-pasting or constant window-switching required!**
+3. Tasks can be dispatched dynamically at any time to multiple agents; newly assigned tasks automatically enter the dynamic supervision list, and actively exit the list once resolved.
+4. **No manual copy-pasting or constant window-switching required!**
 
 <div class="docs-callout note">
   <div class="docs-callout-title">Draft Protection</div>

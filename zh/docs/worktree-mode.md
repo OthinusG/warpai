@@ -73,7 +73,7 @@ git worktree add ../my-project-tests feature/tests
 向 Coordinator 键入顶层需求：
 > *“我们需要为电商系统开发‘订单导出至 Excel’功能。请拆解任务：由 Worker A 负责后端数据导出 API，由 Worker B 负责前端导出弹窗与下载按钮，由 Worker C 编写端到端回归测试用例。要求分支物理隔离开发，完成后互相评审并集成。”*
 
-Coordinator 将调用内置 MCP 工具（`warp_task_assign`）向各分支精准下发工单：
+Coordinator 将调用内置 MCP 工具（`warp_task_assign`）随时向各分支精准下发工单：
 ```json
 {
   "task_id": "task-api-export",
@@ -82,6 +82,9 @@ Coordinator 将调用内置 MCP 工具（`warp_task_assign`）向各分支精准
   "dependencies": []
 }
 ```
+- **随时向多个 Agent 动态派发**：Coordinator 可以在任意时刻向多个 Worker 分派新任务，无需等待现有任务全部结束。
+- **动态监督任务列表**：所有新发布任务自动加入 Coordinator 的监督任务列表，进行持续状态追踪。
+- **完成主动退出列表**：任务在开发与对等评审期间全程处于监督中，一旦被接受（`accepted`）并完成集成，主动且自动退出监督任务列表。
 
 ### 第 5 步：独立并发开发与本地证据收集
 各 Worker 收到工单后，在其独立物理副本中编写代码与测试：

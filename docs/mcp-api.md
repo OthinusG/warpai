@@ -16,7 +16,7 @@ When Agent Communication is enabled in Warpai, the bundled `warp-lite-communicat
 
 ---
 
-## 1. Task Lifecycle & Orchestration Tools
+## 1. Task Lifecycle & Dynamic Supervision Tools
 
 ### `warp_task_assign`
 Assigns a structured task to a target agent or worktree checkout.
@@ -27,6 +27,11 @@ Assigns a structured task to a target agent or worktree checkout.
   - `worktree` (string, optional): Specific Git checkout directory for this task.
   - `dependencies` (array of string, optional): List of prerequisite task IDs.
 - **Returns**: `{ "task_id": "uuid", "status": "assigned" }`
+- **Dynamic Supervision**: Newly assigned tasks are immediately enrolled into the supervising agent's dynamic supervision list. The supervising agent can continuously dispatch tasks to multiple agents at any time without batch boundaries; tasks remain tracked until finished, and actively exit the supervision list once resolved.
+
+### `warp_task_list`
+Lists tasks visible to the agent, filtered by status or assignee.
+- **Dynamic Refresh**: Refreshes the active dynamic supervision set across assignees (including offline peers), retaining unresolved tasks and retiring handled terminal outcomes.
 
 ### `warp_task_claim`
 Claims an unassigned task from the project pool.
@@ -67,14 +72,26 @@ Integrates approved changes from a worker checkout into the main project.
 ### `warp_task_cancel` / `warp_task_retry` / `warp_task_reassign`
 Administrative controls to cancel abandoned work, retry failed tasks, or transfer ownership to a new agent.
 
+### Dynamic Supervision & Continuous Dispatch Logic
+Warpai implements an asynchronous, continuous multi-agent task supervision architecture:
+1. **Continuous Dispatch at Any Time**: The primary or coordinating agent does not operate in rigid "batch dispatch" phases. It can dispatch tasks to one or multiple agents at any point in time, even while prior tasks are actively executing.
+2. **Dynamic Enrolment in Supervision List**: Every newly dispatched task automatically joins the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and verification states across turn yields (`warp_agent_ready`).
+3. **Active Exit Upon Completion**: Tasks can enter the supervision list at any time, and actively/automatically leave the list as soon as their terminal outcome is handled and accepted, keeping the supervising agent's focus clean without stale polling loops.
+
 ---
 
 ## 2. Agent Communication & Readiness Tools
 
 ### `warp_agent_ready`
-Notifies Warpai that the agent has finished its current turn and is waiting for work.
+Yields the current turn when no immediate actions remain and the agent owns no executing work.
 - **Parameters**: None.
 - **Returns**: `{ "acknowledged": true, "pending_count": integer }`
+- **Supervision Invariant**: Outstanding supervision is preserved across yields—yielding does not mean delegated work is complete. Call as your final tool action before returning to the prompt.
+
+### `warp_agent_wait`
+Waits up to 20 seconds for the next notification or event not yet delivered in this run.
+- **Parameters**: `timeout_ms` (integer, optional)
+- **Supervision Handling**: Used only when no immediate action is available. On notification or timeout, the agent reassesses the dynamic supervision set, dispatches any newly authorized work, and removes resolved items before deciding whether to wait again or yield with `warp_agent_ready`.
 
 ### `warp_agent_list`
 Discovers all currently active agents in the project.
@@ -86,7 +103,7 @@ Sends a structured message to a peer agent.
 - **Parameters**:
   - `to` (string, required): Destination agent name
   - `body` (string, required): Message text
-  - `expects_result` (boolean, optional): If `true`, requires an explicit callback
+  - `expects_result` (boolean, optional): If `true`, requires an explicit callback and adds the message ID to the sender's dynamic supervision set. Senders continue dispatching or messaging other agents at any time while the result is pending.
 - **Returns**: `{ "message_id": "uuid", "delivery": "delivered" | "queued" }`
 
 ### `warp_agent_reply`
@@ -98,7 +115,7 @@ Provides a definitive callback to an `expects_result` request.
 - **Returns**: `{ "request_id": "uuid", "acknowledged": true }`
 
 ### `warp_agent_inbox` / `warp_agent_ack`
-Retrieves pending notifications and unacknowledged messages from the agent's private queue.
+Retrieves pending notifications and unacknowledged messages from the agent's private queue. Handle observations, then explicitly acknowledge via `warp_agent_ack`.
 
 ---
 

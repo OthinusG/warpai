@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Installation & Setup
-description: "Step-by-step installation instructions for macOS, Windows, Linux Companion, package managers, and security verifications."
+description: "Step-by-step installation instructions for macOS, Windows, Linux Desktop, Linux Companion, package managers, and security verifications."
 section: Getting Started
 doc_id: install
 prev_url: /docs/
@@ -10,7 +10,7 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-Warpai is a native desktop application built in Rust, targeting **macOS** and **Windows**, with first-class remote support for **Linux**, **macOS**, and **Windows** over SSH and Windows **WSL 2**.
+Warpai is a native desktop application built in Rust, natively supporting **macOS**, **Windows**, and **Linux**, with first-class remote support for **Linux**, **macOS**, and **Windows** over SSH and Windows **WSL 2** via the standalone **Warpai Companion**.
 
 ---
 
@@ -24,7 +24,7 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
   brew install --cask OthinusG/tap/warpai
   ```
 - **Direct Download**:
-  - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/Warpai-1.6.5-macos-arm64.dmg)
+  - [Download Warpai for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg)
 
 #### Installation Steps:
 1. Open the downloaded `.dmg` disk image.
@@ -59,7 +59,7 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
 
 - **System Requirements**: Windows 10 (version 1903+) or Windows 11; 64-bit x86 architecture.
 - **Direct Download**:
-  - [Download Warpai Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.6.5/WarpaiSetup-1.6.5-windows-x64.exe)
+  - [Download Warpai Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe)
 
 #### Installation Steps:
 1. Double-click the installer executable.
@@ -78,6 +78,33 @@ Warpai is a native desktop application built in Rust, targeting **macOS** and **
     <span class="shot-tag">截图待补充 · 对应表格 docs/SCREENSHOT-INVENTORY.xlsx</span>
   </div>
 </div>
+
+---
+
+### 3. Linux Desktop (x64)
+
+- **System Requirements**: Ubuntu 20.04+, Debian 11+, Fedora 38+, Arch Linux, or other glibc-based distributions; 64-bit x86 architecture; X11 or Wayland display server.
+- **Direct Downloads**:
+  - [Download Warpai Linux AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-linux-x86_64.AppImage)
+  - [Download Warpai Debian / Ubuntu Package (.deb)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai_1.7.0_amd64.deb)
+  - [Download Standalone Tarball (.tar.gz)](https://github.com/OthinusG/warpai/releases/download/v1.7.0/warpai-1.7.0-linux-x86_64.tar.gz)
+
+#### Installation Steps:
+
+- **AppImage (Universal)**:
+  ```bash
+  chmod +x Warpai-1.7.0-linux-x86_64.AppImage
+  ./Warpai-1.7.0-linux-x86_64.AppImage
+  ```
+- **Debian / Ubuntu (.deb)**:
+  ```bash
+  sudo dpkg -i warpai_1.7.0_amd64.deb || sudo apt-get install -f
+  ```
+- **Standalone Tarball**:
+  ```bash
+  tar -xzf warpai-1.7.0-linux-x86_64.tar.gz
+  ./warpai/warpai
+  ```
 
 ---
 

@@ -129,11 +129,12 @@ When an agent cannot proceed without a peer expert's input, it opens a structure
 ```
 The recipient receives a formal Question card and responds via `warp_agent_answer`, unblocking the inquiring agent immediately.
 
-#### ④ Public Task Pools & Autonomous Claiming
-For pipeline workflows, a Commander Agent can orchestrate a shared task pool:
-- **Create Pool & Dispatch**: Call `warp_task_create_pool` with sequential dependencies (e.g., literature retrieval → chart plotting → draft synthesis).
+#### ④ Public Task Pools & Dynamic Task Supervision
+For pipeline workflows, a Commander Agent can orchestrate a shared task pool with continuous dispatch:
+- **Continuous Dispatch at Any Time**: Agents can publish tasks to multiple agents at any time, without waiting for fixed batch phases or prior tasks to conclude.
+- **Dynamic Supervision Set**: Newly assigned tasks automatically enter the supervising agent's monitored task list, tracking progress and status across turn yields.
 - **Claim & Report Progress**: Idle worker agents call `warp_task_claim` to pick tasks matching their specialty, reporting progress with `warp_task_progress`.
-- **Submit Deliverables**: Once completed, workers invoke `warp_task_submit` with file paths and evidence.
+- **Submit & Active Retirement**: Once completed, workers invoke `warp_task_submit`. When the result is verified and accepted, the task actively exits the supervising agent's task list.
 
 #### ⑤ Shared Global Context & Living Knowledge Bases
 To prevent hallucinations across agents, teams maintain synchronized facts in shared context memory:
@@ -237,8 +238,8 @@ Each worktree possesses its own physical directory, branch head, and compiler ca
 2. Select an architecturally capable agent from the **Coordinator** dropdown.
 3. The Coordinator automatically oversees all worktrees, tracking task progress and dependency graphs.
 
-### 3. Assigning Concurrent Feature Tasks
-The developer or Coordinator dispatches structured tasks to specific branches:
+### 3. Assigning Concurrent Feature Tasks & Dynamic Supervision
+The developer or Coordinator dispatches structured tasks to specific branches at any time:
 ```json
 {
   "target_branch": "feature/api",
@@ -246,7 +247,9 @@ The developer or Coordinator dispatches structured tasks to specific branches:
   "dependencies": []
 }
 ```
-Worker A codes and runs unit tests in its isolated worktree while Worker B develops UI features concurrently—zero file collisions.
+- **Continuous Multi-Agent Dispatch**: The Coordinator is never blocked waiting for a single worker to finish. It can continuously publish new tasks to multiple agents at any time.
+- **Dynamic Supervision List**: Every newly assigned task is automatically enrolled into the Coordinator's active supervision list.
+- **Active Exit Upon Completion**: Worker A codes and runs unit tests in its isolated worktree while Worker B develops UI features concurrently. Once a task completes peer review and is accepted, it automatically exits the supervision list.
 
 ---
 

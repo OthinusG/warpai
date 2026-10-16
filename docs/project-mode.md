@@ -81,11 +81,12 @@ When an agent encounters a domain outside its scope and needs blocking input fro
 ```
 The target agent receives a formal Question card and responds via `warp_agent_answer`, unblocking the inquirer.
 
-### Step 4: Public Task Pool Management & Autonomous Claiming
-For multi-stage pipelines, any agent can orchestrate a shared task pool:
-1. **Create Pool & Define Items**: Call `warp_task_create_pool` with sequential dependencies.
-2. **Autonomous Claiming**: Idle workers call `warp_task_claim` to pull tasks matching their domain capabilities.
-3. **Progress Reporting & Submission**: Workers report progress via `warp_task_progress` and submit deliverables via `warp_task_submit`.
+### Step 4: Public Task Pool Management, Continuous Dispatch & Dynamic Supervision
+For multi-stage pipelines, any agent can orchestrate tasks and task pools dynamically:
+1. **Continuous Multi-Agent Dispatch**: Agents can publish new tasks to one or more peer agents at any time. There is no rigid batch boundary or requirement to wait for existing tasks to finish.
+2. **Dynamic Supervision List**: Newly dispatched tasks automatically join the supervising agent's dynamic supervision list (`warp_task_list`), maintaining durable visibility across agent turns.
+3. **Autonomous Claiming & Execution**: Idle workers call `warp_task_claim` to pull tasks matching their capabilities, reporting progress via `warp_task_progress`.
+4. **Active Exit Upon Completion**: Workers submit deliverables via `warp_task_submit`. Once the outcome is accepted or handled, the task actively and automatically exits the supervision list.
 
 ### Step 5: Shared Global Context & Knowledge Publication
 To prevent knowledge drift across agents, teams expose milestone facts in shared context memory:

@@ -41,4 +41,10 @@
   - **Path Sanitization**: Replaced all user absolute paths (`/Users/wqin/...`) with sanitized tilde paths (`~/...`) across DSH status blocks, Codex terminals, Claude Code, and Project locations.
   - **Project Mode Right Panel**: Fully restructured Project mode view to independently display `Tasks` (`No tasks on this page.`), `Project` (`This Mac · ~/workplace`), `Agents` (`claude-9c9cfc0c · idle`), and `Focus claude-9c9cf` with `Send to Agent` / `History` actions. Completely removed Coordinator and Worktree nodes in Project mode while preserving their full interactive functionality in Worktree mode.
   - **Data Usage Widget**: Stripped the personal identifier (`· mj`), keeping clean brand name `Codex` and quota metrics (`5h · 1% used`).
+- **Platform Roadmap & Dynamic Task Supervision Updates (2026-10-16)**:
+  - **Linux Desktop Client**: Officially released in **v1.7.0** (supporting Ubuntu 20.04+, Debian, Fedora, Arch on Wayland/X11 via AppImage/.deb/tarball). Updated homepage copy, metadata, and docs across English and Chinese so Linux Desktop is presented as natively supported and released, while Companion continues to cover headless remote SSH/WSL servers.
+  - **Dynamic Task Supervision & Continuous Multi-Agent Dispatch**: Synchronized documentation across `_data/strings.yml`, `docs/`, `zh/docs/`, `index.html`, and `zh/index.html` to reflect the newly implemented Agent task logic:
+    - Senders/Supervisors can publish tasks to multiple agents continuously at any time without batch boundaries or waiting for prior work to finish.
+    - Newly dispatched tasks dynamically enroll into the supervising agent's monitored task list (`dynamic supervision set`), tracking progress, blocking questions, and outcomes across turn yields (`warp_agent_ready`).
+    - Once tasks are accepted or terminal outcomes are resolved, they actively and automatically exit the supervision list, eliminating stale polling loops.
 

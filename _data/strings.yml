@@ -60,7 +60,7 @@ en:
   pocket:
     kicker: Local and remote
     heading: Same workflow, every machine
-    body: Desktop app for macOS and Windows. SSH projects and Companion for Linux, macOS and Windows — the same panels follow you.
+    body: Desktop app for macOS, Windows, and Linux. SSH projects and Companion for headless Linux, macOS, and Windows — the same panels follow you.
     shots:
       - alt: "Warpai desktop workspace with vertical tabs and the collaboration panel"
         title: Warpai
@@ -72,7 +72,7 @@ en:
     kicker: Get started
     heading_line: Bring your agents to
     body: One project, many agents, one coordinated workflow — locally or over SSH.
-    primary: "Download 1.6.2"
+    primary: "Download 1.7.0"
     secondary: All downloads
   footer:
     links:
@@ -152,7 +152,7 @@ zh:
   pocket:
     kicker: 本地与远程
     heading: 每台机器，同一套工作流
-    body: 面向 macOS 与 Windows 的桌面应用；SSH 项目与 Companion 覆盖 Linux、macOS 和 Windows——同一套面板始终跟随。
+    body: 面向 macOS、Windows 与 Linux 的桌面端；无图形界面服务器与远端实例则由 Warpai Companion 伴侣无缝覆盖——同一套面板始终跟随。
     shots:
       - alt: 带垂直标签与协作面板的 Warpai 桌面工作区
         title: Warpai
@@ -164,7 +164,7 @@ zh:
     kicker: 开始使用
     heading_line: 把智能体带进
     body: 一个项目，多个智能体，一套协作工作流——本地或远程。
-    primary: 下载 1.6.2
+    primary: 下载 1.7.0
     secondary: 全部下载
   footer:
     links:

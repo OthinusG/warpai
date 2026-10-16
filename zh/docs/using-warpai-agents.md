@@ -130,11 +130,12 @@ Warpai 内置零损耗 VT100 ANSI 内存流解析器，无需任何外置 Hook �
 ```
 被提问的 Agent 会收到明确的 Question 工单，调用 `warp_agent_answer` 回填审查结论，解除提问方的等待阻塞。
 
-#### ④ 公共任务池流转与认领（Task Pool & Claiming）
-对于流水线协作，Commander Agent 可创建任务池，Worker Agent 自主拉取：
-- **创建任务池与派发任务**：调用 `warp_task_create_pool`，定义多个任务条目与依赖顺序（如：先文献清洗，后图表绘制，再初稿合成）。
+#### ④ 公共任务池流转与动态监督（Task Pool & Dynamic Supervision）
+对于流水线与多 Agent 协作，Commander Agent 可创建任务池并进行非阻塞的随时派发：
+- **随时向多个 Agent 发布任务**：打破批次边界，Agent 可在任意时刻向一个或多个同伴发布新任务，无需等待已有任务全部结束。
+- **自动加入动态监督列表**：新发布的任务会自动加入主 Agent 的监督任务列表，全程追踪任务进展与阻断提问，即使让出执行轮次也不会丢失跟踪。
 - **任务认领与进展上报**：空闲 Worker Agent 调用 `warp_task_claim` 认领匹配自身专长的任务，并在执行过程中调用 `warp_task_progress` 汇报完成百分比。
-- **提交交付物与证据**：完成后调用 `warp_task_submit` 附带文件路径或证据描述。
+- **提交与完成退出列表**：完成后调用 `warp_task_submit` 附带证据材料；任务一旦通过验收并处理完终态，便主动并自动从监督列表中退出。
 
 #### ⑤ 共享全局上下文与动态知识库（Context Publication）
 为防止跨 Agent 协作中的“幻觉断层”，各 Agent 可将阶段性契约持久化到共享上下文区：
@@ -238,8 +239,8 @@ git worktree add ../project-tests feature/tests
 2. 从 **Coordinator** 下拉菜单中选择一名具备全局架构认知能力的 Agent（如 Claude 或 Codex）。
 3. 协调者将自动掌控全部工作树分支、当前代码状态与任务依赖图谱。
 
-### 3. 并行任务下发与依赖设定
-人类开发者或 Coordinator 可直接通过界面或 API 向各分支委派结构化任务：
+### 3. 并行任务下发与动态监督机制
+人类开发者或 Coordinator 可随时向各分支委派结构化任务：
 ```json
 {
   "target_branch": "feature/api",
@@ -247,7 +248,9 @@ git worktree add ../project-tests feature/tests
   "dependencies": []
 }
 ```
-Worker A 在其专属物理目录中开展编码与单测，与负责 UI 的 Worker B 互不干扰，彻底杜绝 Git 脏写。
+- **随时多向派发**：Coordinator 无需死等某一位 Worker 交付，可随时向多个分支的 Agent 持续发布新任务。
+- **动态监督任务列表**：所有新发布任务自动加入 Coordinator 的监督任务列表，进行持续状态追踪。
+- **完成主动退出列表**：Worker A 在独立工作树中编码与测试，与 Worker B 互不干扰。当任务通过对等评审并完成集成后，主动且自动退出监督任务列表。
 
 ---
 
