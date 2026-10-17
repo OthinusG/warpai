@@ -3,7 +3,7 @@ id = "qoder"
 version = "2026.06.10.1"
 min_engine_version = 1
 updated_at = "2026-06-10T00:00:00Z"
-aliases = ["qoderclicn", "qoder", "qodercn"]
+aliases = ["qoderclicn", "qoder", "qodercn", "qoder-cn"]
 
 [[rules]]
 id = "confirmation_or_input_blocker"

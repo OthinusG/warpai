@@ -207,7 +207,7 @@ fn executable_with_environment(
         if matches!(command, "qoder" | "qodercli" | "qoder-cli") {
             paths.push(home.join(".qoder/entry"));
         }
-        if matches!(command, "qodercn" | "qoderclicn") {
+        if matches!(command, "qoder-cn" | "qodercn" | "qoderclicn") {
             paths.extend([
                 home.join(".qoder-cn/entry"),
                 home.join(".qoder-cn/bin/qoderclicn"),
@@ -1276,15 +1276,21 @@ mod tests {
         std::fs::create_dir_all(&interpreters).unwrap();
         let cli = entry.join("qodercn");
         std::fs::write(&cli, "#!/usr/bin/env warp-test-interpreter\n").unwrap();
+        let alias = entry.join("qoder-cn");
+        std::fs::write(&alias, "#!/usr/bin/env warp-test-interpreter\n").unwrap();
         let interpreter = interpreters.join("warp-test-interpreter");
         std::fs::write(&interpreter, "#!/bin/sh\necho 'Usage: mcp add <name> <commandOrUrl> [args...] --scope user --transport stdio; mcp remove <name> --scope; mcp get <name> --scope'\n").unwrap();
-        for path in [&cli, &interpreter] {
+        for path in [&cli, &alias, &interpreter] {
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
         }
         let paths = vec![interpreters, entry.clone()];
         assert_eq!(
             executable("qodercn", &paths, home.path()),
             Some(cli.clone())
+        );
+        assert_eq!(
+            executable("qoder-cn", &paths, home.path()),
+            Some(alias.clone())
         );
         assert!(
             cli_adapter("qodercn", &cli, Path::new("/bridge"), &[]).is_none(),

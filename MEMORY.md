@@ -82,6 +82,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
   resetting eligibility on update/restart.
 - CLI children prepend binary directory to PATH/hide Windows consoles; test real
   visibility, preserve PTY/detached services. Never bill Qoder CN usage polling.
+- Qoder/QoderCN usage may use the local CLI JSONL `get_usage_info` control request
+  with the existing CLI login; it must not send a prompt or create a model turn.
+  No SDK/runtime is installed by Warpai. Keep polling to one query/account per
+  five minutes, while explicit manual refresh bypasses this limit; treat missing buckets as unavailable. QoderCN 1.1.73 was
+  locally verified; SDK bridge protocol changes are a compatibility risk.
 
 ## SSH, task integrity and files
 

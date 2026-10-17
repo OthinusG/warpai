@@ -6,7 +6,9 @@ Recognize Qoder CLI commands as CLI Agent sessions so Warp Lite shows its existi
 
 ## Behavior
 
-- Recognize `qoder`, `qodercli`, `qoder-cli`, `qodercn`, and commands with additional arguments.
+- Recognize `qoder`, `qodercli`, `qoder-cli`, `qodercn`, `qoderclicn`, `qoder-cn`, and commands with additional arguments.
+- Let users add separate Qoder and QoderCN usage accounts using their existing CLI login, without installing an SDK; show available plan, add-on, and organization quotas separately.
+- Keep usage polling free of model turns. Automatic polling runs at most once per account every five minutes; manual refresh bypasses the interval.
 - Preserve environment-assignment and alias resolution before detection.
 - Display `Qoder` and submit rich input inline.
 

@@ -180,7 +180,7 @@ impl TypedActionView for UsageSettingsView {
                 }
             }
             Action::Refresh => {
-                AgentUsage::handle(ctx).update(ctx, |model, ctx| model.refresh(ctx));
+                AgentUsage::handle(ctx).update(ctx, |model, ctx| model.refresh_manual(ctx));
             }
             Action::Toggle(id) => {
                 AgentUsage::handle(ctx).update(ctx, |model, ctx| model.toggle(id, ctx));
@@ -203,7 +203,9 @@ impl View for UsageSettingsView {
         body.add_child(render_sub_header(appearance, warpui::localization::text("Data usage"), None));
         body.add_child(ChildView::new(&self.selector).finish());
         body.add_child(ChildView::new(&self.label).finish());
-        if self.api_input && self.provider != Provider::Antigravity {
+        if self.api_input
+            && !matches!(self.provider, Provider::Antigravity | Provider::Qoder | Provider::QoderCN)
+        {
             body.add_child(ChildView::new(&self.credential).finish());
         }
         if self.api_input && matches!(
@@ -215,10 +217,12 @@ impl View for UsageSettingsView {
         if self.api_input {
             body.add_child(builder.paragraph(warpui::localization::text(self.provider.credential_hint()).to_owned()).build().finish());
         }
-        body.add_child(Flex::row().with_spacing(8.)
-            .with_child(builder.checkbox(self.buttons[5].clone(), None).check(self.detect_5h)
-                .build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Detect5h)).finish())
-            .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
+        if !matches!(self.provider, Provider::Qoder | Provider::QoderCN) {
+            body.add_child(Flex::row().with_spacing(8.)
+                .with_child(builder.checkbox(self.buttons[5].clone(), None).check(self.detect_5h)
+                    .build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Detect5h)).finish())
+                .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
+        }
         let mut buttons = Flex::row().with_spacing(8.);
         for (index, label, action) in [
             (0, "Connect", Action::Add),
@@ -232,7 +236,11 @@ impl View for UsageSettingsView {
             }
             if (self.api_input && matches!(index, 1 | 3))
                 || (!self.api_input && index == 4)
-                || (index == 3 && self.provider == Provider::Antigravity)
+                || (index == 3
+                    && matches!(
+                        self.provider,
+                        Provider::Antigravity | Provider::Qoder | Provider::QoderCN
+                    ))
             { continue; }
             let button = builder
                 .button(ButtonVariant::Secondary, self.buttons[index].clone())
@@ -306,15 +314,17 @@ impl View for UsageSettingsView {
             }
             body.add_child(row.finish());
             let id = account.id.clone();
-            body.add_child(Flex::row().with_spacing(8.)
-                .with_child(builder.checkbox(states[2].clone(), None).check(account.detect_5h)
-                    .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Toggle5h(id.clone()))).finish())
-                .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
+            if !matches!(account.provider, Provider::Qoder | Provider::QoderCN) {
+                body.add_child(Flex::row().with_spacing(8.)
+                    .with_child(builder.checkbox(states[2].clone(), None).check(account.detect_5h)
+                        .build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::Toggle5h(id.clone()))).finish())
+                    .with_child(builder.span(warpui::localization::text("Detect 5h usage")).build().finish()).finish());
+            }
             if let Some(Err(error)) = model.readings.get(&account.id) {
                 body.add_child(builder.span(warpui::localization::text(error)).with_soft_wrap().build().finish());
             }
         }
-        body.add_child(builder.paragraph(warpui::localization::text("Other agents: usage unsupported. Qoder CN has no verified background usage interface.").to_owned())
+        body.add_child(builder.paragraph(warpui::localization::text("Other agents: usage unsupported.").to_owned())
             .with_style(UiComponentStyles { font_size: Some(12.), ..Default::default() }).build().finish());
         body.finish()
     }
@@ -323,7 +333,7 @@ pub(crate) struct UsageWidget(pub(crate) ViewHandle<UsageSettingsView>);
 impl SettingsWidget for UsageWidget {
     type View = FeaturesPageView;
     fn search_terms(&self) -> &str {
-        "data usage accounts provider quota api key codex claude gemini cursor opencode antigravity"
+        "data usage accounts provider quota api key codex claude gemini cursor opencode antigravity qoder qodercn"
     }
     fn render(&self, _: &FeaturesPageView, _: &Appearance, _: &AppContext) -> Box<dyn Element> {
         ChildView::new(&self.0).finish()

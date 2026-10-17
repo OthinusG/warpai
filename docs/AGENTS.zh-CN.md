@@ -41,7 +41,7 @@ Warpai 可以运行你独立安装的 CLI Agent。参与消息与任务协作还
 | Grok Build | `grok` | 官方 MCP 配置。 |
 | DeepSeek Harness | `dsh-tui`；使用 TUI profile 的 `dsh` | profile 必须挂载官方 MCP 客户端。 |
 | Qoder | `qoder`、`qodercli`、`qoder-cli` | 原生 MCP；与 QoderCN 独立发现和授权。 |
-| QoderCN | `qodercn`、`qoderclicn` | 已安装 CLI 帮助确认原生 stdio；独立设置项。 |
+| QoderCN | `qodercn`、`qoderclicn`、`qoder-cn` | 已安装 CLI 帮助确认原生 stdio；独立设置项。 |
 | Trae | `trae`、`traecn`、`trae-cli`、`traecn-cli`、`traecli` | 需文档所述原生 MCP 版本；启动名称兼容性仍需逐版本确认。 |
 | 自定义 CLI | 用户配置的识别规则 | 逐个确认原生 MCP 能力；识别到命令本身不足以证明可以协作。 |
 
