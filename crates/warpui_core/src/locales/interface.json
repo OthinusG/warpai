@@ -269,6 +269,10 @@
     "使用当前的 agy 登录账号（需要 1.1.11 或更新版本）",
     "使用目前的 agy 登入帳號（需要 1.1.11 或更新版本）"
   ],
+  "Uses the current Qoder CLI login on this computer": [
+    "使用此电脑上当前登录的 Qoder CLI 账号",
+    "使用此電腦上目前登入的 Qoder CLI 帳號"
+  ],
   "Dashboard cookie (stored in OS credential storage)": [
     "控制台 Cookie（保存在操作系统凭据存储中）",
     "控制台 Cookie（儲存在作業系統憑證存放區）"
@@ -6410,9 +6414,9 @@
     "其他活动对话",
     "其他使用中的對話"
   ],
-  "Other agents: usage unsupported. Qoder CN has no verified background usage interface.": [
-    "其他智能体不支持用量查询。Qoder CN 尚无已验证的后台用量接口。",
-    "其他智慧體不支援用量查詢。Qoder CN 尚無已驗證的背景用量介面。"
+  "Other agents: usage unsupported.": [
+    "其他智能体不支持用量查询。",
+    "其他智慧體不支援用量查詢。"
   ],
   "Out of credits": [
     "额度已用完",
@@ -6553,6 +6557,14 @@
   "Plan": [
     "方案",
     "方案"
+  ],
+  "Plan quota unavailable for this account": [
+    "此账号的方案额度不可用",
+    "此帳號的方案額度無法使用"
+  ],
+  "Qoder CLI version does not support usage queries": [
+    "当前 Qoder CLI 版本不支持用量查询",
+    "目前的 Qoder CLI 版本不支援用量查詢"
   ],
   "Plan ID copied to clipboard": [
     "计划 ID 已复制到剪贴板",

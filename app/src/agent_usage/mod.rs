@@ -470,13 +470,13 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
             loop {
                 let available = reader.fill_buf().await.map_err(|_| "CLI output unavailable")?;
                 if available.is_empty() {
-                    return Err("CLI closed the usage channel");
+                    return Err("CLI output unavailable");
                 }
                 let end = available.iter().position(|byte| *byte == b'\n');
                 let take = end.map_or(available.len(), |index| index + 1);
                 bytes_read += take;
                 if bytes_read > 1024 * 1024 {
-                    return Err("CLI usage response too large");
+                    return Err("CLI response too large");
                 }
                 line.extend_from_slice(&available[..take]);
                 reader.consume(take);
@@ -491,12 +491,12 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
                 && message["response"]["request_id"] == request_id
             {
                 if message["response"]["subtype"] != "success" {
-                    return Err("Qoder usage query is unsupported by this CLI version");
+                    return Err("Qoder CLI version does not support usage queries");
                 }
                 return Ok(message["response"]["response"].clone());
             }
         }
-        Err("Qoder usage response unavailable")
+        Err("CLI output unavailable")
     }
 
     let home = dirs::home_dir().ok_or("CLI home directory unavailable")?;
@@ -509,9 +509,9 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
         .iter()
         .find_map(|name| crate::agent_communication::setup::executable(name, &[], &home))
         .ok_or("Qoder CLI is unavailable")?;
-    let mut auth = tempfile::NamedTempFile::new().map_err(|_| "Could not prepare CLI login")?;
+    let mut auth = tempfile::NamedTempFile::new().map_err(|_| "Could not start usage query")?;
     auth.write_all(br#"{"type":"qodercli"}"#)
-        .map_err(|_| "Could not prepare CLI login")?;
+        .map_err(|_| "Could not start usage query")?;
     let mut command = tokio::process::Command::new(&executable);
     #[cfg(windows)]
     command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
@@ -541,8 +541,8 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|_| "Could not start Qoder CLI usage query")?;
-    let mut stdin = child.stdin.take().ok_or("CLI input unavailable")?;
+        .map_err(|_| "Could not start usage query")?;
+    let mut stdin = child.stdin.take().ok_or("CLI output unavailable")?;
     let mut stdout =
         tokio::io::BufReader::new(child.stdout.take().ok_or("CLI output unavailable")?);
     let exchange = async {
@@ -558,15 +558,15 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
             stdin
                 .write_all(request.to_string().as_bytes())
                 .await
-                .map_err(|_| "Could not send Qoder usage request")?;
+                .map_err(|_| "CLI query failed")?;
             stdin
                 .write_all(b"\n")
                 .await
-                .map_err(|_| "Could not send Qoder usage request")?;
+                .map_err(|_| "CLI query failed")?;
             stdin
                 .flush()
                 .await
-                .map_err(|_| "Could not send Qoder usage request")?;
+                .map_err(|_| "CLI query failed")?;
             let result = response(&mut stdout, request_id).await?;
             if request_type == "get_usage_info" {
                 if result["usage_error"].is_string() {
@@ -575,7 +575,7 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
                 return providers::parse(provider, &result["usage"]);
             }
         }
-        Err("Qoder usage response unavailable")
+        Err("CLI output unavailable")
     };
     let result = tokio::time::timeout(Duration::from_secs(25), exchange)
         .await
