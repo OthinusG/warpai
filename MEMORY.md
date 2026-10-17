@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-16.
+Updated 2026-10-17.
 Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
@@ -24,6 +24,9 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Published releases and maintenance
 
+- 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
+  in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
+  README.md and README.zh-CN.md must link to the published v1.7.1 assets.
 - 1.6.4 / Companion 5.2.0: direct publication authorized 2026-10-14.
   Skip further validation runs; retain packaging gates. Contract: specs/RELEASE.md.
 - Artifact-only macOS runs must not trigger Windows publication.

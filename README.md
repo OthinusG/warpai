@@ -10,20 +10,20 @@
 
 Make an Agent session the unit of work. Collaborate in a shared project, or select
 a Coordinator to lead parallel development across isolated Git worktrees.
-Warpai combines that workflow with a full-featured native terminal for macOS
-and Windows. Keep the same Agent, file, and review workflow on remote
+Warpai combines that workflow with a full-featured native terminal for macOS,
+Windows, and Linux. Keep the same Agent, file, and review workflow on remote
 Linux, macOS, and Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.7.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.7.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Documentation](https://othinusg.github.io/warpai/) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.7.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)
+[![Release](https://img.shields.io/badge/release-1.7.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.7.1)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
-[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows-24292f.svg)](#get-warpai)
+[![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
 
 </div>
@@ -143,22 +143,26 @@ Warpai is useful wherever complex work can be decomposed into tasks and handled 
 
 ## Technology
 
-Warpai is a native desktop application written in **Rust**, utilizing the `warpui` UI framework, **wgpu** GPU rendering, and **winit** window management. Agent coordination states are managed locally via SQLite. The published desktop installers target **macOS and Windows**; Linux remains available as a remote host through Companion.
+Warpai is a native desktop application written in **Rust**, utilizing the `warpui` UI framework, **wgpu** GPU rendering, and **winit** window management. Agent coordination states are managed locally via SQLite. Native desktop installers are available for **macOS, Windows, and Linux**; Linux packages target x86_64 and ARM64, while Companion also supports remote Linux hosts.
 
 <a id="get-warpai"></a>
 
 ## Get Warpai
 
-**[Warpai 1.7.0](https://github.com/OthinusG/warpai/releases/tag/v1.7.0)** brings dynamic task supervision, multi-agent coordination, and remote workspaces across supported platforms.
+**[Warpai 1.7.1](https://github.com/OthinusG/warpai/releases/tag/v1.7.1)** adds Linux desktop packages for x86_64 and ARM64 to dynamic task supervision, multi-agent coordination, and remote workspaces.
 
 Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Language** and restart to apply. Desktop settings and application data are stored locally in `~/.config/warpai`.
 
-### Desktop downloads (v1.7.0)
+### Desktop downloads (v1.7.1)
 
 | Platform | Download | Installation |
 | --- | --- | --- |
-| **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/Warpai-1.7.0-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
-| **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiSetup-1.7.0-windows-x64.exe) | Run the setup wizard. |
+| **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
+| **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiSetup-1.7.1-windows-x64.exe) | Run the setup wizard. |
+| **Linux · x86_64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-x64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.7.1-linux-x64.AppImage && ./Warpai-1.7.1-linux-x64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.7.1-linux-x64.deb`<br>RPM: `sudo dnf install ./Warpai-1.7.1-linux-x64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.7.1-linux-x64.pkg.tar.zst` |
+| **Linux · ARM64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.7.1/Warpai-1.7.1-linux-arm64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.7.1-linux-arm64.AppImage && ./Warpai-1.7.1-linux-arm64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.7.1-linux-arm64.deb`<br>RPM: `sudo dnf install ./Warpai-1.7.1-linux-arm64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.7.1-linux-arm64.pkg.tar.zst` |
+
+Linux desktop packages target x86_64 and ARM64 with glibc 2.31 or later. See the [Linux installation guide](https://othinusg.github.io/warpai/docs/install.html) for distribution-specific details.
 
 *macOS Note: Builds are ad-hoc signed. If blocked on first run, click **Open Anyway** under System Settings > Privacy & Security, or run `xattr -d com.apple.quarantine /Applications/Warpai.app`.*
 
@@ -168,9 +172,9 @@ Warpai Companion provides the remote server workspace for Linux, macOS, and Wind
 
 | Remote Host | Package | Installation |
 | --- | --- | --- |
-| **Linux x64** (Ubuntu 20.04+, Debian, RHEL) | [Standalone Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
-| **macOS Apple Silicon** | [DMG Image](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-macos-arm64.dmg) | Copy `warpai-companion` to `~/.config/warpai/bin/` |
-| **Windows x64** | [Setup EXE](https://github.com/OthinusG/warpai/releases/download/v1.7.0/WarpaiCompanion-windows-x64-setup.exe) | Run installer on remote host. |
+| **Linux x64** (Ubuntu 20.04+, Debian, RHEL) | [Standalone Installer](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiCompanion-5.4.0-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
+| **macOS Apple Silicon** | [DMG Image](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiCompanion-5.4.0-macos-arm64.dmg) | Copy `warpai-companion` to `~/.config/warpai/bin/` |
+| **Windows x64** | [Setup EXE](https://github.com/OthinusG/warpai/releases/download/v1.7.1/WarpaiCompanion-5.4.0-windows-x64-setup.exe) | Run installer on remote host. |
 
 ## Local by design
 
