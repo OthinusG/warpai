@@ -60,7 +60,7 @@ jobs:
               sleep 10
             done
             protoc --version
-            echo "PROTOC=$(command -v protoc)" >> "$GITHUB_ENV"
+            echo "PROTOC=$(cygpath -w "$(command -v protoc)")" >> "$GITHUB_ENV"
             echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
           fi
       - name: Verify and build tagged companion
