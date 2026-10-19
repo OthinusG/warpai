@@ -1,6 +1,10 @@
 # Warpai releases
 
-## 2026-10-19 combined 1.7.3 release
+## 2026-10-19 combined 1.7.6 release
+
+Latest owner instruction authorizes the formal 1.7.6 release workflow once the
+current cloud validation passes, including the native SSH readiness repair.
+This supersedes the earlier hold for an additional owner test/approval below.
 
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.
@@ -8,7 +12,7 @@ Scope additionally includes the SSH Remote master switch and per-account native
 MCP setup in agent-communication-v2/SSH-MCP-SETTINGS.md. Connection-only packages
 are interim tests. The completed feature requires Companion 5.5.0.
 Retain the immutable v1.7.2 tag and its unpublished draft; never replace its
-already built assets with different source. Use a new immutable v1.7.3 tag.
+already built assets with different source. Use a new immutable v1.7.6 tag.
 
 Require macOS/Windows application and native UI/WSL acceptance, focused shared
 SSH selection regressions on macOS/Windows/Linux, and Linux x64/ARM64 package
@@ -16,7 +20,7 @@ verification/smoke tests. Preserve the existing WSL isolation regression and
 add the confirmed-master regression separately. Source/run receipts live in
 agent-communication-v2/INSTALLATION.md. Test builds use artifact-only mode.
 
-Owner's latest instruction: cancel obsolete artifact runs 39211040394,
+Earlier instruction: cancel obsolete artifact runs 39211040394,
 39211044793 and 39211048507. After validation, build only macOS and Windows test
 installers in artifact-only mode. Wait for the owner's test result and explicit
 instruction before starting formal release workflows, main integration or tagging.
@@ -26,8 +30,8 @@ macOS packaging was dispatched as 39224657289 at source 657db07c. The Windows
 capture wrapper exited 1 without a classified diagnostic; this is not full
 cross-platform acceptance. Formal publication remains on hold.
 
-After that instruction, integrate the reviewed changes into main and publish
-v1.7.3 through the existing workflows. Companion advances to 5.5.0 for SSH native MCP setup; the connection repairs also
+After full cloud acceptance, integrate the reviewed changes into main and publish
+v1.7.6 through the existing workflows. Companion advances to 5.5.0 for SSH native MCP setup; the connection repairs also
 apply to all desktop targets. Retain all source/version/checksum/native installer gates and
 verify both Linux architectures. Complete README, bilingual website and Homebrew
 updates using the mandatory final steps below after public assets are available.

@@ -18,9 +18,9 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Published releases and maintenance
 
-- Oct19: preserve unpublished 1.7.2 tag/draft. Validate, then macOS/Windows
-  artifact-only tests. Formal 1.7.3 waits for owner test and explicit instruction;
-  specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP.
+- Oct19: preserve unpublished 1.7.2 tag/draft. Latest owner authorization:
+  release 1.7.6 after current cloud acceptance; no further approval required.
+  specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP/native readiness.
 - macOS test prioritized; Windows capture unresolved. Owner Linux still had 5.4.0:
   files/Review work, but SSH native MCP needs the supplied 5.5.0 installer.
 - SSH tabs were correct while Companion panel/MCP stayed Starting. Forward
