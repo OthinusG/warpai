@@ -9,11 +9,9 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Monitor cloud runs hourly through completion; diagnose owner errors immediately. Full acceptance gates delivery.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
-  unused branches/worktrees. Linux desktop packages were removed from 1.7.0
-  and moved to 1.7.1 by owner direction on 2026-10-16; the Linux Companion
-  remains in 1.7.0. Workflow: specs/linux-desktop/TECH.md. Debian jobs must derive
-  the canonical checkout root inside the container before using `safe.directory`;
-  the runner's exported workspace path may resolve to a different `/__w/...` path.
+  unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
+  Debian `safe.directory` must use the canonical checkout root inside the
+  container; runner paths may resolve to a different `/__w/...` path.
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
