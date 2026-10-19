@@ -96,6 +96,37 @@ All runs and owner reproduction remain pending at dispatch.
 Earlier `fe91eb5a` runs were canceled after restoring the original WSL isolation
 test and moving the confirmed-master assertion into a separate regression.
 
+Linux x64/ARM64 artifact-only packaging also runs independently in
+[39196005293](https://github.com/OthinusG/warpai/actions/runs/39196005293) from
+the same `ca6ed733` source. Avoid treating a subsequent Windows-triggered duplicate
+Linux build as a new source acceptance requirement.
+
+Owner test application downloaded from run 39195493324 to
+`~/Downloads/Warpai-SSH-test-ca6ed733/WarpaiReview.app`. Ad-hoc signature
+verification passed; architecture is arm64, bundle ID `dev.warpai.WarpaiReview`.
+The review workflow pins its display version to 1.6.5; this is not the package
+release version. ZIP SHA-256:
+`a03870c3af8e1407c8de6cf8782b6d84d2070d30e28f6c6d34320c6a38ee3297`.
+No local installation or launch was performed. Await the owner's real Linux
+SSH Explorer/collaboration result before claiming that reproduction is resolved.
+
+Owner screenshots at 12:13 confirm that `ca6ed733` now selects the correct remote
+host/root but fails at connection with `InvalidProfile`; the first test package
+does not resolve the full reproduction. The native shell sets `SSH_SOCKET_DIR`
+to literal `~/.ssh`. OpenSSH expands it for directory completion, but the managed
+control validator previously required an absolute path. A local `ssh -S` check
+confirmed that OpenSSH itself expands the literal home prefix.
+
+Accept only a bounded `~/.ssh/<single ASCII filename>` form in addition to the
+existing absolute paths, sharing validation between control and SFTP. Preserve
+control-master-only attachment and disabled reconnect fallback. Do not expand a
+WSL guest path using the Windows host home. Reject other relative paths, named
+user homes, traversal, control characters and expansion tokens in this new form.
+Native macOS SSH/SFTP UI acceptance must now use a literal home-relative socket,
+and unit regressions must exercise both native and WSL command construction.
+This client transport repair does not change the remote Companion protocol or
+service behavior; Companion remains 5.4.0.
+
 Existing POSIX SSH bootstrap already creates a system OpenSSH control socket and
 reports remote shell, native home/OS, session identity and cwd events. The existing
 RemoteCommandExecutor reuses that socket, including WSL routing. Prefer this route

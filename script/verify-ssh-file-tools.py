@@ -114,7 +114,9 @@ def main():
                             master = None
                             try:
                                 if not windows:
-                                    socket = Path(sockets) / "control"
+                                    socket_directory = Path.home() / ".ssh"
+                                    socket_directory.mkdir(mode=0o700, exist_ok=True)
+                                    socket = socket_directory / ("warpai-test-" + uuid.uuid4().hex)
                                     master = subprocess.Popen(["ssh", "-F", str(config), "-M", "-S", str(socket), "-N", "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                                     deadline = time.monotonic() + 10
                                     while not socket.exists():
@@ -122,7 +124,8 @@ def main():
                                             raise RuntimeError("Owned SSH master unavailable")
                                         time.sleep(0.025)
                                     assert master.poll() is None, "Owned SSH master exited before capture"
-                                    env["WARP_TEST_SSH_SOCKET"] = str(socket)
+                                    # Match the native shell hook instead of hiding home expansion behind an absolute fixture.
+                                    env["WARP_TEST_SSH_SOCKET"] = "~/.ssh/" + socket.name
                                 subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=450)
                             finally:
                                 if master is not None:

@@ -36,16 +36,18 @@ mod ssh_tests {
 
     #[test]
     fn terminal_ssh_session_master_does_not_require_original_ssh_arguments() {
-        let socket = std::path::PathBuf::from("/tmp/warpai-confirmed-ssh");
-        let session = Session::new(
-            SessionInfo::new_for_test().with_ssh_socket_path(socket.clone()),
-            std::sync::Arc::new(NoOpCommandExecutor::new()),
-        );
-        assert!(session.ssh_arguments().is_none());
-        assert_eq!(
-            session_connection(&session),
-            Some(SshConnection::Multiplexed { socket, wsl: None })
-        );
+        for path in ["/tmp/warpai-confirmed-ssh", "~/.ssh/179237952528983"] {
+            let socket = std::path::PathBuf::from(path);
+            let session = Session::new(
+                SessionInfo::new_for_test().with_ssh_socket_path(socket.clone()),
+                std::sync::Arc::new(NoOpCommandExecutor::new()),
+            );
+            assert!(session.ssh_arguments().is_none());
+            assert_eq!(
+                session_connection(&session),
+                Some(SshConnection::Multiplexed { socket, wsl: None })
+            );
+        }
     }
 
     #[test]

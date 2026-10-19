@@ -86,7 +86,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
 ## SSH, task integrity and files
 
 - SSH masters need no retained launch arguments; independent native transport does.
-  Test ca6ed733, branch codex/ssh-session-test-20261019; Companion 5.4.0. Runs/owner acceptance: specs/agent-communication-v2/INSTALLATION.md.
+  ca6ed733 fixes selection but owner still gets InvalidProfile: native hooks use literal ~/.ssh sockets. Preserve OpenSSH/WSL home expansion; receipts: specs/agent-communication-v2/INSTALLATION.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.

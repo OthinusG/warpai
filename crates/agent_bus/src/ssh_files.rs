@@ -82,9 +82,9 @@ impl SshConnection {
         match self {
             #[cfg(windows)]
             Self::Wsl { .. } => return Err(ConnectionError::InvalidProfile),
-            Self::Multiplexed { socket, .. } => {
+            Self::Multiplexed { socket, wsl } => {
                 let path = socket.to_str().ok_or(ConnectionError::InvalidProfile)?;
-                if path.chars().any(char::is_control) {
+                if !super::ssh_remote::valid_control_socket(socket, wsl.is_some()) {
                     return Err(ConnectionError::InvalidProfile);
                 }
                 command.args(["-oControlMaster=no", "-oProxyCommand=false"]);

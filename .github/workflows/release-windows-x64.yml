@@ -161,6 +161,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.check-release.outputs.release_tag }}
         run: |
+          cargo test -p warp-agent-bus --lib ssh_remote::tests --locked
+          if ($LASTEXITCODE -ne 0) { throw 'SSH control socket regression failed' }
           cargo test -p warpai --lib remote_server::selected_session::ssh_tests --locked
           if ($LASTEXITCODE -ne 0) { throw 'SSH session selection regression failed' }
           cargo test -p warpai --lib wsl_selection_ --locked

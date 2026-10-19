@@ -57,6 +57,19 @@ fn text(value: &str, limit: usize) -> bool {
     !value.trim().is_empty() && value.len() <= limit && !value.chars().any(char::is_control)
 }
 
+/// OpenSSH expands its own account's home, including when invoked inside WSL.
+pub(crate) fn valid_control_socket(socket: &std::path::Path, wsl: bool) -> bool {
+    let Some(path) = socket.to_str().filter(|path| text(path, 4096)) else {
+        return false;
+    };
+    socket.is_absolute()
+        || (wsl && path.starts_with('/'))
+        || path.strip_prefix("~/.ssh/").is_some_and(|name| {
+            !name.is_empty() && name != "." && name != ".."
+                && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        })
+}
+
 impl SshProfile {
     pub fn validate(&self) -> Result<(), ConnectionError> {
         if !target(&self.target)
@@ -157,10 +170,7 @@ impl SshProfile {
         socket: &std::path::Path,
         wsl: Option<&str>,
     ) -> Result<Command, ConnectionError> {
-        if !(socket.is_absolute()
-            || (wsl.is_some() && socket.to_str().is_some_and(|path| path.starts_with('/'))))
-            || socket.to_str().is_none_or(|path| !text(path, 4096))
-        {
+        if !valid_control_socket(socket, wsl.is_some()) {
             return Err(ConnectionError::InvalidProfile);
         }
         let native = self.ssh_command()?;
@@ -735,6 +745,27 @@ mod windows_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_socket_accepts_native_home_without_reinterpreting_guest_paths() {
+        let profile = SshProfile { target: "node".into(), config_file: None,
+            remote_root: "/home/guest/project".into(),
+            companion_path: "/home/guest/.config/warpai/bin/warpai-companion".into(),
+            remote_shell: RemoteShell::Posix };
+        let path = std::path::Path::new("~/.ssh/179237952528983");
+        for wsl in [None, Some("Ubuntu Test")] {
+            let command = profile.session_command(path, wsl).unwrap();
+            let args: Vec<_> = command.as_std().get_args().filter_map(|v| v.to_str()).collect();
+            assert!(args.windows(2).any(|pair| pair == ["-S", "~/.ssh/179237952528983"]));
+            assert!(args.contains(&"ControlMaster=no"));
+            assert!(args.contains(&"ProxyCommand=false"));
+        }
+        for path in ["", "relative/socket", "~/.ssh/", "~/.ssh/.", "~/.ssh/..",
+            "~/.ssh/../socket", "~/.ssh/socket/child", "~other/.ssh/socket",
+            "~/socket", "~/.ssh/%h", "~/.ssh/socket\n"] {
+            assert!(!valid_control_socket(std::path::Path::new(path), false), "{path:?}");
+        }
+    }
 
     #[cfg(windows)]
     #[test]
