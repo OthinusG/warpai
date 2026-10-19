@@ -277,3 +277,21 @@ the installed remote lacks the native MCP setup capability added in 5.5.0.
 The matching source-tested Linux installer was provided for owner installation;
 post-upgrade discovery acceptance remains pending. A missing bare command alone
 does not prove Companion is absent: the default install directory need not be on PATH.
+
+Owner clarified the subsequent readiness issue: the native SSH tab is correct;
+only remote panel/MCP state stays Starting until a completed conversation.
+Source 064ce882 generalizes the existing WSL native observation path to confirmed
+SSH accounts. SSH tab activity remains authoritative locally and cannot be
+overwritten by a stale Companion projection. Identity, input/output epochs,
+run replacement and independent master policies remain enforced. The ordinary
+native MCP fixture now checks initial idle, working and approval observations
+before any vendor conversation on all remote platforms. Cloud acceptance:
+[remote 39229371276](https://github.com/OthinusG/warpai/actions/runs/39229371276),
+[desktop/UI/WSL 39229376046](https://github.com/OthinusG/warpai/actions/runs/39229376046).
+
+Separate packaging failure confirmed Chocolatey returned 503 for protoc while
+the combined install misleadingly returned success. Install protoc separately,
+verify the executable, bound retries, and export the native Windows PROTOC path.
+All three Companion packaging jobs passed in
+[39225639546](https://github.com/OthinusG/warpai/actions/runs/39225639546);
+that desktop test package predates the new readiness repair. No public release.

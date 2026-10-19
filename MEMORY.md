@@ -23,6 +23,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP.
 - macOS test prioritized; Windows capture unresolved. Owner Linux still had 5.4.0:
   files/Review work, but SSH native MCP needs the supplied 5.5.0 installer.
+- SSH tabs were correct while Companion panel/MCP stayed Starting. Forward
+  native observations through the WSL path; never overwrite SSH tab evidence.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
   in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
   README.md and README.zh-CN.md must link to the published v1.7.1 assets.
