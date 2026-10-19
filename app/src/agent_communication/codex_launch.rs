@@ -75,6 +75,7 @@ impl TerminalView {
         if self.adapt_wsl_codex_launch(event, &words, ctx) {
             return true;
         }
+        if self.adapt_ssh_codex_launch(event, &words, ctx) { return true; }
         if !self.session_is_local(event.session_id, ctx) {
             return false;
         }
@@ -163,6 +164,61 @@ impl TerminalView {
                 view.execute_input_command(&adapted, ctx);
             },
         );
+        true
+    }
+
+    fn adapt_ssh_codex_launch(&mut self, event: &ExecuteCommandEvent, words: &[String], ctx: &mut ViewContext<Self>) -> bool {
+        if !AgentCommunication::as_ref(ctx).ssh.preferences.enabled || self.has_pending_ssh_command() { return false; }
+        let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
+        if self.active_block_session_id() != Some(event.session_id)
+            || session.alias_value("codex").is_some() || session.abbreviation_value("codex").is_some()
+            || session.function_names().any(|name| name == "codex") { return false; }
+        let Some(directory) = self.pwd() else { return false; };
+        let Some(target) = super::ssh_settings::Target::from_session(&session, &directory, ctx) else { return false; };
+        let Some(shell) = self.active_session_shell_type(ctx) else { return false; };
+        let generation = self.codex_mcp_launch_generation;
+        let settings_generation = AgentCommunication::as_ref(ctx).ssh.generation;
+        let selected = target.clone();
+        let event = event.clone();
+        let words = words.to_vec();
+        ctx.spawn(async move {
+            super::ssh_settings::setup_on_target(&target, warp_agent_bus::wsl_setup::Action::Rescan, settings_generation).await
+        }, move |view, result, ctx| {
+            if view.codex_mcp_launch_generation != generation { return; }
+            let current = view.sessions_model().as_ref(ctx).get(event.session_id)
+                .and_then(|session| super::ssh_settings::Target::from_session(&session, &directory, ctx));
+            if view.active_block_session_id() != Some(event.session_id) || view.pwd().as_ref() != Some(&directory)
+                || view.has_pending_ssh_command() || view.is_long_running() || current.as_ref() != Some(&selected) {
+                view.show_persistent_toast("Codex launch canceled because the terminal changed.".into(), ToastFlavor::Default, ctx);
+                return;
+            }
+            let settings = &AgentCommunication::as_ref(ctx).ssh;
+            if !settings.preferences.enabled || settings.generation != settings_generation {
+                view.execute_input_command(&event, ctx);
+                return;
+            }
+            let response = match result {
+                Ok(response) => response,
+                Err(_) => {
+                    view.show_persistent_toast("Could not verify SSH Codex MCP. Check SSH Remote settings for this account.".into(), ToastFlavor::Default, ctx);
+                    view.execute_input_command(&event, ctx);
+                    return;
+                }
+            };
+            let Some(options) = response.available.iter().filter(|row| row.program == "codex")
+                .find_map(|row| row.installed.as_ref().map(|entry| &entry.launch_options))
+                .filter(|options| response.preferences.programs().contains("codex")
+                    && options.0.contains_key("--no-daemon")
+                    && warp_agent_bus::session::codex_accepts_peer_prompt(&words[1..], options)) else {
+                view.execute_input_command(&event, ctx);
+                return;
+            };
+            let command = adapted_command(&event.command, &["--no-daemon".into()], shell, options);
+            view.codex_mcp_launch = Some((event.command.trim().to_owned(), command.clone()));
+            let mut adapted = event;
+            adapted.command = command;
+            view.execute_input_command(&adapted, ctx);
+        });
         true
     }
 
@@ -260,7 +316,6 @@ mod tests {
     use super::*;
     use std::path::Path;
 
-    #[cfg(windows)]
     #[test]
     fn guest_codex_adaptation_only_adds_native_foreground_flag() {
         let options = warp_agent_bus::launch::LaunchOptions::from_help(

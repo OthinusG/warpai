@@ -25,6 +25,12 @@ use warpui::{
 #[derive(Debug, Clone)]
 pub enum Action {
     Enable,
+    SshEnable,
+    SshSelect(Option<String>),
+    SshAgent(String, String),
+    SshRefresh(String),
+    SshRemoveAll(String),
+    SshGuide,
     Select(String),
     Refresh,
     UninstallAll,
@@ -47,6 +53,9 @@ pub enum Action {
 }
 pub struct CommunicationSettingsView {
     switch: SwitchStateHandle,
+    ssh_switch: SwitchStateHandle,
+    ssh_account: ViewHandle<crate::view_components::Dropdown<Action>>,
+    ssh_maintenance: [MouseStateHandle; 3],
     refresh: MouseStateHandle,
     uninstall_all: MouseStateHandle,
     checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
@@ -65,6 +74,15 @@ pub struct CommunicationSettingsView {
 }
 impl CommunicationSettingsView {
     pub fn new(ctx: &mut ViewContext<Self>) -> Self {
+        let ssh_account = ctx.add_typed_action_view(|ctx| {
+            let mut dropdown = crate::view_components::Dropdown::new(ctx);
+            dropdown.set_top_bar_max_width(260.);
+            dropdown
+        });
+        AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+            model.refresh_ssh_targets(ctx);
+            if model.ssh.preferences.enabled { model.configure_ssh(warp_agent_bus::wsl_setup::Action::Rescan, ctx); }
+        });
         #[cfg(windows)]
         let wsl_distribution = ctx.add_typed_action_view(|ctx| {
             let mut dropdown = crate::view_components::Dropdown::new(ctx);
@@ -74,6 +92,7 @@ impl CommunicationSettingsView {
         ctx.observe(&AgentCommunication::handle(ctx), |_view, _, ctx| {
             #[cfg(windows)]
             _view.update_wsl_dropdown(ctx);
+            _view.update_ssh_dropdown(ctx);
             ctx.notify();
         });
         #[cfg(windows)]
@@ -93,6 +112,9 @@ impl CommunicationSettingsView {
         }
         let view = Self {
             switch: Default::default(),
+            ssh_switch: Default::default(),
+            ssh_account,
+            ssh_maintenance: Default::default(),
             refresh: Default::default(),
             uninstall_all: Default::default(),
             checkboxes: Default::default(),
@@ -111,7 +133,25 @@ impl CommunicationSettingsView {
         };
         #[cfg(windows)]
         view.update_wsl_dropdown(ctx);
+        view.update_ssh_dropdown(ctx);
         view
+    }
+
+    fn update_ssh_dropdown(&self, ctx: &mut ViewContext<Self>) {
+        use crate::view_components::DropdownItem;
+        let settings = &AgentCommunication::as_ref(ctx).ssh;
+        let mut items = vec![DropdownItem::new(warpui::localization::text("Select logged-in SSH account"), Action::SshSelect(None))];
+        let mut index = 0;
+        for target in &settings.targets {
+            if Some(&target.key) == settings.preferences.selected.as_ref() { index = items.len(); }
+            items.push(DropdownItem::new(target.label.clone(), Action::SshSelect(Some(target.key.clone()))));
+        }
+        let busy = settings.busy;
+        self.ssh_account.update(ctx, |dropdown, ctx| {
+            dropdown.set_items(items, ctx);
+            dropdown.set_selected_by_index(index, ctx);
+            if busy { dropdown.set_disabled(ctx); } else { dropdown.set_enabled(ctx); }
+        });
     }
 
     #[cfg(windows)]
@@ -145,6 +185,16 @@ impl TypedActionView for CommunicationSettingsView {
     type Action = Action;
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         AgentCommunication::handle(ctx).update(ctx, |model, ctx| match action {
+            Action::SshEnable => model.configure_ssh(warp_agent_bus::wsl_setup::Action::Enable(!model.ssh.preferences.enabled), ctx),
+            Action::SshSelect(key) => model.select_ssh_target(key.clone(), ctx),
+            Action::SshAgent(key, command) if model.ssh.preferences.selected.as_ref() == Some(key) =>
+                model.configure_ssh(warp_agent_bus::wsl_setup::Action::Select(command.clone()), ctx),
+            Action::SshRefresh(key) if model.ssh.preferences.selected.as_ref() == Some(key) =>
+                model.configure_ssh(warp_agent_bus::wsl_setup::Action::Rescan, ctx),
+            Action::SshRemoveAll(key) if model.ssh.preferences.selected.as_ref() == Some(key) =>
+                model.configure_ssh(warp_agent_bus::wsl_setup::Action::RemoveAll, ctx),
+            Action::SshAgent(..) | Action::SshRefresh(_) | Action::SshRemoveAll(_) => (),
+            Action::SshGuide => ctx.open_url("https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md"),
             Action::Enable => model.configure(Some(!model.preferences.enabled), None, ctx),
             Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
             Action::Refresh => model.configure(None, None, ctx),
@@ -313,6 +363,55 @@ impl View for CommunicationSettingsView {
                 .finish(),
             );
         }
+        let ssh = &model.ssh;
+        let switch = builder.switch(self.ssh_switch.clone()).check(ssh.preferences.enabled);
+        let switch = if ssh.busy { switch.disable() } else { switch };
+        body.add_child(render_body_item::<Action>(
+            warpui::localization::text("SSH Remote").into(), None, LocalOnlyIconState::Hidden,
+            if ssh.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance,
+            switch.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::SshEnable)).finish(),
+            Some(warpui::localization::text("Enable remote files, Review and Agent communication for logged-in SSH accounts.").into()),
+        ));
+        if ssh.preferences.enabled {
+            body.add_child(render_body_item::<Action>(
+                warpui::localization::text("SSH account").into(), None, LocalOnlyIconState::Hidden,
+                ToggleState::Enabled, appearance, ChildView::new(&self.ssh_account).finish(), None,
+            ));
+            if ssh.targets.is_empty() {
+                body.add_child(secondary_text(appearance, warpui::localization::text("No logged-in SSH accounts. Connect in a Warpai terminal first.").into(), None));
+            }
+            if let Some(target) = ssh.selected_target() {
+                let key = target.key.clone();
+                for row in &ssh.available {
+                    let state = self.checkboxes.borrow_mut().entry(format!("ssh:{}:{}", key, row.command)).or_default().clone();
+                    let checkbox = builder.checkbox(state, None).check(ssh.remote_preferences.selected.get(&row.command).is_some_and(|entry| entry.active));
+                    let disabled = ssh.busy || row.installed.is_none();
+                    let checkbox = if disabled { checkbox.disabled() } else { checkbox };
+                    let action = Action::SshAgent(key.clone(), row.command.clone());
+                    body.add_child(build_toggle_element(
+                        render_body_item_label_with_icon::<Action>(row.command.clone(), crate::agent_usage::agent_icon(&row.program), None, None,
+                            LocalOnlyIconState::Hidden, if disabled { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
+                        checkbox.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish(),
+                        appearance, Some(warpui::localization::text(&row.status).into()),
+                    ));
+                }
+                for (index, label, action) in [
+                    (0, "Rescan agents", Action::SshRefresh(key.clone())),
+                    (1, "Remove Warpai MCP from all agents", Action::SshRemoveAll(key)),
+                    (2, "SSH Companion setup", Action::SshGuide),
+                ] {
+                    let button = builder.button(ButtonVariant::Secondary, self.ssh_maintenance[index].clone())
+                        .with_text_label(warpui::localization::text(label).into());
+                    let button = if ssh.busy { button.disabled() } else { button };
+                    body.add_child(Container::new(button.build().on_click(move |ctx, _, _| ctx.dispatch_typed_action(action.clone())).finish())
+                        .with_margin_top(8.).finish());
+                }
+                body.add_child(secondary_text(appearance, warpui::localization::text("MCP changes apply only to the selected SSH account. Start the selected agents in a new remote terminal session.").into(), None));
+            }
+        }
+        if !ssh.status.is_empty() {
+            body.add_child(secondary_text(appearance, warpui::localization::text(&ssh.status).into(), None));
+        }
         #[cfg(windows)]
         {
             let wsl_switch = builder.switch(self.wsl_switch.clone()).check(model.wsl.preferences.enabled);
@@ -448,8 +547,8 @@ pub struct CommunicationWidget(pub ViewHandle<CommunicationSettingsView>);
 impl SettingsWidget for CommunicationWidget {
     type View = FeaturesPageView;
     fn search_terms(&self) -> &str {
-        if cfg!(windows) { "agent communication collaboration mcp bridge wsl distribution" }
-        else { "agent communication collaboration mcp bridge" }
+        if cfg!(windows) { "agent communication collaboration mcp bridge ssh remote wsl distribution" }
+        else { "agent communication collaboration mcp bridge ssh remote" }
     }
     fn render(&self, _: &FeaturesPageView, _: &Appearance, _: &AppContext) -> Box<dyn Element> {
         ChildView::new(&self.0).finish()

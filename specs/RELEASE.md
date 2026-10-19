@@ -17,8 +17,8 @@ add the confirmed-master regression separately. Source/run receipts live in
 agent-communication-v2/INSTALLATION.md. Test builds use artifact-only mode.
 
 After acceptance, integrate the reviewed changes into main and publish v1.7.3
-through the existing workflows. Companion stays 5.4.0; the runtime repair is
-desktop-only. Retain all source/version/checksum/native installer gates and
+through the existing workflows. Companion advances to 5.5.0 for SSH native MCP setup; the connection repairs also
+apply to all desktop targets. Retain all source/version/checksum/native installer gates and
 verify both Linux architectures. Complete README, bilingual website and Homebrew
 updates using the mandatory final steps below after public assets are available.
 Do not change the owner's installed desktop, credentials or personal settings.

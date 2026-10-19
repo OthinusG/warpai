@@ -197,6 +197,8 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "execution_threads",
             "project_memory",
             "project_mcp",
+            #[cfg(not(feature = "wsl_companion"))]
+            "native_mcp_setup",
             "project_files",
             #[cfg(feature = "wsl_companion")]
             "project_file_chunks",

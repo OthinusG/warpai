@@ -476,7 +476,7 @@ impl CollaborationPanel {
         if let Some(session) = active.session(self.window) {
             // SSH nested inside WSL belongs to the SSH account, not the parent guest.
             if session.ssh_arguments().is_some() || session.is_legacy_ssh_session() {
-                return true;
+                return model.ssh.preferences.enabled;
             }
             #[cfg(windows)]
             if session.is_wsl() {
@@ -485,7 +485,7 @@ impl CollaborationPanel {
                         && target.user == session.user());
             }
             if matches!(session.session_type(), crate::terminal::model::session::SessionType::WarpifiedRemote { .. }) {
-                return true;
+                return model.ssh.preferences.enabled;
             }
         }
         if active.remote_pending(self.window) { return true; }
@@ -494,7 +494,7 @@ impl CollaborationPanel {
             return model.wsl.preferences.enabled && model.wsl.targets.iter().any(|target|
                 &target.distribution == distribution && &target.user == user);
         }
-        self.remote.is_some() || model.preferences.enabled
+        if self.remote.is_some() { model.ssh.preferences.enabled } else { model.preferences.enabled }
     }
 
     fn current_context(&self, ctx: &ViewContext<Self>) -> Option<(String, Option<String>)> {
@@ -672,6 +672,9 @@ impl CollaborationPanel {
             } else if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl)
                 || crate::workspace::ActiveSession::as_ref(ctx).session(self.window).is_some_and(|session| session.is_wsl()) {
                 "Enable WSL communication and select this distribution in Settings > Features."
+            } else if crate::workspace::ActiveSession::as_ref(ctx).session(self.window)
+                .is_some_and(|session| crate::remote_server::selected_session::session_connection(&session).is_some_and(|connection| !connection.is_wsl())) {
+                "SSH Remote is off. Enable it in Settings > Features > Agent communication."
             } else {
                 "Communication is off. Enable it in Settings > Features > Agent communication."
             };
@@ -1438,21 +1441,9 @@ impl TypedActionView for CollaborationPanel {
                         });
                         return;
                     }
-                    let active = crate::workspace::ActiveSession::as_ref(ctx);
-                    let anchor = self
-                        .remote
-                        .as_ref()
-                        .and_then(|_| active.session(ctx.window_id()))
-                        .and_then(
-                            |session| match session.host_info().os_category.as_deref()? {
-                                "Windows" => Some("windows"),
-                                "MacOS" | "Darwin" => Some("macos"),
-                                "Linux" => Some("linux"),
-                                _ => None,
-                            },
-                        )
-                        .unwrap_or("install-on-the-remote-machine");
-                    ctx.open_url(&format!("https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md#{anchor}"));
+                    ctx.dispatch_typed_action_deferred(crate::workspace::WorkspaceAction::ShowSettingsPageWithSearch {
+                        search_query: "ssh remote".into(), section: Some(crate::settings_view::SettingsSection::Features),
+                    });
                     return;
                 }
                 Action::ReconnectSsh => {
@@ -4820,6 +4811,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     data.insert("owned_parent_session", parent);
                     data.insert("owned_parent_cwd", cwd);
                     app.update(|ctx| {
+                        super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                            model.ssh.preferences.enabled = true;
+                            ctx.notify();
+                        });
                         // Shell hooks are simulated on a local PTY; remote generators must not write into it.
                         crate::settings::DebugSettings::handle(ctx).update(ctx, |settings, ctx| {
                             settings.force_disable_in_band_generators.set_value(true, ctx)
@@ -5464,6 +5459,56 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             );
         }
     }
+    for state in ["disabled", "empty", "enabled", "busy", "error", "partial-error"] {
+        let filename = format!("settings-ssh-{state}.png");
+        filenames.push(filename.clone());
+        driver = driver.with_step(TestStep::new(&format!("SSH Remote settings {state}"))
+            .with_action(move |app, _, _| app.update(|ctx| {
+                ctx.set_zoom_factor(1.);
+                super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.preferences.enabled = false;
+                    model.preferences.selected.clear();
+                    model.available.clear();
+                    model.ssh.capture_fixture = true;
+                    model.ssh.preferences.enabled = state != "disabled";
+                    model.ssh.busy = state == "busy";
+                    model.ssh.status = match state {
+                        "error" => "Update Warpai Companion on this SSH account, then rescan.",
+                        "partial-error" => "Some MCP settings could not be updated; other integrations were preserved.",
+                        "busy" => "Updating MCP settings on the selected SSH account…",
+                        _ => "",
+                    }.into();
+                    model.ssh.targets.clear();
+                    model.ssh.available.clear();
+                    model.ssh.remote_preferences = Default::default();
+                    if !matches!(state, "disabled" | "empty") {
+                        model.ssh.targets.push(super::ssh_settings::Target {
+                            key: "static-ssh-account".into(), label: "research-linux-with-a-long-hostname · researcher".into(),
+                            profile: SshProfile { target: "static-fixture".into(), config_file: None,
+                                remote_root: "/fixture".into(), companion_path: "/fixture/companion".into(),
+                                remote_shell: warp_agent_bus::ssh_remote::RemoteShell::Posix },
+                            connection: SshConnection::Native { arguments: vec![], session: "static".into() },
+                            search_paths: vec![],
+                        });
+                        model.ssh.preferences.selected = Some("static-ssh-account".into());
+                        model.ssh.available.push(super::setup::Available { command: "codex".into(), program: "codex".into(),
+                            installed: None, status: "Not installed — install the CLI to enable project-local MCP access.".into() });
+                    }
+                    ctx.notify();
+                });
+            }))
+            .with_take_screenshot(filename));
+    }
+    driver = driver.with_step(TestStep::new("restore live SSH settings discovery").with_action(|app, _, _| app.update(|ctx| {
+        super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+            model.ssh.capture_fixture = false;
+            model.ssh.busy = false;
+            model.ssh.preferences.enabled = true;
+            model.ssh.status.clear();
+            model.refresh_ssh_targets(ctx);
+            ctx.notify();
+        });
+    })));
     for (theme, label) in [(ThemeKind::Light, "light"), (ThemeKind::Dark, "dark")] {
         for width in [800, 1200] {
             let filename = format!("settings-usage-{label}-{width}.png");

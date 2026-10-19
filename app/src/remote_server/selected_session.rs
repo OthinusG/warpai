@@ -86,7 +86,21 @@ pub(crate) fn selected_ssh(
         return None;
     }
     let session = active.session(window)?;
-    let connection = session_connection(&session)?;
+    let selected = confirmed_profile(&session, active.current_directory(window)?, app)?;
+    if !selected.1.is_wsl()
+        && !crate::agent_communication::AgentCommunication::as_ref(app).ssh.preferences.enabled {
+        return None;
+    }
+    Some(selected)
+}
+
+/// Settings discovery needs confirmed account metadata even while the master switch is off.
+pub(crate) fn confirmed_profile(
+    session: &crate::terminal::model::session::Session,
+    directory: &str,
+    app: &AppContext,
+) -> Option<(SshProfile, SshConnection)> {
+    let connection = session_connection(session)?;
     #[cfg(windows)]
     if let SshConnection::Wsl { distribution, user } = &connection {
         #[cfg(all(feature = "local_tty", not(feature = "remote_tty")))]
@@ -98,7 +112,7 @@ pub(crate) fn selected_ssh(
         if !crate::terminal::wsl::WslInfo::as_ref(app).distributions()
             .any(|entry| entry.name == *distribution && entry.supports_communication()) { return None; }
     }
-    let home = companion_home(&session, &connection, app)?;
+    let home = companion_home(session, &connection, app)?;
     let host_info = session.host_info();
     let (companion_path, remote_shell) = warp_agent_bus::installation::companion_path(
         home,
@@ -113,7 +127,7 @@ pub(crate) fn selected_ssh(
     let profile = SshProfile {
         target: if connection.is_wsl() { "wsl".into() } else { session.hostname().into() },
         config_file: None,
-        remote_root: active.current_directory(window)?.into(),
+        remote_root: directory.into(),
         companion_path,
         remote_shell,
     };
@@ -133,7 +147,9 @@ pub(crate) fn selection_key(profile: &SshProfile, connection: &SshConnection, ap
     if connection.is_wsl() {
         return format!("{key}:{}", crate::agent_communication::AgentCommunication::as_ref(app).wsl.generation);
     }
-    let _ = app;
+    if !connection.is_wsl() {
+        return format!("{key}:{}", crate::agent_communication::AgentCommunication::as_ref(app).ssh.generation);
+    }
     key
 }
 

@@ -11332,5 +11332,81 @@
   "Repository index": ["仓库索引", "儲存庫索引"],
   "Analysis": ["分析结果", "分析結果"],
   "Code snippet": ["代码片段", "程式碼片段"],
-  "Design decision": ["设计决策", "設計決策"]
+  "Design decision": ["设计决策", "設計決策"],
+  "Agent scan complete for this SSH account.": [
+    "此 SSH 账户的 Agent 扫描已完成。",
+    "此 SSH 帳戶的 Agent 掃描已完成。"
+  ],
+  "Could not save SSH Remote preferences.": [
+    "无法保存 SSH 远程设置。",
+    "無法儲存 SSH 遠端設定。"
+  ],
+  "Could not verify SSH Codex MCP. Check SSH Remote settings for this account.": [
+    "无法验证 SSH Codex MCP。请检查此账户的 SSH 远程设置。",
+    "無法驗證 SSH Codex MCP。請檢查此帳戶的 SSH 遠端設定。"
+  ],
+  "Enable remote files, Review and Agent communication for logged-in SSH accounts.": [
+    "为已登录的 SSH 账户启用远端文件、Review 和 Agent 通信。",
+    "為已登入的 SSH 帳戶啟用遠端檔案、Review 和 Agent 通訊。"
+  ],
+  "MCP changes apply only to the selected SSH account. Start the selected agents in a new remote terminal session.": [
+    "MCP 更改仅应用于选中的 SSH 账户。请在新的远端终端会话中启动选中的 Agent。",
+    "MCP 變更僅套用至選取的 SSH 帳戶。請在新的遠端終端機工作階段中啟動選取的 Agent。"
+  ],
+  "No logged-in SSH accounts. Connect in a Warpai terminal first.": [
+    "没有已登录的 SSH 账户。请先在 Warpai 终端中连接。",
+    "沒有已登入的 SSH 帳戶。請先在 Warpai 終端機中連線。"
+  ],
+  "SSH Companion setup": [
+    "SSH Companion 安装说明",
+    "SSH Companion 安裝說明"
+  ],
+  "SSH MCP enabled": [
+    "SSH MCP 已启用",
+    "SSH MCP 已啟用"
+  ],
+  "SSH MCP settings saved.": [
+    "SSH MCP 设置已保存。",
+    "SSH MCP 設定已儲存。"
+  ],
+  "SSH MCP setup could not be confirmed. Check the connection, then rescan before retrying.": [
+    "无法确认 SSH MCP 设置。请检查连接并重新扫描后再重试。",
+    "無法確認 SSH MCP 設定。請檢查連線並重新掃描後再重試。"
+  ],
+  "SSH MCP setup failed; existing configuration preserved": [
+    "SSH MCP 设置失败；原配置已保留",
+    "SSH MCP 設定失敗；原設定已保留"
+  ],
+  "SSH Remote": [
+    "SSH 远程",
+    "SSH 遠端"
+  ],
+  "SSH Remote is off. Enable it in Settings > Features > Agent communication.": [
+    "SSH 远程已关闭。请在设置 > 功能 > Agent 通信中启用。",
+    "SSH 遠端已關閉。請在設定 > 功能 > Agent 通訊中啟用。"
+  ],
+  "SSH Remote is off. MCP cleanup could not be confirmed for every account; reconnect and rescan before retrying.": [
+    "SSH 远程已关闭。部分账户的 MCP 清理未获确认；请重新连接并扫描后重试。",
+    "SSH 遠端已關閉。部分帳戶的 MCP 清理未獲確認；請重新連線並掃描後重試。"
+  ],
+  "SSH account": [
+    "SSH 账户",
+    "SSH 帳戶"
+  ],
+  "SSH selection changed. Rescan the original account to verify its MCP settings.": [
+    "SSH 选择已更改。请重新扫描原账户以确认 MCP 设置。",
+    "SSH 選取已變更。請重新掃描原帳戶以確認 MCP 設定。"
+  ],
+  "Select logged-in SSH account": [
+    "选择已登录的 SSH 账户",
+    "選擇已登入的 SSH 帳戶"
+  ],
+  "Update Warpai Companion on this SSH account, then rescan.": [
+    "请更新此 SSH 账户的 Warpai Companion，然后重新扫描。",
+    "請更新此 SSH 帳戶的 Warpai Companion，然後重新掃描。"
+  ],
+  "Updating MCP settings on the selected SSH account…": [
+    "正在更新选中 SSH 账户的 MCP 设置…",
+    "正在更新選取 SSH 帳戶的 MCP 設定…"
+  ]
 }

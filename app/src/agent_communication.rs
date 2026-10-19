@@ -1,5 +1,6 @@
 //! Local coordination for independently authenticated third-party CLI agents.
 mod codex_launch;
+pub(crate) mod ssh_settings;
 #[cfg(windows)]
 pub(crate) mod wsl_settings;
 mod legacy_remote_credentials;
@@ -36,6 +37,7 @@ pub(crate) struct AgentCommunication {
     pub(crate) available: Vec<setup::Available>,
     pub(crate) busy: bool,
     pub(crate) status: String,
+    pub(crate) ssh: ssh_settings::SshSettings,
     #[cfg(windows)]
     pub(crate) wsl: wsl_settings::WslSettings,
     preferences_path: PathBuf,
@@ -62,6 +64,7 @@ impl AgentCommunication {
             available: Vec::new(),
             busy: false,
             status: String::new(),
+            ssh: Default::default(),
             #[cfg(windows)]
             wsl: Default::default(),
             preferences_path: PathBuf::new(),
@@ -208,6 +211,7 @@ impl AgentCommunication {
             available: vec![],
             busy: false,
             status: String::new(),
+            ssh: ssh_settings::SshSettings::load(directory.join("ssh-communication-settings.json")),
             #[cfg(windows)]
             wsl: wsl_settings::WslSettings::load(directory.join("wsl-communication-settings.json")),
             preferences_path,
@@ -502,6 +506,7 @@ impl AgentCommunication {
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(300)), |model, _, ctx| {
+            model.refresh_ssh_targets(ctx);
             #[cfg(windows)]
             {
                 model.refresh_wsl_targets(ctx);
