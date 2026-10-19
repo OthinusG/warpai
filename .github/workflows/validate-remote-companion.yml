@@ -66,6 +66,10 @@ jobs:
           cargo test -p warp-agent-bus --lib ssh_files::tests --locked
           cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
+      - name: Verify ordinary native SSH Agent MCP in a disposable account
+        env:
+          WARPAI_DISPOSABLE_MCP_ACCOUNT: 'yes'
+        run: cargo test -p warp-agent-bus --test ssh_native_mcp --locked -- --ignored --exact installed_native_mcp_initializes_from_an_ordinary_terminal --nocapture
       - name: Verify local communication and retained history migrations
         run: |
           cargo test -p warp-agent-bus --lib worktrees::tests --locked

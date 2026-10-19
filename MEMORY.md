@@ -86,7 +86,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
 ## SSH, task integrity and files
 
 - SSH masters need no retained launch arguments; independent native transport does.
-  Owner confirms absolute SSH_SOCKET_DIR restores both panels; 73f4fae3 accepts ~/.ssh. SSH Remote switch + per-account MCP setup newly authorized; Companion 5.5.0 planned. Contract: specs/agent-communication-v2/SSH-MCP-SETTINGS.md.
+  Owner confirms absolute SSH_SOCKET_DIR restores both panels; 73f4fae3 accepts ~/.ssh. SSH Remote is independently off by default and gates files/Review/collaboration; per-account MCP needs Companion 5.5.0. Contract: specs/agent-communication-v2/SSH-MCP-SETTINGS.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.

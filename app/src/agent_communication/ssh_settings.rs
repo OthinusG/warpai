@@ -46,6 +46,7 @@ pub(crate) struct SshSettings {
     pub available: Vec<setup::Available>,
     pub remote_preferences: setup::Preferences,
     pub account_id: Option<String>,
+    verified_service: Option<String>,
     pub status: String,
     pub busy: bool,
     pub generation: u64,
@@ -102,6 +103,7 @@ impl AgentCommunication {
             self.ssh.available.clear();
             self.ssh.remote_preferences = Default::default();
             self.ssh.account_id = None;
+            self.ssh.verified_service = None;
             self.ssh.generation += 1;
         }
         ctx.notify();
@@ -115,6 +117,7 @@ impl AgentCommunication {
         self.ssh.available.clear();
         self.ssh.remote_preferences = Default::default();
         self.ssh.account_id = None;
+        self.ssh.verified_service = None;
         self.ssh.status.clear();
         self.save_ssh_preferences();
         if self.ssh.preferences.enabled { self.configure_ssh(warp_agent_bus::wsl_setup::Action::Rescan, ctx); }
@@ -155,6 +158,8 @@ impl AgentCommunication {
         self.ssh.busy = true;
         self.ssh.status = "Updating MCP settings on the selected SSH account…".into();
         let selected_key = selected.map(|target| target.key);
+        let expected = self.ssh.verified_service.clone().zip(self.ssh.account_id.clone());
+        let expected_key = selected_key.clone();
         ctx.notify();
         let disabling = matches!(action, Action::Enable(false));
         ctx.spawn(async move {
@@ -163,9 +168,12 @@ impl AgentCommunication {
             for target in targets {
                 let result = async {
                     let mut client = target.connection.connect(&target.profile).await.map_err(anyhow::Error::new)?;
-                    let service = (client.fence().map(|f| f.service_id.clone()), client.account_id.clone());
-                    if !services.insert(service) { return Ok(None); }
-                    setup_on_client(&mut client, &target, action.clone(), generation, false).await.map(Some)
+                    let service = (client.fence().ok_or_else(|| anyhow::anyhow!("Missing SSH identity"))?.service_id.clone(), client.account_id.clone());
+                    if Some(&target.key) == expected_key.as_ref() {
+                        anyhow::ensure!(expected.as_ref().is_none_or(|identity| identity == &service), "SSH account identity changed; select the account again");
+                    }
+                    if !services.insert(service.clone()) { return Ok(None); }
+                    setup_on_client(&mut client, &target, action.clone(), generation, false).await.map(|response| Some((response, service.0)))
                 }.await;
                 results.push((target.key, result));
             }
@@ -180,10 +188,11 @@ impl AgentCommunication {
             let mut failed = false;
             for (key, result) in results {
                 match result {
-                    Ok(Some(response)) if Some(&key) == selected_key.as_ref() => {
+                    Ok(Some((response, service))) if Some(&key) == selected_key.as_ref() => {
                         model.ssh.remote_preferences = response.preferences;
                         model.ssh.available = response.available;
                         model.ssh.account_id = Some(response.account_id);
+                        model.ssh.verified_service = Some(service);
                         model.ssh.status = response.status;
                     }
                     Ok(_) => (),

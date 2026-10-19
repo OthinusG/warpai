@@ -382,6 +382,9 @@ impl View for CommunicationSettingsView {
             }
             if let Some(target) = ssh.selected_target() {
                 let key = target.key.clone();
+                if ssh.account_id.is_some() && ssh.available.is_empty() && !ssh.busy {
+                    body.add_child(secondary_text(appearance, warpui::localization::text("No installed managed CLI agents were found.").into(), None));
+                }
                 for row in &ssh.available {
                     let state = self.checkboxes.borrow_mut().entry(format!("ssh:{}:{}", key, row.command)).or_default().clone();
                     let checkbox = builder.checkbox(state, None).check(ssh.remote_preferences.selected.get(&row.command).is_some_and(|entry| entry.active));

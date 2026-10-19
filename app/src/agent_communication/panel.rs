@@ -5491,8 +5491,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             search_paths: vec![],
                         });
                         model.ssh.preferences.selected = Some("static-ssh-account".into());
+                        let installed = super::setup::Installed { active: true, program: "codex".into(),
+                            executable: "/static-fixture/codex".into(), bridge: "/static-fixture/companion".into(),
+                            adapter: super::setup::Adapter::Codex("/static-fixture/config.toml".into()),
+                            search_paths: vec![], launch_options: Default::default() };
+                        model.ssh.remote_preferences.selected.insert("codex".into(), installed.clone());
                         model.ssh.available.push(super::setup::Available { command: "codex".into(), program: "codex".into(),
-                            installed: None, status: "Not installed — install the CLI to enable project-local MCP access.".into() });
+                            installed: Some(installed), status: "SSH MCP enabled".into() });
                     }
                     ctx.notify();
                 });
