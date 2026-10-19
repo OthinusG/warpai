@@ -104,7 +104,20 @@ impl AgentCommunication {
             self.ssh.remote_preferences = Default::default();
             self.ssh.account_id = None;
             self.ssh.verified_service = None;
+            self.ssh.status.clear();
             self.ssh.generation += 1;
+            if self.ssh.preferences.enabled && self.ssh.selected_target().is_some() {
+                let generation = self.ssh.generation;
+                let selected = self.ssh.preferences.selected.clone();
+                // One scan on account discovery; failed scans wait for explicit retry.
+                ctx.spawn(async {}, move |model, _, ctx| {
+                    if model.ssh.preferences.enabled && !model.ssh.busy
+                        && model.ssh.generation == generation
+                        && model.ssh.preferences.selected == selected {
+                        model.configure_ssh(warp_agent_bus::wsl_setup::Action::Rescan, ctx);
+                    }
+                });
+            }
         }
         ctx.notify();
     }
