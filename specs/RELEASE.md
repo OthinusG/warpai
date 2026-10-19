@@ -12,6 +12,17 @@ Receipts: [communication](https://github.com/OthinusG/warpai/actions/runs/392594
 [Linux packages](https://github.com/OthinusG/warpai/actions/runs/39249589503).
 Proceed with main integration and the authorized v1.7.6 release workflow.
 
+### Windows protobuf compiler provisioning
+
+Windows CI and release builds must not depend on the Chocolatey `protoc` package:
+its NuGet feed returned HTTP 503/504 during the accepted source's main-branch
+validation and first release attempt. Download the official Protobuf v36.2
+`protoc-36.2-win64.zip` asset from GitHub Releases, verify SHA-256
+`f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3`, then set
+`PROTOC` and `PATH`. Keep Inno Setup provisioning independent. Acceptance requires
+all Windows protocol, desktop, Companion, and release build workflows to use the
+verified compiler and rerun successfully.
+
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.
 Scope additionally includes the SSH Remote master switch and per-account native

@@ -38,8 +38,25 @@ jobs:
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Install Windows protobuf compiler
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          choco install protoc innosetup -y
+          $ErrorActionPreference = 'Stop'
+          $version = '36.2'
+          $archive = Join-Path $env:RUNNER_TEMP "protoc-$version-win64.zip"
+          $installRoot = Join-Path $env:RUNNER_TEMP ("protoc-$version-" + [guid]::NewGuid().ToString('N'))
+          Invoke-WebRequest "https://github.com/protocolbuffers/protobuf/releases/download/v$version/protoc-$version-win64.zip" -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3') { throw 'Protobuf compiler checksum mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $installRoot
+          $protoc = Join-Path $installRoot 'bin\protoc.exe'
+          & $protoc --version
+          if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler verification failed' }
+          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $installRoot 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Install Windows Companion packaging tools
+        if: runner.os == 'Windows'
+        run: |
+          choco install innosetup -y
           echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
       - name: Prepare native Windows SSH acceptance server
         if: runner.os == 'Windows'

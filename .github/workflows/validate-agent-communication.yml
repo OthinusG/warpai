@@ -54,13 +54,26 @@ jobs:
         run: rustup toolchain install 1.92.0 --profile minimal
       - name: Verify interface translation coverage
         run: python3 script/check-interface-locales.py --strict
-      - name: Prepare protobuf compiler
+      - name: Prepare Windows protobuf compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          if [[ "$RUNNER_OS" == Windows ]]; then
-            choco install protoc -y
-          else
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
-          fi
+          $ErrorActionPreference = 'Stop'
+          $version = '36.2'
+          $archive = Join-Path $env:RUNNER_TEMP "protoc-$version-win64.zip"
+          $installRoot = Join-Path $env:RUNNER_TEMP ("protoc-$version-" + [guid]::NewGuid().ToString('N'))
+          Invoke-WebRequest "https://github.com/protocolbuffers/protobuf/releases/download/v$version/protoc-$version-win64.zip" -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3') { throw 'Protobuf compiler checksum mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $installRoot
+          $protoc = Join-Path $installRoot 'bin\protoc.exe'
+          & $protoc --version
+          if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler verification failed' }
+          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $installRoot 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Prepare macOS protobuf compiler
+        if: runner.os == 'macOS'
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
       - name: Verify representative history and indexed query budget
@@ -89,12 +102,19 @@ jobs:
       - name: Prepare Windows protobuf compiler
         shell: pwsh
         run: |
-          choco install protoc -y
-          if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler installation failed' }
-          $protoc = (Get-Command protoc -ErrorAction Stop).Source
+          $ErrorActionPreference = 'Stop'
+          $version = '36.2'
+          $archive = Join-Path $env:RUNNER_TEMP "protoc-$version-win64.zip"
+          $installRoot = Join-Path $env:RUNNER_TEMP ("protoc-$version-" + [guid]::NewGuid().ToString('N'))
+          Invoke-WebRequest "https://github.com/protocolbuffers/protobuf/releases/download/v$version/protoc-$version-win64.zip" -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3') { throw 'Protobuf compiler checksum mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $installRoot
+          $protoc = Join-Path $installRoot 'bin\protoc.exe'
           & $protoc --version
           if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler verification failed' }
           "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $installRoot 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Prepare native Windows SSH acceptance server
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
         shell: pwsh

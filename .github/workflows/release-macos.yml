@@ -44,6 +44,23 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
+      - name: Install verified Windows protobuf compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '36.2'
+          $archive = Join-Path $env:RUNNER_TEMP "protoc-$version-win64.zip"
+          $installRoot = Join-Path $env:RUNNER_TEMP ("protoc-$version-" + [guid]::NewGuid().ToString('N'))
+          Invoke-WebRequest "https://github.com/protocolbuffers/protobuf/releases/download/v$version/protoc-$version-win64.zip" -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3') { throw 'Protobuf compiler checksum mismatch' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $installRoot
+          $protoc = Join-Path $installRoot 'bin\protoc.exe'
+          & $protoc --version
+          if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler verification failed' }
+          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $installRoot 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Prepare companion build tools
         run: |
           set -euo pipefail
@@ -54,15 +71,9 @@ jobs:
           elif [[ "$RUNNER_OS" == macOS ]]; then
             HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
           else
-            for attempt in 1 2 3; do
-              if choco install protoc -y && command -v protoc >/dev/null; then break; fi
-              if [[ "$attempt" == 3 ]]; then exit 1; fi
-              sleep 10
-            done
             choco install innosetup -y
             test -f '/c/Program Files (x86)/Inno Setup 6/ISCC.exe'
             protoc --version
-            echo "PROTOC=$(cygpath -w "$(command -v protoc)")" >> "$GITHUB_ENV"
             echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
           fi
       - name: Verify and build tagged companion

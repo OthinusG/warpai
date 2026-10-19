@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Working and delivery rules
 
@@ -31,6 +31,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Public: 1.7.1 / Companion 5.4.0; README links must match published assets.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >= 2.31.
 - Artifact-only macOS runs must not trigger Windows publication.
+- Windows CI/release uses pinned official protoc 36.2 + SHA-256; Chocolatey NuGet
+  protoc returned 503/504 and blocked Windows jobs. See specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
 
