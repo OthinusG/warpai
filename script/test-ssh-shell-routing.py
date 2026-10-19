@@ -13,16 +13,16 @@ repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='warpai-shell-routing-') as directory:
     root = Path(directory)
     ssh = root / 'ssh'
-    transport = root / 'ssh.py'
-    ssh.write_text('#!/bin/sh\nexec ' + shlex.quote(Path(sys.executable).as_posix()) + ' ' + shlex.quote(transport.as_posix()) + ' \"$@\"\n')
-    transport.write_text('''import json, os, sys
-with open(os.environ['OWNED_SSH_CALLS'], 'a') as calls:
-    calls.write(json.dumps(sys.argv[1:]) + '\\n')
-if '-G' in sys.argv:
-    print('remotecommand ' + os.environ['OWNED_REMOTE_COMMAND'])
-elif sys.argv[-1] == 'echo $env:OS':
-    print(os.environ['OWNED_REMOTE_OS'])
-''')
+    ssh.write_text("""#!/bin/sh
+"$OWNED_PYTHON" -c 'import json, os, sys; print(json.dumps(sys.argv[1:])); sys.exit(0)' "$@" >> "$OWNED_SSH_CALLS"
+if [ "$1" = "-G" ]; then
+  printf 'remotecommand %s\\n' "$OWNED_REMOTE_COMMAND"
+elif [ "$#" -gt 0 ]; then
+  last=
+  for argument do last=$argument; done
+  if [ "$last" = 'echo $env:OS' ]; then printf '%s\\n' "$OWNED_REMOTE_OS"; fi
+fi
+""")
     ssh.chmod(0o700)
     shells = [('bash', 'bash_body.sh'), ('zsh', 'zsh_body.sh'), ('fish', 'fish.sh')]
     for shell, filename in shells:
@@ -60,7 +60,11 @@ elif sys.argv[-1] == 'echo $env:OS':
                     ssh_wrapper = subprocess.check_output([cygpath, '-u', str(ssh)], text=True).strip()
                 else:
                     raise RuntimeError('Git Bash cygpath is required for the Windows SSH fixture')
-            env = dict(os.environ, OWNED_SSH_WRAPPER=ssh_wrapper,
+            python_executable = sys.executable
+            if os.name == 'nt':
+                python_executable = subprocess.check_output(
+                    [cygpath, '-u', sys.executable], text=True).strip()
+            env = dict(os.environ, OWNED_SSH_WRAPPER=ssh_wrapper, OWNED_PYTHON=python_executable,
                 OWNED_SSH_CALLS=str(calls), OWNED_REMOTE_OS=remote_os,
                 OWNED_REMOTE_COMMAND=remote_command, SSH_SOCKET_DIR=str(root), WARP_SESSION_ID='123')
             result = subprocess.run([executable, str(script)], env=env, capture_output=True, text=True, timeout=10)
@@ -69,12 +73,12 @@ elif sys.argv[-1] == 'echo $env:OS':
             if remote_command != 'none':
                 assert len(observed) == 2 and observed[-1] == ['owned-host'], (shell, observed)
             elif remote_os == 'Windows_NT':
-                assert len(observed) == 3, (shell, observed)
+                assert len(observed) == 3, (shell, observed, result.stdout, result.stderr)
                 assert observed[-1][-1].startswith('powershell.exe -NoLogo -NoProfile -NoExit -EncodedCommand ')
                 assert 'export ' not in observed[-1][-1] and 'test -n' not in observed[-1][-1]
-                assert json.loads(result.stdout)['value']['remote_shell'] == 'pwsh'
+                assert json.loads(result.stdout.splitlines()[-1])['value']['remote_shell'] == 'pwsh'
             else:
-                assert len(observed) == 3, (shell, observed)
+                assert len(observed) == 3, (shell, observed, result.stdout, result.stderr)
                 posix_command = ' '.join(observed[-1])
                 assert 'TERM_PROGRAM=' in posix_command and 'export ' in posix_command, (shell, observed[-1])
                 assert 'shell_pid' in posix_command and '$$' in posix_command, (shell, 'Remote shell PID missing')
