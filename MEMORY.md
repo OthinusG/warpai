@@ -7,7 +7,7 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Oct19 cloud acceptance passed: communication 39259499684, Companion 39254214995,
-  Linux packages 39249589503. Main merge and v1.7.6 release are authorized.
+  Linux packages 39249589503. The original v1.7.6 draft/tag remains immutable.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
@@ -19,9 +19,10 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Published releases and maintenance
 
-- Oct19: preserve unpublished 1.7.2 tag/draft. Latest owner authorization:
-  release 1.7.6 after current cloud acceptance; no further approval required.
-  specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP/native readiness.
+- Oct19: preserve unpublished 1.7.2 and immutable v1.7.6 tag/draft. Oct20 owner
+  authorized stopping earlier jobs, fixing Zsh bootstrap echo on main, validating,
+  then publishing the combined changes as v1.7.7. Poll runs with `gh run view`
+  every 30 minutes maximum. See specs/RELEASE.md.
 - Owner Mac-to-Linux panels passed; 5.4.0 lacked MCP setup; supplied 5.5.0.
   Latest Windows failure was ProxyJump before capture, not a proven GUI timeout.
 - Windows SSH defaults to PowerShell, never CMD. Select remote grammar before bootstrap;

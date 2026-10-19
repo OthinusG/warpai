@@ -1,16 +1,31 @@
 # Warpai releases
 
-## 2026-10-19 combined 1.7.6 release
+## Corrected 1.7.7 publication
 
-Latest owner instruction authorizes the formal 1.7.6 release workflow once the
-current cloud validation passes, including the native SSH readiness repair.
-This supersedes the earlier hold for an additional owner test/approval below.
-Cloud acceptance passed on source `c6c2967f`: full macOS/Windows communication,
+Owner authorization on 2026-10-20: stop the earlier cloud runs, fix the Zsh
+bootstrap input echo issue on `main`, validate the correction, and publish the
+corrected release. The immutable `v1.7.6` tag and draft point to the original
+source and must not be moved or have their assets replaced. Publish the combined
+1.7.6 feature set plus the Zsh fix as immutable `v1.7.7` after source-matched
+cloud validation passes. Check cloud run status with `gh run view` no more often
+than once every 30 minutes; fix failures and rerun the affected validation.
+
+The Zsh acceptance contract is in “Zsh bootstrap visibility” below. Retain the
+existing macOS, Windows, Companion, and Linux package gates. After publication,
+verify all assets and checksums, then complete the public download and Homebrew
+updates described in “Mandatory final step after public release assets are
+available.”
+
+## 2026-10-19 combined 1.7.6 acceptance (original draft retained)
+
+The original owner instruction authorized the formal 1.7.6 release after
+acceptance, and its source/tag/draft are preserved unchanged. The Oct20 Zsh
+bootstrap correction is being released separately as v1.7.7 per the contract
+above. Cloud acceptance passed on source `c6c2967f`: full macOS/Windows communication,
 Windows SSH and WSL, Companion macOS/Linux/Windows, and Linux x64/ARM64 packages.
 Receipts: [communication](https://github.com/OthinusG/warpai/actions/runs/39259499684),
 [Companion](https://github.com/OthinusG/warpai/actions/runs/39254214995),
 [Linux packages](https://github.com/OthinusG/warpai/actions/runs/39249589503).
-Proceed with main integration and the authorized v1.7.6 release workflow.
 
 ### Windows protobuf compiler provisioning
 

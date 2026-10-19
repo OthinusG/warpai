@@ -1107,6 +1107,7 @@ esac
 
   # We need to restore the stty before any user bootstrap files are evaluated
   # in case they ask for user input
+  command -p stty sane
   setopt ZLE
 
   # If powerlevel instant prompt is on, we need to disable it because it
