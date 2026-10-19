@@ -33,6 +33,12 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
     std::fs::copy(std::env::current_exe().unwrap(), &executable).unwrap();
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let companion = Path::new(env!("CARGO_BIN_EXE_warpai-companion"));
+    let version = std::process::Command::new(companion).arg("--version").output().unwrap();
+    assert!(version.status.success(), "Owned Companion binary could not execute");
+    let state = dirs::data_local_dir().unwrap().join("warpai/remote");
+    if let Err(error) = warp_agent_bus::companion::Companion::new(&state) {
+        panic!("Owned native service identity unavailable: {:?}", error.kind());
+    }
     let mut client = runtime.block_on(HostClient::connect_companion(companion, root.path().to_str().unwrap())).unwrap();
     let commands = vec![("codex".into(), "codex".into())];
     let configure = |client: &mut HostClient, action| runtime.block_on(async {

@@ -107,7 +107,12 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
                 Err(ProtocolError::UnexpectedEof) => return Ok(()),
                 Err(error) => return Err(error),
             };
-        let reply: ServerMessage = tokio::time::timeout(Duration::from_secs(10), async {
+        let timeout = match &request.message {
+            Some(client_message::Message::Managed(request)) => request.operation.as_ref()
+                .map(crate::ssh_setup::control_timeout).unwrap_or(Duration::from_secs(10)),
+            _ => Duration::from_secs(10),
+        };
+        let reply: ServerMessage = tokio::time::timeout(timeout, async {
             write_message_with_limit(&mut output, &request, MAX_MANAGED_MESSAGE_SIZE).await?;
             read_message_with_limit(&mut input, MAX_MANAGED_MESSAGE_SIZE).await
         })

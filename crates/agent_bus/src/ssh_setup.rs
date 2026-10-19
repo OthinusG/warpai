@@ -21,6 +21,18 @@ pub struct Response {
     pub status: String,
 }
 
+/// A vendor scan crosses both the desktop channel and the private account proxy.
+pub(crate) fn control_timeout(operation: &remote_protocol::proto::managed_request::Operation) -> std::time::Duration {
+    use remote_protocol::proto::managed_request::Operation;
+    let setup = match operation {
+        Operation::ProjectTasks(request) if request.command_json.len() <= 64 * 1024 =>
+            matches!(serde_json::from_slice::<crate::companion::TaskCommand>(&request.command_json),
+                Ok(crate::companion::TaskCommand::SshSetup(_))),
+        _ => false,
+    };
+    std::time::Duration::from_secs(if setup { 180 } else { 10 })
+}
+
 struct SetupLock(std::fs::File);
 impl Drop for SetupLock {
     fn drop(&mut self) {
@@ -80,6 +92,22 @@ fn configure_in(request: Request, directory: &Path, bridge: &Path) -> Result<Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_typed_bounded_setup_operations_extend_control_deadlines() {
+        use remote_protocol::proto::{managed_request::Operation, ProjectTasksRequest};
+        let operation = |bytes| Operation::ProjectTasks(ProjectTasksRequest {
+            fence: None, query_generation: 0, command_json: bytes,
+        });
+        let setup = crate::companion::TaskCommand::SshSetup(Request {
+            action: Action::Rescan, commands: vec![], search_paths: vec![],
+        });
+        assert_eq!(control_timeout(&operation(serde_json::to_vec(&setup).unwrap())).as_secs(), 180);
+        assert_eq!(control_timeout(&operation(b"invalid".to_vec())).as_secs(), 10);
+        assert_eq!(control_timeout(&operation(vec![b' '; 65537])).as_secs(), 10);
+        let panel = crate::companion::TaskCommand::Panel(Default::default());
+        assert_eq!(control_timeout(&operation(serde_json::to_vec(&panel).unwrap())).as_secs(), 10);
+    }
+
     #[test]
     fn setup_rejects_unbounded_or_non_native_inputs_before_discovery() {
         let request = |command: &str, path: &str| Request {
