@@ -2478,6 +2478,10 @@ impl CollaborationPanel {
         let companion = std::path::PathBuf::from(
             std::env::var_os("WARP_TEST_COMPANION").expect("Explicit CI companion"),
         );
+        super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+            model.ssh.preferences.enabled = true;
+            ctx.notify();
+        });
         let root = std::env::temp_dir().join(format!("warpai-panel-remote-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let root = root.canonicalize().unwrap().to_str().unwrap().to_owned();
