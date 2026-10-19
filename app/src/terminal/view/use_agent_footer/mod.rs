@@ -823,7 +823,6 @@ impl TerminalView {
         (draft, blocked)
     }
 
-    #[cfg(windows)]
     pub(super) fn stage_wsl_peer_text(&mut self, agent: CLIAgent, text: String, ctx: &mut ViewContext<Self>) -> Duration {
         let strategy = rich_input_submit_strategy(agent);
         let mut bytes = text.into_bytes();
