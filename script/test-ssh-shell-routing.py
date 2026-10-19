@@ -47,12 +47,20 @@ elif sys.argv[-1] == 'echo $env:OS':
             helper = helper[:helper.rfind('}') + 1]
             prelude = 'init_shell_hook() { :; }\nwarp_send_json_message() { printf "%s\\n" "$1"; }\n'
         helper = source[start:end] if shell == 'fish' else helper
+        helper = helper.replace('command ssh', 'command ' + chr(34) + '$OWNED_SSH_WRAPPER' + chr(34))
         script = root / f'{shell}-fixture'
         script.write_text(prelude + helper.replace('@@USING_CON_PTY_BOOLEAN@@', 'false') + '\nwarp_ssh_helper owned-host\n', encoding='utf-8')
         for remote_os, remote_command in [('Windows_NT', 'none'), (':OS', 'none'), ('Windows_NT', 'owned-command')]:
             calls = root / 'calls.jsonl'
             calls.write_text('')
-            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
+            ssh_wrapper = str(ssh)
+            if os.name == 'nt':
+                cygpath = shutil.which('cygpath')
+                if cygpath:
+                    ssh_wrapper = subprocess.check_output([cygpath, '-u', str(ssh)], text=True).strip()
+                else:
+                    raise RuntimeError('Git Bash cygpath is required for the Windows SSH fixture')
+            env = dict(os.environ, OWNED_SSH_WRAPPER=ssh_wrapper,
                 OWNED_SSH_CALLS=str(calls), OWNED_REMOTE_OS=remote_os,
                 OWNED_REMOTE_COMMAND=remote_command, SSH_SOCKET_DIR=str(root), WARP_SESSION_ID='123')
             result = subprocess.run([executable, str(script)], env=env, capture_output=True, text=True, timeout=10)
