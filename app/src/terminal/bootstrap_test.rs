@@ -2,6 +2,34 @@ use super::*;
 
 struct TestAssetProvider;
 
+#[test]
+fn native_bootstrap_reports_remote_shell_pid_on_every_desktop() {
+    struct Assets;
+    impl AssetProvider for Assets {
+        fn get(&self, path: &str) -> anyhow::Result<Cow<'_, [u8]>> {
+            let script = match path {
+                "bundled/bootstrap/bash_init_shell.sh" => include_str!("../../assets/bundled/bootstrap/bash_init_shell.sh"),
+                "bundled/bootstrap/bash_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/bash_init_subshell.sh"),
+                "bundled/bootstrap/zsh_init_shell.sh" => include_str!("../../assets/bundled/bootstrap/zsh_init_shell.sh"),
+                "bundled/bootstrap/zsh_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/zsh_init_subshell.sh"),
+                "bundled/bootstrap/fish_init_shell.sh" => include_str!("../../assets/bundled/bootstrap/fish_init_shell.sh"),
+                "bundled/bootstrap/fish_init_subshell.sh" => include_str!("../../assets/bundled/bootstrap/fish_init_subshell.sh"),
+                "bundled/bootstrap/pwsh_init_shell.ps1" => include_str!("../../assets/bundled/bootstrap/pwsh_init_shell.ps1"),
+                _ => anyhow::bail!("Unknown fixture asset"),
+            };
+            Ok(Cow::Borrowed(script.as_bytes()))
+        }
+    }
+    for shell in ["bash", "zsh", "fish"] {
+        for kind in ["shell", "subshell"] {
+            let script = load_script(&format!("bundled/bootstrap/{shell}_init_{kind}.sh"), &Assets);
+            let pid = if shell == "fish" { "$fish_pid" } else { "$$" };
+            assert!(script.contains(&format!(r#"\"shell_pid\": {pid}"#)));
+        }
+    }
+    assert!(load_script("bundled/bootstrap/pwsh_init_shell.ps1", &Assets).contains("shell_pid = $PID"));
+}
+
 #[cfg(windows)]
 #[test]
 fn windows_bootstrap_reports_native_shell_pid() {

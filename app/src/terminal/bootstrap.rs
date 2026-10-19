@@ -344,7 +344,6 @@ fn load_script(file_path: &str, assets: &dyn AssetProvider) -> String {
         .lines()
         .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
         .join(";");
-    #[cfg(windows)]
     let script = script.replace(
         r#"\"session_id\": $WARP_SESSION_ID"#,
         &format!(r#"\"session_id\": $WARP_SESSION_ID, \"shell_pid\": {}"#,

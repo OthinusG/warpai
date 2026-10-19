@@ -24,7 +24,7 @@ function prompt {
     $epoch = [int](New-TimeSpan -Start ([DateTime]::new(1970, 1, 1, 0, 0, 0, 0)) -End ([DateTime]::UtcNow)).TotalSeconds
     $random = Get-Random -Maximum 32768
     $global:_warpSessionId = [int64]"$epoch$random"
-    $msg = ConvertTo-Json -Compress -InputObject @{ hook = 'InitShell'; value = @{ session_id = $_warpSessionId; shell = 'pwsh'; user = $username; hostname = [System.Net.Dns]::GetHostName() } }
+    $msg = ConvertTo-Json -Compress -InputObject @{ hook = 'InitShell'; value = @{ session_id = $_warpSessionId; shell_pid = $PID; shell = 'pwsh'; user = $username; hostname = [System.Net.Dns]::GetHostName() } }
     $encodedMsg = [BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($msg)).Replace('-', '')
     $oscStart = "$([char]0x1b)]9278;"
     $oscEnd = "`a"

@@ -130,3 +130,9 @@ and no draft or approval dialog. Revalidate before Enter; preserve cancellation,
 run replacement, disconnect and draft fences. Do not weaken local delivery or
 WSL opt-outs. A submitted prompt is not acknowledgement of the pending work.
 
+The shell InitShell contract retains optional `shell_pid` on every desktop,
+through SessionInfo and completed bootstrap. Bash/Zsh/Fish report their native
+shell PID; PowerShell reports `$PID`. Missing/invalid PID fails closed for native
+remote observation. The Companion independently checks account ownership,
+process birth and ancestry; shell metadata alone never grants authority.
+

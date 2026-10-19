@@ -223,6 +223,7 @@ impl DProtoHook {
                 }
             },
             DProtoHook::InitShell { value } => match key.as_ref() {
+                "shell_pid" => { value.shell_pid = v.parse::<u32>().ok().filter(|pid| *pid > 1); }
                 "session_id" => {
                     value.session_id = v
                         .parse::<u64>()
@@ -621,7 +622,6 @@ pub struct SSHValue {
 /// the shell ready to execute the bootstrap script.
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct InitShellValue {
-    #[cfg(windows)]
     #[serde(default)]
     pub shell_pid: Option<u32>,
     pub session_id: SessionId,

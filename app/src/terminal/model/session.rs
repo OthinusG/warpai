@@ -578,7 +578,6 @@ impl HostInfo {
 /// part of the `BootstrappedEvent` payload.
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
-    #[cfg(windows)]
     pub shell_pid: Option<u32>,
     pub session_id: SessionId,
     pub shell: Shell,
@@ -652,7 +651,6 @@ impl SessionInfo {
 
         SessionInfo {
             session_id: init_shell_value.session_id,
-            #[cfg(windows)]
             shell_pid: init_shell_value.shell_pid,
             shell: Shell::new(shell_type, None, None, Default::default(), None),
             launch_data,
@@ -781,7 +779,6 @@ impl SessionInfo {
 
         SessionInfo {
             session_id: self.session_id,
-            #[cfg(windows)]
             shell_pid: self.shell_pid,
             shell: Shell::new(
                 shell_type,
@@ -1640,7 +1637,6 @@ pub mod testing {
 
             Self {
                 session_id: SessionId::from(0),
-                #[cfg(windows)]
                 shell_pid: None,
                 shell: Shell::new(shell_type, None, None, Default::default(), None),
                 launch_data: None,
