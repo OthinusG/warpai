@@ -163,7 +163,7 @@ jobs:
         run: |
           cargo test -p warpai --lib remote_server::selected_session::ssh_tests --locked
           if ($LASTEXITCODE -ne 0) { throw 'SSH session selection regression failed' }
-          cargo test -p warpai --lib wsl_selection_keeps_guest_account_and_nested_ssh_distinct --locked
+          cargo test -p warpai --lib wsl_selection_ --locked
           if ($LASTEXITCODE -ne 0) { throw 'Nested WSL SSH selection regression failed' }
           pwsh script/build-warpai-windows.ps1 -ReleaseTag "$env:RELEASE_TAG"
 

@@ -81,10 +81,18 @@ Owner authorized three-desktop cloud builds and test installers on 2026-10-19.
 Use branch `codex/ssh-session-test-20261019` and artifact-only package version
 `v1.7.3`; no release tag/publication or personal installation is part of this test.
 macOS and Windows packaging run the shared selection regressions; Linux x64 and
-ARM64 packaging run them in the native build script. Windows additionally checks
-that a confirmed SSH master nested inside WSL selects multiplexed SSH with its
-original WSL distribution, rather than merely asserting it is not direct WSL.
+ARM64 packaging run them in the native build script. Preserve the existing Windows
+WSL isolation test, which correctly checks that nested SSH cannot become direct
+WSL. Add a separate regression for selecting a confirmed SSH master nested inside
+WSL without launch arguments, retaining its original WSL distribution.
 Run existing communication/native UI acceptance and retain all package checks.
+
+Cloud source: `fe91eb5a2e0954eeb9782c02970b912ed256e07a`.
+Runs: [communication/native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39195404874),
+[macOS test installers](https://github.com/OthinusG/warpai/actions/runs/39195407928),
+[Windows test installer](https://github.com/OthinusG/warpai/actions/runs/39195410987).
+Windows hands the same SHA and artifact-only flag to Linux x64/ARM64 packaging.
+All runs and owner reproduction remain pending at dispatch.
 
 Existing POSIX SSH bootstrap already creates a system OpenSSH control socket and
 reports remote shell, native home/OS, session identity and cwd events. The existing

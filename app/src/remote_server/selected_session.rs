@@ -186,8 +186,20 @@ mod tests {
         }));
         let nested = Session::new(info.with_ssh_socket_path("/tmp/ssh-owned".into()),
             std::sync::Arc::new(NoOpCommandExecutor::new()));
-        assert_eq!(session_connection(&nested), Some(SshConnection::Multiplexed {
+        assert!(!matches!(session_connection(&nested), Some(SshConnection::Wsl { .. })),
+            "A nested SSH route cannot fall back to its WSL parent");
+    }
+
+    #[test]
+    fn wsl_selection_confirmed_ssh_master_does_not_require_launch_arguments() {
+        let mut info = SessionInfo::new_for_test()
+            .with_user("guest".into())
+            .with_ssh_socket_path("/tmp/ssh-owned".into());
+        info.wsl_name = Some("Ubuntu Test".into());
+        let session = Session::new(info, std::sync::Arc::new(NoOpCommandExecutor::new()));
+        assert!(session.ssh_arguments().is_none());
+        assert_eq!(session_connection(&session), Some(SshConnection::Multiplexed {
             socket: "/tmp/ssh-owned".into(), wsl: Some("Ubuntu Test".into()),
-        }), "A confirmed nested SSH master must retain its WSL transport");
+        }));
     }
 }
