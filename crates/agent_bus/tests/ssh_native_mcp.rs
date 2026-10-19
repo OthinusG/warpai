@@ -11,11 +11,15 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
         let directory = tempfile::tempdir().unwrap();
         let home = directory.path().join("home");
         std::fs::create_dir(&home).unwrap();
-        let status = std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", "installed_native_mcp_initializes_from_an_ordinary_terminal", "--ignored", "--nocapture"])
-            .env("WARPAI_NATIVE_MCP_HOME", &home).env("HOME", &home)
-            .env("USERPROFILE", &home).env("XDG_DATA_HOME", home.join("data"))
-            .status().unwrap();
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command.args(["--exact", "installed_native_mcp_initializes_from_an_ordinary_terminal", "--ignored", "--nocapture"])
+            .env("WARPAI_NATIVE_MCP_HOME", &home);
+        // Windows KnownFolder resolution needs the real disposable account's
+        // profile; substituting USERPROFILE makes LocalAppData unavailable.
+        #[cfg(unix)]
+        command.env("HOME", &home).env("USERPROFILE", &home)
+            .env("XDG_DATA_HOME", home.join("data"));
+        let status = command.status().unwrap();
         assert!(status.success(), "Disposable native MCP acceptance failed");
         return;
     }
