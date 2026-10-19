@@ -91,14 +91,21 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
         let _ = sender.send(false);
     });
     let result = receiver.recv_timeout(Duration::from_secs(60));
-    pty.stop().unwrap();
+    let panel = |client: &mut HostClient| runtime.block_on(client.project_tasks(
+        &TaskCommand::Panel(Default::default()), 2)).unwrap();
+    let online = |value: &serde_json::Value| value["value"]["agents"].as_array().unwrap().iter()
+        .any(|row| row["online"] == true && row["agent"]["program"] == "codex");
+    assert_eq!(result, Ok(true), "Native MCP initialize/tools/list/bootstrap did not complete");
+    assert!(online(&panel(&mut client)), "The native MCP run must be visible in its project");
     let disabled = configure(&mut client, Action::Enable(false));
     assert!(!disabled.preferences.enabled);
+    assert!(!online(&panel(&mut client)), "Disabling must revoke MCP before the Agent process exits");
+    assert!(pty.is_active().unwrap(), "Revocation must not stop native terminal IO");
+    pty.stop().unwrap();
     let text = std::fs::read_to_string(&config).unwrap();
     assert!(text.contains("fixture-unrelated"));
     assert!(!text.contains(warp_agent_bus::setup::SERVER));
     std::fs::remove_file(&config).unwrap();
-    assert_eq!(result, Ok(true), "Native MCP initialize/tools/list/bootstrap did not complete");
 }
 
 #[test]

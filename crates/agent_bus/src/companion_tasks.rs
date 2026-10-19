@@ -722,8 +722,10 @@ impl Projects {
             if expected_scope.is_some() || cfg!(feature = "wsl_companion") {
                 return Err(ManagedErrorCode::ManagedFeatureUnavailable);
             }
-            let value = crate::ssh_setup::configure(query)
-                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            let configured = crate::ssh_setup::configure(query);
+            // A completed disable must revoke native MCP before its acknowledgement.
+            self.guests.reap_and_active();
+            let value = configured.map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
             return Ok(ProjectTasksResult {
                 fence: Some(fence.clone()), query_generation: request.query_generation,
                 result_json: serde_json::to_vec(&serde_json::json!({"value": value}))
