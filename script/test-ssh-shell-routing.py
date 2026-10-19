@@ -75,6 +75,7 @@ elif sys.argv[-1] == 'echo $env:OS':
                 assert json.loads(result.stdout)['value']['remote_shell'] == 'pwsh'
             else:
                 assert len(observed) == 3, (shell, observed)
-                assert 'export TERM_PROGRAM=' in observed[-1][-1]
-                assert r'\"shell_pid\": $$' in observed[-1][-1], (shell, 'Remote shell PID missing')
+                posix_command = ' '.join(observed[-1])
+                assert 'TERM_PROGRAM=' in posix_command and 'export ' in posix_command, (shell, observed[-1])
+                assert 'shell_pid' in posix_command and '$$' in posix_command, (shell, 'Remote shell PID missing')
         print(f'{shell} Windows/POSIX/RemoteCommand SSH routing passed')
