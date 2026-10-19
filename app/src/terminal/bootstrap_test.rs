@@ -106,7 +106,8 @@ fn test_trims_whitespace() {
 
 #[test]
 fn zsh_bootstrap_restores_terminal_after_reading_hidden_input() {
-    let script = decode_script(&script_for_shell(ShellType::Zsh, &crate::ASSETS));
+    let script_bytes = script_for_shell(ShellType::Zsh, &crate::ASSETS);
+    let script = decode_script(&script_bytes);
     let read = script
         .find("read -r -d '' WARP_BOOTSTRAP_VAR")
         .expect("Zsh bootstrap must read the complete injected script");
