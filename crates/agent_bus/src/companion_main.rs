@@ -28,6 +28,14 @@ pub(crate) async fn run() {
         return;
     }
     match std::env::args().nth(1).as_deref() {
+        Some("mcp") if std::env::args_os().len() == 3 => {
+            let program = std::env::args().nth(2).unwrap();
+            if warp_agent_bus::companion::serve_guest_mcp(program).await.is_err() {
+                eprintln!("Native SSH Agent MCP binding unavailable");
+                std::process::exit(1);
+            }
+            return;
+        }
         Some("forward") => {
             let result = match std::env::args().nth(2) {
                 Some(endpoint) if std::env::args_os().len() == 3 => {

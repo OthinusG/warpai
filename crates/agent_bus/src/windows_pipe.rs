@@ -17,10 +17,14 @@ use windows::{
 };
 
 pub(crate) fn current_user_sid() -> Result<String> {
+    process_user_sid(unsafe { GetCurrentProcess() })
+}
+
+pub(crate) fn process_user_sid(process: HANDLE) -> Result<String> {
     let mut token = HANDLE::default();
     // OS-created handles are owned below; neither token contents nor SID are logged.
     unsafe {
-        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token)?;
+        OpenProcessToken(process, TOKEN_QUERY, &mut token)?;
     }
     let token = unsafe { Owned::new(token) };
     let mut required = 0u32;

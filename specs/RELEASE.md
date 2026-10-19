@@ -4,6 +4,9 @@
 
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.
+Scope additionally includes the SSH Remote master switch and per-account native
+MCP setup in agent-communication-v2/SSH-MCP-SETTINGS.md. Connection-only packages
+are interim tests. The completed feature requires Companion 5.5.0.
 Retain the immutable v1.7.2 tag and its unpublished draft; never replace its
 already built assets with different source. Use a new immutable v1.7.3 tag.
 

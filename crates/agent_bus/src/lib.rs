@@ -2,8 +2,8 @@
 pub mod setup;
 pub mod context;
 pub mod project_memory;
-#[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
 pub mod wsl_setup;
+pub mod ssh_setup;
 pub mod installation;
 pub mod launch;
 pub mod mcp;

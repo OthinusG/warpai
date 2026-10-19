@@ -698,6 +698,10 @@ pub fn uninstall(installed: &Installed) -> Result<()> {
 pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
     ensure!(crate::wsl_setup::native_executable(&installed.executable),
         "Windows Agent configuration cannot be changed by WSL setup");
+    configure_native_mcp(installed, enable, owned)
+}
+
+pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
     let mut installed = installed.clone();
     let args = json!(["mcp", installed.program]);
     fn native_entry(value: &mut Value, args: &Value) {

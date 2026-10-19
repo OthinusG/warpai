@@ -102,17 +102,17 @@ fn creation_time(created: std::io::Result<std::time::SystemTime>) -> std::io::Re
 }
 
 #[cfg(unix)]
-fn account_id() -> std::io::Result<String> {
+pub(crate) fn account_id() -> std::io::Result<String> {
     Ok(format!("uid:{}", unsafe { libc::geteuid() }))
 }
 
 #[cfg(windows)]
-fn account_id() -> std::io::Result<String> {
+pub(crate) fn account_id() -> std::io::Result<String> {
     crate::transport::windows_pipe::current_user_sid().map_err(std::io::Error::other)
 }
 
 #[cfg(unix)]
-pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
+pub(crate) fn private_directory(path: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
     std::fs::DirBuilder::new()
         .recursive(true)
@@ -129,7 +129,7 @@ pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(unix)]
-pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
+pub(crate) fn private_file(path: &Path) -> std::io::Result<File> {
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
     let file = OpenOptions::new()
         .read(true)
@@ -157,7 +157,7 @@ pub(crate) fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
 }
 
 #[cfg(windows)]
-pub(super) fn private_file(path: &Path) -> std::io::Result<File> {
+pub(crate) fn private_file(path: &Path) -> std::io::Result<File> {
     use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
     let file = OpenOptions::new()
         .read(true)
@@ -192,7 +192,7 @@ pub(crate) fn native_file_identity(file: &File) -> std::io::Result<Vec<u8>> {
 }
 
 #[cfg(windows)]
-pub(super) fn private_directory(path: &Path) -> std::io::Result<()> {
+pub(crate) fn private_directory(path: &Path) -> std::io::Result<()> {
     use windows::{
         core::{Owned, HSTRING, PWSTR},
         Win32::{

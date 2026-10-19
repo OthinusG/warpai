@@ -1,11 +1,12 @@
-//! Native guest MCP attaches to a Linux Agent lifetime, rather than a panel or managed PTY.
+//! Native MCP follows the remote Agent process lifetime, independently of UI attachments.
 use super::*;
 use std::{
     collections::{HashMap, HashSet},
     io::Read,
-    os::unix::fs::MetadataExt,
     sync::Mutex,
 };
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::MetadataExt;
 
 struct Process {
     parent: u32,
@@ -30,6 +31,7 @@ pub(super) fn distribution_namespace(distribution: &str) -> std::io::Result<Stri
     ))
 }
 
+#[cfg(target_os = "linux")]
 fn process(pid: u32) -> std::io::Result<Process> {
     if pid <= 1 {
         return Err(std::io::ErrorKind::PermissionDenied.into());
@@ -43,6 +45,7 @@ fn process(pid: u32) -> std::io::Result<Process> {
     parse_stat(&stat)
 }
 
+#[cfg(target_os = "linux")]
 fn parse_stat(stat: &str) -> std::io::Result<Process> {
     let invalid = || std::io::Error::from(std::io::ErrorKind::InvalidData);
     if stat.len() > 16384 {
@@ -66,6 +69,7 @@ fn parse_stat(stat: &str) -> std::io::Result<Process> {
     })
 }
 
+#[cfg(unix)]
 fn foreground_owner(peer: u32) -> std::io::Result<u32> {
     let mut current = peer;
     for _ in 0..32 {
@@ -83,6 +87,7 @@ fn foreground_owner(peer: u32) -> std::io::Result<u32> {
     Err(std::io::ErrorKind::PermissionDenied.into())
 }
 
+#[cfg(target_os = "linux")]
 fn native_directory(agent: u32) -> std::io::Result<PathBuf> {
     let owner = process(agent)?;
     let directory = std::fs::read_link(format!("/proc/{agent}/cwd"))?.canonicalize()?;
@@ -90,6 +95,104 @@ fn native_directory(agent: u32) -> std::io::Result<PathBuf> {
         return Err(std::io::ErrorKind::PermissionDenied.into());
     }
     Ok(directory)
+}
+
+#[cfg(target_os = "macos")]
+fn process(pid: u32) -> std::io::Result<Process> {
+    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+    let size = std::mem::size_of_val(&info);
+    let count = unsafe { libc::proc_pidinfo(pid as i32, libc::PROC_PIDTBSDINFO, 0,
+        (&mut info as *mut libc::proc_bsdinfo).cast(), size as i32) };
+    if pid <= 1 || count != size as i32 || info.pbi_uid != unsafe { libc::geteuid() }
+        || info.pbi_status == 5 /* SZOMB */ {
+        return Err(std::io::ErrorKind::PermissionDenied.into());
+    }
+    Ok(Process { parent: info.pbi_ppid, group: info.pbi_pgid,
+        tty: if info.e_tdev == u32::MAX { 0 } else { i64::from(info.e_tdev) },
+        foreground: i64::from(info.e_tpgid),
+        started: info.pbi_start_tvsec.checked_mul(1_000_000)
+            .and_then(|value| value.checked_add(info.pbi_start_tvusec))
+            .ok_or(std::io::ErrorKind::InvalidData)?,
+    })
+}
+
+#[cfg(not(target_os = "linux"))]
+fn process_snapshot(pid: u32) -> std::io::Result<sysinfo::System> {
+    let mut system = sysinfo::System::new();
+    system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
+        true, sysinfo::ProcessRefreshKind::nothing()
+            .with_cwd(sysinfo::UpdateKind::Always).with_exe(sysinfo::UpdateKind::Always));
+    if system.process(sysinfo::Pid::from_u32(pid)).is_none() {
+        return Err(std::io::ErrorKind::NotFound.into());
+    }
+    Ok(system)
+}
+
+#[cfg(windows)]
+fn process(pid: u32) -> std::io::Result<Process> {
+    use windows::{core::Owned, Win32::{Foundation::FILETIME, System::Threading::{
+        OpenProcess, GetProcessTimes, GetExitCodeProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    }}};
+    if pid <= 1 { return Err(std::io::ErrorKind::PermissionDenied.into()); }
+    let handle = unsafe { Owned::new(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+        .map_err(std::io::Error::other)?) };
+    let owner = crate::transport::windows_pipe::process_user_sid(*handle)
+        .map_err(std::io::Error::other)?;
+    if owner != crate::transport::windows_pipe::current_user_sid().map_err(std::io::Error::other)? {
+        return Err(std::io::ErrorKind::PermissionDenied.into());
+    }
+    let mut created = FILETIME::default();
+    let mut exited = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    unsafe { GetProcessTimes(*handle, &mut created, &mut exited, &mut kernel, &mut user) }
+        .map_err(std::io::Error::other)?;
+    let snapshot = process_snapshot(pid)?;
+    let parent = snapshot.process(sysinfo::Pid::from_u32(pid)).and_then(|value| value.parent())
+        .ok_or(std::io::ErrorKind::PermissionDenied)?.as_u32();
+    let mut status = 0;
+    unsafe { GetExitCodeProcess(*handle, &mut status) }.map_err(std::io::Error::other)?;
+    if status != 259 /* STILL_ACTIVE */ { return Err(std::io::ErrorKind::NotFound.into()); }
+    Ok(Process { parent, group: 0, tty: 0, foreground: 0,
+        started: (u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime) })
+}
+
+#[cfg(not(target_os = "linux"))]
+fn native_directory(agent: u32) -> std::io::Result<PathBuf> {
+    let owner = process(agent)?;
+    let snapshot = process_snapshot(agent)?;
+    let path = snapshot.process(sysinfo::Pid::from_u32(agent)).and_then(|value| value.cwd())
+        .ok_or(std::io::ErrorKind::PermissionDenied)?.canonicalize()?;
+    if process(agent)?.started != owner.started { return Err(std::io::ErrorKind::PermissionDenied.into()); }
+    Ok(path)
+}
+
+#[cfg(windows)]
+fn foreground_owner(peer: u32) -> std::io::Result<u32> {
+    // Windows consoles have no Unix foreground group. Verify the live child of a
+    // native interactive shell in this MCP peer's ancestry instead of inventing a tty.
+    let mut current = peer;
+    for _ in 0..32 {
+        let owner = process(current)?;
+        let parent = process(owner.parent)?;
+        let snapshot = process_snapshot(owner.parent)?;
+        let name = snapshot.process(sysinfo::Pid::from_u32(owner.parent))
+            .and_then(|value| value.exe()).and_then(|path| path.file_name())
+            .and_then(|name| name.to_str()).unwrap_or("").to_ascii_lowercase();
+        if matches!(name.as_str(), "cmd.exe" | "powershell.exe" | "pwsh.exe") && current != peer {
+            if process(owner.parent)?.started == parent.started { return Ok(current); }
+        }
+        if owner.parent <= 1 || owner.parent == current { break; }
+        current = owner.parent;
+    }
+    Err(std::io::ErrorKind::PermissionDenied.into())
+}
+
+fn native_owner_matches(owner: &Process, pid: u32, peer: u32) -> bool {
+    #[cfg(unix)]
+    { let _ = peer; owner.group == pid && owner.tty != 0 && owner.foreground == i64::from(pid) }
+    #[cfg(windows)]
+    { let _ = owner; foreground_owner(peer).is_ok_and(|candidate| candidate == pid) }
 }
 
 fn ancestor(mut peer: u32, agent: u32) -> std::io::Result<Process> {
@@ -146,7 +249,7 @@ impl Guests {
             .map(|preferences| {
                 if !preferences.enabled { return HashSet::new(); }
                 preferences.selected.values().filter(|entry| entry.active
-                    && crate::wsl_setup::native_executable(&entry.executable))
+                    && native_executable(&entry.executable))
                     .map(|entry| entry.program.clone()).collect()
             })
     }
@@ -293,13 +396,18 @@ impl Guests {
         }
         let owner = ancestor(peer.ok_or(ManagedErrorCode::ManagedPermissionDenied)?, pid)
             .map_err(path_error)?;
-        if owner.group != pid || owner.tty == 0 || owner.foreground != i64::from(pid) {
+        if !native_owner_matches(&owner, pid, peer.ok_or(ManagedErrorCode::ManagedPermissionDenied)?) {
             return Err(ManagedErrorCode::ManagedPermissionDenied);
         }
         let shell = process(owner.parent).map_err(path_error)?;
         let root = PathBuf::from(
             crate::project_root(root).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?,
         );
+        #[cfg(not(feature = "wsl_companion"))]
+        if PathBuf::from(crate::project_root(&native_directory(pid).map_err(path_error)?)
+            .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?) != root {
+            return Err(ManagedErrorCode::ManagedPermissionDenied);
+        }
         let mut guests = self
             .runs
             .lock()
@@ -357,7 +465,11 @@ impl Guests {
 
 pub(super) async fn serve_mcp(program: String) -> anyhow::Result<()> {
     use rmcp::ServiceExt;
-    let agent = foreground_owner(u32::try_from(unsafe { libc::getppid() })?)?;
+    #[cfg(unix)]
+    let peer = u32::try_from(unsafe { libc::getppid() })?;
+    #[cfg(windows)]
+    let peer = std::process::id();
+    let agent = foreground_owner(peer)?;
     // Plugin hosts can launch MCP from their own package directory rather than the Agent's checkout.
     let directory = native_directory(agent)?;
     let directory = directory
@@ -382,7 +494,29 @@ pub(super) async fn serve_mcp(program: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
+fn native_executable(path: &Path) -> bool {
+    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+    { crate::wsl_setup::native_executable(path) }
+    #[cfg(not(all(feature = "wsl_companion", target_os = "linux")))]
+    { path.canonicalize().is_ok_and(|path| path.is_file()) }
+}
+
+#[cfg(all(test, not(target_os = "linux")))]
+mod native_process_tests {
+    use super::*;
+    #[test]
+    fn native_process_identity_and_directory_are_verified_without_command_arguments() {
+        let pid = std::process::id();
+        let owner = process(pid).unwrap();
+        assert!(owner.started > 0);
+        assert_eq!(ancestor(pid, pid).unwrap().started, owner.started);
+        assert_eq!(native_directory(pid).unwrap(), std::env::current_dir().unwrap().canonicalize().unwrap());
+        assert!(process(u32::MAX).is_err());
+        assert!(ancestor(pid, u32::MAX).is_err());
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
     #[test]

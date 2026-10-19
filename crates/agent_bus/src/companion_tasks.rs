@@ -19,7 +19,7 @@ pub const MAX_RESULT: usize = 512 * 1024;
     deny_unknown_fields
 )]
 pub enum Command {
-    #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+    SshSetup(crate::ssh_setup::Request),
     GuestNative(crate::wsl_setup::NativeRequest),
     Panel(PanelQuery),
     Operator(Operation),
@@ -577,7 +577,6 @@ pub(super) struct Projects {
     owners: Mutex<BTreeMap<String, (String, RunningBroker)>>,
     #[cfg(not(feature = "wsl_companion"))]
     mcp_setup: Mutex<()>,
-    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
     pub(super) guests: super::guests::Guests,
 }
 impl Projects {
@@ -587,7 +586,6 @@ impl Projects {
             owners: Mutex::new(BTreeMap::new()),
             #[cfg(not(feature = "wsl_companion"))]
             mcp_setup: Mutex::new(()),
-            #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
             guests: super::guests::Guests::new(directory.join("mcp-settings.json")),
         }
     }
@@ -720,12 +718,20 @@ impl Projects {
         if matches!(&command, Command::Scoped { .. }) {
             return Err(ManagedErrorCode::ManagedInvalidInput);
         }
-        #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
+        if let Command::SshSetup(query) = command {
+            if expected_scope.is_some() || cfg!(feature = "wsl_companion") {
+                return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+            }
+            let value = crate::ssh_setup::configure(query)
+                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            return Ok(ProjectTasksResult {
+                fence: Some(fence.clone()), query_generation: request.query_generation,
+                result_json: serde_json::to_vec(&serde_json::json!({"value": value}))
+                    .map_err(|_| ManagedErrorCode::ManagedUnavailable)?,
+            });
+        }
         if let Command::GuestNative(query) = command {
             if expected_scope.is_some() { return Err(ManagedErrorCode::ManagedInvalidInput); }
-            #[cfg(windows)]
-            return Err(ManagedErrorCode::ManagedFeatureUnavailable);
-            #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
             {
                 let value = self.guests.native(root, query)?;
                 return Ok(ProjectTasksResult {
@@ -909,6 +915,7 @@ impl Projects {
                 result_json: serde_json::to_vec(&serde_json::json!({"error": {"code": "scope_denied", "message": "Remote project operation failed", "retryable": false}})).unwrap() });
         }
         let result = match command {
+            Command::SshSetup(_) => unreachable!(),
             Command::Panel(mut query) => {
                 let worktree = query.worktree;
                 query.project = if domain.starts_with("space:") {
@@ -944,7 +951,6 @@ impl Projects {
             Command::Operator(operation) => broker.operator(&domain, &operation),
             Command::Controller(operation) => broker.control(&domain, &operation),
             Command::Scoped { .. } => unreachable!(),
-            #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
             Command::GuestNative(_) => unreachable!(),
         };
         let value = match result {

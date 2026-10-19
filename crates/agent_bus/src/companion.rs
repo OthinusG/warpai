@@ -26,7 +26,6 @@ mod service;
 mod tasks;
 #[path = "companion_terminals.rs"]
 mod terminals;
-#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 #[path = "companion_guests.rs"]
 pub(crate) mod guests;
 pub(crate) use tasks::decode_result as decode_task_result;
@@ -127,6 +126,8 @@ impl Companion {
                         "execution_threads".into(),
                         "project_memory".into(),
                         "project_mcp".into(),
+                        #[cfg(not(feature = "wsl_companion"))]
+                        "native_mcp_setup".into(),
                         "project_files".into(),
                         #[cfg(feature = "wsl_companion")]
                         "project_file_chunks".into(),
@@ -198,14 +199,11 @@ impl Companion {
             }
             Some(managed_request::Operation::GuestMcpBind(request)) => {
                 self.check_project(request.fence.as_ref())?;
-                #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
                 {
                     self.tasks.guests.bind(&self.tasks, &self.fence, &self.project.as_ref().unwrap().root,
                         self.peer_pid, request.agent_pid, &request.program)
                         .map(managed_response::Result::GuestMcpBound)
                 }
-                #[cfg(not(all(feature = "wsl_companion", target_os = "linux")))]
-                { Err(ManagedErrorCode::ManagedFeatureUnavailable) }
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -315,12 +313,11 @@ pub async fn serve_account_service() -> Result<(), ProtocolError> {
     service::serve().await
 }
 
-#[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {
     guests::serve_mcp(program).await
 }
 
-fn data_directory() -> std::io::Result<PathBuf> {
+pub(crate) fn data_directory() -> std::io::Result<PathBuf> {
     let directory = dirs::data_local_dir()
         .ok_or_else(|| std::io::Error::other("Companion data directory unavailable"))?
         .join("warpai")

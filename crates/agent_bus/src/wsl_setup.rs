@@ -51,7 +51,7 @@ pub struct NativeState {
     pub pending_work: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(
     tag = "action",
     content = "value",
@@ -386,6 +386,17 @@ fn apply_action(
     available: &mut [Available],
     path: &std::path::Path,
 ) -> Result<bool> {
+    apply_native_action(action, preferences, available, path, "WSL", setup::configure_guest)
+}
+
+pub(crate) fn apply_native_action(
+    action: &Action,
+    preferences: &mut Preferences,
+    available: &mut [Available],
+    path: &std::path::Path,
+    environment: &str,
+    configure: impl Fn(&setup::Installed, bool, bool) -> Result<()>,
+) -> Result<bool> {
     if matches!(action, Action::Rescan) {
         return Ok(false);
     }
@@ -424,7 +435,7 @@ fn apply_action(
     let mut failed = false;
     for (name, installed) in &mut preferences.selected {
         if !preferences.enabled || command == Some(name.as_str()) {
-            match setup::configure_guest(installed, false, true) {
+            match configure(installed, false, true) {
                 Ok(()) => installed.active = false,
                 Err(_) => {
                     installed.active = false;
@@ -448,14 +459,14 @@ fn apply_action(
                 continue;
             }
             let mut entry = installed.clone();
-            match setup::configure_guest(&entry, true, selected.is_some()) {
+            match configure(&entry, true, selected.is_some()) {
                 Ok(()) => {
                     entry.active = true;
-                    row.status = "WSL MCP enabled".into();
+                    row.status = format!("{environment} MCP enabled");
                 }
                 Err(_) => {
                     entry.active = false;
-                    row.status = "WSL MCP setup failed; existing configuration preserved".into();
+                    row.status = format!("{environment} MCP setup failed; existing configuration preserved");
                     failed = true;
                 }
             }

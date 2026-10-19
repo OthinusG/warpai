@@ -54,6 +54,8 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "execution_threads",
             "project_memory",
             "project_mcp",
+            #[cfg(not(feature = "wsl_companion"))]
+            "native_mcp_setup",
             "project_files",
             #[cfg(feature = "wsl_companion")]
             "project_file_chunks",

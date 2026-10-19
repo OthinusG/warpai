@@ -20,7 +20,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
 ## Published releases and maintenance
 
 - Oct19: 1.7.2 publication canceled; preserve tag/draft. Combined 1.7.3
-  (Qoder + three-desktop SSH repair) authorized after acceptance; specs/RELEASE.md.
+  (Qoder + SSH repairs + SSH Remote switch/MCP setup) after acceptance; specs/RELEASE.md.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
   in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
   README.md and README.zh-CN.md must link to the published v1.7.1 assets.
@@ -86,7 +86,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
 ## SSH, task integrity and files
 
 - SSH masters need no retained launch arguments; independent native transport does.
-  ca6ed733 fixes selection but owner still gets InvalidProfile: native hooks use literal ~/.ssh sockets. Preserve OpenSSH/WSL home expansion; receipts: specs/agent-communication-v2/INSTALLATION.md.
+  Owner confirms absolute SSH_SOCKET_DIR restores both panels; 73f4fae3 accepts ~/.ssh. SSH Remote switch + per-account MCP setup newly authorized; Companion 5.5.0 planned. Contract: specs/agent-communication-v2/SSH-MCP-SETTINGS.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.

@@ -73,7 +73,6 @@ pub struct Bridge {
     directory: Arc<Mutex<Option<String>>>,
 }
 impl Bridge {
-    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
     pub(crate) fn from_guest_binding(binding: remote_protocol::proto::GuestMcpBound, directory: String) -> Self {
         Self {
             endpoint: binding.endpoint, terminal: binding.terminal, capability: binding.capability,

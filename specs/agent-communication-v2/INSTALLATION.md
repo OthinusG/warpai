@@ -127,6 +127,21 @@ and unit regressions must exercise both native and WSL command construction.
 This client transport repair does not change the remote Companion protocol or
 service behavior; Companion remains 5.4.0.
 
+The owner confirmed both Explorer and collaboration recovered in the same
+`ca6ed733` test app after setting `SSH_SOCKET_DIR="$HOME/.ssh"` in a fresh local
+Mac terminal before connecting. This isolates the second failure to native
+home-relative control socket validation, rather than Companion installation,
+SFTP availability or the Agent communication setting.
+
+Combined runtime source: `73f4fae3cae877276b59e64c5926ce46946b1816`.
+Current runs: [communication/native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39198653585),
+[macOS test package](https://github.com/OthinusG/warpai/actions/runs/39198656314),
+[Windows test package](https://github.com/OthinusG/warpai/actions/runs/39198659143),
+[Linux x64/ARM64 packages](https://github.com/OthinusG/warpai/actions/runs/39198662224).
+The Windows run was rerun after canceled macOS completion briefly displaced it
+in the existing shared release queue. The older Linux build may finish to retain
+its compilation cache, but its `ca6ed733` packages are not the repaired deliverable.
+
 Existing POSIX SSH bootstrap already creates a system OpenSSH control socket and
 reports remote shell, native home/OS, session identity and cwd events. The existing
 RemoteCommandExecutor reuses that socket, including WSL routing. Prefer this route

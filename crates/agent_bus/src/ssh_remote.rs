@@ -484,7 +484,6 @@ impl HostClient {
     }
 
     /// Domain failure metadata is returned as `error`; lost writes retain the original intent.
-    #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
     pub(crate) async fn guest_mcp_bind(&mut self, pid: u32, program: String) -> Result<GuestMcpBound, ConnectionError> {
         match self.request(managed_request::Operation::GuestMcpBind(GuestMcpBind {
             fence: self.fence.clone(), agent_pid: pid, program,
@@ -524,6 +523,7 @@ impl HostClient {
             use crate::{companion::TaskCommand, Operation};
             match command {
                 TaskCommand::Scoped { command, .. } => required_project_feature(command),
+                TaskCommand::SshSetup(_) => Some("native_mcp_setup"),
                 TaskCommand::Operator(Operation::ExecutionThreadGet { .. }) => Some("execution_threads"),
                 TaskCommand::Operator(Operation::ProjectBootstrap { .. } | Operation::ProjectMemoryUpdate { .. }) => Some("project_memory"),
                 _ => None,
