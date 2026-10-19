@@ -168,7 +168,8 @@ impl TerminalView {
     }
 
     fn adapt_ssh_codex_launch(&mut self, event: &ExecuteCommandEvent, words: &[String], ctx: &mut ViewContext<Self>) -> bool {
-        if !AgentCommunication::as_ref(ctx).ssh.preferences.enabled || self.has_pending_ssh_command() { return false; }
+        let settings = &AgentCommunication::as_ref(ctx).ssh;
+        if !settings.preferences.enabled || settings.busy || self.has_pending_ssh_command() { return false; }
         let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
         if self.active_block_session_id() != Some(event.session_id)
             || session.alias_value("codex").is_some() || session.abbreviation_value("codex").is_some()

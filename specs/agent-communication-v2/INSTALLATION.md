@@ -180,3 +180,31 @@ Primary reference: https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scop
 Reuse the existing transient shell integration for remote PowerShell; extend its
 missing init branch without eval/Invoke-Expression or rc-file writes. Do not invoke
 tmux installation or automatic shell-profile modification for this feature.
+
+
+## SSH Remote settings checkpoint (2026-10-19)
+
+Owner subsequently requested the independent SSH Remote master switch, using WSL
+as the native settings reference, plus per-account native MCP installation.
+Contract: [SSH-MCP-SETTINGS.md](SSH-MCP-SETTINGS.md). This expands the release to
+Companion 5.5.0; the earlier Companion 5.4.0 compatibility statements describe the
+connection-only repairs, not the native MCP setup feature.
+
+Source `e36593aa` adds the master switch, live account selector, Agent checkboxes,
+rescan/remove-all controls, locale coverage and six fixed screenshot states.
+Source `2e4dbb04` adds verified service/account fencing and a disposable-account
+ordinary native CLI MCP initialize/tools/list/bootstrap fixture on all three
+remote operating systems. No paid model calls or owner installation changes.
+
+Initial cloud checks caught missing native-input conditional compilation and a
+Windows fixture's nonprivate ACL; `aced4898` fixes both without weakening runtime
+permissions. A second check found another exact capability-list expectation;
+`e36593aa` updates the expectation to include the new advertised capability.
+These were failed intermediate checks, not acceptance receipts.
+
+Current checks: [desktop builds/tests](https://github.com/OthinusG/warpai/actions/runs/39201409860),
+[native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39201024382),
+[remote native MCP/installers](https://github.com/OthinusG/warpai/actions/runs/39201364472).
+All are pending acceptance. The original WSL regression remains intact. The
+1.7.2 draft stays unpublished; final 1.7.3 release still requires full checks and
+owner Mac-to-Linux settings/ordinary-CLI acceptance.

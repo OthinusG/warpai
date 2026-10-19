@@ -142,6 +142,8 @@ impl AgentCommunication {
             self.ssh.preferences.enabled = enabled;
             self.ssh.generation += 1;
             self.save_ssh_preferences();
+        } else {
+            self.ssh.generation += 1;
         }
         let selected = self.ssh.selected_target().cloned();
         // The master switch revokes all currently reachable accounts, once per verified service.
@@ -244,6 +246,27 @@ mod tests {
         assert!(!settings.preferences.enabled);
         let value = serde_json::to_value(&settings.preferences).unwrap();
         assert_eq!(value, serde_json::json!({"enabled":false,"selected":null}));
+    }
+
+    #[test]
+    fn ssh_master_toggles_without_changing_local_or_wsl_preferences() {
+        warpui::App::test((), |mut app| async move {
+            crate::test_util::terminal::initialize_app_for_terminal_view(&mut app);
+            AgentCommunication::handle(&mut app).update(&mut app, |model, ctx| {
+                model.ssh.path = PathBuf::new();
+                model.preferences.enabled = true;
+                #[cfg(windows)]
+                let wsl_enabled = model.wsl.preferences.enabled;
+                model.configure_ssh(warp_agent_bus::wsl_setup::Action::Enable(true), ctx);
+                assert!(model.ssh.preferences.enabled);
+                assert!(model.ssh.targets.is_empty());
+                model.configure_ssh(warp_agent_bus::wsl_setup::Action::Enable(false), ctx);
+                assert!(!model.ssh.preferences.enabled);
+                assert!(model.preferences.enabled);
+                #[cfg(windows)]
+                assert_eq!(model.wsl.preferences.enabled, wsl_enabled);
+            });
+        });
     }
 
     #[test]
