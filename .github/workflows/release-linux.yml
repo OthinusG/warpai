@@ -121,7 +121,7 @@ jobs:
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           if [[ -n "$WINDOWS_SOURCE" ]]; then
-            checkout_root="$(pwd -P)"
+            checkout_root="$(cd "$WARPAI_WORKSPACE" && pwd -P)"
             actual_source="$(git -c safe.directory="$checkout_root" -C "$WARPAI_WORKSPACE" rev-parse HEAD)"
             if [[ "$actual_source" != "$WINDOWS_SOURCE" ]]; then
               echo 'Windows/Linux source mismatch' >&2
@@ -156,7 +156,7 @@ jobs:
         env:
           ASSET_ARCH: ${{ matrix.arch }}
         run: |
-          git config --global --add safe.directory "$(pwd -P)"
+          git config --global --add safe.directory "$(cd "$WARPAI_WORKSPACE" && pwd -P)"
           bash "$WARPAI_WORKSPACE/script/build-warpai-linux.sh" "$RELEASE_TAG"
           echo "LINUX_PACKAGE_PREFIX=Warpai-${RELEASE_TAG#v}-linux-$ASSET_ARCH" >> "$GITHUB_ENV"
       - name: Verify installed desktop starts under X11
