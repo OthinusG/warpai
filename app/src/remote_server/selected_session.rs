@@ -13,18 +13,49 @@ pub(crate) fn session_connection(
             });
         }
     }
-    let arguments = session.ssh_arguments()?;
     Some(match session.ssh_control_socket() {
+        // The authenticated master is sufficient even when the launch command was not retained.
         Some(socket) => SshConnection::Multiplexed {
             socket: socket.to_owned(),
             wsl: session.wsl_distro_name().map(str::to_owned),
         },
         None if session.wsl_distro_name().is_some() => return None,
         None => SshConnection::Native {
-            arguments: arguments.to_vec(),
+            arguments: session.ssh_arguments()?.to_vec(),
             session: format!("{:?}", session.id()),
         },
     })
+}
+
+#[cfg(test)]
+mod ssh_tests {
+    use super::*;
+    use crate::terminal::model::session::{
+        command_executor::NoOpCommandExecutor, Session, SessionInfo,
+    };
+
+    #[test]
+    fn terminal_ssh_session_master_does_not_require_original_ssh_arguments() {
+        let socket = std::path::PathBuf::from("/tmp/warpai-confirmed-ssh");
+        let session = Session::new(
+            SessionInfo::new_for_test().with_ssh_socket_path(socket.clone()),
+            std::sync::Arc::new(NoOpCommandExecutor::new()),
+        );
+        assert!(session.ssh_arguments().is_none());
+        assert_eq!(
+            session_connection(&session),
+            Some(SshConnection::Multiplexed { socket, wsl: None })
+        );
+    }
+
+    #[test]
+    fn terminal_ssh_session_without_master_or_transport_remains_unavailable() {
+        let session = Session::new(
+            SessionInfo::new_for_test(),
+            std::sync::Arc::new(NoOpCommandExecutor::new()),
+        );
+        assert_eq!(session_connection(&session), None);
+    }
 }
 
 fn companion_home<'a>(
@@ -155,7 +186,8 @@ mod tests {
         }));
         let nested = Session::new(info.with_ssh_socket_path("/tmp/ssh-owned".into()),
             std::sync::Arc::new(NoOpCommandExecutor::new()));
-        assert!(!matches!(session_connection(&nested), Some(SshConnection::Wsl { .. })),
-            "A nested SSH route cannot fall back to its WSL parent");
+        assert_eq!(session_connection(&nested), Some(SshConnection::Multiplexed {
+            socket: "/tmp/ssh-owned".into(), wsl: Some("Ubuntu Test".into()),
+        }), "A confirmed nested SSH master must retain its WSL transport");
     }
 }

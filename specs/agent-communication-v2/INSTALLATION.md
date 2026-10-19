@@ -57,6 +57,35 @@ mutation receipts and unknown-work recovery.
 
 ## Initial investigation
 
+### Confirmed SSH master selection repair (2026-10-19)
+
+Owner testing on macOS with a Linux zsh remote found working remote directory
+completion and Companion 5.4.0/runtime probes, while Explorer and collaboration
+both remained at the unconfirmed-project state. A direct version query through
+the terminal's existing OpenSSH master also succeeded.
+
+The shared selector unnecessarily required retained launch-command arguments
+before considering the confirmed control socket. Select that existing master
+without requiring those arguments; retain argument validation for the native
+fallback and preserve pending-session, remote home/OS/root and WSL guards.
+Do not reconnect to a guessed host or modify SSH/user settings.
+
+Acceptance: a confirmed master without retained arguments selects multiplexed
+transport; a session with neither master nor arguments remains unavailable;
+Windows direct WSL and nested SSH selection keep their existing isolation.
+Regression cases cover the first two conditions. Rust execution and native
+acceptance remain pending; the owner's installed desktop has not been replaced,
+and the missing launch arguments have not been observed in that running binary.
+
+Owner authorized three-desktop cloud builds and test installers on 2026-10-19.
+Use branch `codex/ssh-session-test-20261019` and artifact-only package version
+`v1.7.3`; no release tag/publication or personal installation is part of this test.
+macOS and Windows packaging run the shared selection regressions; Linux x64 and
+ARM64 packaging run them in the native build script. Windows additionally checks
+that a confirmed SSH master nested inside WSL selects multiplexed SSH with its
+original WSL distribution, rather than merely asserting it is not direct WSL.
+Run existing communication/native UI acceptance and retain all package checks.
+
 Existing POSIX SSH bootstrap already creates a system OpenSSH control socket and
 reports remote shell, native home/OS, session identity and cwd events. The existing
 RemoteCommandExecutor reuses that socket, including WSL routing. Prefer this route

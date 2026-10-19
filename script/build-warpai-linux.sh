@@ -17,5 +17,6 @@ export CARGO_PROFILE=release
 export CARGO_BUILD_RUSTFLAGS='-C symbol-mangling-version=v0'
 export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
 export APPIMAGE_EXTRACT_AND_RUN=1
+cargo test -p warpai --lib remote_server::selected_session::ssh_tests --locked
 script/linux/bundle --channel oss --release-tag "$release_tag" --arch "$architecture" --packages appimage,deb,rpm,arch
 python3 script/linux/verify-packages.py "$release_tag" "$asset_arch"

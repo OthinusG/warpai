@@ -90,6 +90,10 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## SSH, task integrity and files
 
+- SSH selection must accept a confirmed OpenSSH control socket without retained
+  launch arguments; only the independent native transport requires those arguments.
+  Oct19 owner symptom/probes and pending acceptance: agent-communication-v2/INSTALLATION.md.
+
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.
