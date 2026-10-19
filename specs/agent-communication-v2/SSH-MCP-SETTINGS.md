@@ -72,11 +72,11 @@ Linux, macOS, Windows. Remote installers remain explicit user actions.
 
 ## Tasks and verification
 
-- [ ] Account-owned setup command and adapter reuse, with bounded input/output,
+- [x] Account-owned setup command and adapter reuse, with bounded input/output,
   version/capability checks, lock safety and collision-preserving removal tests.
-- [ ] Native MCP binding on the three remote platforms with process identity,
+- [x] Native MCP binding on the three remote platforms with process identity,
   ancestry/account/root isolation, lifecycle and restart regression coverage.
-- [ ] Desktop SSH settings state/target selection and async generation fences.
+- [x] Desktop SSH settings state/target selection and async generation fences.
 - [ ] Native settings controls and fixed-state screenshot QA in all three locales.
 - [ ] Ordinary remote Agent MCP initialize/tools/list and same-project task/message
   exchange using deterministic, installed Agent fixtures; no paid model requests.
@@ -95,9 +95,11 @@ remote process admission and fixed native visual states are implemented on the
 SSH test branch. Six settings states and live off/on transport fencing are in the
 native acceptance harness. Source `2e4dbb04` passed the complete protocol suites
 on macOS and Windows. Its ordinary native MCP fixture passed on Linux/macOS;
-Windows failed during initial control attachment and remains under diagnosis.
-Desktop checks and native screenshots are still running; implementation is not
-accepted or released yet. The original WSL regression remains unchanged.
+Windows fixture profile isolation was corrected; native MCP and installer acceptance
+then passed on all three remote systems at `c554f201` (run 39202558424).
+Both desktop application check/test suites passed. Native screenshot/WSL acceptance
+is rerunning at `796396b3` after adding the missing explicit master opt-in to the
+owned synthetic remote fixture. Implementation is not accepted or released yet. The original WSL regression remains unchanged.
 
 The owner already confirmed both panels recover in the earlier test app with an
 absolute SSH_SOCKET_DIR. The native home-relative socket repair removes that

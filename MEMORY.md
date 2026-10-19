@@ -1,10 +1,11 @@
 # Project Memory
 
-Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
+Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
+- Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Monitor cloud runs hourly through completion; diagnose owner errors immediately. Full acceptance gates delivery.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
@@ -79,14 +80,13 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
   visibility, preserve PTY/detached services. Never bill Qoder CN usage polling.
 - Qoder/QoderCN usage may use the local CLI JSONL `get_usage_info` control request
   with the existing CLI login; it must not send a prompt or create a model turn.
-  No SDK/runtime is installed by Warpai. Keep polling to one query/account per
-  five minutes, while explicit manual refresh bypasses this limit; treat missing buckets as unavailable. QoderCN 1.1.73 was
-  locally verified; SDK bridge protocol changes are a compatibility risk.
+  No SDK install or model turn. Poll once/account/five minutes; manual refresh bypasses
+  the limit. Missing buckets stay unavailable; protocol changes require revalidation.
 
 ## SSH, task integrity and files
 
 - SSH masters need no retained launch arguments; independent native transport does.
-  Owner confirms absolute SSH_SOCKET_DIR restores both panels; 73f4fae3 accepts ~/.ssh. SSH Remote is independently off by default and gates files/Review/collaboration; per-account MCP needs Companion 5.5.0. Contract: specs/agent-communication-v2/SSH-MCP-SETTINGS.md.
+  OpenSSH owns ~/.ssh expansion. SSH Remote defaults off and gates files/Review/collaboration; native MCP needs Companion 5.5.0. Contract/receipts: specs/agent-communication-v2/SSH-MCP-SETTINGS.md and INSTALLATION.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.
@@ -101,9 +101,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
   Failed connections await explicit retry/context change; recovery uses the trusted
   bundle. Explorer respects the WSL switch; mutations release clients; uncertain
   installs remain removable. Use sh -c and hidden background consoles.
-  Native capture: 60s steps/420s process; clear static polling fence (CI-DIAGNOSIS.md).
-  Check Windows rlto/release_bundle and matching debug cfg. Accept package 3.x
-  previews; no wrapper or Windows-host MCP injection into the guest.
+  Native capture/rlto/debug-cfg gates: CI-DIAGNOSIS.md. No host MCP injection.
 - Active scope: specs/agent-communication-v2/{PLAN,API,WORKTREE-COLLABORATION}.md.
   Archived enrollment is historical; cross-host federation is outside scope and
   must not appear as missing functionality in product copy.
@@ -151,7 +149,7 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
   Keep-awake tracks activity; no cloud AI/telemetry.
-- Codex uses per-session MCP/--no-daemon while enabled, preserving CLI/args/cwd/
+- Local Codex uses per-session MCP/--no-daemon while enabled, preserving CLI/args/cwd/
   PATH/package ownership. No proxy, impersonation or persistent config writes;
   only explicit reserved legacy-MCP cleanup may edit persistent configuration.
   Preserve unrelated servers, report failures, and test Windows Unicode argv/TOML.
@@ -161,38 +159,17 @@ Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
   defaults off/runs once; no installation writes. Docs retain screenshot provenance.
 - https://othinusg.github.io/warpai/ lives on gh-pages (EN /, ZH /zh/); preserve
   branding/worktree, cmap-check font subsets, and Jekyll /warpai production baseurl.
-- Feature catalog and positioning matrix established in docs/FEATURES.md.
+- Feature catalog: docs/FEATURES.md.
 
-## Native lifecycle repair checkpoint
+## Retained native lifecycle constraints
 
-- 1.7.0 AppImage packaging must unset `SOURCE_DATE_EPOCH` only for linuxdeploy:
-  appimagetool also passes `-mkfs-time`, and squashfs-tools rejects both.
-- 1.7.0 changes shared agent_bus MCP guidance; Companion must be versioned 5.4.0
-  (protocol major stays 1), with WSL package/version checks kept in sync.
-
-- 1.6.5 work follows Herdr 2f3432c6 manifests (Apache-2.0): owner approved known
-  Agent/no-rule Idle on Oct15. Blocked maps to approval/input waits, retaining MCP
-  connectivity, queued work and unfinished tasks. Run/input/redraw fences remain.
-  Companion 5.3.0 required; publication pending.
-  CI repairs: FIXES-1.6.5.md; PTYs use memory-only vt100 capture.
-  WSL caches positive native-file proofs; replacements/failures recheck.
-- Owner package 38455056708/d379a2dd is installed and home IPC works; `/mnt/c`
-  fails. CI success is not owner resolution. See FIXES-1.6.4.md Oct14 receipts.
-- SSH/WSL install/call/uninstall use `.config/warpai`; Windows installers must not
-  reuse the former directory. WSL tools/CI use confirmed install home/new root;
-  Path changes invalidate connections; host Agents never enter guest discovery.
-  Setup locks explicitly unlock on Drop despite inherited descriptors.
-- Hash native identity with signed birth time; positive hashes stay compatible.
-  Keep handle fences; absent birth time cannot distinguish closed-handle inode reuse.
-- Focus publishes session before roots. Replay cached native roots on focus;
-  observe session notifications and bound remote polls to the admitted root.
-  Pane tests cover Explorer, Review, Communication and previews.
-- Native bindings register before deferred MCP tools; readiness stays separate.
-  MCP/sidebar/keep awake share activity; focus never acknowledges work.
-- Native draft/slash/error acceptance passed. Shared context/task contracts:
-  CONTEXT-RESOURCES.md; keep project/version/digest fences and public guards.
-- Audit 18/21/22: task-anchored native threads, bootstrap and reviewed memory;
-  PROJECT-MEMORY.md. Defer 19/20/23–30; no fixed leader. Desktop/WSL gates pass.
+- Historical release/CI/owner receipts: docs/history/MEMORY-2026-10-19-SSH-MCP.md.
+- Keep Herdr-derived Idle/blocked semantics, run/input/redraw fences and vt100 memory capture.
+- SSH/WSL installers use `.config/warpai`; setup locks explicitly unlock despite inherited descriptors.
+- Signed birth-time hashes preserve positive identities; absent birth time cannot prove inode reuse.
+- Focus publishes session before roots; replay cached roots and scope remote polls to admission.
+- Bindings register before MCP discovery; readiness stays separate. Focus never acknowledges work.
+- Preserve context/version/digest/public guards and task-anchored native threads/reviewed memory.
 
 ## Memory maintenance
 

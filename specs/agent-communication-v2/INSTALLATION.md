@@ -205,6 +205,30 @@ These were failed intermediate checks, not acceptance receipts.
 Current checks: [desktop builds/tests](https://github.com/OthinusG/warpai/actions/runs/39201409860),
 [native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39201024382),
 [remote native MCP/installers](https://github.com/OthinusG/warpai/actions/runs/39201364472).
-All are pending acceptance. The original WSL regression remains intact. The
+The desktop/protocol run completed successfully at `2e4dbb04`. Native MCP plus
+all three remote installers passed at `c554f201` in
+[run 39202558424](https://github.com/OthinusG/warpai/actions/runs/39202558424).
+The original WSL regression remains intact. The
 1.7.2 draft stays unpublished; final 1.7.3 release still requires full checks and
 owner Mac-to-Linux settings/ordinary-CLI acceptance.
+
+
+Latest runtime checkpoint: `796396b38680b2977c6e14a69809a39ac92f759c`.
+The `5e159524` full desktop run passed application checks/tests on both desktops,
+but native capture stopped because the pre-existing synthetic remote panel
+fixture had not opted into the newly default-off master. `796396b3` adds that
+explicit opt-in only to the owned debug fixture. Production defaults stay off.
+
+The Windows ordinary MCP fixture initially replaced USERPROFILE, which made
+KnownFolder LocalAppData unavailable. Preserve the real disposable CI account's
+Windows profile instead; do not relax runtime ACLs or change owner settings.
+Native MCP initialize/tools/list/bootstrap then passed on all three systems.
+Setup discovery deadlines are bounded at 180 seconds through both the desktop
+control channel and the private account proxy; normal operations retain 10 seconds.
+
+Current complete UI/WSL rerun: [39210678296](https://github.com/OthinusG/warpai/actions/runs/39210678296).
+Current source-matched remote rerun: [39210766219](https://github.com/OthinusG/warpai/actions/runs/39210766219).
+Artifact-only packages: [macOS](https://github.com/OthinusG/warpai/actions/runs/39211044793),
+[Windows](https://github.com/OthinusG/warpai/actions/runs/39211048507),
+[Linux x64/ARM64](https://github.com/OthinusG/warpai/actions/runs/39211040394).
+No release publication is authorized before acceptance; the v1.7.2 draft remains private.
