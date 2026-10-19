@@ -90,8 +90,15 @@ Linux, macOS, Windows. Remote installers remain explicit user actions.
 
 ## Current checkpoint
 
-Connection-only source 73f4fae3 is in cloud validation. The owner confirmed both
-panels recover in the previous test app with an absolute SSH_SOCKET_DIR, proving
-the home-relative socket issue. That source has no SSH MCP settings UI. The
-existing explicit `companion agent` path remains available, but does not satisfy
-the newly authorized settings-based workflow.
+The master switch, account selector, per-Agent MCP controls, shared protocol,
+remote process admission and fixed native visual states are implemented on the
+SSH test branch. Six settings states and live off/on transport fencing are in the
+native acceptance harness. Source `2e4dbb04` passed the complete protocol suites
+on macOS and Windows. Its ordinary native MCP fixture passed on Linux/macOS;
+Windows failed during initial control attachment and remains under diagnosis.
+Desktop checks and native screenshots are still running; implementation is not
+accepted or released yet. The original WSL regression remains unchanged.
+
+The owner already confirmed both panels recover in the earlier test app with an
+absolute SSH_SOCKET_DIR. The native home-relative socket repair removes that
+workaround. Final owner acceptance must use the new settings and Companion 5.5.0.

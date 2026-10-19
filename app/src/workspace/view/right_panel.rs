@@ -898,6 +898,15 @@ impl RightPanelView {
                                 ctx.dispatch_typed_action(RightPanelAction::ReconnectRemote);
                                 warpui::elements::DispatchEventResult::StopPropagation
                             }).finish()
+                        } else if !env.is_wsl && !crate::agent_communication::AgentCommunication::as_ref(app).ssh.preferences.enabled {
+                            warpui::elements::EventHandler::new(appearance.ui_builder()
+                                .span(warpui::localization::text("SSH Remote is off. Enable it in Settings > Features > Agent communication.").to_owned())
+                                .with_soft_wrap().build().finish()).on_left_mouse_up(|ctx, _, _| {
+                                    ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::ShowSettingsPageWithSearch {
+                                        search_query: "ssh remote".into(), section: Some(crate::settings_view::SettingsSection::Features),
+                                    });
+                                    warpui::elements::DispatchEventResult::StopPropagation
+                                }).finish()
                         } else if self.ssh_selection.is_some() {
                             CodeReviewView::render_loading_state(appearance)
                         } else {

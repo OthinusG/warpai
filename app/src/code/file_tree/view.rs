@@ -252,6 +252,8 @@ pub struct FileTreeView {
     #[cfg(feature = "local_fs")]
     ssh_selection: Option<String>,
     #[cfg(feature = "local_fs")]
+    ssh_disabled: bool,
+    #[cfg(feature = "local_fs")]
     ssh_files: Option<Arc<warp_agent_bus::ssh_files::RemoteFiles>>,
     #[cfg(feature = "local_fs")]
     ssh_generation: u64,
@@ -418,6 +420,9 @@ impl FileTreeView {
     #[cfg(feature = "local_fs")]
     fn refresh_ssh(&mut self, ctx: &mut ViewContext<Self>) {
         use crate::remote_server::selected_session::{selected_ssh, selection_key};
+        self.ssh_disabled = !crate::agent_communication::AgentCommunication::as_ref(ctx).ssh.preferences.enabled
+            && crate::workspace::ActiveSession::as_ref(ctx).session(ctx.window_id()).is_some_and(|session|
+                crate::remote_server::selected_session::session_connection(&session).is_some_and(|connection| !connection.is_wsl()));
         let selected = selected_ssh(ctx, ctx.window_id());
         let key = selected
             .as_ref()
@@ -1024,6 +1029,8 @@ impl FileTreeView {
         let picker = Self {
             #[cfg(feature = "local_fs")]
             ssh_selection: None,
+            #[cfg(feature = "local_fs")]
+            ssh_disabled: false,
             #[cfg(feature = "local_fs")]
             ssh_files: None,
             #[cfg(feature = "local_fs")]
@@ -3441,6 +3448,16 @@ impl View for FileTreeView {
 
     #[cfg(feature = "local_fs")]
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
+        if self.ssh_disabled {
+            return warpui::elements::EventHandler::new(self.render_error_state(
+                warpui::localization::text("SSH Remote is off. Enable it in Settings > Features > Agent communication.").into(), app,
+            )).on_left_mouse_up(|ctx, _, _| {
+                ctx.dispatch_typed_action(crate::workspace::WorkspaceAction::ShowSettingsPageWithSearch {
+                    search_query: "ssh remote".into(), section: Some(crate::settings_view::SettingsSection::Features),
+                });
+                warpui::elements::DispatchEventResult::StopPropagation
+            }).finish();
+        }
         if let Some(error) = &self.ssh_error {
             return warpui::elements::EventHandler::new(
                 self.render_error_state(warpui::localization::format_text("{error} Click to reconnect.", &[("error", format!("{error}").as_str())]), app),

@@ -5161,6 +5161,30 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             ),
     );
     driver = driver
+        .with_step(TestStep::new("SSH Remote off fences tools while retaining the SSH terminal")
+            .with_action(|app, _, _| app.update(|ctx| {
+                super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.ssh.preferences.enabled = false;
+                    model.ssh.generation += 1;
+                    ctx.notify();
+                });
+            }))
+            .add_named_assertion("SSH remains connected while remote tools are disabled", |app, window| {
+                warpui::async_assert!(app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
+                    .session(window).is_some_and(|session| !session.is_local())
+                    && crate::remote_server::selected_session::selected_ssh(ctx, window).is_none()))
+            }))
+        .with_step(TestStep::new("SSH Remote on restores the existing confirmed transport")
+            .with_action(|app, _, _| app.update(|ctx| {
+                super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
+                    model.ssh.preferences.enabled = true;
+                    model.ssh.generation += 1;
+                    ctx.notify();
+                });
+            }))
+            .add_named_assertion("SSH tools recover without reconnecting the terminal", |app, window| {
+                warpui::async_assert!(app.read(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window).is_some()))
+            }))
         .with_step(
             TestStep::new("exit owned SSH restores terminal-driven local cwd")
                 .with_action(|app, window, data| {
