@@ -12,7 +12,7 @@ pub(super) fn canonical_program(program: &str) -> &str {
         "vibe-acp" => "vibe",
         "dsh-tui" => "dsh",
         "traecn" | "trae-cli" | "traecn-cli" | "traecli" => "trae",
-        "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" => "qoder",
+        "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn" => "qoder",
         other => other,
     }
 }
@@ -130,7 +130,7 @@ fn title_state(agent: &str, title: &str) -> Option<Activity> {
         "omp" => &["oh my pi", "omp"],
         "pi" => &["pi", "π"],
         "dsh" | "dsh-tui" => &["dsh", "deepseek"],
-        "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" => &["qoder"],
+        "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn" => &["qoder"],
         "trae" | "traecn" | "trae-cli" | "traecn-cli" | "traecli" => &["trae"],
         _ => &[agent],
     };
@@ -235,6 +235,7 @@ mod tests {
             ("agy", "────────\n>\n────────\n? for shortcuts", "", Activity::Idle),
             ("qoder", "permission required", "◇ Qoder CLI", Activity::WaitingApproval),
             ("qodercn", "⠋ Thinking (esc to cancel, 2s)", "", Activity::Working),
+            ("qoder-cn", "⠋ Thinking (esc to cancel, 2s)", "", Activity::Working),
             ("qoderclicn", "Type your message or @path/to/file", "◇ Qoder CLI CN", Activity::Idle),
             ("dsh-tui", "", "⠂ 🐋 会话标题", Activity::Working),
             ("dsh-tui", "", "✦ 🐋 会话标题", Activity::Idle),

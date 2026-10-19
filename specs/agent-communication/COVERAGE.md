@@ -40,7 +40,7 @@ Checked on 2026-09-30 against the restored `CLIAgent` enum. Native MCP client su
 | Grok Build | grok | [Official MCP servers](https://docs.x.ai/build/features/mcp-servers) | Eligible |
 | DeepSeek Harness | dsh-tui; dsh with a TUI profile | [Official MCP client package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) | Eligible when the profile mounts the official MCP client |
 | Qoder | qoder, qodercli, qoder-cli | [Official CLI MCP reference](https://docs.qoder.com/cli/mcp-reference) | Eligible; separate from QoderCN |
-| QoderCN | qodercn, qoderclicn | Installed QoderCN CLI help confirms native stdio | Eligible; independent discovery, configuration and selection |
+| QoderCN | qodercn, qoderclicn, qoder-cn | Installed QoderCN CLI help confirms native stdio | Eligible; independent discovery, configuration and selection |
 | Trae | trae, traecn, trae-cli, traecn-cli, traecli | [Official CLI MCP documentation](https://docs.trae.cn/cli_model-context-protocol) | Eligible on the documented native MCP version; launch-name compatibility to verify |
 | Custom/Unknown | User-defined detection patterns | Detection alone does not establish MCP capability | Eligible individually after confirming native MCP; common custom binding provided |
 

@@ -5,7 +5,7 @@ use providers::{Provider, Reading};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    io::Read,
+    io::{Read, Write as _},
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -33,6 +33,7 @@ pub(crate) struct AgentUsage {
     pub(crate) status: String,
     pub(crate) updated: Option<Instant>,
     generation: u64,
+    last_qoder_query: HashMap<String, Instant>,
     configuration_error: bool,
     #[cfg(debug_assertions)]
     capture_preview: bool,
@@ -140,6 +141,8 @@ impl AgentUsage {
                         | Provider::Kimi
                         | Provider::Grok
                         | Provider::Antigravity
+                        | Provider::Qoder
+                        | Provider::QoderCN
                 ))
         {
             if !cli_login
@@ -230,6 +233,16 @@ impl AgentUsage {
         ctx.notify();
     }
     pub(crate) fn refresh(&mut self, ctx: &mut ModelContext<Self>) {
+        self.refresh_with_qoder_bypass(ctx, false);
+    }
+    pub(crate) fn refresh_manual(&mut self, ctx: &mut ModelContext<Self>) {
+        self.refresh_with_qoder_bypass(ctx, true);
+    }
+    fn refresh_with_qoder_bypass(
+        &mut self,
+        ctx: &mut ModelContext<Self>,
+        manual: bool,
+    ) {
         #[cfg(debug_assertions)]
         if self.capture_preview {
             return;
@@ -237,10 +250,12 @@ impl AgentUsage {
         if self.checking {
             return;
         }
+        let now = Instant::now();
         let requests: Vec<_> = self
             .accounts
             .iter()
             .filter(|a| a.visible)
+            .filter(|a| qoder_query_due(a.provider, self.last_qoder_query.get(&a.id), manual))
             .filter(|a| {
                 !matches!(
                     self.readings.get(&a.id),
@@ -258,6 +273,11 @@ impl AgentUsage {
             .collect();
         if requests.is_empty() {
             return;
+        }
+        for (account, _) in &requests {
+            if matches!(account.provider, Provider::Qoder | Provider::QoderCN) {
+                self.last_qoder_query.insert(account.id.clone(), now);
+            }
         }
         self.checking = true;
         let generation = self.generation;
@@ -350,6 +370,11 @@ impl AgentUsage {
         ctx.notify();
     }
 }
+fn qoder_query_due(provider: Provider, last: Option<&Instant>, manual: bool) -> bool {
+    manual
+        || !matches!(provider, Provider::Qoder | Provider::QoderCN)
+        || last.is_none_or(|last| last.elapsed() >= Duration::from_secs(300))
+}
 impl Entity for AgentUsage {
     type Event = ();
 }
@@ -431,6 +456,135 @@ async fn output(program: &str, args: &[&str], seconds: u64) -> Result<Vec<u8>, &
         .await
         .map_err(|_| "CLI usage query timed out")?
 }
+
+async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
+    use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt};
+
+    async fn response<R: AsyncBufRead + Unpin>(
+        reader: &mut R,
+        request_id: &str,
+    ) -> Result<serde_json::Value, &'static str> {
+        let mut bytes_read = 0;
+        for _ in 0..128 {
+            let mut line = Vec::new();
+            loop {
+                let available = reader.fill_buf().await.map_err(|_| "CLI output unavailable")?;
+                if available.is_empty() {
+                    return Err("CLI output unavailable");
+                }
+                let end = available.iter().position(|byte| *byte == b'\n');
+                let take = end.map_or(available.len(), |index| index + 1);
+                bytes_read += take;
+                if bytes_read > 1024 * 1024 {
+                    return Err("CLI response too large");
+                }
+                line.extend_from_slice(&available[..take]);
+                reader.consume(take);
+                if end.is_some() {
+                    break;
+                }
+            }
+            let Ok(message) = serde_json::from_slice::<serde_json::Value>(&line) else {
+                continue;
+            };
+            if message["type"] == "control_response"
+                && message["response"]["request_id"] == request_id
+            {
+                if message["response"]["subtype"] != "success" {
+                    return Err("Qoder CLI version does not support usage queries");
+                }
+                return Ok(message["response"]["response"].clone());
+            }
+        }
+        Err("CLI output unavailable")
+    }
+
+    let home = dirs::home_dir().ok_or("CLI home directory unavailable")?;
+    let names: &[&str] = match provider {
+        Provider::Qoder => &["qodercli", "qoder", "qoder-cli"],
+        Provider::QoderCN => &["qoderclicn", "qodercn", "qoder-cn"],
+        _ => return Err("Unsupported Qoder provider"),
+    };
+    let executable = names
+        .iter()
+        .find_map(|name| crate::agent_communication::setup::executable(name, &[], &home))
+        .ok_or("Qoder CLI is unavailable")?;
+    let mut auth = tempfile::NamedTempFile::new().map_err(|_| "Could not start usage query")?;
+    auth.write_all(br#"{"type":"qodercli"}"#)
+        .map_err(|_| "Could not start usage query")?;
+    let mut command = tokio::process::Command::new(&executable);
+    #[cfg(windows)]
+    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+    let path = std::env::join_paths(executable.parent().into_iter().map(PathBuf::from).chain(
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+    ))
+    .map_err(|_| "CLI executable search path unavailable")?;
+    let mut child = command
+        .args([
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
+            "--no-session-persistence",
+            "--tools",
+            "default",
+            "--disable-builtin-skills",
+        ])
+        .env("PATH", path)
+        // shortcut: follows the 1.0.53 bridge contract; update when the CLI control protocol changes.
+        .env("QODER_AGENT_SDK_ENTRYPOINT", "sdk-ts")
+        .env("QODER_AGENT_SDK_VERSION", "1.0.53")
+        .env("QODER_SDK_AUTH_PAYLOAD_FILE", auth.path())
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|_| "Could not start usage query")?;
+    let mut stdin = child.stdin.take().ok_or("CLI output unavailable")?;
+    let mut stdout =
+        tokio::io::BufReader::new(child.stdout.take().ok_or("CLI output unavailable")?);
+    let exchange = async {
+        for (request_id, request_type) in [
+            ("warpai-usage-init", "initialize"),
+            ("warpai-usage-query", "get_usage_info"),
+        ] {
+            let request = serde_json::json!({
+                "type":"control_request",
+                "request_id":request_id,
+                "request":{"type":request_type}
+            });
+            stdin
+                .write_all(request.to_string().as_bytes())
+                .await
+                .map_err(|_| "CLI query failed")?;
+            stdin
+                .write_all(b"\n")
+                .await
+                .map_err(|_| "CLI query failed")?;
+            stdin
+                .flush()
+                .await
+                .map_err(|_| "CLI query failed")?;
+            let result = response(&mut stdout, request_id).await?;
+            if request_type == "get_usage_info" {
+                if result["usage_error"].is_string() {
+                    return Err("Qoder plan quota is unavailable for this account");
+                }
+                return providers::parse(provider, &result["usage"]);
+            }
+        }
+        Err("CLI output unavailable")
+    };
+    let result = tokio::time::timeout(Duration::from_secs(25), exchange)
+        .await
+        .map_err(|_| "Qoder usage query timed out")?;
+    drop(stdin);
+    let _ = child.kill().await;
+    result
+}
+
 async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'static str> {
     if account.provider == Provider::Antigravity {
         let home = dirs::home_dir().ok_or("CLI home directory unavailable")?;
@@ -457,6 +611,9 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
         )
         .await?;
         return providers::parse_agy_stdout(&bytes);
+    }
+    if matches!(account.provider, Provider::Qoder | Provider::QoderCN) {
+        return qoder_usage(account.provider).await;
     }
     let mut context = account.context.clone();
     let token = if account.cli_login {
@@ -549,6 +706,17 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_automatic_qoder_usage_queries_are_rate_limited() {
+        let now = Instant::now();
+        let recent = now - Duration::from_secs(299);
+        let due = now - Duration::from_secs(300);
+        assert!(qoder_query_due(Provider::QoderCN, None, false));
+        assert!(!qoder_query_due(Provider::Qoder, Some(&recent), false));
+        assert!(qoder_query_due(Provider::QoderCN, Some(&due), false));
+        assert!(qoder_query_due(Provider::QoderCN, Some(&recent), true));
+        assert!(qoder_query_due(Provider::Codex, Some(&recent), false));
+    }
     #[test]
     fn account_metadata_contains_no_credentials_and_rejects_untrusted_labels() {
         let mut account = Account {

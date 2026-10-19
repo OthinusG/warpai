@@ -270,6 +270,7 @@ fn test_detect_known_agents() {
                 ("qoder", CLIAgent::Qoder),
                 ("qodercn", CLIAgent::QoderCN),
                 ("qoderclicn", CLIAgent::QoderCN),
+                ("qoder-cn", CLIAgent::QoderCN),
                 ("trae", CLIAgent::Trae),
                 ("traecn", CLIAgent::Trae),
             ] {
@@ -375,7 +376,7 @@ fn test_detect_qoder() {
                     "failed to detect {command}",
                 );
             }
-            for command in ["qodercn", "qoderclicn", "qodercn --settings test"] {
+            for command in ["qodercn", "qoderclicn", "qoder-cn", "qodercn --settings test"] {
                 assert_eq!(
                     CLIAgent::detect(command, None, None, ctx),
                     Some(CLIAgent::QoderCN),

@@ -22,6 +22,8 @@ pub(crate) enum Provider {
     Zhipu,
     Grok,
     Antigravity,
+    Qoder,
+    QoderCN,
 }
 impl Provider {
     pub(crate) const ALL: &'static [Self] = &[
@@ -38,6 +40,8 @@ impl Provider {
         Self::Zhipu,
         Self::Grok,
         Self::Antigravity,
+        Self::Qoder,
+        Self::QoderCN,
     ];
     pub(crate) fn name(self) -> &'static str {
         match self {
@@ -54,6 +58,8 @@ impl Provider {
             Self::Zhipu => "Zhipu Coding Plan",
             Self::Grok => "Grok",
             Self::Antigravity => "Antigravity",
+            Self::Qoder => "Qoder",
+            Self::QoderCN => "QoderCN",
         }
     }
     pub(crate) fn program(self) -> &'static str {
@@ -64,12 +70,15 @@ impl Provider {
             Self::Cursor => "cursor-agent",
             Self::Grok => "grok",
             Self::Antigravity => "agy",
+            Self::Qoder => "qoder",
+            Self::QoderCN => "qoder-cn",
             _ => "opencode",
         }
     }
     pub(crate) fn credential_hint(self) -> &'static str {
         match self {
             Self::Antigravity => "Uses the current agy login (requires 1.1.11 or newer)",
+            Self::Qoder | Self::QoderCN => "Uses the current Qoder CLI login on this computer",
             Self::Cursor | Self::OpenCodeZen => {
                 "Dashboard cookie (stored in OS credential storage)"
             }
@@ -87,6 +96,8 @@ impl Provider {
             Self::Grok => Some("grok"),
             Self::Kimi => Some("kimi"),
             Self::Antigravity => Some("agy"),
+            Self::Qoder => Some("qoder"),
+            Self::QoderCN => Some("qoder-cn"),
             _ => None,
         }
     }
@@ -266,6 +277,20 @@ pub(crate) fn parse(provider: Provider, data: &Value) -> Result<Reading, &'stati
                 }
             }
         }
+        Provider::Qoder | Provider::QoderCN => {
+            for (key, label, total_key) in [
+                ("userQuota", "Plan", "total"),
+                ("addOnQuota", "Add-on", "total"),
+                ("orgResourcePackage", "Organization", "cap"),
+            ] {
+                let bucket = &data[key];
+                let used = number(&bucket["used"]);
+                let total = number(&bucket[total_key]);
+                let percentage = number(&bucket["percentage"])
+                    .or_else(|| Some(100. * used? / total.filter(|n| *n > 0.)?));
+                add(&mut out, label, percentage, &Value::Null);
+            }
+        }
         Provider::Kimi => {
             add(
                 &mut out,
@@ -383,7 +408,11 @@ pub(crate) fn parse(provider: Provider, data: &Value) -> Result<Reading, &'stati
         }
     }
     if out.windows.is_empty() && out.balance.is_none() {
-        Err("Usage unavailable for this account")
+        Err(if matches!(provider, Provider::Qoder | Provider::QoderCN) {
+            "Plan quota unavailable for this account"
+        } else {
+            "Usage unavailable for this account"
+        })
     } else {
         Ok(out)
     }
@@ -470,6 +499,7 @@ fn usage_request(
         Provider::Zhipu => "https://open.bigmodel.cn/api/monitor/usage/quota/limit",
         Provider::Grok => "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
         Provider::Antigravity => return Err("Use the current agy login"),
+        Provider::Qoder | Provider::QoderCN => return Err("Use the current Qoder CLI login"),
     };
     let mut request = client.get(url).header("Accept", "application/json");
     match provider {
@@ -847,6 +877,30 @@ mod tests {
         assert!(parse(Provider::Kimi, &json!({"usage":{"used":10,"limit":0}})).is_err());
         assert!(parse(Provider::Codex, &json!({"credits":{"balance":50}})).is_err());
         assert!(parse(Provider::Grok, &json!({"prepaidBalance":{"val":"50"}})).is_err());
+    }
+
+    #[test]
+    fn qoder_quota_buckets_stay_separate_and_missing_values_stay_unavailable() {
+        let data = json!({
+            "userQuota":{"total":100,"used":25,"remaining":75,"percentage":25,"unit":"credits"},
+            "addOnQuota":{"total":20,"used":5,"remaining":15,"percentage":25,"unit":"credits"},
+            "orgResourcePackage":{"cap":200,"used":50,"remaining":150,"percentage":25,"available":true,"unit":"credits"}
+        });
+        for provider in [Provider::Qoder, Provider::QoderCN] {
+            let reading = parse(provider, &data).unwrap();
+            assert_eq!(reading.windows.len(), 3);
+            assert_eq!(
+                reading
+                    .windows
+                    .iter()
+                    .map(|w| w.name.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["Plan", "Add-on", "Organization"]
+            );
+            assert!(reading.windows.iter().all(|w| (w.used - 25.).abs() < 0.001));
+            let no_plan = parse(provider, &json!({"userQuota":{"total":0,"used":0}}));
+            assert!(no_plan.is_err());
+        }
     }
     #[test]
     fn maps_percent_and_remaining_without_inventing_a_limit() {

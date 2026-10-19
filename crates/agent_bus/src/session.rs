@@ -431,7 +431,7 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
             "Installed Codex lacks verified session isolation; launch the native CLI directly"
         );
     }
-    let relay = if (codex_interactive || matches!(name, "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn"))
+    let relay = if (codex_interactive || matches!(name, "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn"))
         && companion.is_some()
         && bridge.is_some()
     {

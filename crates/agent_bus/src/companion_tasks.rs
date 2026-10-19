@@ -597,7 +597,7 @@ impl Projects {
         { let _ = (program, executable); return Ok(()); }
         #[cfg(not(feature = "wsl_companion"))]
         {
-            if matches!(program, "codex" | "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn")
+            if matches!(program, "codex" | "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn")
                 || !crate::screen_detection::has_manifest(program) { return Ok(()); }
             let _setup = self.mcp_setup.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
             let bridge = std::env::current_exe().map_err(path_error)?;

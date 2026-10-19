@@ -257,7 +257,7 @@ impl CLIAgent {
             CLIAgent::Grok => &["grok"],
             CLIAgent::DeepSeekHarness => &["dsh", "dsh-tui"],
             CLIAgent::Qoder => &["qoder", "qodercli", "qoder-cli"],
-            CLIAgent::QoderCN => &["qodercn", "qoderclicn"],
+            CLIAgent::QoderCN => &["qoder-cn", "qodercn", "qoderclicn"],
             CLIAgent::Trae => &["trae", "traecn", "trae-cli", "traecn-cli", "traecli"],
             CLIAgent::Unknown => &[],
         }
