@@ -1,5 +1,22 @@
 # Warpai releases
 
+## Mandatory final step after public release assets are available
+
+After the release workflow has published the desktop and Companion assets, and
+the expected download URLs resolve, synchronize the public download surfaces:
+
+1. Update `README.md` and `README.zh-CN.md` with the release version, feature
+   summary, desktop and Companion asset names, and direct download links.
+2. Update the bilingual gh-pages homepages, shared header/footer release copy,
+   `_data/strings.yml`, and English/Chinese installation docs with the new
+   version and links. Preserve Jekyll `site.baseurl` for internal documentation
+   links.
+3. Verify every referenced public asset exists, review the changes for stale
+   previous-version download URLs, and wait for the gh-pages deployment to
+   succeed before marking release delivery complete.
+
+Do not point public pages to a new release before its download assets exist.
+
 ## 2026-10-15 1.6.5 / Companion 5.3.0 delivery contract
 
 Owner authorized all-Agent Herdr state adaptation, MCP repair across local/WSL/SSH,
