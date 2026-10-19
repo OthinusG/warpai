@@ -21,7 +21,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Oct19: preserve unpublished 1.7.2 tag/draft. Validate, then macOS/Windows
   artifact-only tests. Formal 1.7.3 waits for owner test and explicit instruction;
   specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP.
-- macOS test prioritized after its acceptance passed; Windows capture unresolved.
+- macOS test prioritized; Windows capture unresolved. Owner Linux still had 5.4.0:
+  files/Review work, but SSH native MCP needs the supplied 5.5.0 installer.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
   in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
   README.md and README.zh-CN.md must link to the published v1.7.1 assets.
@@ -124,11 +125,9 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   queue results/consume requests; blocked stays unresolved. Persist exact-attempt
   permission/cancel/disconnect evidence, never drafts/output. Wait receipts retain
   unacknowledged messages; notifications prove neither execution nor handling.
-- 1.6.4 fixes: specs/agent-communication-v2/FIXES-1.6.4.md. Usage selects
-  five-hour OR weekly windows; Antigravity retains Gemini and Claude/GPT pools.
-  Composer drafts/attachments stay in memory; owner authorized clearing native PTY
-  drafts before peer submission on 2026-10-13. Startup retains MCP idle evidence;
-  sidebar lifecycle projections never manufacture completion notifications.
+- 1.6.4 receipts: specs/agent-communication-v2/FIXES-1.6.4.md. Keep drafts in
+  memory, MCP idle evidence and truthful sidebar lifecycle projections. Native
+  PTY draft clearing before peer submission was authorized 2026-10-13.
 - Replacement repositories need fresh admission; isolate old history/capabilities.
   Same-repository checkout replacement requires rejoin; receipt: FIXES-1.6.4.md.
 - Codex opaque OSC 9, warnings and silence cannot prove completion. Native

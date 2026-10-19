@@ -269,3 +269,11 @@ verification passed. ZIP SHA-256:
 This isolated Review artifact displays the validation workflow's 1.6.5 version;
 its source is ac2d29a1, not the historical 1.6.5 release. It was not launched or
 installed. Formal publication still requires the owner's explicit instruction.
+
+Owner's subsequent Mac-to-Linux test confirmed both panels work, but SSH Agent
+discovery was empty. The terminal resolved Codex to `/usr/bin/codex`; the explicit
+default Companion path reported 5.4.0 in the supplied screenshot. This confirms
+the installed remote lacks the native MCP setup capability added in 5.5.0.
+The matching source-tested Linux installer was provided for owner installation;
+post-upgrade discovery acceptance remains pending. A missing bare command alone
+does not prove Companion is absent: the default install directory need not be on PATH.
