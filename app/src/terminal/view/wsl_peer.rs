@@ -369,7 +369,11 @@ impl TerminalView {
                 if let NativeAction::Observe { screen_activity, .. } = &mut action { *screen_activity = activity; }
                 capture.is_some() && (activity.is_some() || quiet >= Duration::from_millis(700))
             } else { false };
-            let state = request(&client, selected.shell_pid, action).await?;
+            let mut state = request(&client, selected.shell_pid, action).await?;
+            if matches!(&selected.target, Target::Ssh(_)) {
+                // SSH activity projection does not grant native prompt delivery authority.
+                if let Some(state) = &mut state { state.wake = None; }
+            }
             let state = match state {
                 Some(state) if state.wake.is_some() => request(&client, selected.shell_pid,
                     NativeAction::Claim { wake: state.wake.unwrap() }).await?,
