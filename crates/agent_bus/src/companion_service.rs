@@ -174,16 +174,18 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
             continue;
         };
         let directory = directory.clone();
+        // A vanished peer must not terminate other sessions. Native admission
+        // rejects a missing PID; ordinary control still uses the private endpoint.
         #[cfg(unix)]
-        let peer_pid = stream.peer_cred()?.pid().and_then(|pid| u32::try_from(pid).ok());
+        let peer_pid = stream.peer_cred().ok().and_then(|credentials| credentials.pid())
+            .and_then(|pid| u32::try_from(pid).ok());
         #[cfg(windows)]
         let peer_pid = {
             use std::os::windows::io::AsRawHandle;
             use windows::Win32::{Foundation::HANDLE, System::Pipes::GetNamedPipeClientProcessId};
             let mut pid = 0;
             unsafe { GetNamedPipeClientProcessId(HANDLE(stream.as_raw_handle()), &mut pid) }
-                .map_err(std::io::Error::other)?;
-            Some(pid)
+                .ok().and_then(|_| (pid > 1).then_some(pid))
         };
         let boot = boot.clone();
         let terminals = terminals.clone();
