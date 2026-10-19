@@ -16,11 +16,11 @@ with tempfile.TemporaryDirectory(prefix='warpai-shell-routing-') as directory:
     ssh.write_text("""#!/bin/sh
 "$OWNED_PYTHON" -c 'import json, os, sys; print(json.dumps(sys.argv[1:])); sys.exit(0)' "$@" >> "$OWNED_SSH_CALLS"
 if [ "$1" = "-G" ]; then
-  printf 'remotecommand %s\\n' "$OWNED_REMOTE_COMMAND"
+  printf 'remotecommand %s\n' "$OWNED_REMOTE_COMMAND"
 elif [ "$#" -gt 0 ]; then
   last=
   for argument do last=$argument; done
-  if [ "$last" = 'echo $env:OS' ]; then printf '%s\\n' "$OWNED_REMOTE_OS"; fi
+  if [ "$last" = 'echo $env:OS' ]; then printf '%s\n' "$OWNED_REMOTE_OS"; fi
 fi
 """)
     ssh.chmod(0o700)
@@ -64,9 +64,12 @@ fi
             if os.name == 'nt':
                 python_executable = subprocess.check_output(
                     [cygpath, '-u', sys.executable], text=True).strip()
+            socket_dir = str(root)
+            if os.name == 'nt':
+                socket_dir = subprocess.check_output([cygpath, '-u', str(root)], text=True).strip()
             env = dict(os.environ, OWNED_SSH_WRAPPER=ssh_wrapper, OWNED_PYTHON=python_executable,
                 OWNED_SSH_CALLS=str(calls), OWNED_REMOTE_OS=remote_os,
-                OWNED_REMOTE_COMMAND=remote_command, SSH_SOCKET_DIR=str(root), WARP_SESSION_ID='123')
+                OWNED_REMOTE_COMMAND=remote_command, SSH_SOCKET_DIR=socket_dir, WARP_SESSION_ID='123')
             result = subprocess.run([executable, str(script)], env=env, capture_output=True, text=True, timeout=10)
             assert result.returncode == 0, (shell, result.stderr)
             observed = [json.loads(line) for line in calls.read_text(encoding='utf-8').splitlines()]
