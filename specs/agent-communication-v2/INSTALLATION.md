@@ -232,3 +232,26 @@ Artifact-only packages: [macOS](https://github.com/OthinusG/warpai/actions/runs/
 [Windows](https://github.com/OthinusG/warpai/actions/runs/39211048507),
 [Linux x64/ARM64](https://github.com/OthinusG/warpai/actions/runs/39211040394).
 No release publication is authorized before acceptance; the v1.7.2 draft remains private.
+
+## Complete SSH Companion switch checkpoint (2026-10-19)
+
+Owner confirmed that the SSH Remote master covers every Companion-backed SSH
+operation, including Explorer, Review, editors, file transfers and Agent/MCP
+communication. Ordinary SSH terminal connections remain independent; local and
+direct WSL settings retain their own admission policies.
+
+Runtime source `ac2d29a1` passed the complete Linux, macOS and Windows remote
+matrix in [39212814355](https://github.com/OthinusG/warpai/actions/runs/39212814355).
+The real SSH fixture proves that disabling revokes existing file/task clients,
+blocks new clients and reconnects, and still permits native SSH commands.
+Re-enabling requires a verified file reconnect rather than reviving stale access.
+The native MCP fixture proves account registration is revoked before the disable
+response while the ordinary Agent process remains alive.
+
+The source-matched Linux x64 Companion 5.5.0 installer was downloaded without
+installation. SHA-256:
+`163dae32ce02c53a042a33e8f3a026ebb0f4da2902d9e3fabc4dc88fbe3d90cc`.
+Desktop UI, WSL and build acceptance remains pending in
+[39212818285](https://github.com/OthinusG/warpai/actions/runs/39212818285);
+the protocol jobs have passed. Owner Mac-to-Linux ordinary CLI acceptance and
+final UI review still gate delivery and publication.
