@@ -14,6 +14,11 @@ the expected download URLs resolve, synchronize the public download surfaces:
 3. Verify every referenced public asset exists, review the changes for stale
    previous-version download URLs, and wait for the gh-pages deployment to
    succeed before marking release delivery complete.
+4. As the final release action, update `OthinusG/homebrew-tap`'s
+   `Casks/warpai.rb` to the published macOS DMG version and independently
+   verified SHA-256. Submit the tap change, run the available Homebrew parsing,
+   style/audit and download checksum checks, then merge and record the tap
+   commit.
 
 Do not point public pages to a new release before its download assets exist.
 
