@@ -96,15 +96,16 @@ mod tests {
     fn account_preferences_are_private_scoped_and_setup_lock_is_released() {
         let directory = tempfile::tempdir().unwrap();
         let bridge = std::env::current_exe().unwrap();
+        let account = directory.path().join("account");
         let request = |action| Request { action, commands: vec![], search_paths: vec![] };
-        let first = configure_in(request(Action::Enable(true)), directory.path(), &bridge).unwrap();
+        let first = configure_in(request(Action::Enable(true)), &account, &bridge).unwrap();
         assert!(first.preferences.enabled);
         assert!(first.available.is_empty());
-        let second = configure_in(request(Action::Enable(false)), directory.path(), &bridge).unwrap();
+        let second = configure_in(request(Action::Enable(false)), &account, &bridge).unwrap();
         assert!(!second.preferences.enabled);
         assert_eq!(first.account_id, second.account_id);
         let other = tempfile::tempdir().unwrap();
-        assert!(!configure_in(request(Action::Rescan), other.path(), &bridge).unwrap().preferences.enabled);
+        assert!(!configure_in(request(Action::Rescan), &other.path().join("account"), &bridge).unwrap().preferences.enabled);
     }
 
     #[test]

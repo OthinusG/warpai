@@ -775,7 +775,6 @@ impl Broker {
         if changed { self.shared.notify_change(); }
     }
     /// Remote editors send edit epochs and guards, never their draft text.
-    #[cfg(any(windows, all(feature = "wsl_companion", target_os = "linux")))]
     pub fn native_input(&self, terminal: &str, submitted: bool, cancelled: bool) {
         if let Some(broker) = self.forwarded(terminal) { broker.native_input(terminal, submitted, cancelled); return; }
         let mut lifecycle_changed = false;
