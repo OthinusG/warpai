@@ -746,3 +746,56 @@ async fn native_ssh_file_tools_save_conflict_preview_resources_and_reconnect() {
     }
     controlled_remote_files(&files).await;
 }
+
+#[tokio::test]
+#[ignore = "requires the controlled OpenSSH fixture"]
+async fn native_ssh_file_tools_master_revokes_existing_clients_but_not_native_ssh() {
+    const CHILD: &str = "WARPAI_TEST_SSH_MASTER_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let status = tokio::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "native_ssh_file_tools_master_revokes_existing_clients_but_not_native_ssh", "--ignored", "--nocapture"])
+            .env(CHILD, "yes").status().await.unwrap();
+        assert!(status.success(), "Isolated SSH master policy acceptance failed");
+        return;
+    }
+    use warp_agent_bus::{companion::TaskCommand, ssh_files::{set_ssh_enabled, RemoteFiles, SshConnection}};
+    use remote_protocol::proto::{ProjectFileAction, ProjectFilesRequest};
+    let config = std::env::var("WARP_TEST_SSH_CONFIG").unwrap();
+    let profile = SshProfile {
+        target: "warpai-test".into(), config_file: None,
+        remote_root: std::env::var("WARP_TEST_REMOTE_ROOT").unwrap(),
+        companion_path: std::env::var("WARP_TEST_COMPANION_PATH").unwrap(),
+        remote_shell: if cfg!(windows) { RemoteShell::PowerShell } else { RemoteShell::Posix },
+    };
+    let connection = SshConnection::Native {
+        arguments: vec!["-F".into(), config.clone(), "warpai-test".into()], session: "owned-master-policy".into(),
+    };
+    let mut tasks = connection.connect(&profile).await.unwrap();
+    let files = RemoteFiles::connect(profile.clone(), connection.clone()).await.unwrap();
+    let relative = format!("master-policy-{}.txt", Uuid::new_v4());
+    let absolute = format!("{}/{}", files.canonical_root.trim_end_matches('/'), relative);
+    files.control(ProjectFilesRequest { action: ProjectFileAction::ProjectFileCreate as i32,
+        path: relative.clone(), ..Default::default() }).await.unwrap();
+    let (_, hash) = files.download(&absolute).await.unwrap();
+    set_ssh_enabled(false);
+    assert!(!files.connected());
+    assert!(files.download(&absolute).await.is_err());
+    assert!(files.save(&absolute, b"must not write while off", &hash).await.is_err());
+    assert!(files.reconnect().await.is_err());
+    assert!(RemoteFiles::connect(profile.clone(), connection.clone()).await.is_err());
+    assert!(tasks.project_tasks(&TaskCommand::Panel(Default::default()), 1).await.is_err());
+    let native = tokio::process::Command::new("ssh")
+        .args(["-F", &config, "warpai-test", "echo WARPAI_SSH_NATIVE_IO_OK"])
+        .output().await.unwrap();
+    assert!(native.status.success());
+    assert!(String::from_utf8_lossy(&native.stdout).contains("WARPAI_SSH_NATIVE_IO_OK"));
+    set_ssh_enabled(true);
+    assert!(!files.connected(), "Re-enabling cannot silently restore a revoked attachment");
+    assert!(files.download(&absolute).await.is_err());
+    files.reconnect().await.unwrap();
+    let (cache, observed) = files.download(&absolute).await.unwrap();
+    assert_eq!(hash, observed);
+    assert!(std::fs::read(cache).unwrap().is_empty());
+    files.control(ProjectFilesRequest { action: ProjectFileAction::ProjectFileDelete as i32,
+        path: relative, ..Default::default() }).await.unwrap();
+}

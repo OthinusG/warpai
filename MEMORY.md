@@ -86,7 +86,7 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 ## SSH, task integrity and files
 
 - SSH masters need no retained launch arguments; independent native transport does.
-  OpenSSH owns ~/.ssh expansion. SSH Remote defaults off and gates files/Review/collaboration; native MCP needs Companion 5.5.0. Contract/receipts: specs/agent-communication-v2/SSH-MCP-SETTINGS.md and INSTALLATION.md.
+  OpenSSH owns ~/.ssh expansion. SSH Remote defaults off and gates every Companion API; OpenSSH stays independent; native MCP needs Companion 5.5.0. Contract/receipts: specs/agent-communication-v2/SSH-MCP-SETTINGS.md and INSTALLATION.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.

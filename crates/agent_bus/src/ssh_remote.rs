@@ -227,6 +227,7 @@ pub struct HostClient {
     pub root_identity: String,
     alive: bool,
     capabilities: Vec<String>,
+    access_epoch: Option<u64>,
 }
 
 impl HostClient {
@@ -417,6 +418,7 @@ impl HostClient {
             root_identity: String::new(),
             alive: true,
             capabilities: Vec::new(),
+            access_epoch: None,
         };
         let initialized = client
             .request(managed_request::Operation::Initialize(ManagedInitialize {
@@ -463,6 +465,12 @@ impl HostClient {
         client.root_identity = opened.root_identity;
         client.capabilities = initialized.capabilities;
         Ok(client)
+    }
+
+    pub(crate) fn restrict_ssh_access(&mut self, epoch: Option<u64>) -> Result<(), ConnectionError> {
+        if let Err(error) = crate::ssh_files::check_ssh_access(epoch) { self.close(); return Err(error); }
+        self.access_epoch = epoch;
+        Ok(())
     }
 
     pub fn fence(&self) -> Option<&ManagedFence> {
@@ -665,6 +673,7 @@ impl HostClient {
         operation: managed_request::Operation,
     ) -> Result<managed_response::Result, ConnectionError> {
         let timeout = crate::ssh_setup::control_timeout(&operation);
+        if let Err(error) = crate::ssh_files::check_ssh_access(self.access_epoch) { self.close(); return Err(error); }
         if !self.alive {
             return Err(ConnectionError::ConnectionLost);
         }
@@ -681,6 +690,7 @@ impl HostClient {
                 .await
         })
         .await;
+        if let Err(error) = crate::ssh_files::check_ssh_access(self.access_epoch) { self.close(); return Err(error); }
         let Ok(Ok(response)) = response else {
             self.close();
             return Err(ConnectionError::ConnectionLost);

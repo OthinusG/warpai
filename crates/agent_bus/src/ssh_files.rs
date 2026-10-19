@@ -5,11 +5,47 @@ use sha2::{Digest, Sha256};
 use std::{
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock, Weak,
     },
 };
 use tokio::{io::AsyncWriteExt, process::Command, sync::Mutex};
+
+struct AccessPolicy {
+    enabled: bool,
+    generation: u64,
+}
+impl AccessPolicy {
+    fn set_enabled(&mut self, enabled: bool) {
+        if self.enabled != enabled {
+            self.enabled = enabled;
+            self.generation = self.generation.wrapping_add(1);
+        }
+    }
+    fn epoch(&self, wsl: bool) -> Result<Option<u64>, ConnectionError> {
+        if wsl { return Ok(None); }
+        if !self.enabled { return Err(ConnectionError::FeatureUnavailable); }
+        Ok(Some(self.generation))
+    }
+}
+static SSH_ACCESS: std::sync::Mutex<AccessPolicy> = std::sync::Mutex::new(AccessPolicy { enabled: true, generation: 0 });
+
+/// Desktop opt-in revokes existing SSH Companion clients without touching OpenSSH's master.
+/// Standalone protocol clients remain enabled unless their embedding application sets this policy.
+pub fn set_ssh_enabled(enabled: bool) {
+    if let Ok(mut policy) = SSH_ACCESS.lock() { policy.set_enabled(enabled); }
+}
+fn connection_epoch(connection: &SshConnection) -> Result<Option<u64>, ConnectionError> {
+    if connection.is_wsl() { return Ok(None); }
+    SSH_ACCESS.lock().map_err(|_| ConnectionError::ConnectionLost)?.epoch(false)
+}
+pub(crate) fn check_ssh_access(epoch: Option<u64>) -> Result<(), ConnectionError> {
+    if let Some(epoch) = epoch {
+        let current = SSH_ACCESS.lock().map_err(|_| ConnectionError::ConnectionLost)?.epoch(false)?;
+        if current != Some(epoch) { return Err(ConnectionError::StaleAttachment); }
+    }
+    Ok(())
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SshConnection {
@@ -41,6 +77,15 @@ impl SshConnection {
         }
     }
     pub async fn connect(&self, profile: &SshProfile) -> Result<HostClient, ConnectionError> {
+        let epoch = connection_epoch(self)?;
+        let mut client = self.connect_for_mcp_cleanup(profile).await?;
+        client.restrict_ssh_access(epoch)?;
+        Ok(client)
+    }
+
+    /// Explicit shutdown cleanup must revoke native MCP even after desktop access is off.
+    /// Project and file operations must use `connect` instead.
+    pub async fn connect_for_mcp_cleanup(&self, profile: &SshProfile) -> Result<HostClient, ConnectionError> {
         match self {
             #[cfg(windows)]
             Self::Wsl { distribution, user } => HostClient::connect_wsl(profile, distribution, user).await,
@@ -379,6 +424,7 @@ pub struct RemoteFiles {
     pub identity: String,
     client: Mutex<HostClient>,
     connected: AtomicBool,
+    access_epoch: AtomicU64,
     cache: tempfile::TempDir,
 }
 
@@ -430,6 +476,7 @@ impl RemoteFiles {
         profile: SshProfile,
         connection: SshConnection,
     ) -> Result<Arc<Self>, ConnectionError> {
+        let epoch = connection_epoch(&connection)?;
         type Attachments =
             std::collections::HashMap<(SshProfile, SshConnection), Weak<RemoteFiles>>;
         static ATTACHMENTS: OnceLock<Mutex<Attachments>> = OnceLock::new();
@@ -447,7 +494,9 @@ impl RemoteFiles {
         {
             return Ok(files);
         }
+        check_ssh_access(epoch)?;
         let client = connection.connect(&profile).await?;
+        check_ssh_access(epoch)?;
         if !client.capabilities().iter().any(|c| c == "project_files") {
             return Err(ConnectionError::FeatureUnavailable);
         }
@@ -478,6 +527,7 @@ impl RemoteFiles {
             identity,
             client: Mutex::new(client),
             connected: AtomicBool::new(true),
+            access_epoch: AtomicU64::new(epoch.unwrap_or_default()),
             cache,
         });
         attachments.insert(key, Arc::downgrade(&files));
@@ -507,6 +557,7 @@ impl RemoteFiles {
 
     pub fn connected(&self) -> bool {
         self.connected.load(Ordering::Acquire)
+            && (self.connection.is_wsl() || check_ssh_access(Some(self.access_epoch.load(Ordering::Acquire))).is_ok())
     }
     pub fn disconnect(&self) {
         self.connected.store(false, Ordering::Release);
@@ -517,7 +568,9 @@ impl RemoteFiles {
 
     /// Explicit reconnect preserves the original account and project identity.
     pub async fn reconnect(&self) -> Result<(), ConnectionError> {
+        let epoch = connection_epoch(&self.connection)?;
         let mut previous = self.client.lock().await;
+        check_ssh_access(epoch)?;
         let mut replacement = self.connection.connect(&self.profile).await?;
         if replacement.account_id != previous.account_id
             || replacement.root_identity != previous.root_identity
@@ -530,8 +583,10 @@ impl RemoteFiles {
             replacement.disconnect();
             return Err(ConnectionError::StaleAttachment);
         }
+        if let Err(error) = check_ssh_access(epoch) { replacement.disconnect(); return Err(error); }
         previous.disconnect();
         *previous = replacement;
+        self.access_epoch.store(epoch.unwrap_or_default(), Ordering::Release);
         self.connected.store(true, Ordering::Release);
         Ok(())
     }
@@ -625,6 +680,7 @@ impl RemoteFiles {
             return Err(ConnectionError::ConnectionLost);
         }
         let result = client.project_files(request).await;
+        if !self.connected() { client.disconnect(); return Err(ConnectionError::ConnectionLost); }
         if matches!(
             result,
             Err(ConnectionError::ConnectionLost
@@ -658,7 +714,8 @@ impl RemoteFiles {
         local: &Path,
         upload: bool,
     ) -> Result<(), ConnectionError> {
-        let result = async {
+        let transfer = async {
+            if !self.connected() { return Err(ConnectionError::ConnectionLost); }
             #[cfg(windows)]
             if self.connection.is_wsl() {
                 return self.transfer_chunks(_transfer_id, local, upload).await;
@@ -683,8 +740,15 @@ impl RemoteFiles {
                 batch_path(&destination)?
             );
             transfer_batch(self.connection.sftp_command()?, &batch).await
-        }
-        .await;
+        };
+        let result = if self.connection.is_wsl() { transfer.await } else {
+            tokio::select! {
+                result = transfer => result,
+                _ = async {
+                    while self.connected() { tokio::time::sleep(std::time::Duration::from_millis(50)).await; }
+                } => Err(ConnectionError::ConnectionLost),
+            }
+        };
         if result.is_err() {
             self.disconnect();
         }
@@ -924,6 +988,20 @@ impl RemoteFiles {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ssh_master_revokes_old_epochs_without_revoking_wsl_or_restoring_stale_clients() {
+        let mut policy = super::AccessPolicy { enabled: true, generation: 0 };
+        let original = policy.epoch(false).unwrap();
+        policy.set_enabled(true);
+        assert_eq!(policy.epoch(false).unwrap(), original);
+        policy.set_enabled(false);
+        assert!(policy.epoch(false).is_err());
+        assert_eq!(policy.epoch(true).unwrap(), None);
+        policy.set_enabled(true);
+        assert_ne!(policy.epoch(false).unwrap(), original);
+        assert_eq!(policy.epoch(true).unwrap(), None);
+    }
+
     use super::*;
     #[cfg(windows)]
     #[test]

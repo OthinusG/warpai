@@ -153,6 +153,7 @@ impl AgentCommunication {
         self.refresh_ssh_targets(ctx);
         if let Action::Enable(enabled) = action {
             self.ssh.preferences.enabled = enabled;
+            warp_agent_bus::ssh_files::set_ssh_enabled(enabled);
             self.ssh.generation += 1;
             self.save_ssh_preferences();
         } else {
@@ -182,7 +183,9 @@ impl AgentCommunication {
             let mut results = Vec::new();
             for target in targets {
                 let result = async {
-                    let mut client = target.connection.connect(&target.profile).await.map_err(anyhow::Error::new)?;
+                    let mut client = if matches!(action, Action::Enable(false) | Action::RemoveAll) {
+                        target.connection.connect_for_mcp_cleanup(&target.profile).await
+                    } else { target.connection.connect(&target.profile).await }.map_err(anyhow::Error::new)?;
                     let service = (client.fence().ok_or_else(|| anyhow::anyhow!("Missing SSH identity"))?.service_id.clone(), client.account_id.clone());
                     if Some(&target.key) == expected_key.as_ref() {
                         anyhow::ensure!(expected.as_ref().is_none_or(|identity| identity == &service), "SSH account identity changed; select the account again");

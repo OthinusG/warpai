@@ -17,7 +17,14 @@ Settings > Features > Agent communication contains a separate SSH Remote section
   enabled and disabled states. Offline controls cannot mutate a saved local target.
 
 The master switch gates SSH Remote collaboration, MCP, file exploration and Review,
-matching the existing WSL master switch. Ordinary SSH terminal IO remains native.
+matching the existing WSL master switch. The owner explicitly reaffirmed that
+all SSH operations based on Companion belong under this switch; basic terminal
+SSH connections remain independent. Existing editor/preview sources, Review,
+queued control requests and staged file transfers must also lose admission when
+the switch turns off. Re-enabling does not silently revive stale attachments;
+explicit reconnect keeps the original account/root identity and save hash.
+Shutdown may send only the explicit native MCP cleanup request after disabling.
+Direct local WSL and local application communication remain separate.
 Enabling MCP configuration requires an explicitly selected live
 SSH account; a scan never silently enables a vendor. Disabling revokes remote MCP
 participation and removes only owned Warpai entries. Preserve existing vendor

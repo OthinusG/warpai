@@ -2480,6 +2480,7 @@ impl CollaborationPanel {
         );
         super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
             model.ssh.preferences.enabled = true;
+            warp_agent_bus::ssh_files::set_ssh_enabled(true);
             ctx.notify();
         });
         let root = std::env::temp_dir().join(format!("warpai-panel-remote-{}", std::process::id()));
@@ -4817,6 +4818,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     app.update(|ctx| {
                         super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                             model.ssh.preferences.enabled = true;
+                            warp_agent_bus::ssh_files::set_ssh_enabled(true);
                             ctx.notify();
                         });
                         // Shell hooks are simulated on a local PTY; remote generators must not write into it.
@@ -5169,6 +5171,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             .with_action(|app, _, _| app.update(|ctx| {
                 super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                     model.ssh.preferences.enabled = false;
+                    warp_agent_bus::ssh_files::set_ssh_enabled(false);
                     model.ssh.generation += 1;
                     ctx.notify();
                 });
@@ -5176,12 +5179,17 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             .add_named_assertion("SSH remains connected while remote tools are disabled", |app, window| {
                 warpui::async_assert!(app.read(|ctx| crate::workspace::ActiveSession::as_ref(ctx)
                     .session(window).is_some_and(|session| !session.is_local())
-                    && crate::remote_server::selected_session::selected_ssh(ctx, window).is_none()))
+                    && crate::remote_server::selected_session::selected_ssh(ctx, window).is_none())
+                    && app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window)
+                        .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx|
+                            view.file_path().and_then(|path| warp_files::FileModel::as_ref(ctx).ssh_source(path))
+                                .is_some_and(|source| !source.files.connection.is_wsl() && !source.files.connected())))))
             }))
         .with_step(TestStep::new("SSH Remote on restores the existing confirmed transport")
             .with_action(|app, _, _| app.update(|ctx| {
                 super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                     model.ssh.preferences.enabled = true;
+                    warp_agent_bus::ssh_files::set_ssh_enabled(true);
                     model.ssh.generation += 1;
                     ctx.notify();
                 });
@@ -5537,6 +5545,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             model.ssh.capture_fixture = false;
             model.ssh.busy = false;
             model.ssh.preferences.enabled = true;
+            warp_agent_bus::ssh_files::set_ssh_enabled(true);
             model.ssh.status.clear();
             model.refresh_ssh_targets(ctx);
             ctx.notify();

@@ -225,6 +225,7 @@ impl AgentCommunication {
             observed: HashSet::new(),
             remote_sampled: HashMap::new(),
         };
+        warp_agent_bus::ssh_files::set_ssh_enabled(model.ssh.preferences.enabled);
         model.configure(None, None, ctx);
         model
     }
@@ -506,6 +507,7 @@ impl AgentCommunication {
     }
     fn schedule(ctx: &mut ModelContext<Self>) {
         ctx.spawn(Timer::after(Duration::from_millis(300)), |model, _, ctx| {
+            warp_agent_bus::ssh_files::set_ssh_enabled(model.ssh.preferences.enabled);
             model.refresh_ssh_targets(ctx);
             #[cfg(windows)]
             {
