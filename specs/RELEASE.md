@@ -20,6 +20,11 @@ Owner's latest instruction: cancel obsolete artifact runs 39211040394,
 39211044793 and 39211048507. After validation, build only macOS and Windows test
 installers in artifact-only mode. Wait for the owner's test result and explicit
 instruction before starting formal release workflows, main integration or tagging.
+Owner subsequently requested prioritizing a macOS test package despite the
+Windows capture failure. macOS acceptance passed in run 39212818285; artifact-only
+macOS packaging was dispatched as 39224657289 at source 657db07c. The Windows
+capture wrapper exited 1 without a classified diagnostic; this is not full
+cross-platform acceptance. Formal publication remains on hold.
 
 After that instruction, integrate the reviewed changes into main and publish
 v1.7.3 through the existing workflows. Companion advances to 5.5.0 for SSH native MCP setup; the connection repairs also
