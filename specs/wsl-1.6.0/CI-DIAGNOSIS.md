@@ -257,3 +257,13 @@ Add the exact Windows rlto/release_bundle feature/target check to acceptance;
 keep both existing default/platform checks. The draft v1.6.0 is not public.
 Do not replace its tag or upload differently sourced Windows assets silently.
 Synchronize this correction into 1.6.2, then rerun both desktop/native gates.
+# Windows SSH capture wrapper diagnosis (2026-10-19)
+
+Run 39212818285 failed before producing Windows PNGs, while macOS acceptance
+passed. Its diagnostic omitted Python wrapper failures. Record bounded,
+source-owned fixture stages, known exception classes and wrapper line numbers;
+never publish raw commands, SSH daemon output or runtime payload. Reproduce with
+the Windows-only native capture workflow and retained Rust caches. Acceptance:
+identify the concrete failing stage, fix its cause and pass the complete Windows
+native capture, preserving direct WSL acceptance and all SSH admission guards.
+

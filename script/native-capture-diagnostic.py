@@ -37,6 +37,9 @@ def main() -> None:
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
+        "fixture_stages": re.findall(r"^Owned SSH fixture stage: (prepare|connect|sftp|direct-tests|jump-tests|installed-tests|capture)\r?$", log, re.MULTILINE),
+        "fixture_exceptions": sorted(set(re.findall(r"^(?:subprocess\.)?(TimeoutExpired|CalledProcessError|UnicodeDecodeError|UnicodeEncodeError|FileNotFoundError|PermissionError|RuntimeError|AssertionError):", log, re.MULTILINE))),
+        "fixture_trace_lines": [int(line) for line in re.findall(r'File "[^"\n]*[\\/]verify-ssh-file-tools\.py", line (\d{1,4}),', log)],
         "failed_steps": failed_steps(source.read_text(), log),
         "failed_assertions": failed_assertions(source.read_text(), log),
         "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),

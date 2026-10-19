@@ -14,6 +14,7 @@ import uuid
 
 
 def main():
+    print("Owned SSH fixture stage: prepare", flush=True)
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--capture", type=Path)
     parser.add_argument("--languages", nargs="+", choices=["en", "zh-Hans", "zh-Hant"], default=["en"])
@@ -73,6 +74,7 @@ def main():
             else:
                 daemon = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=log)
             try:
+                print("Owned SSH fixture stage: connect", flush=True)
                 for _ in range(30):
                     probe = subprocess.run(["ssh", "-F", str(config), "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test", "echo", "ready"], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
                     if probe.returncode == 0:
@@ -84,6 +86,7 @@ def main():
                     reason = ", ".join(reasons) or ("connection refused" if b"refused" in probe.stderr.lower() else "authentication rejected")
                     raise RuntimeError(f"Owned loopback SSH failed: {reason}")
                 env = os.environ.copy()
+                print("Owned SSH fixture stage: sftp", flush=True)
                 batch = f'get "{root.as_posix()}/preview.md" "{fixture.as_posix()}/sftp-preview.md"\n'
                 transfer = subprocess.run(["sftp", "-F", str(config), "-b", "-", "warpai-test"], input=batch.encode(), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=30)
                 if transfer.returncode:
@@ -94,8 +97,10 @@ def main():
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
                 test = ["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored"]
+                print("Owned SSH fixture stage: direct-tests", flush=True)
                 subprocess.run(test, env=env, check=True, timeout=120)
                 jump_env = dict(env, WARP_TEST_SSH_CONFIG=str(jump_config))
+                print("Owned SSH fixture stage: jump-tests", flush=True)
                 subprocess.run(test, env=jump_env, check=True, timeout=120)
                 print("Owned ProxyJump SSH/SFTP file acceptance passed")
                 if args.capture:
@@ -105,9 +110,11 @@ def main():
                     shutil.copy2(companion, installed)
                     env["WARP_TEST_REMOTE_HOME"] = str(remote_home)
                     env["WARP_TEST_COMPANION_PATH"] = str(installed)
+                    print("Owned SSH fixture stage: installed-tests", flush=True)
                     subprocess.run(test, env=env, check=True, timeout=120)
                     executable = args.capture.resolve()
                     for language in args.languages:
+                        print("Owned SSH fixture stage: capture", flush=True)
                         env["WARPAI_CAPTURE_LANGUAGE"] = language
                         # A fresh master fences channels left by the previous capture process.
                         with tempfile.TemporaryDirectory(prefix="wssh-", dir=None if windows else "/tmp") as sockets:

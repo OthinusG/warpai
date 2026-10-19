@@ -39,10 +39,13 @@ with tempfile.TemporaryDirectory() as directory:
     (root / "capture/checkpoint-private-git.txt").write_text("Native private Git error: code=7\nunrelated runtime payload")
     (root / "capture/checkpoint-private-git-runner.txt").write_text("Native private Git runner: stage=2, exit=128\nunrelated runtime payload")
     (root / "capture/checkpoint-deadline.txt").write_text("Native collaboration capture exceeded its 420-second deadline\nunrelated runtime payload")
-    (root / "log").write_text("Native SSH file failure: ConnectionLost\nNative SSH file failure: runtime payload\nwarning: crates/agent_bus/src/companion_tasks.rs:637:37\n")
+    (root / "log").write_text('Owned SSH fixture stage: direct-tests\nOwned SSH fixture stage: secret\nsubprocess.TimeoutExpired: runtime payload\n  File "C:/fixture/verify-ssh-file-tools.py", line 99, in main\nNative SSH file failure: ConnectionLost\nNative SSH file failure: runtime payload\nwarning: crates/agent_bus/src/companion_tasks.rs:637:37\n')
     subprocess.run([sys.executable, str(Path(__file__).with_name("native-capture-diagnostic.py")), "--log", str(root / "log"), "--output", str(root / "diagnostic.json"), "--exit-code", "1"], check=True, stdout=subprocess.DEVNULL)
     diagnostic = json.loads((root / "diagnostic.json").read_text())
     assert diagnostic["failed_assertions"] == ["owned remote tree populated"]
+    assert diagnostic["fixture_stages"] == ["direct-tests"]
+    assert diagnostic["fixture_trace_lines"] == [99]
+    assert diagnostic["fixture_exceptions"] == ["TimeoutExpired"]
     assert diagnostic["connection_errors"] == ["ConnectionLost"]
     assert diagnostic["remote_trees"] == [dict(active=True, current=False, selected=True, attached=False, error=False, roots=0, entries=0)]
     assert diagnostic["panic_locations"] == ["app/src/agent_communication/panel.rs:4485:1"]
