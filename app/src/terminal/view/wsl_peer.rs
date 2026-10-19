@@ -1,6 +1,6 @@
-//! Native WSL terminal delivery; Linux owns run identity and MCP, Windows owns UI guards.
+//! Native remote delivery; Companion owns run identity and MCP, desktop owns UI guards.
 use super::*;
-use crate::agent_communication::wsl_settings::Target;
+use crate::agent_communication::AgentCommunication;
 use crate::terminal::cli_agent_sessions::{CLIAgentInputState, CLIAgentSession,
     CLIAgentSessionContext, CLIAgentSessionStatus};
 use warp_agent_bus::{
@@ -12,6 +12,46 @@ use warp_agent_bus::{
 };
 
 type Client = Arc<tokio::sync::Mutex<HostClient>>;
+
+#[derive(Clone, PartialEq, Eq)]
+enum Target {
+    #[cfg(windows)]
+    Wsl(crate::agent_communication::wsl_settings::Target),
+    Ssh(crate::agent_communication::ssh_settings::Target),
+}
+
+impl Target {
+    fn enabled(&self, settings: &AgentCommunication) -> bool {
+        match self {
+            #[cfg(windows)]
+            Self::Wsl(target) => settings.wsl.preferences.enabled && settings.wsl.targets.contains(target),
+            Self::Ssh(target) => settings.ssh.preferences.enabled
+                && settings.ssh.targets.iter().any(|live| live.key == target.key),
+        }
+    }
+    fn generation(&self, settings: &AgentCommunication) -> u64 {
+        match self {
+            #[cfg(windows)]
+            Self::Wsl(_) => settings.wsl.generation,
+            Self::Ssh(_) => settings.ssh.generation,
+        }
+    }
+    fn label(&self) -> String {
+        match self {
+            #[cfg(windows)]
+            Self::Wsl(target) => format!("wsl:{}@{}", target.user, target.distribution),
+            Self::Ssh(target) => target.label.clone(),
+        }
+    }
+    fn owns_session_status(&self) -> bool {
+        match self {
+            #[cfg(windows)]
+            Self::Wsl(_) => true,
+            // SSH already has native tab evidence; never replace it with a stale service projection.
+            Self::Ssh(_) => false,
+        }
+    }
+}
 
 #[derive(Clone, PartialEq, Eq)]
 struct Context {
@@ -117,6 +157,7 @@ async fn request(
 }
 
 impl TerminalView {
+    #[cfg(windows)]
     pub(super) fn schedule_wsl_integration(&mut self, command: &str, ctx: &mut ViewContext<Self>) -> bool {
         if !crate::terminal::warpify::settings::WarpifySettings::is_interactive_wsl_command(command) { return false; }
         let Some(session) = self.active_block_session_id().and_then(|id| self.sessions_model().as_ref(ctx).get(id)) else { return false; };
@@ -164,8 +205,7 @@ impl TerminalView {
                 session_context: CLIAgentSessionContext { cwd:Some(context.root.clone()),
                     session_id:Some(state.run.clone()), ..Default::default() },
                 input_state:CLIAgentInputState::Closed, should_auto_toggle_input:false,
-                listener:None, plugin_version:None, remote_host:Some(format!("wsl:{}@{}",
-                    context.target.user, context.target.distribution)), draft_text:None,
+                listener:None, plugin_version:None, remote_host:Some(context.target.label()), draft_text:None,
                 custom_command_prefix:(agent == CLIAgent::Unknown).then(|| state.program.clone()),
             }, ctx));
             ctx.notify();
@@ -175,7 +215,7 @@ impl TerminalView {
             let id = self.view_id;
             CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.observe_pending_peer_work(id, pending, ctx));
         }
-        if let Some(activity) = state.activity {
+        if let Some(activity) = state.activity.filter(|_| context.target.owns_session_status()) {
             let id = self.view_id;
             CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
                 model.observe_activity(id, activity, true, ctx);
@@ -198,14 +238,19 @@ impl TerminalView {
         }
         let session_id = self.active_block_session_id()?;
         let session = self.sessions_model().as_ref(ctx).get(session_id)?;
-        let target = Target::from_session(&session)?;
-        let shell_pid = session.wsl_shell_pid()?;
         let root = self
             .model
             .lock()
             .active_block_metadata()
             .current_working_directory()?
             .to_owned();
+        #[cfg(windows)]
+        if let Some(target) = crate::agent_communication::wsl_settings::Target::from_session(&session) {
+            return Some(Context { session: session_id, target: Target::Wsl(target),
+                shell_pid: session.wsl_shell_pid()?, root });
+        }
+        let target = Target::Ssh(crate::agent_communication::ssh_settings::Target::from_session(&session, &root, ctx)?);
+        let shell_pid = session.remote_shell_pid()?;
         Some(Context {
             session: session_id,
             target,
@@ -215,34 +260,39 @@ impl TerminalView {
     }
 
     fn wsl_peer_valid(&self, context: &Context, epoch: u64, ctx: &AppContext) -> bool {
-        let settings = &crate::agent_communication::AgentCommunication::as_ref(ctx).wsl;
-        settings.preferences.enabled
-            && settings.targets.contains(&context.target)
+        let settings = crate::agent_communication::AgentCommunication::as_ref(ctx);
+        context.target.enabled(settings)
             && self.wsl_peer.epoch == epoch
             && !self.wsl_peer.cancelled
             && self.wsl_peer_context(ctx).as_ref() == Some(context)
             && self.peer_input_is_empty(ctx)
     }
 
-    pub(crate) fn poll_wsl_peer_work(
+    pub(crate) fn poll_remote_peer_work(
         &mut self,
-        settings: &crate::agent_communication::wsl_settings::WslSettings,
+        settings: &AgentCommunication,
         ctx: &mut ViewContext<Self>,
     ) {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context.clone());
         // The scheduler owns the communication model's update; do not re-read its singleton.
-        let configuration_generation = settings.generation;
+        let configuration_generation = context.as_ref().map(|context| context.target.generation(settings))
+            .unwrap_or(settings.ssh.generation);
         self.wsl_peer.select_configuration(configuration_generation);
         let Some(context) = context else {
             self.clear_observed_wsl_agent(ctx);
             return;
         };
-        if !settings.preferences.enabled || !settings.targets.contains(&context.target) {
+        if !context.target.enabled(settings) {
             self.wsl_peer.client = None;
             return;
         }
-        if settings.busy { self.wsl_peer.client = None; return; }
+        let setup_busy = match &context.target {
+            #[cfg(windows)]
+            Target::Wsl(_) => settings.wsl.busy,
+            Target::Ssh(_) => settings.ssh.busy,
+        };
+        if setup_busy { self.wsl_peer.client = None; return; }
         if self.wsl_peer.unavailable || self.wsl_peer.busy
             || self
                 .wsl_peer
@@ -290,15 +340,22 @@ impl TerminalView {
             let client = match cached {
                 Some(client) => client,
                 None => {
+                    match &selected.target {
+                    Target::Ssh(target) => Arc::new(tokio::sync::Mutex::new(target.connection.connect(&target.profile).await
+                        .map_err(|_| anyhow::anyhow!("SSH service unavailable"))?)),
+                    #[cfg(windows)]
+                    Target::Wsl(target) => {
                     let profile = SshProfile {
                         target: "wsl".into(), config_file: None, remote_root: selected.root.clone(),
-                        companion_path: warp_agent_bus::installation::wsl_companion_path(&selected.target.home)
+                        companion_path: warp_agent_bus::installation::wsl_companion_path(&target.home)
                             .map_err(|_| anyhow::anyhow!("Invalid Linux home"))?,
                         remote_shell: warp_agent_bus::ssh_remote::RemoteShell::Posix,
                     };
                     Arc::new(tokio::sync::Mutex::new(HostClient::connect_wsl(&profile,
-                        &selected.target.distribution, &selected.target.user).await
+                        &target.distribution, &target.user).await
                         .map_err(|_| anyhow::anyhow!("WSL service unavailable"))?))
+                    }
+                    }
                 }
             };
             let sampled = if let Some((program, terminal, title)) = screen {
@@ -403,6 +460,44 @@ impl TerminalView {
 mod tests {
     use super::*;
     #[test]
+    fn ssh_observation_keeps_native_tab_status_and_uses_its_own_master() {
+        use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
+        warpui::App::test((), |mut app| async move {
+            initialize_app_for_terminal_view(&mut app);
+            let terminal = add_window_with_terminal(&mut app, None);
+            let target = crate::agent_communication::ssh_settings::Target {
+                key: "ssh-fixture".into(), label: "fixture · user".into(),
+                profile: SshProfile { target: "fixture".into(), config_file: None,
+                    remote_root: "/project".into(), companion_path: "/companion".into(),
+                    remote_shell: warp_agent_bus::ssh_remote::RemoteShell::Posix },
+                connection: warp_agent_bus::ssh_files::SshConnection::Native {
+                    arguments: vec!["fixture".into()], session: "fixture".into() }, search_paths: vec![],
+            };
+            let context = Context { session: 1_u64.into(), target: Target::Ssh(target.clone()),
+                shell_pid: 123, root: "/project".into() };
+            let state = NativeState { run: "native-run".into(), program: "codex".into(),
+                wake: None, valid: false, activity: Some(Activity::Starting), pending_work: None };
+            terminal.update(&mut app, |view, ctx| {
+                view.observe_wsl_agent(&context, Some(&state), ctx);
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.observe_activity(terminal.id(), Activity::Idle, true, ctx);
+                });
+                view.observe_wsl_agent(&context, Some(&state), ctx);
+                assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(terminal.id()).unwrap().status,
+                    CLIAgentSessionStatus::Idle);
+            });
+            AgentCommunication::handle(&mut app).update(&mut app, |settings, _| {
+                settings.ssh.targets = vec![target];
+                settings.ssh.preferences.enabled = false;
+                assert!(!context.target.enabled(settings));
+                settings.ssh.preferences.enabled = true;
+                assert!(context.target.enabled(settings));
+                #[cfg(windows)]
+                { settings.wsl.preferences.enabled = false; assert!(context.target.enabled(settings)); }
+            });
+        });
+    }
+    #[test]
     fn polling_during_communication_update_does_not_read_its_singleton() {
         use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
         use crate::agent_communication::AgentCommunication;
@@ -410,9 +505,9 @@ mod tests {
             initialize_app_for_terminal_view(&mut app);
             let terminal = add_window_with_terminal(&mut app, None);
             AgentCommunication::handle(&mut app).update(&mut app, |model, ctx| {
-                model.wsl.generation = 7;
+                model.ssh.generation = 7;
                 terminal.update(ctx, |view, ctx| {
-                    view.poll_wsl_peer_work(&model.wsl, ctx);
+                    view.poll_remote_peer_work(model, ctx);
                     assert_eq!(view.wsl_peer.configuration_generation, 7);
                     assert!(view.wsl_peer.context.is_none());
                     assert!(!view.wsl_peer.busy);
@@ -435,15 +530,16 @@ mod tests {
         assert_ne!(state.epoch, epoch);
     }
     #[test]
+    #[cfg(windows)]
     fn guest_observations_detect_agents_without_wakes_and_keep_terminals_independent() {
         use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
         warpui::App::test((), |mut app| async move {
             initialize_app_for_terminal_view(&mut app);
             let first = add_window_with_terminal(&mut app, None);
             let second = add_window_with_terminal(&mut app, None);
-            let context = Context { session:1_u64.into(), target:Target {
+            let context = Context { session:1_u64.into(), target:Target::Wsl(crate::agent_communication::wsl_settings::Target {
                 distribution:"Ubuntu Test".into(), user:"guest".into(), home:"/home/guest".into()
-            }, shell_pid:123, root:"/home/guest/project".into() };
+            }), shell_pid:123, root:"/home/guest/project".into() };
             let state = NativeState { run:"first-run".into(), program:"codex".into(), wake:None, valid:false, activity:None, pending_work:None };
             first.update(&mut app, |view, ctx| view.observe_wsl_agent(&context, Some(&state), ctx));
             let other = NativeState { run:"second-run".into(), program:"claude".into(), wake:None, valid:false, activity:None, pending_work:None };

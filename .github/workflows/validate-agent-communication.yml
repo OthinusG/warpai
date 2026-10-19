@@ -359,6 +359,7 @@ jobs:
       - name: Test dormant wake and settings configuration
         if: ${{ !inputs.protocol_only || inputs.capture_ui || inputs.check_app }}
         run: |
+          cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
           cargo test -p warpai --lib localization_search_tests --locked

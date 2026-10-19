@@ -44,7 +44,7 @@ mod tab_metadata;
 mod testing;
 mod tooltips;
 pub mod use_agent_footer;
-#[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+#[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 #[path = "view/wsl_peer.rs"]
 mod wsl_peer;
 mod zero_state_block;
@@ -2421,7 +2421,7 @@ struct LocalSessionCanonicalPwdCache {
 }
 
 pub struct TerminalView {
-    #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
     wsl_peer: wsl_peer::State,
     pub model: Arc<FairMutex<TerminalModel>>,
     view_handle: WeakViewHandle<Self>,
@@ -4164,7 +4164,7 @@ impl TerminalView {
             codex_mcp_launch_generation: 0,
             #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
             codex_mcp_launch: None,
-            #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+            #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
             wsl_peer: Default::default(),
             size_info: size_info.into(),
             snackbar_header_state: Default::default(),
@@ -7744,7 +7744,7 @@ impl TerminalView {
         }
 
         let bytes = data.into();
-        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
         self.record_wsl_peer_input(&bytes, ctx);
         #[cfg(all(
             feature = "local_tty",
@@ -7993,7 +7993,7 @@ impl TerminalView {
             not(target_family = "wasm")
         ))]
         crate::agent_communication::output(self.view_id);
-        #[cfg(all(windows, feature = "local_tty", not(feature = "remote_tty")))]
+        #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
         self.record_wsl_peer_output();
         // If find bar is active, we update the matches for the last/active block or the alt screen.
         if self.find_model.as_ref(ctx).is_find_bar_open() {

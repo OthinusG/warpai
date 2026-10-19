@@ -291,7 +291,8 @@ impl Guests {
             return Ok(None);
         };
         let owner = process(*pid).map_err(path_error)?;
-        if owner.started != guest.started || owner.foreground != i64::from(*pid) || owner.tty == 0 {
+        if owner.started != guest.started
+            || cfg!(unix) && (owner.foreground != i64::from(*pid) || owner.tty == 0) {
             return Ok(None);
         }
         let broker = &guest.binding.broker;

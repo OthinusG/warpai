@@ -1063,6 +1063,10 @@ impl Session {
         self.is_wsl().then_some(self.info.shell_pid).flatten().filter(|pid| *pid > 1)
     }
 
+    pub(crate) fn remote_shell_pid(&self) -> Option<u32> {
+        self.info.shell_pid.filter(|pid| *pid > 1)
+    }
+
     pub fn is_msys2(&self) -> bool {
         matches!(self.launch_data(), Some(ShellLaunchData::MSYS2 { .. }))
     }

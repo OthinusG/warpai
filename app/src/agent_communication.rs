@@ -512,9 +512,9 @@ impl AgentCommunication {
             #[cfg(windows)]
             {
                 model.refresh_wsl_targets(ctx);
-                for view in wsl_settings::logged_in_views(ctx) {
-                    view.update(ctx, |view, ctx| view.poll_wsl_peer_work(&model.wsl, ctx));
-                }
+            }
+            for view in ssh_settings::logged_in_views(ctx) {
+                view.update(ctx, |view, ctx| view.poll_remote_peer_work(model, ctx));
             }
             if let Some(result) = model
                 .pending

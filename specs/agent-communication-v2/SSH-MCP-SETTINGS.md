@@ -111,3 +111,14 @@ owned synthetic remote fixture. Implementation is not accepted or released yet. 
 The owner already confirmed both panels recover in the earlier test app with an
 absolute SSH_SOCKET_DIR. The native home-relative socket repair removes that
 workaround. Final owner acceptance must use the new settings and Companion 5.5.0.
+# SSH native activity parity
+
+Owner acceptance found that native SSH tabs report activity correctly while
+Companion panel/MCP state remains Starting until the first completed turn.
+Reuse the WSL native observation/delivery path for confirmed SSH sessions. Send
+screen evidence only for the verified remote shell and current Agent run; retain
+input/output epochs, draft guards, service/account/root identity and master-switch
+revocation. Do not infer readiness from time or silence. Preserve local and WSL
+behavior. Acceptance includes initial ready, working, approval, cancellation and
+stale-run rejection in panel and MCP, without requiring a first conversation.
+

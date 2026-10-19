@@ -67,14 +67,14 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
     let (shell, arguments) = {
         let quote = |s: &str| format!("'{}'", s.replace('\'', "'\\''"));
         (std::path::PathBuf::from("/bin/sh"), vec!["-i".into(), "-c".into(),
-            format!("set -m; {} {}; read done", quote(executable.to_str().unwrap()), args.join(" "))])
+            format!("set -m; printf '%s' $$ > .native-shell-pid; {} {}; read done", quote(executable.to_str().unwrap()), args.join(" "))])
     };
     #[cfg(windows)]
     let (shell, arguments) = {
         let shell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
             .join("System32/WindowsPowerShell/v1.0/powershell.exe");
         (shell, vec!["-NoLogo".into(), "-NoProfile".into(), "-Command".into(),
-            format!("& '{}' {}; Read-Host", executable.to_string_lossy().replace('\'', "''"), args.join(" "))])
+            format!("[IO.File]::WriteAllText('.native-shell-pid', [string]$PID); & '{}' {}; Read-Host", executable.to_string_lossy().replace('\'', "''"), args.join(" "))])
     };
     let mut pty = NativePty::spawn(&shell, &arguments, root.path(), Size {columns:160, rows:30}).unwrap();
     let mut reader = pty.reader.try_clone().unwrap();
@@ -97,6 +97,26 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
         .any(|row| row["online"] == true && row["agent"]["program"] == "codex");
     assert_eq!(result, Ok(true), "Native MCP initialize/tools/list/bootstrap did not complete");
     assert!(online(&panel(&mut client)), "The native MCP run must be visible in its project");
+    let shell_pid = std::fs::read_to_string(root.path().join(".native-shell-pid")).unwrap().trim().parse().unwrap();
+    let observe = |client: &mut HostClient, run: Option<String>, activity| {
+        let response = runtime.block_on(client.project_tasks(&TaskCommand::GuestNative(
+            warp_agent_bus::wsl_setup::NativeRequest { shell_pid,
+                action: warp_agent_bus::wsl_setup::NativeAction::Observe {
+                    draft: false, blocked: false, input_epoch: 1, submitted: false,
+                    cancelled: false, native_ready: None, screen_run: run, screen_activity: activity,
+                } }), 3)).unwrap();
+        serde_json::from_value::<warp_agent_bus::wsl_setup::NativeState>(response["value"].clone()).unwrap()
+    };
+    let state = observe(&mut client, None, None);
+    for activity in [warp_agent_bus::readiness::Activity::Idle,
+        warp_agent_bus::readiness::Activity::Working,
+        warp_agent_bus::readiness::Activity::WaitingApproval,
+        warp_agent_bus::readiness::Activity::Idle] {
+        std::thread::sleep(Duration::from_millis(800));
+        let observed = observe(&mut client, Some(state.run.clone()), Some(activity));
+        assert_eq!(observed.activity, Some(activity), "Native screen evidence must reach Companion before any conversation");
+        assert_eq!(observed.run, state.run);
+    }
     let disabled = configure(&mut client, Action::Enable(false));
     assert!(!disabled.preferences.enabled);
     assert!(!online(&panel(&mut client)), "Disabling must revoke MCP before the Agent process exits");
