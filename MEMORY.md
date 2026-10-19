@@ -1,17 +1,12 @@
 # Project Memory
 
-Updated 2026-10-17.
-Archive: docs/history/MEMORY-2026-10-13.md.
+Updated 2026-10-19. Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Working and delivery rules
 
-- Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only;
-  no personal install/config changes.
-- Monitor cloud runs hourly through completion; diagnose owner errors immediately.
-  Full acceptance gates delivery.
-- 1.6.5 source 9cc8d0b2 passed desktop/WSL and Companion acceptance.
-  CI: 38667669349 / 38667672552; release 38682643407 running.
-- Dependency notes: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
+- Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
+- Monitor cloud runs hourly through completion; diagnose owner errors immediately. Full acceptance gates delivery.
+- Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux desktop packages were removed from 1.7.0
   and moved to 1.7.1 by owner direction on 2026-10-16; the Linux Companion
@@ -24,11 +19,11 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## Published releases and maintenance
 
+- Oct19: 1.7.2 publication canceled; preserve tag/draft. Combined 1.7.3
+  (Qoder + three-desktop SSH repair) authorized after acceptance; specs/RELEASE.md.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
   in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
   README.md and README.zh-CN.md must link to the published v1.7.1 assets.
-- 1.6.4 / Companion 5.2.0: direct publication authorized 2026-10-14.
-  Skip further validation runs; retain packaging gates. Contract: specs/RELEASE.md.
 - Artifact-only macOS runs must not trigger Windows publication.
 
 ## Project, worktree and Agent ownership
@@ -90,11 +85,8 @@ Archive: docs/history/MEMORY-2026-10-13.md.
 
 ## SSH, task integrity and files
 
-- SSH selection must accept a confirmed OpenSSH control socket without retained
-  launch arguments; only the independent native transport requires those arguments.
-  Oct19 three-desktop test packages authorized, branch codex/ssh-session-test-20261019,
-  source fe91eb5a. Runs and pending owner acceptance: agent-communication-v2/INSTALLATION.md.
-
+- SSH masters need no retained launch arguments; independent native transport does.
+  Test ca6ed733, branch codex/ssh-session-test-20261019; Companion 5.4.0. Runs/owner acceptance: specs/agent-communication-v2/INSTALLATION.md.
 - WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
   discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
   cannot verify installed-Agent discovery.

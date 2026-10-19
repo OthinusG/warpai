@@ -1,5 +1,25 @@
 # Warpai releases
 
+## 2026-10-19 combined 1.7.3 release
+
+Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
+changes together with the three-desktop SSH selection repair after tests pass.
+Retain the immutable v1.7.2 tag and its unpublished draft; never replace its
+already built assets with different source. Use a new immutable v1.7.3 tag.
+
+Require macOS/Windows application and native UI/WSL acceptance, focused shared
+SSH selection regressions on macOS/Windows/Linux, and Linux x64/ARM64 package
+verification/smoke tests. Preserve the existing WSL isolation regression and
+add the confirmed-master regression separately. Source/run receipts live in
+agent-communication-v2/INSTALLATION.md. Test builds use artifact-only mode.
+
+After acceptance, integrate the reviewed changes into main and publish v1.7.3
+through the existing workflows. Companion stays 5.4.0; the runtime repair is
+desktop-only. Retain all source/version/checksum/native installer gates and
+verify both Linux architectures. Complete README, bilingual website and Homebrew
+updates using the mandatory final steps below after public assets are available.
+Do not change the owner's installed desktop, credentials or personal settings.
+
 ## Mandatory final step after public release assets are available
 
 After the release workflow has published the desktop and Companion assets, and

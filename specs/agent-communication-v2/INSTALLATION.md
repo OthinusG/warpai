@@ -87,12 +87,14 @@ WSL. Add a separate regression for selecting a confirmed SSH master nested insid
 WSL without launch arguments, retaining its original WSL distribution.
 Run existing communication/native UI acceptance and retain all package checks.
 
-Cloud source: `fe91eb5a2e0954eeb9782c02970b912ed256e07a`.
-Runs: [communication/native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39195404874),
-[macOS test installers](https://github.com/OthinusG/warpai/actions/runs/39195407928),
-[Windows test installer](https://github.com/OthinusG/warpai/actions/runs/39195410987).
+Cloud source: `ca6ed733ad90d402dc752a055f35114186a2c3f2`.
+Runs: [communication/native UI/WSL](https://github.com/OthinusG/warpai/actions/runs/39195493324),
+[macOS test installers](https://github.com/OthinusG/warpai/actions/runs/39195496962),
+[Windows test installer](https://github.com/OthinusG/warpai/actions/runs/39195603252).
 Windows hands the same SHA and artifact-only flag to Linux x64/ARM64 packaging.
 All runs and owner reproduction remain pending at dispatch.
+Earlier `fe91eb5a` runs were canceled after restoring the original WSL isolation
+test and moving the confirmed-master assertion into a separate regression.
 
 Existing POSIX SSH bootstrap already creates a system OpenSSH control socket and
 reports remote shell, native home/OS, session identity and cwd events. The existing
