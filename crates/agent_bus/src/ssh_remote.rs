@@ -541,13 +541,15 @@ impl HostClient {
             return Err(ConnectionError::CapacityExceeded);
         }
         let result = self
-            .request(managed_request::Operation::ProjectTasks(
+            .request_with_timeout(managed_request::Operation::ProjectTasks(
                 ProjectTasksRequest {
                     fence: self.fence.clone(),
                     query_generation,
                     command_json,
                 },
-            ))
+            ), if matches!(command, crate::companion::TaskCommand::SshSetup(_)) {
+                Duration::from_secs(180)
+            } else { Duration::from_secs(10) })
             .await?;
         if let managed_response::Result::ProjectTasks(result) = result {
             if result.fence == self.fence && result.query_generation == query_generation {
@@ -664,6 +666,14 @@ impl HostClient {
         &mut self,
         operation: managed_request::Operation,
     ) -> Result<managed_response::Result, ConnectionError> {
+        self.request_with_timeout(operation, Duration::from_secs(10)).await
+    }
+
+    async fn request_with_timeout(
+        &mut self,
+        operation: managed_request::Operation,
+        timeout: Duration,
+    ) -> Result<managed_response::Result, ConnectionError> {
         if !self.alive {
             return Err(ConnectionError::ConnectionLost);
         }
@@ -674,7 +684,7 @@ impl HostClient {
                 operation: Some(operation),
             })),
         };
-        let response = tokio::time::timeout(Duration::from_secs(10), async {
+        let response = tokio::time::timeout(timeout, async {
             write_message_with_limit(&mut self.input, &message, MAX_MANAGED_MESSAGE_SIZE).await?;
             read_message_with_limit::<ServerMessage>(&mut self.output, MAX_MANAGED_MESSAGE_SIZE)
                 .await

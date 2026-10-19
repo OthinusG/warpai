@@ -48,7 +48,9 @@ review enabled/disabled/empty/busy/error/partial-error states and long labels.
 3. Add a typed, bounded setup command to the existing private project control
    protocol, gated by an advertised native MCP setup capability. Return only
    nonsecret discovery/preferences/status metadata. Configuration and CLI probes
-   run on a blocking worker, never inside the async runtime thread.
+   run on a blocking worker, never inside the async runtime thread. Setup requests
+   allow a bounded 180-second vendor scan, matching WSL; ordinary control
+   requests retain their 10-second deadline.
 4. Configure the remote Companion's native MCP entry with its Agent program.
    Admission proves the same-account native process ancestry, exact process birth
    identity and project directory using native platform metadata. Reuse Linux WSL
