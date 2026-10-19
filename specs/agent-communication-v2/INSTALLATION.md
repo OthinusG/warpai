@@ -255,3 +255,17 @@ Desktop UI, WSL and build acceptance remains pending in
 [39212818285](https://github.com/OthinusG/warpai/actions/runs/39212818285);
 the protocol jobs have passed. Owner Mac-to-Linux ordinary CLI acceptance and
 final UI review still gate delivery and publication.
+
+Desktop run 39212818285 subsequently completed: macOS passed its complete job;
+Windows passed build/WSL gates but its capture wrapper exited 1. The uploaded
+Windows diagnostic has no classified assertions or failure stage and no PNGs;
+the concrete cause remains unresolved, not an accepted Windows UI result.
+Owner requested macOS testing first. Artifact-only installer run 39224657289
+uses 657db07c (documentation-only changes after accepted runtime ac2d29a1).
+The existing macOS ARM64 Review artifact was downloaded and extracted under
+`~/Downloads/Warpai-SSH-MCP-test/ac2d29a1/macos`. Deep strict code-signature
+verification passed. ZIP SHA-256:
+`cec69e4ebbd31b0d24e56d60b9a77144c320e9f549b7a203b624ad77b96a2374`.
+This isolated Review artifact displays the validation workflow's 1.6.5 version;
+its source is ac2d29a1, not the historical 1.6.5 release. It was not launched or
+installed. Formal publication still requires the owner's explicit instruction.
