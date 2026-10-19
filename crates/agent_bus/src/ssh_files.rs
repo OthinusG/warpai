@@ -34,6 +34,15 @@ static SSH_ACCESS: std::sync::Mutex<AccessPolicy> = std::sync::Mutex::new(Access
 /// Standalone protocol clients remain enabled unless their embedding application sets this policy.
 pub fn set_ssh_enabled(enabled: bool) {
     if let Ok(mut policy) = SSH_ACCESS.lock() { policy.set_enabled(enabled); }
+    if !enabled {
+        if let Some(attachments) = ATTACHMENTS.get() {
+            if let Ok(attachments) = attachments.try_lock() {
+                for files in attachments.values().filter_map(Weak::upgrade) {
+                    if !files.connection.is_wsl() { files.disconnect(); }
+                }
+            }
+        }
+    }
 }
 fn connection_epoch(connection: &SshConnection) -> Result<Option<u64>, ConnectionError> {
     if connection.is_wsl() { return Ok(None); }
@@ -417,6 +426,9 @@ async fn transfer_batch(mut command: Command, batch: &str) -> Result<(), Connect
     .unwrap_or(Err(ConnectionError::ConnectionLost))
 }
 
+type Attachments = std::collections::HashMap<(SshProfile, SshConnection), Weak<RemoteFiles>>;
+static ATTACHMENTS: OnceLock<Mutex<Attachments>> = OnceLock::new();
+
 pub struct RemoteFiles {
     pub profile: SshProfile,
     pub connection: SshConnection,
@@ -477,9 +489,6 @@ impl RemoteFiles {
         connection: SshConnection,
     ) -> Result<Arc<Self>, ConnectionError> {
         let epoch = connection_epoch(&connection)?;
-        type Attachments =
-            std::collections::HashMap<(SshProfile, SshConnection), Weak<RemoteFiles>>;
-        static ATTACHMENTS: OnceLock<Mutex<Attachments>> = OnceLock::new();
         // ponytail: serialize attachment creation; use per-target locks if concurrent logins become slow.
         let mut attachments = ATTACHMENTS
             .get_or_init(|| Mutex::new(Attachments::new()))
