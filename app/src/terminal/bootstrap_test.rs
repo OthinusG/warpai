@@ -122,7 +122,7 @@ fn zsh_bootstrap_restores_terminal_after_reading_hidden_input() {
     assert!(read < restore && restore < evaluate);
     assert!(script.contains("command -p stty raw; unsetopt ZLE RCS GLOBAL_RCS"));
     let restore_before_user_rc = script
-        .find("command -p stty sane\n  setopt ZLE")
+        .find("command -p stty sane\n setopt ZLE")
         .expect("Zsh bootstrap must restore terminal mode before user rc files");
     let user_rc = script
         .find("source \"${ZDOTDIR:-$HOME}/.zshenv\";")
