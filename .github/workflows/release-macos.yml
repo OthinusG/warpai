@@ -46,6 +46,7 @@ jobs:
           ref: ${{ inputs.artifact_only && github.sha || format('refs/tags/{0}', inputs.release_tag) }}
       - name: Prepare companion build tools
         run: |
+          set -euo pipefail
           rustup toolchain install 1.92.0 --profile minimal
           if [[ "$RUNNER_OS" == Linux ]]; then
             sudo apt-get update -qq
@@ -53,7 +54,13 @@ jobs:
           elif [[ "$RUNNER_OS" == macOS ]]; then
             HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
           else
-            choco install protoc innosetup -y
+            for attempt in 1 2 3; do
+              if choco install protoc innosetup -y; then break; fi
+              if [[ "$attempt" == 3 ]]; then exit 1; fi
+              sleep 10
+            done
+            protoc --version
+            echo "PROTOC=$(command -v protoc)" >> "$GITHUB_ENV"
             echo 'C:\Program Files (x86)\Inno Setup 6' >> "$GITHUB_PATH"
           fi
       - name: Verify and build tagged companion
