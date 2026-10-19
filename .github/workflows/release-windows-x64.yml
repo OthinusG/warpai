@@ -126,11 +126,13 @@ jobs:
         shell: pwsh
         run: |
           foreach ($attempt in 1..3) {
-            choco install protoc innosetup -y
-            if ($LASTEXITCODE -eq 0) { break }
+            choco install protoc -y
+            if ($LASTEXITCODE -eq 0 -and (Get-Command protoc -ErrorAction SilentlyContinue)) { break }
             if ($attempt -eq 3) { throw 'Build tool installation failed' }
             Start-Sleep -Seconds 10
           }
+          choco install innosetup -y
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe')) { throw 'Inno Setup installation failed' }
           $protoc = (Get-Command protoc -ErrorAction Stop).Source
           & $protoc --version
           if ($LASTEXITCODE -ne 0) { throw 'Protobuf compiler verification failed' }
