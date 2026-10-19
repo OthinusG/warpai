@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use base64::Engine as _;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use memo_map::MemoMap;
@@ -181,6 +182,19 @@ pub fn script_for_shell(shell_type: ShellType, assets: &dyn AssetProvider) -> Co
                 })
                 .join("\n");
 
+            if script.contains("@@WARP_SSH_POWERSHELL_INIT@@") {
+                let init = assets.get("bundled/bootstrap/pwsh_init_shell.ps1")
+                    .expect("PowerShell SSH init asset");
+                let seed = format!(
+                    "$env:TERM_PROGRAM='WarpTerminal';$env:WARP_IS_SSH='1';$env:WARP_CLI_AGENT_PROTOCOL_VERSION='{}';\n{}",
+                    super::cli_agent_sessions::event::current_protocol_version(),
+                    String::from_utf8_lossy(&init).trim_start_matches(BYTE_ORDER_MARK),
+                );
+                let utf16: Vec<u8> = seed.encode_utf16().flat_map(u16::to_le_bytes).collect();
+                script = script.replace("@@WARP_SSH_POWERSHELL_INIT@@",
+                    &base64::engine::general_purpose::STANDARD.encode(utf16));
+            }
+
             // Make sure there's a newline at the end of the bootstrap script,
             // otherwise we'll never submit the final line to the shell.
             script.push('\n');
@@ -360,3 +374,18 @@ fn load_script(file_path: &str, assets: &dyn AssetProvider) -> String {
 #[cfg(test)]
 #[path = "bootstrap_test.rs"]
 mod tests;
+
+/// Stage the bundled script on the remote host; local temporary paths cannot be sourced over SSH.
+/// Short commands avoid PowerShell's lossy handling of long interactive PTY writes.
+pub fn remote_powershell_bootstrap(script: &[u8]) -> Vec<u8> {
+    let mut bytes = vec![0xef, 0xbb, 0xbf]; // Windows PowerShell 5.1 requires a BOM for UTF-8.
+    bytes.extend_from_slice(script);
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    let mut commands = String::from(" $global:_warpBootstrapPath=[IO.Path]::Combine([IO.Path]::GetTempPath(),'warpai-'+[Guid]::NewGuid().ToString('N')+'.ps1');$global:_warpBootstrapFile=[IO.File]::Open($_warpBootstrapPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)\r");
+    for chunk in encoded.as_bytes().chunks(512) {
+        let chunk = std::str::from_utf8(chunk).expect("base64 is ASCII");
+        commands.push_str(&format!(" $_warpBootstrapBytes=[Convert]::FromBase64String('{chunk}');$_warpBootstrapFile.Write($_warpBootstrapBytes,0,$_warpBootstrapBytes.Length)\r"));
+    }
+    commands.push_str(" $_warpBootstrapFile.Close();try { . $_warpBootstrapPath } finally { Remove-Item -LiteralPath $_warpBootstrapPath -Force;Remove-Variable _warpBootstrapPath,_warpBootstrapFile,_warpBootstrapBytes -Scope Global -ErrorAction SilentlyContinue }\r");
+    commands.into_bytes()
+}

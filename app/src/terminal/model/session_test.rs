@@ -27,12 +27,16 @@ fn terminal_ssh_session_preserves_transport_without_adopting_nested_hosts() {
 #[test]
 fn terminal_ssh_session_uses_remote_os_for_native_directory_paths() {
     let mut remote = Session::test_remote();
+    remote.info.shell = crate::terminal::shell::Shell::new(
+        crate::terminal::shell::ShellType::PowerShell, None, None, Default::default(), None);
     remote.info.host_info.os_category = Some("Windows".into());
+    assert_eq!(remote.path_separators().main, '\\');
     assert!(matches!(
         remote.convert_directory_to_typed_path_buf(r"C:\Users\dev\project".into()),
         typed_path::TypedPathBuf::Windows(_)
     ));
     remote.info.host_info.os_category = Some("Linux".into());
+    assert_eq!(remote.path_separators().main, '/');
     assert!(matches!(
         remote.convert_directory_to_typed_path_buf("/home/dev/project".into()),
         typed_path::TypedPathBuf::Unix(_)

@@ -59,7 +59,6 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "project_files",
             #[cfg(feature = "wsl_companion")]
             "project_file_chunks",
-            #[cfg(feature = "wsl_companion")]
             "native_screen_activity",
             "project_git_review",
             "worktree_collaboration",

@@ -32,7 +32,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y protobuf-compiler openssh-client openssh-server zlib1g-dev
+          sudo apt-get install -y protobuf-compiler openssh-client openssh-server zlib1g-dev fish zsh
       - name: Install macOS protobuf compiler
         if: runner.os == 'macOS'
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
@@ -45,6 +45,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 | Out-Null
+      - name: Verify SSH wrapper routing and fixture supervision
+        run: |
+          python script/test-ssh-shell-routing.py
+          python script/test-ssh-fixture-supervisor.py
+          python script/test-native-capture-diagnostic.py
       - name: Verify shared control wire without desktop dependencies
         run: cargo test -p remote_protocol --locked
       - name: Lint shared control wire

@@ -23,6 +23,8 @@ assert module.failed_steps(source, "unrelated runtime payload") == []
 assert module.failed_assertions('add_named_assertion("owned assertion", callback)',
     "Native checkpoint failed: owned assertion\nNative checkpoint failed: runtime payload") == ["owned assertion"]
 assert module.failed_assertions(source, "Native checkpoint failed: runtime payload") == []
+assert module.failed_fixture_tests('async fn native_ssh_file_tools_owned() {',
+    'test native_ssh_file_tools_owned ... FAILED\ntest native_ssh_file_tools_payload ... FAILED') == ['native_ssh_file_tools_owned']
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     (root / "capture").mkdir()

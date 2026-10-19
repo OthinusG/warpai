@@ -13,6 +13,30 @@ import time
 import uuid
 
 
+def checked_run(command, *, timeout, **kwargs):
+    # Windows' capture supervisor must not retain orphan test/GUI descendants.
+    process = subprocess.Popen(command, **kwargs)
+    try:
+        returncode = process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            try:
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=10)
+        else:
+            process.kill()
+            process.wait(timeout=10)
+        raise
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
+
+
 def main():
     print("Owned SSH fixture stage: prepare", flush=True)
     parser = argparse.ArgumentParser(__doc__)
@@ -96,12 +120,12 @@ def main():
                 assert (fixture / "sftp-preview.md").read_bytes() == (root / "preview.md").read_bytes()
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
-                test = ["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored"]
+                test = ["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored", "--test-threads=1"]
                 print("Owned SSH fixture stage: direct-tests", flush=True)
-                subprocess.run(test, env=env, check=True, timeout=120)
+                checked_run(test, env=env, timeout=120)
                 jump_env = dict(env, WARP_TEST_SSH_CONFIG=str(jump_config))
                 print("Owned SSH fixture stage: jump-tests", flush=True)
-                subprocess.run(test, env=jump_env, check=True, timeout=120)
+                checked_run(test, env=jump_env, timeout=120)
                 print("Owned ProxyJump SSH/SFTP file acceptance passed")
                 if args.capture:
                     remote_home = fixture / "remote-home"
@@ -111,7 +135,7 @@ def main():
                     env["WARP_TEST_REMOTE_HOME"] = str(remote_home)
                     env["WARP_TEST_COMPANION_PATH"] = str(installed)
                     print("Owned SSH fixture stage: installed-tests", flush=True)
-                    subprocess.run(test, env=env, check=True, timeout=120)
+                    checked_run(test, env=env, timeout=120)
                     executable = args.capture.resolve()
                     for language in args.languages:
                         print("Owned SSH fixture stage: capture", flush=True)
@@ -133,7 +157,7 @@ def main():
                                     assert master.poll() is None, "Owned SSH master exited before capture"
                                     # Match the native shell hook instead of hiding home expansion behind an absolute fixture.
                                     env["WARP_TEST_SSH_SOCKET"] = "~/.ssh/" + socket.name
-                                subprocess.run([str(executable)], cwd=executable.parent, env=env, check=True, timeout=450)
+                                checked_run([str(executable)], cwd=executable.parent, env=env, timeout=450)
                             finally:
                                 if master is not None:
                                     master.terminate()

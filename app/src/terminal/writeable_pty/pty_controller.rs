@@ -406,6 +406,13 @@ impl<T: EventLoopSender> PtyController<T> {
         }
 
         let bootstrap = bootstrap::script_for_shell(shell_type, &crate::ASSETS);
+        if shell_type == ShellType::PowerShell
+            && matches!(pending_session_info.session_type,
+                crate::terminal::model::session::BootstrapSessionType::WarpifiedRemote)
+        {
+            self.write_bytes(bootstrap::remote_powershell_bootstrap(&bootstrap), ctx);
+            return;
+        }
         self.write_bootstrap_script_to_shell(pending_session_info, ctx, shell_type, bootstrap);
     }
 

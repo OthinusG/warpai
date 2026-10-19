@@ -124,7 +124,9 @@ impl AgentCommunication {
                             .is_some_and(|session| {
                                 #[cfg(windows)]
                                 if session.is_wsl() { return true; }
-                                session.ssh_arguments().is_some()
+                                session.is_legacy_ssh_session()
+                                    || session.ssh_control_socket().is_some()
+                                    || session.ssh_arguments().is_some()
                             }) { return; }
                         let terminal_model = view.as_ref(ctx).model.lock();
                         if let Some(directory) =

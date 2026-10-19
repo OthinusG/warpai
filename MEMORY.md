@@ -6,8 +6,9 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
-- Monitor cloud runs hourly through completion; diagnose owner errors immediately. Full acceptance gates delivery.
-- Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git is not bundled.
+- Latest Oct19 instruction: pause once all required cloud validations have started.
+  Resume diagnosis/integration/release after the pause; full acceptance gates delivery.
+- Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
   Debian `safe.directory` must use the canonical checkout root inside the
@@ -21,13 +22,14 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Oct19: preserve unpublished 1.7.2 tag/draft. Latest owner authorization:
   release 1.7.6 after current cloud acceptance; no further approval required.
   specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP/native readiness.
-- Owner Mac-to-Linux panels passed; initial 5.4.0 lacked native MCP setup.
-  Supplied 5.5.0; Windows capture diagnosis remains pending.
+- Owner Mac-to-Linux panels passed; 5.4.0 lacked MCP setup; supplied 5.5.0.
+  Latest Windows failure was ProxyJump before capture, not a proven GUI timeout.
+- Windows SSH defaults to PowerShell, never CMD. Select remote grammar before bootstrap;
+  remote OS owns path/completion semantics. Audit: SSH-POWERSHELL-AUDIT.md.
 - SSH tabs were correct while panel/MCP stayed Starting. Share WSL observation
   and guarded wake delivery with SSH; preserve native tab evidence and drafts.
-- 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
-  in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
-  README.md and README.zh-CN.md must link to the published v1.7.1 assets.
+- Public: 1.7.1 / Companion 5.4.0; README links must match published assets.
+  Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >= 2.31.
 - Artifact-only macOS runs must not trigger Windows publication.
 
 ## Project, worktree and Agent ownership
@@ -37,7 +39,7 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Warp's native worktree system owns creation, catalog and tabs; creation opens a
   new tab without starting an Agent. No separate worktree registry/session manager.
 - Canonical Git common-directory identity joins registered checkouts/subdirectories,
-  including empty tabs and worktrees outside main. Ancestry, basename, branch and
+  including empty tabs/worktrees outside main. Ancestry, basename, branch and
   remote URL cannot establish membership.
 - Reusing a terminal after changing checkout must scope identity lookup to the
   current workspace. Preserve the previous checkout's tasks and history; never
@@ -127,9 +129,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   queue results/consume requests; blocked stays unresolved. Persist exact-attempt
   permission/cancel/disconnect evidence, never drafts/output. Wait receipts retain
   unacknowledged messages; notifications prove neither execution nor handling.
-- 1.6.4 receipts: specs/agent-communication-v2/FIXES-1.6.4.md. Keep drafts in
-  memory, MCP idle evidence and truthful sidebar lifecycle projections. Native
-  PTY draft clearing before peer submission was authorized 2026-10-13.
+- Keep drafts in memory, MCP idle evidence and truthful sidebar lifecycle projections.
+  Native draft clearing was authorized Oct13; receipts: FIXES-1.6.4.md.
 - Replacement repositories need fresh admission; isolate old history/capabilities.
   Same-repository checkout replacement requires rejoin; receipt: FIXES-1.6.4.md.
 - Codex opaque OSC 9, warnings and silence cannot prove completion. Native
@@ -164,7 +165,6 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Retained native lifecycle constraints
 
-- Historical release/CI/owner receipts: docs/history/MEMORY-2026-10-19-SSH-MCP.md.
 - Keep Herdr Idle/blocked semantics, run/input/redraw fences and vt100 capture.
 - SSH/WSL installers use `.config/warpai`; setup locks explicitly unlock despite inherited descriptors.
 - Signed birth-time hashes preserve positive identities; absent birth time cannot prove inode reuse.

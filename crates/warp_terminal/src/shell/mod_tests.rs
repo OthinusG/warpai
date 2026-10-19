@@ -270,3 +270,15 @@ fn test_should_add_command_to_history() {
         assert!(fish_shell.should_add_command_to_history(" asdf"));
     }
 }
+
+
+#[test]
+fn remote_powershell_completions_follow_host_os() {
+    for (windows_host, expected) in [(true, vec!["git", "git.exe"]), (false, vec!["git.exe"])] {
+        let result = ShellType::PowerShell.executables_from_shell_command_output(
+            Ok(CommandOutput { stdout: b"git.exe\n".to_vec(), stderr: vec![],
+                status: CommandExitStatus::Success, exit_code: None }), false, windows_host);
+        assert_eq!(result.iter().map(|name| name.as_str()).collect::<Vec<_>>(), expected);
+    }
+    assert!(ShellType::PowerShell.is_fully_supported_remotely());
+}

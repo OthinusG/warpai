@@ -116,7 +116,7 @@ jobs:
           cargo build -p warp-agent-bus --bins --locked
           # Cached hashed fixtures must not shadow the executable built from this source.
           find target/debug/deps -maxdepth 1 -type f \( -name 'managed_agent-*' -o -name 'readiness-*' \) -delete
-          cargo test -p warp-agent-bus --test managed_agent --test readiness --no-run --locked
+          cargo test -p warp-agent-bus --test managed_agent --test readiness --test ssh_companion --no-run --locked
       - name: Upload tested native bridge
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -158,6 +158,10 @@ jobs:
           cargo test -p warpai --lib agent_communication::wsl_settings::tests --locked
           cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
           cargo test -p warpai --lib native_bootstrap_reports_remote_shell_pid_on_every_desktop --locked
+          cargo test -p warpai --lib remote_powershell_bootstrap --locked
+          cargo test -p warp_terminal remote_powershell_completions_follow_host_os --locked
+          python script/test-ssh-shell-routing.py
+          python script/test-ssh-fixture-supervisor.py
           cargo test -p warpai --lib automatic_wsl_integration --locked
           cargo test -p warpai --lib windows_bootstrap_reports_native_shell_pid --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
@@ -253,14 +257,15 @@ jobs:
           }
           $ordinaryMigrationMarker = Join-Path $env:USERPROFILE '.config/warpai/.legacy-migration-complete'
           $ordinaryMigrationExisted = Test-Path -LiteralPath $ordinaryMigrationMarker
-          $captureProcess = Start-Process -FilePath "python" -ArgumentList @("script/verify-ssh-file-tools.py", "--capture", "$PWD/target/debug/warpai.exe", "--languages", "en", "zh-Hans", "zh-Hant") -WorkingDirectory "$PWD" -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/collaboration-capture.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          & python script/verify-ssh-file-tools.py --capture "$PWD/target/debug/warpai.exe" --languages en zh-Hans zh-Hant 1> "$env:RUNNER_TEMP/collaboration-capture.stdout.log" 2> "$env:RUNNER_TEMP/collaboration-capture.stderr.log"
+          $captureExitCode = $LASTEXITCODE
           if (!$ordinaryMigrationExisted -and (Test-Path -LiteralPath $ordinaryMigrationMarker)) { throw "Native capture migrated ordinary user data" }
           New-Item -ItemType Directory -Path $env:WARP_COLLABORATION_CAPTURE -Force | Out-Null
           python script/test-native-capture-diagnostic.py
-          python script/native-capture-diagnostic.py --log "$env:RUNNER_TEMP/collaboration-capture.stdout.log" --log "$env:RUNNER_TEMP/collaboration-capture.stderr.log" --output "$env:WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code $captureProcess.ExitCode
+          python script/native-capture-diagnostic.py --log "$env:RUNNER_TEMP/collaboration-capture.stdout.log" --log "$env:RUNNER_TEMP/collaboration-capture.stderr.log" --output "$env:WARP_COLLABORATION_CAPTURE/diagnostic.json" --exit-code $captureExitCode
           if ($LASTEXITCODE -ne 0) { throw "Capture diagnostics failed" }
-          if ($captureProcess.ExitCode -ne 0) {
-            throw "Native capture failed: $($captureProcess.ExitCode)"
+          if ($captureExitCode -ne 0) {
+            throw "Native capture failed: $captureExitCode"
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
@@ -326,7 +331,7 @@ jobs:
           cargo build -p warp-agent-bus --bins --locked
           # Cached hashed fixtures must not shadow the executable built from this source.
           find target/debug/deps -maxdepth 1 -type f \( -name 'managed_agent-*' -o -name 'readiness-*' \) -delete
-          cargo test -p warp-agent-bus --test managed_agent --test readiness --no-run --locked
+          cargo test -p warp-agent-bus --test managed_agent --test readiness --test ssh_companion --no-run --locked
       - name: Diagnose native build tools on failure
         if: failure()
         run: |
@@ -364,6 +369,10 @@ jobs:
         run: |
           cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
           cargo test -p warpai --lib native_bootstrap_reports_remote_shell_pid_on_every_desktop --locked
+          cargo test -p warpai --lib remote_powershell_bootstrap --locked
+          cargo test -p warp_terminal remote_powershell_completions_follow_host_os --locked
+          python script/test-ssh-shell-routing.py
+          python script/test-ssh-fixture-supervisor.py
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
           cargo test -p warpai --lib localization_search_tests --locked

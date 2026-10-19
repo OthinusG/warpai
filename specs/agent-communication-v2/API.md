@@ -65,11 +65,12 @@ Empty queues may be reused against the Broker mutation revision. Pending work an
 forwarded Stores retain settling, lease, cancellation and exact-run validation.
 No operation fields or protocol majors change.
 
-## Native WSL terminal delivery
+## Native SSH and WSL terminal delivery
 
-Windows and the opt-in Linux WSL service support `GuestNative` on the existing
-fenced ProjectTasks channel; default SSH services reject it. `NativeRequest`
-contains a confirmed Linux shell PID and observe/claim/validate/finish action.
+Desktop SSH clients and the opt-in WSL service support `GuestNative` on the existing
+fenced ProjectTasks channel. Native SSH MCP and `native_screen_activity` require
+the updated Companion 5.5.0 build. `NativeRequest` contains a confirmed remote
+shell PID and observe/claim/validate/finish action.
 The service matches canonical checkout, shell/Agent PID start times and exact
 run. `NativeState` contains run/program and a serialized Broker wake claim.
 Observe carries only edit epochs, draft/approval flags and optional native
@@ -88,13 +89,16 @@ Known Agent screens follow the owner-approved Herdr policy: after the native
 quiet window, no matching rule defaults to Idle. Matching approval/question
 rules prevent native submission; recognized viewers retain the prior state.
 Unknown custom clients retain existing lifecycle evidence. Submitted/cancelled edit epochs
-veto the same sample; host edits fence response projection and wake submission. Native draft presence does not block a queued wake; the owner authorizes
+veto the same sample; host edits fence response projection and wake submission. For local/WSL delivery, native draft presence does not block a queued wake; the owner authorizes
 clearing unsent native input at the idle prompt before task submission. Composer
 drafts stay in the app. Clearing never grants readiness or bypasses an input epoch,
 approval, cancellation or run fence. No draft text is added to the wire.
 The Windows host tracks native draft presence locally for clearing and sends
 draft=false so an already-running older guest service cannot reintroduce a draft
 delivery gate. Approval and edit/cancel epochs continue to cross the wire.
+The SSH path preserves an unsent native/composer draft and blocks submission
+until the input is empty and the native UI is idle. The same remote account,
+project, process birth, run and input epoch are revalidated before Enter.
 Never transfer draft text or credentials. A settings selection is not authority
 to access another guest account. No scoped wrapper or nested command is accepted.
 Validate precedes delayed Enter; finish records submission, not acknowledgement.
@@ -414,3 +418,14 @@ Additive Agent Bus operations and native MCP discovery behavior are specified in
 capabilities cover execution_thread_get, project_bootstrap and project_memory_update.
 These operations share the existing authenticated project/account scope on local,
 WSL and SSH; memory references confer no execution or filesystem authority.
+
+
+### Remote shell bootstrap and completion
+
+Remote Windows uses PowerShell; CMD is outside this change. Authenticated shell
+wrappers probe `echo $env:OS` before selecting a command grammar. Windows uses a
+bundled UTF-16LE EncodedCommand seed, then bounded base64 chunks of the trusted
+full bootstrap in a uniquely created remote UTF-8 BOM script. Source and delete
+that remote file; never source a client path on the server. POSIX wrappers retain
+their existing route and report the remote shell PID. Remote host OS metadata
+owns path separators and executable suffix aliases, independently of client OS.

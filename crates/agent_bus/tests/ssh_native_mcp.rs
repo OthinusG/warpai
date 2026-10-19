@@ -44,6 +44,7 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
         panic!("Owned native service identity unavailable: {:?}", error.kind());
     }
     let mut client = runtime.block_on(HostClient::connect_companion(companion, root.path().to_str().unwrap())).unwrap();
+    assert!(client.capabilities().iter().any(|capability| capability == "native_screen_activity"), "Ordinary SSH must advertise native state observations");
     let commands = vec![("codex".into(), "codex".into())];
     let configure = |client: &mut HostClient, action| runtime.block_on(async {
         let value = client.project_tasks(&TaskCommand::SshSetup(Request {

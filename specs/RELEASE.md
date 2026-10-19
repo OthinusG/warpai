@@ -5,6 +5,9 @@
 Latest owner instruction authorizes the formal 1.7.6 release workflow once the
 current cloud validation passes, including the native SSH readiness repair.
 This supersedes the earlier hold for an additional owner test/approval below.
+Latest execution instruction: finish the fixes, dispatch every required cloud
+validation, then pause. Do not merge, tag or publish during this pause. Resume
+with the same validation gates and authorized main integration / 1.7.6 release.
 
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.

@@ -202,7 +202,6 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "project_files",
             #[cfg(feature = "wsl_companion")]
             "project_file_chunks",
-            #[cfg(feature = "wsl_companion")]
             "native_screen_activity",
             "project_git_review",
             "worktree_collaboration",

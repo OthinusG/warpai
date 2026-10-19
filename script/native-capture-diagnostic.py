@@ -19,6 +19,12 @@ def failed_assertions(source: str, log: str) -> list[str]:
     return sorted(set(observed).intersection(allowed))
 
 
+def failed_fixture_tests(source: str, log: str) -> list[str]:
+    allowed = set(re.findall(r"async fn (native_ssh_file_tools_[a-z0-9_]+)\(", source))
+    observed = set(re.findall(r"test (native_ssh_file_tools_[a-z0-9_]{1,150}) \.\.\. FAILED", log))
+    return sorted(allowed.intersection(observed))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--log", type=Path, action="append", required=True)
@@ -40,8 +46,10 @@ def main() -> None:
         "fixture_stages": re.findall(r"^Owned SSH fixture stage: (prepare|connect|sftp|direct-tests|jump-tests|installed-tests|capture)\r?$", log, re.MULTILINE),
         "fixture_exceptions": sorted(set(re.findall(r"^(?:subprocess\.)?(TimeoutExpired|CalledProcessError|UnicodeDecodeError|UnicodeEncodeError|FileNotFoundError|PermissionError|RuntimeError|AssertionError):", log, re.MULTILINE))),
         "fixture_trace_lines": [int(line) for line in re.findall(r'File "[^"\n]*[\\/]verify-ssh-file-tools\.py", line (\d{1,4}),', log)],
-        "failed_steps": failed_steps(source.read_text(), log),
-        "failed_assertions": failed_assertions(source.read_text(), log),
+        "fixture_test_failures": failed_fixture_tests((source.parents[3] / "crates/agent_bus/tests/ssh_companion.rs").read_text(encoding="utf-8"), log),
+        "fixture_panic_locations": sorted(set(re.findall(r"(crates/agent_bus/tests/ssh_companion\.rs:\d{1,5}:\d{1,4})", log.replace("\\", "/")))),
+        "failed_steps": failed_steps(source.read_text(encoding="utf-8"), log),
+        "failed_assertions": failed_assertions(source.read_text(encoding="utf-8"), log),
         "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),
         "remote_trees": [dict(zip(["active", "current", "selected", "attached", "error", "roots", "entries"], [value == "true" for value in values[:5]] + [int(value) for value in values[5:]])) for values in re.findall(r"Native SSH tree: active=(true|false), current=(true|false), selected=(true|false), attached=(true|false), error=(true|false), roots=(\d{1,6}), entries=(\d{1,6})\b", log)],
         "worktree_states": [dict(zip(["connected", "form", "joined", "team", "main", "submitting", "query_error", "git_rev_parse", "git_registry"], [value == "true" for value in values[:6]] + [int(value) for value in values[6:]])) for values in re.findall(r"Native Worktree: connected=(true|false), form=(true|false), joined=(true|false), team=(true|false), main=(true|false), submitting=(true|false), query_error=(\d{1,2}), git_rev_parse=(-?\d{1,3}), git_registry=(-?\d{1,3})\b", log)],

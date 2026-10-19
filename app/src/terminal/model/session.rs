@@ -976,7 +976,11 @@ impl Session {
     pub fn path_separators(&self) -> PathSeparators {
         match self.shell().shell_type() {
             ShellType::Zsh | ShellType::Bash | ShellType::Fish => PathSeparators::for_unix(),
-            ShellType::PowerShell => PathSeparators::for_os(),
+            ShellType::PowerShell => match self.info.host_info.os_category.as_deref() {
+                Some("Windows") => PathSeparators::for_windows(),
+                Some("Linux" | "MacOS" | "Darwin") => PathSeparators::for_unix(),
+                _ => PathSeparators::for_os(),
+            },
         }
     }
 
@@ -1215,6 +1219,7 @@ impl Session {
                         .executables_from_shell_command_output(
                             windows_results,
                             false, /* is_msys2 */
+                            true, /* is_windows_host */
                         )
                         .into_iter(),
                 )
@@ -1224,7 +1229,9 @@ impl Session {
             new_commands.extend(
                 shell
                     .shell_type()
-                    .executables_from_shell_command_output(result, is_msys2)
+                    .executables_from_shell_command_output(result, is_msys2,
+                        self.info.host_info.os_category.as_deref()
+                            .map_or(cfg!(windows), |os| os == "Windows"))
                     .into_iter(),
             );
             if external_commands.set(new_commands).is_err() {

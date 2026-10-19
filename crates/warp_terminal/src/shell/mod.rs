@@ -584,8 +584,8 @@ impl ShellType {
     /// If true, Warp will bootstrap the shell if it's the login shell on the remote host.
     pub fn is_fully_supported_remotely(&self) -> bool {
         match self {
-            ShellType::Zsh | ShellType::Bash => true,
-            ShellType::Fish | ShellType::PowerShell => false,
+            ShellType::Zsh | ShellType::Bash | ShellType::PowerShell => true,
+            ShellType::Fish => false,
         }
     }
 
@@ -634,6 +634,7 @@ impl ShellType {
         &self,
         output: Result<CommandOutput>,
         is_msys2: bool,
+        is_windows_host: bool,
     ) -> Vec<SmolStr> {
         match output {
             Ok(command_output) if command_output.status == CommandExitStatus::Success => {
@@ -689,7 +690,7 @@ impl ShellType {
                     }
                     ShellType::PowerShell => {
                         // Windows allows certain suffixes, e.g. "exe", to be elided.
-                        if cfg!(windows) {
+                        if is_windows_host {
                             output_string
                                 .lines()
                                 .flat_map(|line| {

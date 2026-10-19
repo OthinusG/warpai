@@ -1,4 +1,5 @@
 use super::*;
+use base64::Engine as _;
 
 struct TestAssetProvider;
 
@@ -144,4 +145,97 @@ fn powershell_subshell_initialization_emits_native_session_hook() {
         assert_eq!(hook["hook"], "InitShell");
         assert_eq!(hook["value"]["shell"], "pwsh");
     }
+}
+
+#[test]
+fn remote_powershell_bootstrap_uses_bounded_native_commands() {
+    let source = "Write-Output 'Remote 多语言'\n".repeat(100);
+    let commands = String::from_utf8(remote_powershell_bootstrap(source.as_bytes())).unwrap();
+    assert!(commands.contains("[IO.FileMode]::CreateNew"));
+    assert!(commands.contains("finally { Remove-Item -LiteralPath"));
+    assert!(!commands.contains("Invoke-Expression"));
+    let mut bytes = Vec::new();
+    for line in commands.split('\r').filter(|line| !line.is_empty()) {
+        assert!(line.len() < 800, "Remote bootstrap commands must stay short");
+        if let Some((_, encoded)) = line.split_once("FromBase64String('") {
+            let encoded = encoded.split_once("')").unwrap().0;
+            bytes.extend(base64::engine::general_purpose::STANDARD.decode(encoded).unwrap());
+        }
+    }
+    assert_eq!(&bytes[..3], &[0xef, 0xbb, 0xbf]);
+    assert_eq!(&bytes[3..], source.as_bytes());
+}
+
+#[cfg(windows)]
+#[test]
+fn remote_powershell_bootstrap_executes_on_windows_powershell_5() {
+    use std::{io::Write, process::{Command, Stdio}};
+    let fixture = tempfile::tempdir().unwrap();
+    let marker = fixture.path().join("remote-unicode.txt");
+    let path = marker.to_str().unwrap().replace('\'', "''");
+    let source = format!("[IO.File]::WriteAllText('{path}','Remote 多语言')");
+    let mut commands = remote_powershell_bootstrap(source.as_bytes());
+    commands.extend_from_slice(b" if (Test-Path variable:_warpBootstrapPath) { exit 3 }\r");
+    let mut child = Command::new("powershell.exe")
+        .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "-"])
+        .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped())
+        .spawn().unwrap();
+    child.stdin.take().unwrap().write_all(&commands.iter().map(|byte| if *byte == b'\r' { b'\n' } else { *byte }).collect::<Vec<_>>()).unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "Owned PowerShell remote bootstrap failed");
+    assert!(output.stderr.is_empty(), "Owned PowerShell remote bootstrap emitted errors");
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "Remote 多语言");
+}
+
+#[cfg(windows)]
+#[test]
+fn remote_powershell_bootstrap_runs_through_native_terminal() {
+    use std::{io::{Read, Write}, sync::mpsc, time::{Duration, Instant}};
+    use warp_agent_bus::native_pty::{NativePty, Size};
+    let fixture = tempfile::tempdir().unwrap();
+    let marker = fixture.path().join("native-bootstrap.txt");
+    let seed = include_str!("../../assets/bundled/bootstrap/pwsh_init_shell.ps1")
+        .trim_start_matches(BYTE_ORDER_MARK);
+    let encoded = base64::engine::general_purpose::STANDARD.encode(
+        seed.encode_utf16().flat_map(u16::to_le_bytes).collect::<Vec<_>>());
+    let executable = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+        .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    let mut pty = NativePty::spawn(&executable,
+        &["-NoLogo".into(), "-NoProfile".into(), "-NoExit".into(), "-EncodedCommand".into(), encoded],
+        fixture.path(), Size { columns: 100, rows: 24 }).unwrap();
+    let mut reader = pty.reader.try_clone().unwrap();
+    let (ready, receive) = mpsc::sync_channel(1);
+    let thread = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let mut buffer = [0; 4096];
+        let mut notified = false;
+        while let Ok(count) = reader.read(&mut buffer) {
+            if count == 0 { break; }
+            if !notified {
+                bytes.extend_from_slice(&buffer[..count]);
+                if bytes.windows(b"]9278;d;".len()).any(|part| part == b"]9278;d;") {
+                    let _ = ready.send(());
+                    notified = true;
+                    bytes.clear();
+                }
+                if bytes.len() > 65536 { break; }
+            }
+        }
+    });
+    receive.recv_timeout(Duration::from_secs(15)).expect("PowerShell InitShell was not emitted");
+    let path = marker.to_str().unwrap().replace('\'', "''");
+    let source = format!("{}\n[IO.File]::WriteAllText('{path}','Remote 多语言')",
+        "# Owned long bootstrap fixture\n".repeat(2000));
+    pty.writer.write_all(&remote_powershell_bootstrap(source.as_bytes())).unwrap();
+    pty.writer.flush().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !marker.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    let result = std::fs::read_to_string(marker);
+    let _ = pty.stop();
+    let _ = pty.exit_code();
+    drop(pty);
+    thread.join().unwrap();
+    assert_eq!(result.unwrap(), "Remote 多语言");
 }
