@@ -20,8 +20,9 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Published releases and maintenance
 
-- Oct19: 1.7.2 publication canceled; preserve tag/draft. Combined 1.7.3
-  (Qoder + SSH repairs + SSH Remote switch/MCP setup) after acceptance; specs/RELEASE.md.
+- Oct19: preserve unpublished 1.7.2 tag/draft. Validate, then macOS/Windows
+  artifact-only tests. Formal 1.7.3 waits for owner test and explicit instruction;
+  specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
   in AppImage, DEB, RPM and Arch formats (glibc >= 2.31); Companion is 5.4.0.
   README.md and README.zh-CN.md must link to the published v1.7.1 assets.
