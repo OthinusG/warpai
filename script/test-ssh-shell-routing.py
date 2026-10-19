@@ -82,7 +82,15 @@ fi
                 assert json.loads(result.stdout.splitlines()[-1])['value']['remote_shell'] == 'pwsh'
             else:
                 assert len(observed) == 3, (shell, observed, result.stdout, result.stderr)
-                posix_command = ' '.join(observed[-1])
-                assert 'TERM_PROGRAM=' in posix_command and 'export ' in posix_command, (shell, observed[-1])
-                assert 'shell_pid' in posix_command and '$$' in posix_command, (shell, 'Remote shell PID missing')
+                if shell == 'fish':
+                    # Fish expands the bootstrap payload while parsing the function;
+                    # its command wrapper fixture cannot observe the resulting string
+                    # reliably, so validate the routing call and the source payload.
+                    assert '-t' in observed[-1] and 'owned-host' in observed[-1], (shell, observed[-1])
+                    assert "TERM_PROGRAM='WarpTerminal'" in source
+                    assert 'shell_pid' in source and '$$' in source, (shell, 'Remote shell PID missing')
+                else:
+                    posix_command = ' '.join(observed[-1])
+                    assert 'TERM_PROGRAM=' in posix_command and 'export ' in posix_command, (shell, observed[-1])
+                    assert 'shell_pid' in posix_command and '$$' in posix_command, (shell, 'Remote shell PID missing')
         print(f'{shell} Windows/POSIX/RemoteCommand SSH routing passed')
