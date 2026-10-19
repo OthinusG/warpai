@@ -33,6 +33,8 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Artifact-only macOS runs must not trigger Windows publication.
 - Windows CI/release uses pinned official protoc 36.2 + SHA-256; Chocolatey NuGet
   protoc returned 503/504 and blocked Windows jobs. See specs/RELEASE.md.
+- Zsh bootstrap PTYs start raw with ZLE off, then restore sane mode after the
+  injected heredoc is read; remote Zsh follows the same sequence.
 
 ## Project, worktree and Agent ownership
 

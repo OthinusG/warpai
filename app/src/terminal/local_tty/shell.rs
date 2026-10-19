@@ -576,7 +576,10 @@ fn arguments_for_session_spawning_command(
             // begins with a space. We use this to hide Warp bootstrap commands from the history.
             vec![
                 "-c".to_owned().into(),
-                format!("exec -a -zsh '{resolved_shell_path}' -g --no-rcs").into(),
+                format!(
+                    "command -p stty raw; exec -a -zsh '{resolved_shell_path}' -g --no-rcs +o ZLE"
+                )
+                .into(),
             ]
         }
         ShellType::Bash => {

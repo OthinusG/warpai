@@ -23,6 +23,13 @@ validation and first release attempt. Download the official Protobuf v36.2
 all Windows protocol, desktop, Companion, and release build workflows to use the
 verified compiler and rerun successfully.
 
+### Zsh bootstrap visibility
+
+Keep local and SSH Zsh PTYs in raw mode with ZLE disabled while Warpai injects
+bootstrap input. Restore sane terminal settings after the heredoc is read and
+before evaluating the bootstrap, so users do not see initialization source and
+their prompt and rc files receive normal terminal behavior.
+
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.
 Scope additionally includes the SSH Remote master switch and per-account native

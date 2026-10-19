@@ -1,6 +1,14 @@
 use super::*;
 
 #[test]
+fn zsh_session_disables_terminal_echo_before_starting_interactive_shell() {
+    let args = arguments_for_session_spawning_command("/bin/zsh", ShellType::Zsh);
+    let command = args[1].to_string_lossy();
+    assert!(command.starts_with("command -p stty raw; exec -a -zsh '/bin/zsh'"));
+    assert!(command.ends_with("-g --no-rcs +o ZLE"));
+}
+
+#[test]
 fn test_program_invalid_bash() {
     // This test assumes there is no bash binary at /some/weird/path/bash.
     let shell_path = "/some/weird/path/bash".to_owned();

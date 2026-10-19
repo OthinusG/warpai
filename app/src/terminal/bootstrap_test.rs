@@ -105,6 +105,25 @@ fn test_trims_whitespace() {
 }
 
 #[test]
+fn zsh_bootstrap_restores_terminal_after_reading_hidden_input() {
+    let script = decode_script(&script_for_shell(ShellType::Zsh, &crate::ASSETS));
+    let read = script
+        .find("read -r -d '' WARP_BOOTSTRAP_VAR")
+        .expect("Zsh bootstrap must read the complete injected script");
+    let restore = script[read..]
+        .find("command -p stty sane")
+        .map(|offset| read + offset)
+        .expect("Zsh bootstrap must restore terminal mode");
+    let evaluate = script[read..]
+        .find("eval \"$WARP_BOOTSTRAP_VAR\"")
+        .map(|offset| read + offset)
+        .expect("Zsh bootstrap must evaluate after restoring the terminal");
+
+    assert!(read < restore && restore < evaluate);
+    assert!(script.contains("command -p stty raw; unsetopt ZLE RCS GLOBAL_RCS"));
+}
+
+#[test]
 fn test_trims_powershell_specifics() {
     assert_eq!(
         decode_script(&script_for_shell(ShellType::PowerShell, &TestAssetProvider)),
