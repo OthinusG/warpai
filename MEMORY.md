@@ -6,8 +6,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
-- Latest Oct19 instruction: pause once all required cloud validations have started.
-  Resume diagnosis/integration/release after the pause; full acceptance gates delivery.
+- Oct19 cloud acceptance passed: communication 39259499684, Companion 39254214995,
+  Linux packages 39249589503. Main merge and v1.7.6 release are authorized.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
@@ -67,26 +67,17 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 ## Usage accounts and native Orca port
 
 - Native Orca port: https://github.com/stablyai/orca at
-  3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices in both bundles.
-  Contracts: specs/agent-communication-v2/USAGE-PROVIDERS.md; native UI/TLS, no new runtime.
-- Accounts/visibility and OS-secure credentials persist application-wide; never
-  put credentials in metadata/IPC/logs. Cache readings across project/focus changes;
-  restart restores accounts and queries fresh readings.
-- Vendor CLI login owns OAuth refresh/sign-in. Synthetic fixtures cannot prove
-  authenticated availability; never use personal credentials for tests.
-- Usage footer: fixed header, independent scroll, four visible rows, native icons
-  and quota bars. Unknown limits remain unavailable; Zen USD balance stays a balance.
-- Preserve fixed HTTPS hosts, sensitive headers, bounded IO, generations and all
-  twelve provider HTTP contracts in USAGE-PROVIDERS.md.
-- agy >=1.1.11: only verified free /usage flags through its resolved executable.
-  Tolerate noise, stop after model-turn detection; preserve hidden caches/guard,
-  resetting eligibility on update/restart.
-- CLI children prepend binary directory to PATH/hide Windows consoles; test real
-  visibility, preserve PTY/detached services. Never bill Qoder CN usage polling.
-- Qoder/QoderCN usage may use the local CLI JSONL `get_usage_info` control request
-  with the existing CLI login; it must not send a prompt or create a model turn.
-  No SDK install or model turn. Poll once/account/five minutes; manual refresh bypasses
-  the limit. Missing buckets stay unavailable; protocol changes require revalidation.
+  3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices. Provider contracts:
+  specs/agent-communication-v2/USAGE-PROVIDERS.md; native UI/TLS, no new runtime.
+- Accounts and OS-secure credentials persist application-wide; never put credentials
+  in metadata/IPC/logs. Cache across focus changes; requery after restart. Vendor CLI
+  owns login; synthetic fixtures cannot prove auth and personal credentials are off-limits.
+- Preserve fixed HTTPS hosts, sensitive headers, bounded IO and generations. agy >=1.1.11
+  uses verified free `/usage` flags. Qoder/QoderCN may use local JSONL `get_usage_info`,
+  never a prompt/model turn or SDK. Poll once/account/five minutes; manual refresh bypasses.
+- Unknown buckets stay unavailable; Zen USD remains a balance. Usage UI keeps a fixed
+  header and independent scroll. CLI children prepend their binary path and hide Windows
+  consoles; preserve PTY/detached services. Revalidate provider protocol changes.
 
 ## SSH, task integrity and files
 

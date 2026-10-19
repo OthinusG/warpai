@@ -5,9 +5,12 @@
 Latest owner instruction authorizes the formal 1.7.6 release workflow once the
 current cloud validation passes, including the native SSH readiness repair.
 This supersedes the earlier hold for an additional owner test/approval below.
-Latest execution instruction: finish the fixes, dispatch every required cloud
-validation, then pause. Do not merge, tag or publish during this pause. Resume
-with the same validation gates and authorized main integration / 1.7.6 release.
+Cloud acceptance passed on source `c6c2967f`: full macOS/Windows communication,
+Windows SSH and WSL, Companion macOS/Linux/Windows, and Linux x64/ARM64 packages.
+Receipts: [communication](https://github.com/OthinusG/warpai/actions/runs/39259499684),
+[Companion](https://github.com/OthinusG/warpai/actions/runs/39254214995),
+[Linux packages](https://github.com/OthinusG/warpai/actions/runs/39249589503).
+Proceed with main integration and the authorized v1.7.6 release workflow.
 
 Owner authorized canceling the pending 1.7.2 publication and publishing its Qoder
 changes together with the three-desktop SSH selection repair after tests pass.
