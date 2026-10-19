@@ -227,15 +227,6 @@ jobs:
           Copy-Item 'app/assets/bundled/bootstrap/pwsh.ps1' 'target/debug/pwsh.ps1' -Force
           New-Item -ItemType Directory -Path 'target/debug/x64' -Force | Out-Null
           Copy-Item 'app/assets/windows/x64/OpenConsole.exe' 'target/debug/x64/OpenConsole.exe' -Force
-      - name: Save Windows native Rust outputs
-        if: ${{ always() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Verify bundled WSL installation and removal isolation
         if: ${{ inputs.wsl_acceptance && (inputs.capture_ui || inputs.native_windows_only) }}
         shell: pwsh
@@ -286,6 +277,17 @@ jobs:
             ${{ runner.temp }}/collaboration-ui-windows/diagnostic.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Save Windows native Rust outputs
+        if: ${{ !cancelled() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
+        timeout-minutes: 15
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
   macos:
     if: ${{ !inputs.native_windows_only && !inputs.windows_only && (!inputs.protocol_only || inputs.capture_ui || inputs.check_app) }}
     runs-on: macos-15
@@ -413,15 +415,6 @@ jobs:
           name: Warpai-collaboration-UI-review-macos
           path: WarpaiReview.app.zip
           retention-days: 7
-      - name: Save macOS native Rust outputs
-        if: ${{ always() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Capture macOS static collaboration UI
         if: ${{ inputs.capture_ui }}
         timeout-minutes: 30
@@ -457,3 +450,14 @@ jobs:
             ${{ runner.temp }}/collaboration-ui-macos/diagnostic.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Save macOS native Rust outputs
+        if: ${{ !cancelled() && steps.native-cache.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
+        timeout-minutes: 15
+        continue-on-error: true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}

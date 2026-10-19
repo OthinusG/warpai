@@ -98,14 +98,16 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
     assert_eq!(result, Ok(true), "Native MCP initialize/tools/list/bootstrap did not complete");
     assert!(online(&panel(&mut client)), "The native MCP run must be visible in its project");
     let shell_pid = std::fs::read_to_string(root.path().join(".native-shell-pid")).unwrap().trim().parse().unwrap();
-    let observe = |client: &mut HostClient, run: Option<String>, activity| {
+    let native = |client: &mut HostClient, action| {
         let response = runtime.block_on(client.project_tasks(&TaskCommand::GuestNative(
-            warp_agent_bus::wsl_setup::NativeRequest { shell_pid,
-                action: warp_agent_bus::wsl_setup::NativeAction::Observe {
+            warp_agent_bus::wsl_setup::NativeRequest { shell_pid, action }), 3)).unwrap();
+        serde_json::from_value::<warp_agent_bus::wsl_setup::NativeState>(response["value"].clone()).unwrap()
+    };
+    let observe = |client: &mut HostClient, run: Option<String>, activity| {
+        native(client, warp_agent_bus::wsl_setup::NativeAction::Observe {
                     draft: false, blocked: false, input_epoch: 1, submitted: false,
                     cancelled: false, native_ready: None, screen_run: run, screen_activity: activity,
-                } }), 3)).unwrap();
-        serde_json::from_value::<warp_agent_bus::wsl_setup::NativeState>(response["value"].clone()).unwrap()
+                })
     };
     let state = observe(&mut client, None, None);
     for activity in [warp_agent_bus::readiness::Activity::Idle,
@@ -116,6 +118,35 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
         let observed = observe(&mut client, Some(state.run.clone()), Some(activity));
         assert_eq!(observed.activity, Some(activity), "Native screen evidence must reach Companion before any conversation");
         assert_eq!(observed.run, state.run);
+    }
+    let value = panel(&mut client);
+    let agent = value["value"]["agents"].as_array().unwrap().iter()
+        .find(|row| row["online"] == true && row["agent"]["program"] == "codex").unwrap();
+    let sent = runtime.block_on(client.project_tasks(&TaskCommand::Operator(
+        warp_agent_bus::Operation::AgentSend { to: agent["agent"]["id"].as_str().unwrap().into(),
+            body: "Owned native SSH wake fixture".into(), content: None, expects_result: false,
+            subject: None, thread_id: None, reply_to: None, task_id: None,
+            request_id: uuid::Uuid::new_v4().to_string() }), 4)).unwrap();
+    assert!(sent.get("error").is_none());
+    let guarded = native(&mut client, warp_agent_bus::wsl_setup::NativeAction::Observe {
+        draft: true, blocked: true, input_epoch: 1, submitted: false, cancelled: false,
+        native_ready: None, screen_run: Some(state.run.clone()), screen_activity: None });
+    assert!(guarded.wake.is_none(), "Drafts and approvals must block wake delivery");
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let wake = loop {
+        if let Some(wake) = observe(&mut client, Some(state.run.clone()), Some(warp_agent_bus::readiness::Activity::Idle)).wake { break wake; }
+        assert!(std::time::Instant::now() < deadline, "The dormant native Agent never became deliverable");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert!(native(&mut client, warp_agent_bus::wsl_setup::NativeAction::Claim { wake: wake.clone() }).valid);
+    assert!(native(&mut client, warp_agent_bus::wsl_setup::NativeAction::Validate { wake: wake.clone() }).valid);
+    write!(pty.writer, "Warpai peer work is waiting (message {}). Call warp_agent_inbox.\r", wake.message_id).unwrap();
+    pty.writer.flush().unwrap();
+    native(&mut client, warp_agent_bus::wsl_setup::NativeAction::Finish { wake, submitted: true });
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !root.path().join(".native-wake-received").exists() {
+        assert!(std::time::Instant::now() < deadline, "Native PTY did not receive the guarded wake");
+        std::thread::sleep(Duration::from_millis(50));
     }
     let disabled = configure(&mut client, Action::Enable(false));
     assert!(!disabled.preferences.enabled);
@@ -165,5 +196,9 @@ fn native_agent_child() {
     println!("NATIVE_MCP_ROUNDTRIP_OK");
     std::io::stdout().flush().unwrap();
     let mut line = String::new();
+    std::io::stdin().read_line(&mut line).unwrap();
+    assert!(line.starts_with("Warpai peer work is waiting (message "));
+    std::fs::write(".native-wake-received", b"received").unwrap();
+    line.clear();
     std::io::stdin().read_line(&mut line).unwrap();
 }

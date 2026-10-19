@@ -122,3 +122,11 @@ revocation. Do not infer readiness from time or silence. Preserve local and WSL
 behavior. Acceptance includes initial ready, working, approval, cancellation and
 stale-run rejection in panel and MCP, without requiring a first conversation.
 
+Owner explicitly requires SSH, WSL and local collaboration parity, including
+automatic dormant Agent wakeups. Reuse the native Claim/Validate/Finish delivery
+path for SSH too. Admission requires the current confirmed account/project/shell,
+enabled SSH master, a verified live selected native Agent run, idle native UI,
+and no draft or approval dialog. Revalidate before Enter; preserve cancellation,
+run replacement, disconnect and draft fences. Do not weaken local delivery or
+WSL opt-outs. A submitted prompt is not acknowledgement of the pending work.
+

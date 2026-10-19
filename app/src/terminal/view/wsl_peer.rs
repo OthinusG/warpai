@@ -259,13 +259,26 @@ impl TerminalView {
         })
     }
 
+    fn ssh_peer_input_is_empty(&self, ctx: &AppContext) -> bool {
+        let (draft, blocked) = self.peer_input_guard(ctx);
+        !draft && !blocked && self.wsl_peer.draft.is_empty()
+            && CLIAgentSessionsModel::as_ref(ctx).session(self.view_id).is_some_and(|session|
+                matches!(session.status, CLIAgentSessionStatus::Idle | CLIAgentSessionStatus::Success))
+            && !self.model.lock().shared_session_status().is_sharer_or_viewer()
+    }
+
     fn wsl_peer_valid(&self, context: &Context, epoch: u64, ctx: &AppContext) -> bool {
         let settings = crate::agent_communication::AgentCommunication::as_ref(ctx);
+        let input_allowed = match &context.target {
+            #[cfg(windows)]
+            Target::Wsl(_) => self.peer_input_is_empty(ctx),
+            Target::Ssh(_) => self.ssh_peer_input_is_empty(ctx),
+        };
         context.target.enabled(settings)
             && self.wsl_peer.epoch == epoch
             && !self.wsl_peer.cancelled
             && self.wsl_peer_context(ctx).as_ref() == Some(context)
-            && self.peer_input_is_empty(ctx)
+            && input_allowed
     }
 
     pub(crate) fn poll_remote_peer_work(
@@ -301,7 +314,7 @@ impl TerminalView {
         {
             return;
         }
-        let (_, blocked) = self.peer_input_guard(ctx);
+        let (draft, blocked) = self.peer_input_guard(ctx);
         let native_ready = CLIAgentSessionsModel::as_ref(ctx)
             .session(self.view_id)
             .filter(|session| session.listener.is_some() && session.plugin_version.is_some()
@@ -323,7 +336,7 @@ impl TerminalView {
             .map(|(output, input)| output.elapsed().min(input.elapsed())).unwrap_or_default();
         let mut action = NativeAction::Observe {
             // The host owns clearing; older guest services still block when this flag is true.
-            draft: false,
+            draft: matches!(&context.target, Target::Ssh(_)) && (draft || !self.wsl_peer.draft.is_empty()),
             blocked,
             input_epoch: epoch,
             submitted: self.wsl_peer.submitted,
@@ -369,11 +382,7 @@ impl TerminalView {
                 if let NativeAction::Observe { screen_activity, .. } = &mut action { *screen_activity = activity; }
                 capture.is_some() && (activity.is_some() || quiet >= Duration::from_millis(700))
             } else { false };
-            let mut state = request(&client, selected.shell_pid, action).await?;
-            if matches!(&selected.target, Target::Ssh(_)) {
-                // SSH activity projection does not grant native prompt delivery authority.
-                if let Some(state) = &mut state { state.wake = None; }
-            }
+            let state = request(&client, selected.shell_pid, action).await?;
             let state = match state {
                 Some(state) if state.wake.is_some() => request(&client, selected.shell_pid,
                     NativeAction::Claim { wake: state.wake.unwrap() }).await?,
@@ -489,6 +498,18 @@ mod tests {
                 view.observe_wsl_agent(&context, Some(&state), ctx);
                 assert_eq!(CLIAgentSessionsModel::as_ref(ctx).session(terminal.id()).unwrap().status,
                     CLIAgentSessionStatus::Idle);
+                assert!(view.ssh_peer_input_is_empty(ctx));
+                view.wsl_peer.user_input(b"unsent native draft");
+                assert!(!view.ssh_peer_input_is_empty(ctx));
+                view.wsl_peer.draft.clear();
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.observe_activity(terminal.id(), Activity::Working, true, ctx);
+                });
+                assert!(!view.ssh_peer_input_is_empty(ctx));
+                CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                    model.observe_activity(terminal.id(), Activity::WaitingApproval, true, ctx);
+                });
+                assert!(!view.ssh_peer_input_is_empty(ctx));
             });
             AgentCommunication::handle(&mut app).update(&mut app, |settings, _| {
                 settings.ssh.targets = vec![target];
