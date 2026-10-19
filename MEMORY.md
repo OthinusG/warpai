@@ -21,8 +21,8 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Oct19: preserve unpublished 1.7.2 tag/draft. Latest owner authorization:
   release 1.7.6 after current cloud acceptance; no further approval required.
   specs/RELEASE.md. Scope: Qoder + SSH repairs/switch/MCP/native readiness.
-- macOS test prioritized; Windows capture unresolved. Owner Linux still had 5.4.0:
-  files/Review work, but SSH native MCP needs the supplied 5.5.0 installer.
+- Owner Mac-to-Linux panels passed; initial 5.4.0 lacked native MCP setup.
+  Supplied 5.5.0; Windows capture diagnosis remains pending.
 - SSH tabs were correct while Companion panel/MCP stayed Starting. Forward
   native observations through the WSL path; never overwrite SSH tab evidence.
 - 1.7.1 published 2026-10-17. Linux desktop assets cover x86_64 and ARM64
@@ -165,7 +165,7 @@ Updated 2026-10-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 ## Retained native lifecycle constraints
 
 - Historical release/CI/owner receipts: docs/history/MEMORY-2026-10-19-SSH-MCP.md.
-- Keep Herdr-derived Idle/blocked semantics, run/input/redraw fences and vt100 memory capture.
+- Keep Herdr Idle/blocked semantics, run/input/redraw fences and vt100 capture.
 - SSH/WSL installers use `.config/warpai`; setup locks explicitly unlock despite inherited descriptors.
 - Signed birth-time hashes preserve positive identities; absent birth time cannot prove inode reuse.
 - Focus publishes session before roots; replay cached roots and scope remote polls to admission.

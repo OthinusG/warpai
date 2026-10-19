@@ -295,3 +295,14 @@ verify the executable, bound retries, and export the native Windows PROTOC path.
 All three Companion packaging jobs passed in
 [39225639546](https://github.com/OthinusG/warpai/actions/runs/39225639546);
 that desktop test package predates the new readiness repair. No public release.
+
+The new ordinary native MCP activity fixture passed on Linux, macOS and Windows
+in 39229371276, and that complete remote run passed. Desktop compilation caught
+the original Windows-only text staging helper; 36904b21/e6d15a1d align its native
+desktop guard with the shared observation module. SSH observes activity without
+claiming WSL prompt delivery authority. Current full desktop/UI/WSL acceptance:
+[39231109218](https://github.com/OthinusG/warpai/actions/runs/39231109218).
+The previous full run's always-on cache save delayed cancellation; the current
+input combination still executes both application checks, UI and real WSL.
+Owner now authorizes main integration and formal **1.7.6** release after passing
+cloud acceptance, superseding the earlier hold for another owner approval.
