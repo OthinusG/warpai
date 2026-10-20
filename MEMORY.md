@@ -167,6 +167,12 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Focus publishes session before roots; replay cached roots and scope remote polls to admission.
 - Bindings register before MCP discovery; readiness stays separate. Focus never acknowledges work.
 - Preserve context/version/digest/public guards and task-anchored native threads/reviewed memory.
+- Remote bootstrap input must be raw: zsh/bash init subshells set `stty raw` and the zsh wrapper
+  restores sane before eval. The embedded PowerShell SSH seed is minified before UTF-16/base64
+  expansion; 1.7.6's unminified ~6.2 KB line exceeded MAX_CANON and hung Windows-to-zsh SSH
+  warpify at "Starting shell...".
+- Remote-peer polls leave the WSL/SSH configuration generation untouched without a target;
+  syncing it to the SSH generation bumped the epoch and aborted WSL auto-warpify (1.7.7).
 
 ## Memory maintenance
 

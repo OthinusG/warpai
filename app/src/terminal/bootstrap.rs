@@ -185,10 +185,18 @@ pub fn script_for_shell(shell_type: ShellType, assets: &dyn AssetProvider) -> Co
             if script.contains("@@WARP_SSH_POWERSHELL_INIT@@") {
                 let init = assets.get("bundled/bootstrap/pwsh_init_shell.ps1")
                     .expect("PowerShell SSH init asset");
+                // Strip comments and indentation before base64 and UTF-16 expand the seed.
+                let init = String::from_utf8_lossy(&init);
+                let init = init
+                    .trim_start_matches(BYTE_ORDER_MARK)
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                    .join("\n");
                 let seed = format!(
                     "$env:TERM_PROGRAM='WarpTerminal';$env:WARP_IS_SSH='1';$env:WARP_CLI_AGENT_PROTOCOL_VERSION='{}';\n{}",
                     super::cli_agent_sessions::event::current_protocol_version(),
-                    String::from_utf8_lossy(&init).trim_start_matches(BYTE_ORDER_MARK),
+                    init,
                 );
                 let utf16: Vec<u8> = seed.encode_utf16().flat_map(u16::to_le_bytes).collect();
                 script = script.replace("@@WARP_SSH_POWERSHELL_INIT@@",
