@@ -122,7 +122,10 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           if [[ -n "$WINDOWS_SOURCE" ]]; then
             checkout_root="$(cd "$WARPAI_WORKSPACE" && pwd -P)"
-            actual_source="$(git -c safe.directory="$checkout_root" -C "$WARPAI_WORKSPACE" rev-parse HEAD)"
+            # Container jobs mount the checkout under a different owner; the inline -c override
+            # does not satisfy the ownership check, so register the path globally as later steps do.
+            git config --global --add safe.directory "$checkout_root"
+            actual_source="$(git -C "$WARPAI_WORKSPACE" rev-parse HEAD)"
             if [[ "$actual_source" != "$WINDOWS_SOURCE" ]]; then
               echo 'Windows/Linux source mismatch' >&2
               exit 1
