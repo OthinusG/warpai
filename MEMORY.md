@@ -11,8 +11,9 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
-  Debian `safe.directory` must use the canonical checkout root inside the
-  container; runner paths may resolve to a different `/__w/...` path.
+  Debian bullseye Git 2.30.2 requires `git config --global --add safe.directory`
+  with the canonical `/__w/...` checkout root; `-c safe.directory` is ignored and
+  runner workspace paths resolve elsewhere.
 - Release immutable tags through existing workflows; desktops share tagged source.
   Follow [release gates](specs/RELEASE.md), including five existing installers and
   checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
