@@ -77,6 +77,16 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. F
       <td>Master command blocks, smart autocompletion, vertical tabs, project explorer, Vim editor, and Git diff review.</td>
     </tr>
     <tr>
+      <td><strong>Remote Access</strong></td>
+      <td><a href="{{ '/docs/ssh-installation.html' | relative_url }}">OpenSSH Server Installation &amp; Setup</a></td>
+      <td>Install OpenSSH Server on Linux, macOS, and Windows, switch the Windows SSH shell to PowerShell, install Companion, and configure remote MCP.</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/docs/wsl-installation.html' | relative_url }}">Windows WSL Installation &amp; Setup</a></td>
+      <td>Enable WSL 2, install a distribution, open it in Warpai, install the WSL Companion, and configure per-Agent MCP inside the guest.</td>
+    </tr>
+    <tr>
       <td><strong>Ecosystem</strong></td>
       <td><a href="{{ '/docs/cli-agents.html' | relative_url }}">20+ CLI Agents Guide</a></td>
       <td>End-to-end installation and authentication guide for Claude, Codex, Gemini, Antigravity, Cursor, and 15+ more.</td>

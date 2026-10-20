@@ -116,6 +116,8 @@ Use the package matching your processor architecture. Release checksums are publ
 
 Warpai enables full terminal, file browsing, in-app editing, and agent collaboration across remote servers and containers without altering your remote environment, powered by the standalone **Warpai Companion** binary.
 
+For complete host setup, see [OpenSSH Server Installation & Setup]({{ '/docs/ssh-installation.html' | relative_url }}) and [Windows WSL Installation & Setup]({{ '/docs/wsl-installation.html' | relative_url }}). Both guides cover Companion installation, per-Agent MCP configuration, and the two-tier MCP boundary between the desktop client and the Agent's environment.
+
 ### Architecture Highlights:
 - **Private Bundled Git**: Companion embeds its own private Git runtime. Your remote server **does not require** Git, Node.js, Python, tmux, or socat to be pre-installed.
 - **Zero Background Resource Waste**: Companion starts on demand upon terminal connection and automatically terminates after 60 seconds of idle time.

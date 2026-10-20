@@ -117,6 +117,8 @@ Warpai 1.7.1 是一款原生桌面应用程序，支持 **macOS（Apple 芯片�
 
 Warpai 支持在不污染和改动远程服务器环境的前提下，无缝漫游连接远程 Linux/macOS/Windows 节点，享受完整终端、SFTP 文件树与 Agent 协同。这一切由独立的 **Warpai Companion** 伴侣进程提供驱动。
 
+完整的主机配置请参阅 [OpenSSH Server 安装与配置]({{ '/zh/docs/ssh-installation.html' | relative_url }}) 与 [Windows WSL 安装与配置]({{ '/zh/docs/wsl-installation.html' | relative_url }})，其中涵盖 Companion 安装、各 Agent 的 MCP 配置，以及桌面客户端与 Agent 运行环境之间的两层 MCP 边界。
+
 ### 架构特色：
 - **自带私有 Git 运行时**：Companion 自带精简版内部 Git 实现，远端宿主机**无需**预装 Git、Node.js、Python、tmux 或 socat。
 - **按需唤醒，零常驻损耗**：当终端连接时自动拉起，连接断开后空闲 60 秒自动退出，不消耗远端系统常驻内存。

@@ -137,6 +137,19 @@
           </ul>
         </div>
 
+        <!-- Group: Remote Access -->
+        <div class="docs-tree-group">
+          <span class="docs-tree-title">{% if page.lang == 'zh' %}远程接入{% else %}Remote Access{% endif %}</span>
+          <ul class="docs-tree-list">
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'ssh-installation' %}active{% endif %}" href="{{ url_prefix | append: '/docs/ssh-installation.html' | relative_url }}">{% if page.lang == 'zh' %}OpenSSH Server 安装与配置{% else %}OpenSSH Server Setup{% endif %}</a>
+            </li>
+            <li class="docs-tree-item">
+              <a class="docs-tree-link {% if page.doc_id == 'wsl-installation' %}active{% endif %}" href="{{ url_prefix | append: '/docs/wsl-installation.html' | relative_url }}">{% if page.lang == 'zh' %}Windows WSL 安装与配置{% else %}Windows WSL Setup{% endif %}</a>
+            </li>
+          </ul>
+        </div>
+
         <!-- Group: Agent Ecosystem -->
         <div class="docs-tree-group">
           <span class="docs-tree-title">{% if page.lang == 'zh' %}Agent 生态{% else %}Agent Ecosystem{% endif %}</span>

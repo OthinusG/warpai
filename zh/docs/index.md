@@ -78,6 +78,16 @@ Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对�
       <td>命令块交互、智能命令补全、垂直标签页、内置轻量 Vim 编辑器与实时 Markdown 预览。</td>
     </tr>
     <tr>
+      <td><strong>远程接入</strong></td>
+      <td><a href="{{ '/zh/docs/ssh-installation.html' | relative_url }}">OpenSSH Server 安装与配置</a></td>
+      <td>在 Linux、macOS 和 Windows 上安装并启用 OpenSSH Server，将 Windows SSH 登录 Shell 切换为 PowerShell，安装 Companion 并配置远端 MCP。</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td><a href="{{ '/zh/docs/wsl-installation.html' | relative_url }}">Windows WSL 安装与配置</a></td>
+      <td>启用 WSL 2、安装发行版、在 Warpai 中接入，安装 WSL Companion，并在客户机内部配置各 Agent 的 MCP。</td>
+    </tr>
+    <tr>
       <td><strong>Agent 生态</strong></td>
       <td><a href="{{ '/zh/docs/cli-agents.html' | relative_url }}">20+ 款 CLI Agent 配置</a></td>
       <td>Claude Code、Codex、Gemini、Antigravity、Cursor 等 20+ 款 Agent CLI 的安装与认证完整手册。</td>
