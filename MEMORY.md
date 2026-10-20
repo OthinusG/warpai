@@ -173,7 +173,7 @@ Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   expansion; 1.7.6's unminified ~6.2 KB line exceeded MAX_CANON and hung Windows-to-zsh SSH
   warpify at "Starting shell...".
 - Remote-peer polls leave the WSL/SSH configuration generation untouched without a target;
-  syncing it to the SSH generation bumped the epoch and aborted WSL auto-warpify (1.7.7).
+  syncing it to the SSH generation bumped the epoch and aborted WSL auto-warpify (1.7.7; both fixes shipped in 1.7.8).
 
 ## Memory maintenance
 

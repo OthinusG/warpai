@@ -22,6 +22,15 @@ Publish through `release-macos.yml` with `release_tag=v1.7.8` and
 installer, provenance, checksum and smoke gates, verify public assets and
 checksums, then complete the README, bilingual site and Homebrew steps below.
 
+Published 2026-10-20 from tag `1747f21a` (`b050715e` source): macOS run 39384574699,
+Windows run 39393646830 and Linux run 39405040826 all completed successfully. The
+release became public at 10:02:08Z and the Linux packages attached at 11:29:22Z.
+All 19 assets matched their published SHA-256 digests, every download URL returned
+HTTP 200, and an independently downloaded macOS DMG matched
+`d9f5ca03e7539cb6cfb1b6eaf55d68354f67d35a35f6092d660e0cf6d2e60a83`. Public
+updates: README commit 1cd02900, site commit dc555f41 on `gh-pages`, and Homebrew
+tap commit 3bc0340 (cask 1.7.8, `brew style` and online `brew audit` clean).
+
 ## Corrected 1.7.7 publication
 
 Owner authorization on 2026-10-20: stop the earlier cloud runs, fix the Zsh
