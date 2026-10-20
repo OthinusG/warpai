@@ -15,12 +15,12 @@ en:
     language: Switch to Chinese
     theme: Toggle color theme
   header:
-    download: "Download 1.7.1"
+    download: "Download 1.7.8"
   badge: "Free · Open source · Local-first"
   hero:
     subtitle: The terminal built around agents
     lead: Make an Agent session the unit of work. Collaborate omnidirectionally in Project mode, or lead parallel feature development across isolated Git worktrees.
-    cta: "Download 1.7.1"
+    cta: "Download 1.7.8"
     doc_link: Read the README
     platforms_label: Supported platforms
     features_label: Main features
@@ -31,7 +31,7 @@ en:
       - File tree & editor
       - Code review
       - No account · No telemetry
-    note: "v1.7.1 · macOS, Windows & Linux desktop · SHA-256 checksums with every release"
+    note: "v1.7.8 · macOS, Windows & Linux desktop · SHA-256 checksums with every release"
     shot_alt: "Warpai workspace with vertical tabs, a source editor and an agent collaboration panel"
   panel:
     kicker: Collaboration panel
@@ -72,7 +72,7 @@ en:
     kicker: Get started
     heading_line: Bring your agents to
     body: One project, many agents, one coordinated workflow — locally or over SSH.
-    primary: "Download 1.7.1"
+    primary: "Download 1.7.8"
     secondary: All downloads
   footer:
     links:
@@ -107,12 +107,12 @@ zh:
     language: 切换到英文
     theme: 切换主题
   header:
-    download: 下载 1.7.1
+    download: 下载 1.7.8
   badge: "免费 · 开源 · 本地优先"
   hero:
     subtitle: 为智能体而生的终端
     lead: 让每个智能体会话成为工作单元。在 Project 模式下全向协作互通消息，或在隔离的 Git worktree 中并行推进代码开发。
-    cta: 下载 1.7.1
+    cta: 下载 1.7.8
     doc_link: 阅读 README
     platforms_label: 支持平台
     features_label: 主要功能
@@ -123,7 +123,7 @@ zh:
       - 文件树与编辑器
       - 代码审查
       - 免账号 · 免遥测
-    note: "v1.7.1 · 支持 macOS、Windows 与 Linux 桌面端 · 每个版本附带 SHA-256 校验"
+    note: "v1.7.8 · 支持 macOS、Windows 与 Linux 桌面端 · 每个版本附带 SHA-256 校验"
     shot_alt: 带垂直标签、源码编辑器与智能体协作面板的 Warpai 工作区
   panel:
     kicker: 协作面板
@@ -164,7 +164,7 @@ zh:
     kicker: 开始使用
     heading_line: 把智能体带进
     body: 一个项目，多个智能体，一套协作工作流——本地或远程。
-    primary: 下载 1.7.1
+    primary: 下载 1.7.8
     secondary: 全部下载
   footer:
     links:
