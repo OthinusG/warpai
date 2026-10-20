@@ -1,5 +1,27 @@
 # Warpai releases
 
+## 2026-10-20 WSL recovery and 1.7.8 publication
+
+The owner confirmed real-machine acceptance covering SSH connections to Linux,
+macOS and Windows hosts and local WSL, then authorized merging
+`fix/windows-bootstrap-size` and publishing Warpai 1.7.8. Scope: shorten the
+Windows PowerShell SSH seed below the console input limit to remove the
+"Starting shell..." hang, restore WSL auto-warpify when entering `wsl`, keep Zsh
+bootstrap input hidden in raw mode, and carry the container `safe.directory`
+packaging fix already on `main`. Companion remains 5.5.0; SSH protocol major 1
+and Agent Bus major 2 are unchanged. The release notes must state that SSH to
+Linux, macOS, Windows and local WSL was tested on real machines.
+
+Acceptance: branch source 67d3e83b passed
+[Validate Warpai communication](https://github.com/OthinusG/warpai/actions/runs/39367252504)
+and produced the Windows test installer used for owner testing in
+[Release Windows x64](https://github.com/OthinusG/warpai/actions/runs/39374934247).
+The Linux packaging correction was verified in container run 39383298426.
+Publish through `release-macos.yml` with `release_tag=v1.7.8` and
+`auto_publish=true`; Windows and Linux follow from the immutable tag. Retain all
+installer, provenance, checksum and smoke gates, verify public assets and
+checksums, then complete the README, bilingual site and Homebrew steps below.
+
 ## Corrected 1.7.7 publication
 
 Owner authorization on 2026-10-20: stop the earlier cloud runs, fix the Zsh
