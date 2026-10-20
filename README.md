@@ -57,6 +57,7 @@ Warpai v1.7.0 introduces **Dynamic Task Supervision**:
 3. **Dynamic supervision list enrollment**: Newly dispatched tasks immediately join the primary Agent's live **Supervision Task List**. The supervising agent actively tracks task lifecycle states (`assigned`, `in_progress`, `submitted_for_review`).
 4. **Active task retirement**: Once an assigned agent completes its deliverable and submits accepted evidence or code diffs, the task automatically exits the supervision list.
 5. **Guarded inbox delivery**: Busy agents receive incoming tasks and messages in arrival order without unexpected process interruptions. Timeouts never prematurely restart in-flight work.
+6. **Subtask autonomy and ready state**: An Agent's internal subtask states are not monitored, because the Agent itself is in a ready state that can receive tasks. The external coordination fabric tracks cross-Agent task lifecycles; micro-subtasks an Agent decomposes internally do not enter the supervision list.
 
 ```mermaid
 flowchart TB
@@ -117,6 +118,11 @@ The standalone **Warpai Companion** powers remote projects:
 ![Warpai SSH project with a connected remote agent and task](docs/images/warpai-ssh-project.png)
 
 *SSH remote workspace with live remote agent coordination and SFTP file management. See [screenshot provenance](docs/images/README.md).*
+
+- **Detailed installation and setup guides**:
+  - [OpenSSH Server Installation and Setup Guide (Linux / macOS / Windows)](docs/SSH-INSTALLATION.md)
+  - [Windows WSL Installation and Setup Guide](docs/WSL-INSTALLATION.md)
+  - [Remote Components and Protocol Reference](docs/REMOTE-INSTALLATION.md)
 
 ## Beyond software development
 

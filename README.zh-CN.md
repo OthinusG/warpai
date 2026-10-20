@@ -53,6 +53,7 @@ Warpai 针对不同业务形态提供两种第一公民协作模式：
 3. **加入动态监督列表**：新发布的任务会自动加入主 Agent 的**监督任务列表（Supervision Task List）**，主 Agent 持续跟踪任务的生命周期流转（`assigned`、`in_progress`、`submitted_for_review`）。
 4. **完成主动退出列表**：被分派的 Agent 在执行完毕并提交测试材料或代码改动后，经过验证或审阅通过，任务主动从监督列表中移出归档。
 5. **守卫收件箱队列**：处于忙碌状态的 Agent 会按到达顺序排队处理外部任务和消息，防止进程意外被抢占打断；超时不会无故自动重跑已终止的工作。
+6. **子任务自治与就绪状态**：Agent 的子任务状态并不会被监控，因为此时 Agent 就是可接收任务状态。外部协同中枢聚焦跨 Agent 任务流转，Agent 内部自治执行的微观子任务不进入监督列表。
 
 ```mermaid
 flowchart TB
@@ -113,6 +114,11 @@ Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、G
 ![Warpai SSH 项目：已连接的远程 Agent 与任务](docs/images/warpai-ssh-project.png)
 
 *SSH 远程工作空间原生运行截图：远程 Agent 接管与 SFTP 文件树联动。详见[截图来源说明](docs/images/README.zh-CN.md)。*
+
+- **详细安装与配置指南**：
+  - [OpenSSH Server 安装与配置指南（Linux / macOS / Windows）](docs/SSH-INSTALLATION.zh-CN.md)
+  - [Windows WSL 安装与配置指南](docs/WSL-INSTALLATION.zh-CN.md)
+  - [远端组件与协议参考](docs/REMOTE-INSTALLATION.zh-CN.md)
 
 ## 不止软件开发
 
