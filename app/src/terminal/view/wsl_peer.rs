@@ -288,14 +288,16 @@ impl TerminalView {
     ) {
         let context = self.wsl_peer_context(ctx);
         self.wsl_peer.select(context.clone());
-        // The scheduler owns the communication model's update; do not re-read its singleton.
-        let configuration_generation = context.as_ref().map(|context| context.target.generation(settings))
-            .unwrap_or(settings.ssh.generation);
-        self.wsl_peer.select_configuration(configuration_generation);
+        // Leave the configuration generation untouched without remote work: the WSL auto-warpify
+        // timer captures the epoch after selecting the WSL generation, and syncing to the unrelated
+        // SSH generation here would bump the epoch and abort the delayed bootstrap.
         let Some(context) = context else {
             self.clear_observed_wsl_agent(ctx);
             return;
         };
+        // The scheduler owns the communication model's update; do not re-read its singleton.
+        let configuration_generation = context.target.generation(settings);
+        self.wsl_peer.select_configuration(configuration_generation);
         if !context.target.enabled(settings) {
             self.wsl_peer.client = None;
             return;
@@ -523,7 +525,7 @@ mod tests {
         });
     }
     #[test]
-    fn polling_during_communication_update_does_not_read_its_singleton() {
+    fn polling_without_remote_work_preserves_pending_configuration() {
         use crate::test_util::{add_window_with_terminal, terminal::initialize_app_for_terminal_view};
         use crate::agent_communication::AgentCommunication;
         warpui::App::test((), |mut app| async move {
@@ -532,8 +534,13 @@ mod tests {
             AgentCommunication::handle(&mut app).update(&mut app, |model, ctx| {
                 model.ssh.generation = 7;
                 terminal.update(ctx, |view, ctx| {
+                    // A pending WSL auto-warpify captures this generation and epoch; a poll with no
+                    // remote context must not invalidate it.
+                    view.wsl_peer.select_configuration(11);
+                    let epoch = view.wsl_peer.epoch;
                     view.poll_remote_peer_work(model, ctx);
-                    assert_eq!(view.wsl_peer.configuration_generation, 7);
+                    assert_eq!(view.wsl_peer.configuration_generation, 11);
+                    assert_eq!(view.wsl_peer.epoch, epoch);
                     assert!(view.wsl_peer.context.is_none());
                     assert!(!view.wsl_peer.busy);
                 });

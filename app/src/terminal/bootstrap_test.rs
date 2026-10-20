@@ -105,6 +105,54 @@ fn test_trims_whitespace() {
 }
 
 #[test]
+fn subshell_init_scripts_enable_raw_input_for_injected_bootstrap() {
+    // The full bootstrap arrives as multi-line PTY input. In canonical mode the line discipline
+    // drops bytes past MAX_CANON, which corrupts long lines like the remote PowerShell seed.
+    for script in [
+        include_str!("../../assets/bundled/bootstrap/zsh_init_subshell.sh"),
+        include_str!("../../assets/bundled/bootstrap/bash_init_subshell.sh"),
+    ] {
+        assert!(script.contains("command -p stty raw"));
+    }
+}
+
+#[test]
+fn windows_ssh_powershell_seed_is_minified() {
+    let script_bytes = script_for_shell(ShellType::Zsh, &crate::ASSETS);
+    let script = decode_script(&script_bytes);
+    let marker = "-EncodedCommand ";
+    let start = script
+        .find(marker)
+        .expect("SSH helper embeds the PowerShell seed")
+        + marker.len();
+    let end = start
+        + script[start..]
+            .find('\'')
+            .expect("PowerShell seed must be single-quoted");
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&script[start..end])
+        .expect("PowerShell seed must be valid base64");
+    let seed = String::from_utf16(
+        &decoded
+            .chunks_exact(2)
+            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .collect::<Vec<_>>(),
+    )
+    .expect("PowerShell seed must be UTF-16LE");
+    assert!(seed.contains("Remove-Module -Name PSReadline"));
+    assert!(seed.contains("function prompt"));
+    assert!(!seed.lines().any(|line| line.trim_start().starts_with('#')));
+    assert!(
+        decoded.len() < 3600,
+        "PowerShell seed contains unused bytes"
+    );
+    assert!(
+        script.lines().all(|line| line.len() < 5000),
+        "Injected bootstrap lines must stay bounded"
+    );
+}
+
+#[test]
 fn zsh_bootstrap_restores_terminal_after_reading_hidden_input() {
     let script_bytes = script_for_shell(ShellType::Zsh, &crate::ASSETS);
     let script = decode_script(&script_bytes);

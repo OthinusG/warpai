@@ -5,6 +5,7 @@
 # command -p resolves the given command with the system default PATH, ensuring the shell
 # can find them even if the user has a clobbered PATH value.
 setopt hist_ignore_space
+ command -p stty raw
  unsetopt ZLE
  WARP_IS_SUBSHELL=1
  WARP_SESSION_ID="$(command -p date +%s)$RANDOM"
