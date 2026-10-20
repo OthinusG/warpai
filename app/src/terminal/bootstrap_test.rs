@@ -118,7 +118,8 @@ fn subshell_init_scripts_enable_raw_input_for_injected_bootstrap() {
 
 #[test]
 fn windows_ssh_powershell_seed_is_minified() {
-    let script = decode_script(&script_for_shell(ShellType::Zsh, &crate::ASSETS));
+    let script_bytes = script_for_shell(ShellType::Zsh, &crate::ASSETS);
+    let script = decode_script(&script_bytes);
     let marker = "-EncodedCommand ";
     let start = script
         .find(marker)
