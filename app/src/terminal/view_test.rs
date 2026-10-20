@@ -5006,12 +5006,14 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 assert!(writes.borrow().is_empty(), "Composing a draft must not write to the native prompt");
                 view.wake_for_peer_work(broker.clone(), wake, ctx)
             });
-            // Invalidate the run between the paste and delayed Enter.
-            if *agent == CLIAgent::Claude {
-                warpui::r#async::Timer::after(std::time::Duration::from_millis(75)).await;
-                broker.end(&requests[index].terminal);
-            }
         }
+        // Invalidate Claude after its prompt is pasted but before its delayed Enter.
+        warpui::r#async::Timer::after(std::time::Duration::from_millis(75)).await;
+        let claude_index = terminals
+            .iter()
+            .position(|(_, _, agent)| *agent == CLIAgent::Claude)
+            .unwrap();
+        broker.end(&requests[claude_index].terminal);
         warpui::r#async::Timer::after(std::time::Duration::from_millis(450)).await;
         for (terminal, writes, agent) in &terminals {
             let written: Vec<u8> = writes.borrow().iter().flatten().copied().collect();
