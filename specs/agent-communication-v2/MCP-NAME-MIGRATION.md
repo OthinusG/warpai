@@ -14,9 +14,9 @@ and its current CLI reports exact not-found results for both names.
 
 - Treat the persisted scope name as canonical and migrate only recognized Warpai
   names in native CLI argv; preserve argument order, scope flags and other args.
-- Migrate loaded app preferences and save them through the existing atomic
-  preferences writer. Normalize at the setup/uninstall boundary too, covering
-  remote and direct callers that deserialize old preferences independently.
+- Migrate loaded local preferences and both remote preference stores (SSH and
+  WSL) through the existing atomic writer. Normalize at setup/uninstall
+  boundaries too, covering direct callers that deserialize old preferences.
 - Old local/SSH shared registration is removed before local install/retry;
   WSL legacy registration remains isolated to WSL.
 - Exact absence is idempotent success for cleanup; successful enable adds the new

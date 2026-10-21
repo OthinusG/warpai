@@ -398,6 +398,9 @@ pub(crate) fn apply_native_action(
     environment: &str,
     configure: impl Fn(&setup::Installed, bool, bool) -> Result<()>,
 ) -> Result<bool> {
+    if preferences.migrate_server_names() {
+        setup::save_preferences(path, preferences)?;
+    }
     if matches!(action, Action::Rescan) {
         return Ok(false);
     }
@@ -504,6 +507,67 @@ mod tests {
 
     use super::*;
     use crate::setup::{Adapter, Installed, SERVER, WSL_SERVER};
+
+    #[test]
+    fn rescan_persists_native_server_name_migrations_for_ssh_and_wsl_preferences() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("mcp-settings.json");
+        let mut preferences = Preferences {
+            enabled: true,
+            selected: [
+                ("ssh-agent".into(), "warp-lite-communication", crate::setup::SSH_SERVER),
+                ("wsl-agent".into(), "warpai-wsl-communication", WSL_SERVER),
+            ]
+            .into_iter()
+            .map(|(command, stale, server_name)| {
+                (
+                    command,
+                    Installed {
+                        active: false,
+                        program: "qoder-cn".into(),
+                        executable: directory.path().join("qodercn"),
+                        adapter: Adapter::Cli {
+                            add: vec![stale.into()],
+                            remove: vec![stale.into()],
+                            get: vec![stale.into()],
+                            get_all: false,
+                        },
+                        bridge: directory.path().join("warpai-agent"),
+                        server_name: server_name.into(),
+                        search_paths: vec![],
+                        launch_options: Default::default(),
+                    },
+                )
+            })
+            .collect(),
+            legacy_remote_profiles: vec![],
+        };
+        setup::save_preferences(&path, &preferences).unwrap();
+        let mut available = vec![];
+
+        assert!(!apply_native_action(
+            &Action::Rescan,
+            &mut preferences,
+            &mut available,
+            &path,
+            "Remote",
+            |_, _, _| Ok(())
+        )
+        .unwrap());
+
+        let saved: Preferences = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        for (command, expected) in [
+            ("ssh-agent", crate::setup::SSH_SERVER),
+            ("wsl-agent", WSL_SERVER),
+        ] {
+            let Adapter::Cli { add, remove, get, .. } = &saved.selected[command].adapter else {
+                panic!("Expected CLI adapter")
+            };
+            assert_eq!(add, &vec![expected.to_owned()]);
+            assert_eq!(remove, &vec![expected.to_owned()]);
+            assert_eq!(get, &vec![expected.to_owned()]);
+        }
+    }
 
     #[test]
     fn windows_path_translation_excludes_host_installs() {
