@@ -776,21 +776,24 @@ pub fn vibe_environment(
     Ok(())
 }
 pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
-    remove_legacy_entries(installed)?;
+    remove_legacy_entries(installed, false)?;
     configure_inner(installed, enable, owned, false)
 }
 pub fn uninstall(installed: &Installed) -> Result<()> {
-    remove_legacy_entries(installed)?;
+    remove_legacy_entries(installed, false)?;
     configure_inner(installed, false, true, true)
 }
 
-fn remove_legacy_entries(installed: &Installed) -> Result<()> {
+fn remove_legacy_entries(installed: &Installed, native_codex: bool) -> Result<()> {
     let legacy_names: &[&str] = match installed.server_name.as_str() {
         LOCAL_SERVER | SSH_SERVER => &[LEGACY_SHARED_SERVER],
         WSL_SERVER => &[LEGACY_WSL_SERVER],
         _ => &[],
     };
     for name in legacy_names {
+        if matches!(&installed.adapter, Adapter::Codex(_)) && !native_codex {
+            continue;
+        }
         let mut legacy = installed.clone();
         legacy.server_name = (*name).into();
         if let Adapter::Vibe(path) = &legacy.adapter {
@@ -834,7 +837,7 @@ pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) 
 }
 
 pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
-    remove_legacy_entries(installed)?;
+    remove_legacy_entries(installed, true)?;
     let mut installed = installed.clone();
     let args = json!(["mcp", installed.program]);
     fn native_entry(value: &mut Value, args: &Value) {
@@ -1653,7 +1656,13 @@ mod tests {
         assert_eq!(servers[1]["env"]["WARP_AGENT_CAPABILITY"], "test-binding");
         assert!(vibe_environment(&installed, &mut env, None).is_err());
         configure(&installed, false, true).unwrap();
-        assert_eq!(std::fs::read_to_string(path).unwrap(), original);
+        let remaining: toml::Value = toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert!(remaining["mcp_servers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|server| server["name"].as_str() == Some("user-server")));
+        assert!(!remaining["mcp_servers"].as_array().unwrap().iter().any(|server| server["name"].as_str() == Some(LEGACY_SHARED_SERVER)));
     }
     #[test]
     fn codex_session_override_is_valid_and_contains_only_binding_names() {
@@ -1832,9 +1841,9 @@ if [ "$3" = "--help" ]; then
     exit 0
 fi
 case "$2" in
-    get) if [ -f "$entry" ]; then cat "$entry"; else echo 'server not found' >&2; exit 1; fi ;;
-    add) printf '%s mcp' "$5" > "$entry" ;;
-    remove) rm -f "$entry" ;;
+    get) if [ -f "$entry" ] && [ "$(head -n1 "$entry")" = "$3" ]; then tail -n +2 "$entry"; else echo 'server not found' >&2; exit 1; fi ;;
+    add) printf '%s\n%s mcp' "$3" "$5" > "$entry" ;;
+    remove) if [ -f "$entry" ] && [ "$(head -n1 "$entry")" = "$3" ]; then rm -f "$entry"; fi ;;
     *) exit 2 ;;
 esac
 "#,
@@ -1871,9 +1880,9 @@ esac
         configure(&installed, true, false).unwrap();
         configure(&installed, true, true).unwrap();
         assert!(configure(&installed, true, false).is_err());
-        std::fs::write(directory.path().join("entry"), "/user-command mcp").unwrap();
+        std::fs::write(directory.path().join("entry"), format!("{SERVER}\n/user-command mcp")).unwrap();
         assert!(configure(&installed, false, true).is_err());
-        std::fs::write(directory.path().join("entry"), "/bridge mcp").unwrap();
+        std::fs::write(directory.path().join("entry"), format!("{SERVER}\n/bridge mcp")).unwrap();
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
         let source = std::fs::read_to_string(&installed.executable).unwrap();
