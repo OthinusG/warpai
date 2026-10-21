@@ -920,8 +920,9 @@ pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: b
             .and_then(toml_edit::Item::as_table_mut)
             .ok_or_else(|| anyhow::anyhow!("Invalid MCP server table"))?;
         if enable {
-            let entry =
-                toml::Value::try_from(json!({"mcp_servers": {installed.server_name:value}}))?;
+            let entry = toml::Value::try_from(
+                json!({"mcp_servers": {installed.server_name.clone():value}}),
+            )?;
             let entry = toml::to_string(&entry)?.parse::<toml_edit::DocumentMut>()?;
             let decor = servers
                 .get(&installed.server_name)
@@ -962,8 +963,9 @@ fn configure_inner(
             let text = read_text(path)?;
             let parsed: toml::Value = toml::from_str(&text)
                 .map_err(|_| anyhow::anyhow!("Invalid agent TOML; configuration was preserved"))?;
-            let entry =
-                toml::Value::try_from(json!({"mcp_servers": {installed.server_name:value}}))?;
+            let entry = toml::Value::try_from(
+                json!({"mcp_servers": {installed.server_name.clone():value}}),
+            )?;
             let block = format!("{START}\n{}{END}\n", toml::to_string(&entry)?);
             let present = parsed
                 .get("mcp_servers")
@@ -1626,10 +1628,15 @@ mod tests {
             launch_options: Default::default(),
         };
         configure(&installed, true, false).unwrap();
-        let configured: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let configured: toml::Value =
+            toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         let configured_servers = configured["mcp_servers"].as_array().unwrap();
-        assert!(!configured_servers.iter().any(|server| server["name"] == LEGACY_SHARED_SERVER));
-        assert!(configured_servers.iter().any(|server| server["name"] == "user-server"));
+        assert!(!configured_servers
+            .iter()
+            .any(|server| server["name"].as_str() == Some(LEGACY_SHARED_SERVER)));
+        assert!(configured_servers
+            .iter()
+            .any(|server| server["name"].as_str() == Some("user-server")));
         let mut env = std::collections::HashMap::from([
             ("WARP_AGENT_ENDPOINT".into(), "test-endpoint".into()),
             ("WARP_AGENT_CAPABILITY".into(), "test-binding".into()),

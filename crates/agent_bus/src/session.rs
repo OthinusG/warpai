@@ -458,7 +458,9 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
         } else {
             vec![
                 "--mcp-config".into(),
-                json!({"mcpServers": {binding.server_name: config}}).to_string().into(),
+                json!({"mcpServers": {binding.server_name.clone(): config}})
+                    .to_string()
+                    .into(),
             ]
         };
         native.append(&mut args);

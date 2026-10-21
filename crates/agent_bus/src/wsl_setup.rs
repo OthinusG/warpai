@@ -503,7 +503,7 @@ mod tests {
     }
 
     use super::*;
-    use crate::setup::{Adapter, Installed, SERVER};
+    use crate::setup::{Adapter, Installed, SERVER, WSL_SERVER};
 
     #[test]
     fn windows_path_translation_excludes_host_installs() {
