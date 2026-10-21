@@ -1,11 +1,14 @@
 # Project Memory
 
-Updated 2026-10-20. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
+- Peer wake cancellation fixtures must end the run on the captured paste event;
+  scheduling all agents before cancellation can exhaust Claude's Enter delay.
+  CI repair and receipts: specs/agent-communication-v2/CI-2026-10-21.md.
 - Oct19 cloud acceptance passed: communication 39259499684, Companion 39254214995,
   Linux packages 39249589503. The original v1.7.6 draft/tag remains immutable.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.

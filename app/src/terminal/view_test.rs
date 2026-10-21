@@ -4922,10 +4922,18 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
             });
             let writes = Rc::new(RefCell::new(Vec::<Vec<u8>>::new()));
             let captured = writes.clone();
+            let cancel_broker = broker.clone();
+            let cancel_terminal = name.clone();
             app.update(|ctx| {
                 ctx.subscribe_to_view(&terminal, move |_, event, _| {
                     if let Event::WriteBytesToPty { bytes } = event {
                         captured.borrow_mut().push(bytes.to_vec());
+                        // Cancel at the paste event so other agents cannot consume the Enter delay.
+                        if agent == CLIAgent::Claude
+                            && String::from_utf8_lossy(bytes).contains("Warpai peer work is waiting")
+                        {
+                            cancel_broker.end(&cancel_terminal);
+                        }
                     }
                 })
             });
@@ -5007,13 +5015,6 @@ fn peer_wake_submits_to_dormant_agent_and_cancels_stale_enter() {
                 view.wake_for_peer_work(broker.clone(), wake, ctx)
             });
         }
-        // Invalidate Claude after its prompt is pasted but before its delayed Enter.
-        warpui::r#async::Timer::after(std::time::Duration::from_millis(75)).await;
-        let claude_index = terminals
-            .iter()
-            .position(|(_, _, agent)| *agent == CLIAgent::Claude)
-            .unwrap();
-        broker.end(&requests[claude_index].terminal);
         warpui::r#async::Timer::after(std::time::Duration::from_millis(450)).await;
         for (terminal, writes, agent) in &terminals {
             let written: Vec<u8> = writes.borrow().iter().flatten().copied().collect();
