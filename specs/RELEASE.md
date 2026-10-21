@@ -1,5 +1,20 @@
 # Warpai releases
 
+## 2026-10-21 MCP adapter migration and 1.7.8.2 bugfix
+
+The owner authorized fixing the persisted native MCP argv migration and
+publishing 1.7.8.2 as a bugfix. Keep each adapter's `server_name` consistent
+with its `add`, `get`, and `remove` arguments so QoderCN does not mistake a
+successful lookup of the obsolete name for an existing user-owned server.
+Preserve unrelated MCP entries and existing Agent activation preferences. The
+local QoderCN installation was separately repaired by registering only
+`warpai-local-com`; its CLI confirmed the bridge command. Companion remains
+5.5.0; SSH protocol major 1 and Agent Bus major 2 remain unchanged.
+
+Validate the focused Agent Bus regression and all existing cloud release gates
+against immutable tag `v1.7.8.2` before publication. After public assets and
+checksums exist, complete the README, bilingual site, and Homebrew updates below.
+
 ## 2026-10-21 MCP scope names and 1.7.8.1 publication
 
 The owner authorized publication of Warpai 1.7.8.1 after cloud acceptance.

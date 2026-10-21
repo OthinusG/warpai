@@ -197,6 +197,11 @@ impl AgentCommunication {
             Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
             Err(_) => setup::Preferences::default(),
         };
+        if preferences.migrate_server_names() {
+            if let Err(error) = setup::save_preferences(&preferences_path, &preferences) {
+                log::error!("Could not save migrated Agent MCP settings: {error:#}");
+            }
+        }
         for profile in &mut preferences.legacy_remote_profiles {
             if profile.cleanup_pending {
                 profile.cleanup_pending = legacy_remote_credentials::remove(

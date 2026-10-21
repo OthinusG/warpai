@@ -16,6 +16,13 @@ pub const SSH_SERVER: &str = "warpai-ssh-com";
 pub const WSL_SERVER: &str = "warpai-wsl-com";
 const LEGACY_SHARED_SERVER: &str = "warp-lite-communication";
 const LEGACY_WSL_SERVER: &str = "warpai-wsl-communication";
+const SERVER_NAMES: &[&str] = &[
+    LOCAL_SERVER,
+    SSH_SERVER,
+    WSL_SERVER,
+    LEGACY_SHARED_SERVER,
+    LEGACY_WSL_SERVER,
+];
 #[cfg(not(feature = "wsl_companion"))]
 pub const SERVER: &str = LOCAL_SERVER;
 #[cfg(feature = "wsl_companion")]
@@ -51,6 +58,15 @@ pub struct Preferences {
     pub legacy_remote_profiles: Vec<LegacyRemoteProfile>,
 }
 impl Preferences {
+    /// Rewrite stale native CLI argv names after the MCP scope rename.
+    pub fn migrate_server_names(&mut self) -> bool {
+        self.selected
+            .values_mut()
+            .fold(false, |changed, installed| {
+                migrate_server_name(installed) || changed
+            })
+    }
+
     pub fn legacy_cleanup_pending(&self) -> bool {
         self.legacy_remote_profiles
             .iter()
@@ -66,6 +82,20 @@ impl Preferences {
             .map(|entry| entry.program.clone())
             .collect()
     }
+}
+
+fn migrate_server_name(installed: &mut Installed) -> bool {
+    let Adapter::Cli { add, remove, get, .. } = &mut installed.adapter else {
+        return false;
+    };
+    let mut changed = false;
+    for argument in add.iter_mut().chain(remove).chain(get) {
+        if argument != &installed.server_name && SERVER_NAMES.contains(&argument.as_str()) {
+            *argument = installed.server_name.clone();
+            changed = true;
+        }
+    }
+    changed
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Installed {
@@ -776,12 +806,16 @@ pub fn vibe_environment(
     Ok(())
 }
 pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
-    remove_legacy_entries(installed, false)?;
-    configure_inner(installed, enable, owned, false)
+    let mut installed = installed.clone();
+    migrate_server_name(&mut installed);
+    remove_legacy_entries(&installed, false)?;
+    configure_inner(&installed, enable, owned, false)
 }
 pub fn uninstall(installed: &Installed) -> Result<()> {
-    remove_legacy_entries(installed, false)?;
-    configure_inner(installed, false, true, true)
+    let mut installed = installed.clone();
+    migrate_server_name(&mut installed);
+    remove_legacy_entries(&installed, false)?;
+    configure_inner(&installed, false, true, true)
 }
 
 fn remove_legacy_entries(installed: &Installed, native_codex: bool) -> Result<()> {
@@ -837,8 +871,9 @@ pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) 
 }
 
 pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
-    remove_legacy_entries(installed, true)?;
     let mut installed = installed.clone();
+    migrate_server_name(&mut installed);
+    remove_legacy_entries(&installed, true)?;
     let args = json!(["mcp", installed.program]);
     fn native_entry(value: &mut Value, args: &Value) {
         if let Some(object) = value.as_object_mut() {
@@ -1316,6 +1351,115 @@ mod tests {
         assert_ne!(LOCAL_SERVER, SSH_SERVER);
         assert_ne!(LOCAL_SERVER, WSL_SERVER);
         assert_ne!(SSH_SERVER, WSL_SERVER);
+    }
+
+    #[test]
+    fn preferences_migrate_only_known_cli_server_arguments() {
+        let make = |server_name: &str| Installed {
+            active: false,
+            program: "qodercn".into(),
+            executable: "/qoder".into(),
+            adapter: Adapter::Cli {
+                add: vec!["mcp".into(), "add".into(), "--scope".into(), "user".into(),
+                    LEGACY_SHARED_SERVER.into(), "--".into(), "/bridge".into(), "mcp".into()],
+                remove: vec!["mcp".into(), "remove".into(), LEGACY_SHARED_SERVER.into(),
+                    "--scope".into(), "user".into()],
+                get: vec!["mcp".into(), "get".into(), LEGACY_SHARED_SERVER.into(),
+                    "--scope".into(), "user".into()],
+                get_all: false,
+            },
+            bridge: "/bridge".into(),
+            server_name: server_name.into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        let mut preferences = Preferences {
+            enabled: false,
+            selected: BTreeMap::from([
+                ("local".into(), make(LOCAL_SERVER)),
+                ("ssh".into(), make(SSH_SERVER)),
+                ("wsl".into(), make(WSL_SERVER)),
+            ]),
+            legacy_remote_profiles: vec![],
+        };
+        assert!(preferences.migrate_server_names());
+        for (key, name) in [("local", LOCAL_SERVER), ("ssh", SSH_SERVER), ("wsl", WSL_SERVER)] {
+            let Adapter::Cli {
+                add, remove, get, ..
+            } = &preferences.selected[key].adapter
+            else {
+                panic!("Expected native CLI adapter")
+            };
+            assert_eq!(
+                add.iter()
+                    .find(|arg| SERVER_NAMES.contains(&arg.as_str()))
+                    .map(String::as_str),
+                Some(name)
+            );
+            assert_eq!(
+                remove
+                    .iter()
+                    .find(|arg| SERVER_NAMES.contains(&arg.as_str()))
+                    .map(String::as_str),
+                Some(name)
+            );
+            assert_eq!(
+                get.iter()
+                    .find(|arg| SERVER_NAMES.contains(&arg.as_str()))
+                    .map(String::as_str),
+                Some(name)
+            );
+            assert!(add.contains(&"--scope".into()));
+            assert!(add.contains(&"/bridge".into()));
+        }
+        assert!(!preferences.migrate_server_names(), "Migration is idempotent");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn migrated_qodercn_cli_installs_and_retries_cleanup_by_scope_name() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let cli = directory.path().join("qodercn");
+        let state = directory.path().join("entry");
+        let calls = directory.path().join("calls");
+        std::fs::write(&cli, format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\ncase \"$2\" in\n  get) name=\"$3\"; if [ -f '{}' ] && [ \"$(cut -d'|' -f1 '{}' )\" = \"$name\" ]; then echo \"$name /old/warpai-agent mcp\"; else echo \"Server \\\"$name\\\" not found in user settings.\"; fi ;;\n  add) name=\"$7\"; printf '%s|/old/warpai-agent mcp\\n' \"$name\" > '{}' ;;\n  remove) name=\"$5\"; if [ -f '{}' ] && [ \"$(cut -d'|' -f1 '{}' )\" = \"$name\" ]; then rm '{}' ; fi ;;\n  *) exit 2 ;;\nesac\n",
+            calls.display(), state.display(), state.display(), state.display(), state.display(), state.display(), state.display()
+        )).unwrap();
+        std::fs::set_permissions(&cli, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let installed = Installed {
+            active: true,
+            program: "qodercn".into(),
+            executable: cli,
+            adapter: Adapter::Cli {
+                add: vec!["mcp".into(), "add".into(), "--scope".into(), "user".into(),
+                    "--transport".into(), "stdio".into(), LEGACY_SHARED_SERVER.into(),
+                    "--".into(), "/old/warpai-agent".into(), "mcp".into()],
+                remove: vec!["mcp".into(), "remove".into(), "--scope".into(), "user".into(), LEGACY_SHARED_SERVER.into()],
+                get: vec!["mcp".into(), "get".into(), LEGACY_SHARED_SERVER.into(), "--scope".into(), "user".into()],
+                get_all: false,
+            },
+            bridge: "/new/warpai-agent".into(),
+            server_name: LOCAL_SERVER.into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        let mut preferences = Preferences {
+            enabled: true,
+            selected: BTreeMap::from([("qodercn".into(), installed.clone())]),
+            legacy_remote_profiles: vec![],
+        };
+        assert!(preferences.migrate_server_names());
+        let migrated = preferences.selected["qodercn"].clone();
+        configure(&migrated, true, false).unwrap();
+        assert_eq!(std::fs::read_to_string(&state).unwrap(), format!("{LOCAL_SERVER}|/old/warpai-agent mcp\n"));
+        configure(&migrated, false, true).unwrap();
+        configure(&migrated, false, true).unwrap();
+        assert!(!state.exists());
+        let calls = std::fs::read_to_string(calls).unwrap();
+        assert!(calls.lines().any(|line| line.starts_with(&format!("mcp add --scope user --transport stdio {LOCAL_SERVER} "))));
+        assert!(calls.lines().any(|line| line == format!("mcp get {LOCAL_SERVER} --scope user")));
     }
     #[cfg(windows)]
     #[test]

@@ -2,6 +2,11 @@
 
 Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
+- 1.7.8.1 MCP renames must migrate persisted native CLI `add/get/remove` argv
+  alongside `server_name`; otherwise QoderCN's status-zero not-found response
+  is mistaken for a user-owned entry. See the 1.7.8.2 bugfix contract in
+  specs/RELEASE.md.
+
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
