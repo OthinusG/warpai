@@ -74,6 +74,8 @@ jobs:
       - name: Verify WSL setup and recovery with an installed Agent fixture
         if: runner.os == 'Linux'
         run: |
+          cargo test -p warp-agent-bus --lib setup::tests::collaboration_server_names_are_distinct_for_all_execution_scopes --features wsl_companion --locked
+          cargo test -p warp-agent-bus --lib setup::tests::local_and_ssh_native_server_entries_are_independent_and_legacy_name_is_removed --features wsl_companion --locked
           cargo test -p warp-agent-bus --lib companion::guests::tests --features wsl_companion --locked
           cargo test -p warp-agent-bus --lib wsl_setup::tests --features wsl_companion --locked
           cargo test -p warp-agent-bus --test wsl_setup_process --features wsl_companion --locked

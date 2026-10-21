@@ -2,7 +2,7 @@
 
 ## Acceptance
 
-- Remove only Warpai's reserved `warp-lite-communication` MCP entry from installed and previously selected CLI agents.
+- Remove only the selected scope's Warpai MCP entry (`warpai-local-com`, `warpai-ssh-com`, or `warpai-wsl-com`) from installed and previously selected CLI agents.
 - Recognize entries created by older Warp/Warp Lite builds whose stdio command is `warp-agent` as well as current `warpai-agent` entries.
 - Preserve every unrelated server, user-modified entry, malformed file, and symlink; report cleanup failures by agent.
 - Provide a one-click Settings action that disables communication first, attempts every discovered/selected agent, and retains failed cleanup intent for retry.

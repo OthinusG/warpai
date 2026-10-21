@@ -11,10 +11,15 @@ use std::{
 };
 use uuid::Uuid;
 
+pub const LOCAL_SERVER: &str = "warpai-local-com";
+pub const SSH_SERVER: &str = "warpai-ssh-com";
+pub const WSL_SERVER: &str = "warpai-wsl-com";
+const LEGACY_SHARED_SERVER: &str = "warp-lite-communication";
+const LEGACY_WSL_SERVER: &str = "warpai-wsl-communication";
 #[cfg(not(feature = "wsl_companion"))]
-pub const SERVER: &str = "warp-lite-communication";
+pub const SERVER: &str = LOCAL_SERVER;
 #[cfg(feature = "wsl_companion")]
-pub const SERVER: &str = "warpai-wsl-communication";
+pub const SERVER: &str = WSL_SERVER;
 const START: &str = "# BEGIN WARP LITE COMMUNICATION";
 const END: &str = "# END WARP LITE COMMUNICATION";
 
@@ -69,6 +74,8 @@ pub struct Installed {
     pub executable: PathBuf,
     pub adapter: Adapter,
     pub bridge: PathBuf,
+    #[serde(default = "default_server_name")]
+    pub server_name: String,
     #[serde(default)]
     pub search_paths: Vec<PathBuf>,
     #[serde(default)]
@@ -114,6 +121,9 @@ pub struct Available {
     pub program: String,
     pub installed: Option<Installed>,
     pub status: String,
+}
+fn default_server_name() -> String {
+    SERVER.into()
 }
 
 pub fn companion() -> Result<PathBuf> {
@@ -184,7 +194,9 @@ fn output(executable: &Path, args: &[String], search_paths: &[PathBuf]) -> Resul
 }
 pub fn executable(command: &str, search_paths: &[PathBuf], home: &Path) -> Option<PathBuf> {
     executable_with_environment(
-        command, search_paths, home,
+        command,
+        search_paths,
+        home,
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
     )
 }
@@ -228,7 +240,9 @@ fn executable_with_environment(
             let candidate = path.join(format!("{command}{suffix}"));
             if candidate.is_file() {
                 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
-                if !crate::wsl_setup::native_executable(&candidate) { continue; }
+                if !crate::wsl_setup::native_executable(&candidate) {
+                    continue;
+                }
                 return Some(candidate);
             }
         }
@@ -282,6 +296,15 @@ pub fn discover(
     bridge: &Path,
     search_paths: Vec<PathBuf>,
 ) -> Vec<Available> {
+    discover_named(commands, bridge, search_paths, SERVER)
+}
+
+pub fn discover_named(
+    commands: Vec<(String, String)>,
+    bridge: &Path,
+    search_paths: Vec<PathBuf>,
+    server_name: &str,
+) -> Vec<Available> {
     let Some(home) = dirs::home_dir() else {
         return vec![];
     };
@@ -294,13 +317,19 @@ pub fn discover(
             if program != "custom" && !seen.insert(program.clone()) {
                 return None;
             }
-            let adapter = adapter(&home, &command, &executable, bridge, &search_paths);
+            let adapter = adapter_named(
+                &home,
+                &command,
+                &executable,
+                bridge,
+                &search_paths,
+                server_name,
+            );
             let help = output(&executable, &["--help".into()], &search_paths)
                 .ok()
                 .flatten()
                 .unwrap_or_default();
-            let mut launch_options =
-                crate::launch::LaunchOptions::from_help(&program, &help);
+            let mut launch_options = crate::launch::LaunchOptions::from_help(&program, &help);
             if program == "codex" {
                 for command in ["resume", "fork"] {
                     if let Ok(Some(help)) = output(
@@ -308,9 +337,9 @@ pub fn discover(
                         &[command.into(), "--help".into()],
                         &search_paths,
                     ) {
-                        launch_options.0.extend(
-                            crate::launch::LaunchOptions::from_help(&program, &help).0,
-                        );
+                        launch_options
+                            .0
+                            .extend(crate::launch::LaunchOptions::from_help(&program, &help).0);
                     }
                 }
             }
@@ -332,6 +361,7 @@ pub fn discover(
                     executable,
                     adapter,
                     bridge: bridge.to_owned(),
+                    server_name: server_name.into(),
                     search_paths: search_paths.clone(),
                     launch_options,
                 }),
@@ -345,6 +375,17 @@ fn adapter(
     executable: &Path,
     bridge: &Path,
     search_paths: &[PathBuf],
+) -> Option<Adapter> {
+    adapter_named(home, command, executable, bridge, search_paths, SERVER)
+}
+
+fn adapter_named(
+    home: &Path,
+    command: &str,
+    executable: &Path,
+    bridge: &Path,
+    search_paths: &[PathBuf],
+    server_name: &str,
 ) -> Option<Adapter> {
     let standard = json!({"command": bridge, "args": ["mcp"]});
     if matches!(command, "hermes" | "hermes-agent") {
@@ -366,7 +407,7 @@ fn adapter(
     if matches!(command, "dsh" | "dsh-tui") {
         return Some(Adapter::Cordis {
             path: home.join(".dsh/cordis.patch.yml"),
-            value: json!({"id":SERVER, "name":"@deepseek-ai/dsh-mcp-client", "config":{"serverName":SERVER,"transport":"stdio","command":bridge,"args":["mcp"]}}),
+            value: json!({"id":server_name, "name":"@deepseek-ai/dsh-mcp-client", "config":{"serverName":server_name,"transport":"stdio","command":bridge,"args":["mcp"]}}),
         });
     }
     if matches!(
@@ -383,14 +424,14 @@ fn adapter(
         return Some(Adapter::YamlList {
             path: directory.join("trae_cli/trae_cli.yaml"),
             key: "mcp_servers".into(),
-            value: json!({"name":SERVER,"type":"stdio","command":bridge,"args":["mcp"]}),
+            value: json!({"name":server_name,"type":"stdio","command":bridge,"args":["mcp"]}),
         });
     }
     if command == "goose" {
         return Some(Adapter::Yaml {
             path: home.join(".config/goose/config.yaml"),
             key: "extensions".into(),
-            value: json!({"name":SERVER, "cmd":bridge, "args":["mcp"], "enabled":true, "type":"stdio", "timeout":300}),
+            value: json!({"name":server_name, "cmd":bridge, "args":["mcp"], "enabled":true, "type":"stdio", "timeout":300}),
         });
     }
     let json_config = match command {
@@ -456,23 +497,56 @@ fn adapter(
             value,
         });
     }
-    cli_adapter(command, executable, bridge, search_paths)
+    cli_adapter_named(command, executable, bridge, search_paths, server_name)
 }
 
 /// Build the same managed adapter for an explicitly selected native remote executable.
-pub(crate) fn remote_installed(program: &str, executable: &Path, bridge: &Path) -> Result<Installed> {
+pub(crate) fn remote_installed(
+    program: &str,
+    executable: &Path,
+    bridge: &Path,
+) -> Result<Installed> {
     let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Home directory unavailable"))?;
-    let search_paths = executable.parent().into_iter().map(Path::to_owned).collect::<Vec<_>>();
-    let adapter = adapter(&home, program, executable, bridge, &search_paths)
+    let search_paths = executable
+        .parent()
+        .into_iter()
+        .map(Path::to_owned)
+        .collect::<Vec<_>>();
+    let adapter = adapter_named(
+        &home,
+        program,
+        executable,
+        bridge,
+        &search_paths,
+        SSH_SERVER,
+    )
         .ok_or_else(|| anyhow::anyhow!("Native MCP setup is unavailable for this Agent version"))?;
-    Ok(Installed { active: true, program: program.into(), executable: executable.into(), adapter,
-        bridge: bridge.into(), search_paths, launch_options: Default::default() })
+    Ok(Installed {
+        active: true,
+        program: program.into(),
+        executable: executable.into(),
+        adapter,
+        bridge: bridge.into(),
+        server_name: SSH_SERVER.into(),
+        search_paths,
+        launch_options: Default::default(),
+    })
 }
 fn cli_adapter(
     command: &str,
     executable: &Path,
     bridge: &Path,
     search_paths: &[PathBuf],
+) -> Option<Adapter> {
+    cli_adapter_named(command, executable, bridge, search_paths, SERVER)
+}
+
+fn cli_adapter_named(
+    command: &str,
+    executable: &Path,
+    bridge: &Path,
+    search_paths: &[PathBuf],
+    server_name: &str,
 ) -> Option<Adapter> {
     let output = |args: &[String]| output(executable, args, search_paths);
     // Qoder/QoderCN and Antigravity expose native setup; custom versions use the same verified contract.
@@ -499,13 +573,13 @@ fn cli_adapter(
     } else if help.contains("--transport") {
         add.extend(["--transport".into(), "stdio".into()]);
     }
-    add.push(SERVER.into());
+    add.push(server_name.into());
     if command != "agy" {
         add.push("--".into());
     }
     add.extend([bridge.to_string_lossy().into_owned(), "mcp".into()]);
-    remove.push(SERVER.into());
-    get.push(SERVER.into());
+    remove.push(server_name.into());
+    get.push(server_name.into());
     // Inspect the installed contract; unavailable clients are not guessed into readiness.
     let remove_help = output(&["mcp".into(), "remove".into(), "--help".into()]).ok()??;
     if !remove_help.to_lowercase().contains("name") {
@@ -624,13 +698,25 @@ fn is_warp_communication_entry(value: &Value) -> bool {
     matches!(
         basename.as_str(),
         "warp-agent" | "warp-agent.exe" | "warpai-agent" | "warpai-agent.exe"
+            | "warpai-companion" | "warpai-companion.exe"
     ) && bridge_args(entry).first() == Some(&"mcp")
-        || cfg!(feature = "wsl_companion") && basename == "warpai-wsl-companion" && bridge_args(entry).first() == Some(&"mcp")
+        || cfg!(feature = "wsl_companion")
+            && basename == "warpai-wsl-companion"
+            && bridge_args(entry).first() == Some(&"mcp")
 }
 fn is_warp_communication_cli_entry(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     lower.contains("mcp")
-        && ["warp-agent", "warpai-agent", if cfg!(feature = "wsl_companion") { "warpai-wsl-companion" } else { "warpai-agent" }]
+        && [
+            "warp-agent",
+            "warpai-agent",
+            "warpai-companion",
+            if cfg!(feature = "wsl_companion") {
+                "warpai-wsl-companion"
+            } else {
+                "warpai-agent"
+            },
+        ]
             .iter()
             .any(|executable| lower.contains(executable))
 }
@@ -665,7 +751,9 @@ pub fn vibe_environment(
         )?;
     }
     ensure!(
-        !servers.iter().any(|server| server["name"] == SERVER),
+        !servers
+            .iter()
+            .any(|server| server["name"] == installed.server_name),
         "Communication server belongs to the user; preserved"
     );
     let mut dynamic = serde_json::Map::new();
@@ -680,7 +768,7 @@ pub fn vibe_environment(
             .ok_or_else(|| anyhow::anyhow!("Missing Warpai terminal binding"))?;
         dynamic.insert(name.into(), Value::String(value.into()));
     }
-    servers.push(json!({"name":SERVER,"transport":"stdio","command":[installed.bridge],"args":["mcp"],"env":dynamic}));
+    servers.push(json!({"name":installed.server_name,"transport":"stdio","command":[installed.bridge],"args":["mcp"],"env":dynamic}));
     env.insert(
         "VIBE_MCP_SERVERS".into(),
         serde_json::to_string(&servers)?.into(),
@@ -688,20 +776,65 @@ pub fn vibe_environment(
     Ok(())
 }
 pub fn configure(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
+    remove_legacy_entries(installed)?;
     configure_inner(installed, enable, owned, false)
 }
 pub fn uninstall(installed: &Installed) -> Result<()> {
+    remove_legacy_entries(installed)?;
     configure_inner(installed, false, true, true)
+}
+
+fn remove_legacy_entries(installed: &Installed) -> Result<()> {
+    let legacy_names: &[&str] = match installed.server_name.as_str() {
+        LOCAL_SERVER | SSH_SERVER => &[LEGACY_SHARED_SERVER],
+        WSL_SERVER => &[LEGACY_WSL_SERVER],
+        _ => &[],
+    };
+    for name in legacy_names {
+        let mut legacy = installed.clone();
+        legacy.server_name = (*name).into();
+        if let Adapter::Vibe(path) = &legacy.adapter {
+            let text = read_text(path)?;
+            let mut root: toml::Value = toml::from_str(&text)?;
+            let mut servers = vibe_servers(path)?;
+            if let Some(existing) = servers.iter().find(|server| server["name"] == *name) {
+                ensure!(
+                    is_warp_communication_entry(existing),
+                    "Communication server belongs to the user; preserved"
+                );
+                servers.retain(|server| server["name"] != *name);
+                root.as_table_mut()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid Vibe configuration"))?
+                    .insert("mcp_servers".into(), toml::Value::try_from(servers)?);
+                atomic_write(path, toml::to_string(&root)?.as_bytes())?;
+            }
+            continue;
+        }
+        if let Adapter::Cli { add, remove, get, .. } = &mut legacy.adapter {
+            for arguments in [add, remove, get] {
+                for argument in arguments {
+                    if argument == &installed.server_name {
+                        *argument = (*name).into();
+                    }
+                }
+            }
+        }
+        configure_inner(&legacy, false, true, true)?;
+    }
+    Ok(())
 }
 
 #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
 pub(crate) fn configure_guest(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
-    ensure!(crate::wsl_setup::native_executable(&installed.executable),
-        "Windows Agent configuration cannot be changed by WSL setup");
+    ensure!(
+        crate::wsl_setup::native_executable(&installed.executable),
+        "Windows Agent configuration cannot be changed by WSL setup"
+    );
     configure_native_mcp(installed, enable, owned)
 }
 
 pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: bool) -> Result<()> {
+    remove_legacy_entries(installed)?;
     let mut installed = installed.clone();
     let args = json!(["mcp", installed.program]);
     fn native_entry(value: &mut Value, args: &Value) {
@@ -710,26 +843,46 @@ pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: b
                 object.insert("args".into(), args.clone());
                 object.remove("env");
             }
-            for child in object.values_mut() { native_entry(child, args); }
+            for child in object.values_mut() {
+                native_entry(child, args);
+            }
         }
     }
     match &mut installed.adapter {
         Adapter::Codex(path) => {
-            installed.adapter = Adapter::Toml { path: path.clone(), value: json!({"command":installed.bridge,"args":args}) };
+            installed.adapter = Adapter::Toml {
+                path: path.clone(),
+                value: json!({"command":installed.bridge,"args":args}),
+            };
         }
-        Adapter::Toml { value, .. } | Adapter::Json { value, .. } | Adapter::Yaml { value, .. }
-        | Adapter::YamlList { value, .. } | Adapter::Cordis { value, .. } => native_entry(value, &args),
+        Adapter::Toml { value, .. }
+        | Adapter::Json { value, .. }
+        | Adapter::Yaml { value, .. }
+        | Adapter::YamlList { value, .. }
+        | Adapter::Cordis { value, .. } => native_entry(value, &args),
         Adapter::Cli { add, .. } => add.push(installed.program.clone()),
         Adapter::Vibe(path) => {
             let text = read_text(path)?;
             let mut root: toml::Value = toml::from_str(&text)?;
             let servers = vibe_servers(path)?;
-            if let Some(existing) = servers.iter().find(|server| server["name"] == SERVER) {
-                ensure!(owned && is_warp_communication_entry(existing), "Communication server belongs to the user; preserved");
+            if let Some(existing) = servers
+                .iter()
+                .find(|server| server["name"] == installed.server_name)
+            {
+                ensure!(
+                    owned && is_warp_communication_entry(existing),
+                    "Communication server belongs to the user; preserved"
+                );
             }
-            let mut servers: Vec<_> = servers.into_iter().filter(|server| server["name"] != SERVER).collect();
-            if enable { servers.push(json!({"name":SERVER,"transport":"stdio","command":installed.bridge,"args":args})); }
-            root.as_table_mut().ok_or_else(|| anyhow::anyhow!("Invalid Vibe configuration"))?
+            let mut servers: Vec<_> = servers
+                .into_iter()
+                .filter(|server| server["name"] != installed.server_name)
+                .collect();
+            if enable {
+                servers.push(json!({"name":installed.server_name,"transport":"stdio","command":installed.bridge,"args":args}));
+            }
+            root.as_table_mut()
+                .ok_or_else(|| anyhow::anyhow!("Invalid Vibe configuration"))?
                 .insert("mcp_servers".into(), toml::Value::try_from(servers)?);
             return atomic_write(path, toml::to_string(&root)?.as_bytes());
         }
@@ -737,34 +890,54 @@ pub(crate) fn configure_native_mcp(installed: &Installed, enable: bool, owned: b
     if let Adapter::Toml { path, value } = &installed.adapter {
         let text = read_text(path)?;
         let parsed: toml::Value = toml::from_str(&text)?;
-        if let Some(existing) = parsed.get("mcp_servers").and_then(|servers| servers.get(SERVER)) {
+        if let Some(existing) = parsed
+            .get("mcp_servers")
+            .and_then(|servers| servers.get(&installed.server_name))
+        {
             let existing = serde_json::to_value(existing)?;
             let mut former = value.clone();
-            if let Some(home) = installed.bridge.to_str().and_then(|bridge|
-                bridge.strip_suffix("/.config/warpai/wsl/bin/warpai-wsl-companion")) {
-                former["command"] = json!(format!("{home}/.config/.warpai/wsl/bin/warpai-wsl-companion"));
+            if let Some(home) = installed.bridge.to_str().and_then(|bridge| {
+                bridge.strip_suffix("/.config/warpai/wsl/bin/warpai-wsl-companion")
+            }) {
+                former["command"] = json!(format!(
+                    "{home}/.config/.warpai/wsl/bin/warpai-wsl-companion"
+                ));
             }
-            ensure!(owned && (existing == *value || existing == former),
-                "Communication configuration was changed or belongs to the user; preserved");
+            ensure!(
+                owned && (existing == *value || existing == former),
+                "Communication configuration was changed or belongs to the user; preserved"
+            );
         }
         let mut document = text.parse::<toml_edit::DocumentMut>()?;
         if document.get("mcp_servers").is_none() {
-            if !enable { return Ok(()); }
+            if !enable {
+                return Ok(());
+            }
             document["mcp_servers"] = toml_edit::Item::Table(toml_edit::Table::new());
         }
-        let servers = document.get_mut("mcp_servers").and_then(toml_edit::Item::as_table_mut)
+        let servers = document
+            .get_mut("mcp_servers")
+            .and_then(toml_edit::Item::as_table_mut)
             .ok_or_else(|| anyhow::anyhow!("Invalid MCP server table"))?;
         if enable {
-            let entry = toml::Value::try_from(json!({"mcp_servers": {SERVER:value}}))?;
+            let entry =
+                toml::Value::try_from(json!({"mcp_servers": {installed.server_name:value}}))?;
             let entry = toml::to_string(&entry)?.parse::<toml_edit::DocumentMut>()?;
-            let decor = servers.get(SERVER).and_then(toml_edit::Item::as_table).map(|table| table.decor().clone());
-            let mut replacement = entry["mcp_servers"][SERVER].clone();
-            if let (Some(decor), Some(table)) = (decor, replacement.as_table_mut()) { *table.decor_mut() = decor; }
-            servers.insert(SERVER, replacement);
-        } else { servers.remove(SERVER); }
+            let decor = servers
+                .get(&installed.server_name)
+                .and_then(toml_edit::Item::as_table)
+                .map(|table| table.decor().clone());
+            let mut replacement = entry["mcp_servers"][&installed.server_name].clone();
+            if let (Some(decor), Some(table)) = (decor, replacement.as_table_mut()) {
+                *table.decor_mut() = decor;
+            }
+            servers.insert(&installed.server_name, replacement);
+        } else {
+            servers.remove(&installed.server_name);
+        }
         return atomic_write(path, document.to_string().as_bytes());
     }
-    configure(&installed, enable, owned)
+    configure_inner(&installed, enable, owned, false)
 }
 fn configure_inner(
     installed: &Installed,
@@ -777,7 +950,9 @@ fn configure_inner(
             if enable {
                 let servers = vibe_servers(path)?;
                 ensure!(
-                    !servers.iter().any(|server| server["name"] == SERVER),
+                    !servers
+                        .iter()
+                        .any(|server| server["name"] == installed.server_name),
                     "Communication server belongs to the user; preserved"
                 );
             }
@@ -787,16 +962,17 @@ fn configure_inner(
             let text = read_text(path)?;
             let parsed: toml::Value = toml::from_str(&text)
                 .map_err(|_| anyhow::anyhow!("Invalid agent TOML; configuration was preserved"))?;
-            let entry = toml::Value::try_from(json!({"mcp_servers": {SERVER:value}}))?;
+            let entry =
+                toml::Value::try_from(json!({"mcp_servers": {installed.server_name:value}}))?;
             let block = format!("{START}\n{}{END}\n", toml::to_string(&entry)?);
             let present = parsed
                 .get("mcp_servers")
-                .and_then(|v| v.get(SERVER))
+                .and_then(|v| v.get(&installed.server_name))
                 .is_some();
             if present {
                 let existing = parsed
                     .get("mcp_servers")
-                    .and_then(|servers| servers.get(SERVER))
+                    .and_then(|servers| servers.get(&installed.server_name))
                     .map(serde_json::to_value)
                     .transpose()?;
                 ensure!(
@@ -846,7 +1022,8 @@ fn configure_inner(
                             .and_then(Value::as_array)
                             .is_some_and(|entries| {
                                 entries.iter().any(|entry| {
-                                    entry["id"] == SERVER || entry["config"]["serverName"] == SERVER
+                                    entry["id"] == installed.server_name
+                                        || entry["config"]["serverName"] == installed.server_name
                                 })
                             })
                     })
@@ -857,14 +1034,15 @@ fn configure_inner(
                     "Duplicate communication entries; preserved"
                 );
                 if let Some(&index) = matches.first() {
-                    let entries = rows[index]["insert"]
-                        .as_array_mut()
-                        .ok_or_else(|| anyhow::anyhow!("Invalid Cordis insert patch; configuration was preserved"))?;
+                    let entries = rows[index]["insert"].as_array_mut().ok_or_else(|| {
+                        anyhow::anyhow!("Invalid Cordis insert patch; configuration was preserved")
+                    })?;
                     let targets: Vec<_> = entries
                         .iter()
                         .enumerate()
                         .filter(|(_, entry)| {
-                            entry["id"] == SERVER || entry["config"]["serverName"] == SERVER
+                            entry["id"] == installed.server_name
+                                || entry["config"]["serverName"] == installed.server_name
                         })
                         .map(|(index, _)| index)
                         .collect();
@@ -902,7 +1080,7 @@ fn configure_inner(
                 let matches: Vec<_> = rows
                     .iter()
                     .enumerate()
-                    .filter(|(_, row)| row["name"] == SERVER)
+                    .filter(|(_, row)| row["name"] == installed.server_name)
                     .map(|(index, _)| index)
                     .collect();
                 ensure!(
@@ -912,8 +1090,7 @@ fn configure_inner(
                 if let Some(&index) = matches.first() {
                     ensure!(
                         owned
-                            && (rows[index] == *value
-                                || is_warp_communication_entry(&rows[index])),
+                            && (rows[index] == *value || is_warp_communication_entry(&rows[index])),
                         "Communication configuration was changed or belongs to the user; preserved"
                     );
                     if !enable {
@@ -933,12 +1110,16 @@ fn configure_inner(
             if text.trim().is_empty() {
                 return Ok(());
             }
-            let mut document = text.parse::<toml_edit::DocumentMut>()
+            let mut document = text
+                .parse::<toml_edit::DocumentMut>()
                 .map_err(|_| anyhow::anyhow!("Invalid Codex TOML; configuration was preserved"))?;
-            let Some(servers) = document.get_mut("mcp_servers").and_then(toml_edit::Item::as_table_mut) else {
+            let Some(servers) = document
+                .get_mut("mcp_servers")
+                .and_then(toml_edit::Item::as_table_mut)
+            else {
                 return Ok(());
             };
-            let Some(server) = servers.get(SERVER) else {
+            let Some(server) = servers.get(&installed.server_name) else {
                 return Ok(());
             };
             let command = server
@@ -959,7 +1140,7 @@ fn configure_inner(
                 is_warp_communication_entry(&value),
                 "Communication configuration was changed or belongs to the user; preserved"
             );
-            servers.remove(SERVER);
+            servers.remove(&installed.server_name);
             atomic_write(path, document.to_string().as_bytes())
         }
         Adapter::Json { path, key, value } | Adapter::Yaml { path, key, value } => {
@@ -989,20 +1170,19 @@ fn configure_inner(
                 .or_insert_with(|| json!({}))
                 .as_object_mut()
                 .ok_or_else(|| anyhow::anyhow!("MCP configuration must be an object"))?;
-            if !enable && !servers.contains_key(SERVER) {
+            if !enable && !servers.contains_key(&installed.server_name) {
                 return Ok(());
             }
-            if let Some(existing) = servers.get(SERVER) {
+            if let Some(existing) = servers.get(&installed.server_name) {
                 ensure!(
-                    owned
-                        && (existing == value || is_warp_communication_entry(existing)),
+                    owned && (existing == value || is_warp_communication_entry(existing)),
                     "Communication configuration was changed or belongs to the user; preserved"
                 );
             }
             if enable {
-                servers.insert(SERVER.into(), value.clone());
+                servers.insert(installed.server_name.clone(), value.clone());
             } else {
-                servers.remove(SERVER);
+                servers.remove(&installed.server_name);
             }
             let bytes = if yaml {
                 serde_yaml::to_string(&root)?.into_bytes()
@@ -1020,8 +1200,13 @@ fn configure_inner(
             let (success, text) = run(&installed.executable, get, &installed.search_paths)?;
             let current = if *get_all {
                 ensure!(success, "Could not inspect native MCP configuration");
-                listed_entry(&text)
-            } else if text.trim() == format!("Server \"{SERVER}\" not found in user settings.") {
+                listed_entry(&text, &installed.server_name)
+            } else if text.trim()
+                == format!(
+                    "Server \"{}\" not found in user settings.",
+                    installed.server_name
+                )
+            {
                 // QoderCN reports this successful lookup of an absent user-scope entry with status zero.
                 None
             } else if success {
@@ -1071,11 +1256,11 @@ fn configure_inner(
         }
     }
 }
-fn listed_entry(text: &str) -> Option<String> {
+fn listed_entry(text: &str, server_name: &str) -> Option<String> {
     let mut lines = text.lines().skip_while(|line| {
         !line
             .split(|c: char| !c.is_ascii_alphanumeric() && c != '-')
-            .any(|word| word == SERVER)
+            .any(|word| word == server_name)
     });
     let first = lines.next()?;
     let mut entry = first.to_owned();
@@ -1093,6 +1278,40 @@ fn listed_entry(text: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_and_ssh_native_server_entries_are_independent_and_legacy_name_is_removed() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.toml");
+        std::fs::write(&path, format!(
+            "[mcp_servers.{LEGACY_SHARED_SERVER}]\ncommand = '/bin/warpai-agent'\nargs = ['mcp']\n[mcp_servers.user_tool]\ncommand = 'user-tool'\n"
+        )).unwrap();
+        let installed = |server_name: &str| Installed {
+            active: true, program: "codex".into(), executable: "/bin/codex".into(),
+            adapter: Adapter::Codex(path.clone()), bridge: "/bin/warpai-agent".into(),
+            server_name: server_name.into(), search_paths: vec![], launch_options: Default::default(),
+        };
+        let local = installed(LOCAL_SERVER);
+        let ssh = installed(SSH_SERVER);
+        configure_native_mcp(&local, true, false).unwrap();
+        configure_native_mcp(&ssh, true, false).unwrap();
+        let value: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert!(value["mcp_servers"].get(LEGACY_SHARED_SERVER).is_none());
+        assert!(value["mcp_servers"].get(LOCAL_SERVER).is_some());
+        assert!(value["mcp_servers"].get(SSH_SERVER).is_some());
+        assert_eq!(value["mcp_servers"]["user_tool"]["command"].as_str(), Some("user-tool"));
+        configure_native_mcp(&ssh, false, true).unwrap();
+        let value: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert!(value["mcp_servers"].get(LOCAL_SERVER).is_some());
+        assert!(value["mcp_servers"].get(SSH_SERVER).is_none());
+    }
+
+    #[test]
+    fn collaboration_server_names_are_distinct_for_all_execution_scopes() {
+        assert_ne!(LOCAL_SERVER, SSH_SERVER);
+        assert_ne!(LOCAL_SERVER, WSL_SERVER);
+        assert_ne!(SSH_SERVER, WSL_SERVER);
+    }
     #[cfg(windows)]
     #[test]
     fn background_configuration_has_no_console() {
@@ -1142,6 +1361,7 @@ mod tests {
                 executable: "/native/codex".into(),
                 adapter: Adapter::Codex("/native/config.toml".into()),
                 bridge: "/native/warpai-agent".into(),
+                server_name: SERVER.into(),
                 search_paths: vec![],
                 launch_options: Default::default(),
             },
@@ -1203,6 +1423,7 @@ mod tests {
                 value: json!({"command":"/current/warpai-agent","args":["mcp"]}),
             },
             bridge: PathBuf::from("/current/warpai-agent"),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
@@ -1232,6 +1453,7 @@ mod tests {
                 }),
             },
             bridge: PathBuf::from("/current/warpai-agent"),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
@@ -1254,6 +1476,7 @@ mod tests {
             executable: PathBuf::from("codex"),
             adapter: Adapter::Codex(codex_path.clone()),
             bridge: PathBuf::from("/current/warpai-agent"),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
@@ -1390,7 +1613,7 @@ mod tests {
             assert_eq!(value["env"][name], format!("${{env:{name}}}"));
         }
         let path = home.path().join("vibe.toml");
-        let original = "# user settings\n[[mcp_servers]]\nname = 'user-server'\ntransport = 'stdio'\ncommand = 'user-command'\n";
+        let original = format!("# user settings\n[[mcp_servers]]\nname = 'user-server'\ntransport = 'stdio'\ncommand = 'user-command'\n[[mcp_servers]]\nname = '{LEGACY_SHARED_SERVER}'\ntransport = 'stdio'\ncommand = '/bin/warpai-agent'\nargs = ['mcp']\n");
         std::fs::write(&path, original).unwrap();
         let installed = Installed {
             active: true,
@@ -1398,10 +1621,15 @@ mod tests {
             executable: cli,
             adapter: Adapter::Vibe(path.clone()),
             bridge: PathBuf::from("/bridge"),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
         configure(&installed, true, false).unwrap();
+        let configured: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let configured_servers = configured["mcp_servers"].as_array().unwrap();
+        assert!(!configured_servers.iter().any(|server| server["name"] == LEGACY_SHARED_SERVER));
+        assert!(configured_servers.iter().any(|server| server["name"] == "user-server"));
         let mut env = std::collections::HashMap::from([
             ("WARP_AGENT_ENDPOINT".into(), "test-endpoint".into()),
             ("WARP_AGENT_CAPABILITY".into(), "test-binding".into()),
@@ -1470,6 +1698,7 @@ mod tests {
             executable: "codex".into(),
             adapter: Adapter::Codex(path.clone()),
             bridge: "/bridge".into(),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
@@ -1541,6 +1770,7 @@ mod tests {
                 executable: PathBuf::from("test"),
                 adapter: adapter.clone(),
                 bridge: PathBuf::from("/bridge"),
+                server_name: SERVER.into(),
                 search_paths: vec![],
                 launch_options: Default::default(),
             };
@@ -1627,6 +1857,7 @@ esac
             executable: cli,
             adapter,
             bridge: PathBuf::from("/bridge"),
+            server_name: SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };
@@ -1643,7 +1874,7 @@ esac
             &installed.executable,
             source.replace(
                 "echo 'server not found' >&2; exit 1",
-                "echo 'Server \"warp-lite-communication\" not found in user settings.'; exit 0",
+                "echo 'Server \"warpai-local-com\" not found in user settings.'; exit 0",
             ),
         )
         .unwrap();
@@ -1653,7 +1884,7 @@ esac
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
         let foreign =
-            "Server \"warp-lite-communication\" not found in user settings.\n/user-command mcp";
+            "Server \"warpai-local-com\" not found in user settings.\n/user-command mcp";
         std::fs::write(directory.path().join("entry"), foreign).unwrap();
         assert!(configure(&installed, true, false).is_err());
         assert_eq!(
@@ -1697,16 +1928,32 @@ mod guest_tests {
         let bridge = "/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion";
         let original = format!("# User settings\n[mcp_servers.{SERVER}]\ncommand = '{old}'\nargs = ['mcp', 'grok']\n[mcp_servers.user_tool]\ncommand = 'user-tool'\n");
         std::fs::write(&path, &original).unwrap();
-        let installed = Installed { active:true, program:"grok".into(), executable:"/bin/sh".into(),
-            adapter:Adapter::Toml { path:path.clone(), value:json!({"command":bridge,"args":["mcp","grok"]}) },
-            bridge:bridge.into(), search_paths:vec![], launch_options:Default::default() };
+        let installed = Installed {
+            active: true,
+            program: "grok".into(),
+            executable: "/bin/sh".into(),
+            adapter: Adapter::Toml {
+                path: path.clone(),
+                value: json!({"command":bridge,"args":["mcp","grok"]}),
+            },
+            bridge: bridge.into(),
+            server_name: SERVER.into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
         assert!(configure_guest(&installed, true, false).is_err());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
         configure_guest(&installed, true, true).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         let value: toml::Value = toml::from_str(&text).unwrap();
-        assert_eq!(value["mcp_servers"][SERVER]["command"].as_str(), Some(bridge));
-        assert_eq!(value["mcp_servers"]["user_tool"]["command"].as_str(), Some("user-tool"));
+        assert_eq!(
+            value["mcp_servers"][SERVER]["command"].as_str(),
+            Some(bridge)
+        );
+        assert_eq!(
+            value["mcp_servers"]["user_tool"]["command"].as_str(),
+            Some("user-tool")
+        );
         assert!(text.contains("# User settings"));
         std::fs::write(&path, original.replace("'grok'", "'user-edited'")).unwrap();
         let changed = std::fs::read_to_string(&path).unwrap();
@@ -1720,14 +1967,27 @@ mod guest_tests {
         let path = directory.path().join("config.toml");
         let original = "# User settings\nmodel = \"fixture\"\n[mcp_servers.user_tool]\ncommand = \"user-tool\"\n";
         std::fs::write(&path, original).unwrap();
-        let installed = Installed { active:true, program:"codex".into(), executable:"/bin/sh".into(),
-            adapter:Adapter::Codex(path.clone()), bridge:"/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion".into(),
-            search_paths:vec![], launch_options:Default::default() };
+        let installed = Installed {
+            active: true,
+            program: "codex".into(),
+            executable: "/bin/sh".into(),
+            adapter: Adapter::Codex(path.clone()),
+            bridge: "/home/guest/.config/warpai/wsl/bin/warpai-wsl-companion".into(),
+            server_name: SERVER.into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
         configure_guest(&installed, true, false).unwrap();
         let bytes = std::fs::read_to_string(&path).unwrap();
         let value: toml::Value = toml::from_str(&bytes).unwrap();
         let server = &value["mcp_servers"][SERVER];
-        assert_eq!(server["args"].as_array().unwrap(), &[toml::Value::String("mcp".into()), toml::Value::String("codex".into())]);
+        assert_eq!(
+            server["args"].as_array().unwrap(),
+            &[
+                toml::Value::String("mcp".into()),
+                toml::Value::String("codex".into())
+            ]
+        );
         assert!(server.get("env").is_none());
         assert!(bytes.contains("# User settings"));
         assert!(configure_guest(&installed, true, false).is_err());
@@ -1735,7 +1995,10 @@ mod guest_tests {
         configure_guest(&installed, false, true).unwrap();
         let value: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert!(value["mcp_servers"].get(SERVER).is_none());
-        assert_eq!(value["mcp_servers"]["user_tool"]["command"].as_str(), Some("user-tool"));
+        assert_eq!(
+            value["mcp_servers"]["user_tool"]["command"].as_str(),
+            Some("user-tool")
+        );
         assert_eq!(value["model"].as_str(), Some("fixture"));
     }
 }

@@ -307,7 +307,7 @@ Windows 会话中，终端横幅可能提示 **Integrate PowerShell**。按提�
 Companion 5.5.0 安装完成且账号已选中后：
 
 1. Warpai 会发现该远端账号下已安装的受支持 CLI Agent。
-2. 每个 Agent 对应一个复选框。勾选后，Warpai 会把 `warp-lite-communication` 通信桥写入该 Agent 自己的远端配置。
+2. 每个 Agent 对应一个复选框。勾选后，Warpai 会把 `warpai-ssh-com` 通信桥写入该 Agent 自己的远端配置。
 3. 安装或更新 CLI 后点击 **Rescan agents**。
 4. **Remove Warpai MCP from all agents** 只移除 Warpai 自己写入的条目。
 5. **SSH Companion setup** 打开远端组件安装参考。

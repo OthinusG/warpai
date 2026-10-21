@@ -94,7 +94,7 @@ Warpai 将 Agent 管理与日常项目工作深度融合在单一桌面应用中
 
 Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、Gemini CLI、Cursor、Qoder、Goose、Hermes、OpenCode、Antigravity CLI、Trae 等。各 Agent 继续沿用各自的服务商、本地环境变量与鉴权体系；Warpai 充当底层轻量协同中枢。
 
-在 **Settings > Features > Agent communication** 中开启协同支持。协同体系基于内置的 `warp-lite-communication` 原生 MCP 服务，提供 **38+ 项标准工具接口**，覆盖任务分派、状态汇报、交叉审阅、上下文共享以及非阻塞文件锁（File Reservations）。
+在 **Settings > Features > Agent communication** 中开启协同支持。协同体系基于内置的 `warpai-local-com` 原生 MCP 服务，提供 **38+ 项标准工具接口**，覆盖任务分派、状态汇报、交叉审阅、上下文共享以及非阻塞文件锁（File Reservations）。
 
 ### 多服务商用量实时监控
 

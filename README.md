@@ -98,7 +98,7 @@ Warpai brings Agent management and project work into one unified application, re
 
 Warpai supports **20+ named CLI Agent types**, including Codex, Claude Code, Gemini CLI, Cursor, Qoder, Goose, Hermes, OpenCode, Antigravity CLI, Trae, and more. Agents retain their own vendor accounts, environment variables, and authentication; Warpai provides the local coordination fabric connecting them.
 
-Enable **Settings > Features > Agent communication** to select participating agents. Communication is powered by the bundled `warp-lite-communication` MCP server, exposing **38+ native tools** for task assignment, status reporting, peer review, context sharing, and non-blocking file reservations.
+Enable **Settings > Features > Agent communication** to select participating agents. Communication is powered by the bundled `warpai-local-com` MCP server, exposing **38+ native tools** for task assignment, status reporting, peer review, context sharing, and non-blocking file reservations.
 
 ### Multi-provider quota monitoring
 

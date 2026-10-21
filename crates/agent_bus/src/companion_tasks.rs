@@ -117,12 +117,12 @@ mod tests {
         let configured: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(configured["user_setting"], true);
         assert_eq!(configured["mcpServers"]["user-server"], original["mcpServers"]["user-server"]);
-        assert_eq!(configured["mcpServers"]["warp-lite-communication"]["args"], json!(["mcp"]));
+        assert_eq!(configured["mcpServers"][crate::setup::SSH_SERVER]["args"], json!(["mcp"]));
         let settings: crate::setup::Preferences = serde_json::from_slice(
             &std::fs::read(root.join("service/mcp-settings.json")).unwrap()).unwrap();
         assert!(settings.selected["auggie"].active);
         let mut collision = original;
-        collision["mcpServers"]["warp-lite-communication"] = json!({"command":"user-owned-tool"});
+        collision["mcpServers"][crate::setup::SSH_SERVER] = json!({"command":"user-owned-tool"});
         std::fs::write(&path, serde_json::to_vec(&collision).unwrap()).unwrap();
         assert!(projects.prepare_agent("auggie", &executable).is_err());
         assert_eq!(serde_json::from_slice::<Value>(&std::fs::read(path).unwrap()).unwrap(), collision);
