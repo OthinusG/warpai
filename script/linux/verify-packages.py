@@ -59,7 +59,7 @@ def check_payload(root, architecture, appimage=False):
 
 def main():
     tag, architecture = sys.argv[1:]
-    require(re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag), "Invalid release tag")
+    require(re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?", tag), "Invalid release tag")
     require(architecture in {"x64", "arm64"}, "Unsupported architecture")
     version = tag[1:]
     output = (Path(os.environ.get("CARGO_TARGET_DIR", "target")) / "release/bundle/linux").resolve()

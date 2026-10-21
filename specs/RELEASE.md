@@ -1,5 +1,22 @@
 # Warpai releases
 
+## 2026-10-21 MCP scope names and 1.7.8.1 publication
+
+The owner authorized publication of Warpai 1.7.8.1 after cloud acceptance.
+Publish the accepted MCP scope-name change: local `warpai-local-com`, SSH
+`warpai-ssh-com`, and direct WSL `warpai-wsl-com`; preserve unrelated MCP
+registrations and remove only recognized legacy Warpai entries. WSL does not
+inject a host MCP configuration. Companion remains 5.5.0; SSH protocol major 1
+and Agent Bus major 2 are unchanged.
+
+This four-part patch version must work in release tag validation, all platform
+packagers, Linux manifests, and stable update ordering. Existing three-part
+versions remain valid and compare as revision zero. Publish from the accepted
+source through `release-macos.yml` with Windows and Linux packaging follow-ups.
+After all platform assets and checksums are public, complete the README, bilingual
+site, and Homebrew updates in “Mandatory final step after public release assets
+are available.”
+
 ## 2026-10-20 WSL recovery and 1.7.8 publication
 
 The owner confirmed real-machine acceptance covering SSH connections to Linux,

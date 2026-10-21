@@ -52,7 +52,7 @@ jobs:
           AUTO_PUBLISH=false
           if [[ "$ARTIFACT_ONLY" == "true" ]]; then
             TARGET_TAG="$INPUT_TAG"
-            [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
             git check-ref-format "refs/tags/$TARGET_TAG"
             echo "release_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
             echo "source_ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
@@ -85,7 +85,7 @@ jobs:
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$TARGET_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           git check-ref-format "refs/tags/$TARGET_TAG"
 
           echo "Target release tag: $TARGET_TAG"

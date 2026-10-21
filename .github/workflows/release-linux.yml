@@ -55,7 +55,7 @@ jobs:
             ARTIFACT_ONLY=$(cat release-target/artifact-only.txt)
             SOURCE_SHA=$(cat release-target/source-sha.txt)
           fi
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           [[ "$ARTIFACT_ONLY" == true || "$ARTIFACT_ONLY" == false ]]
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
@@ -119,7 +119,7 @@ jobs:
           lfs: true
       - name: Verify release source
         run: |
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           if [[ -n "$WINDOWS_SOURCE" ]]; then
             checkout_root="$(cd "$WARPAI_WORKSPACE" && pwd -P)"
             # Container jobs mount the checkout under a different owner; the inline -c override
