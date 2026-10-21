@@ -1913,7 +1913,7 @@ esac
         configure(&installed, false, true).unwrap();
         std::fs::write(
             directory.path().join("entry"),
-            "/old-install/warp-agent mcp",
+            format!("{SERVER}\n/old-install/warp-agent mcp"),
         )
         .unwrap();
         configure(&installed, false, true).unwrap();
@@ -1921,7 +1921,7 @@ esac
         std::fs::write(
             &installed.executable,
             source.replace(
-                "add) printf '%s mcp' \"$5\" > \"$entry\" ;;",
+                "add) printf '%s\\n%s mcp' \"$3\" \"$5\" > \"$entry\" ;;",
                 "add) echo 'native validation rejected entry' >&2; exit 17 ;;",
             ),
         )
