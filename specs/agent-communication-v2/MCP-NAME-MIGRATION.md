@@ -21,6 +21,8 @@ and its current CLI reports exact not-found results for both names.
   WSL legacy registration remains isolated to WSL.
 - Exact absence is idempotent success for cleanup; successful enable adds the new
   name, and repeat cleanup removes it without an error.
+- An inactive saved cleanup record can be selected again from Settings; selection
+  state reflects the pre-cleanup active flag rather than mere record presence.
 - Preserve unrelated CLI arguments, user MCP entries, vendor-owned commands and
   credentials. No extra process, install path or external state changes.
 

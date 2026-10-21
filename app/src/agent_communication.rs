@@ -51,6 +51,11 @@ pub(crate) struct AgentCommunication {
     observed: HashSet<String>,
     remote_sampled: HashMap<EntityId, (CLIAgent, Option<String>, Instant, Instant)>,
 }
+fn selected_entry_is_active(preferences: &setup::Preferences, command: Option<&str>) -> bool {
+    command
+        .and_then(|name| preferences.selected.get(name))
+        .is_some_and(|entry| entry.active)
+}
 impl Entity for AgentCommunication {
     type Event = ();
 }
@@ -276,6 +281,7 @@ impl AgentCommunication {
             self.preferences.enabled = false;
             self.policy();
         }
+        let was_selected = selected_entry_is_active(&preferences, command.as_deref());
         for (name, entry) in &mut preferences.selected {
             if !preferences.enabled || command.as_ref() == Some(name) {
                 entry.active = false;
@@ -401,9 +407,6 @@ impl AgentCommunication {
                 ));
                 return;
             }
-            let was_selected = command
-                .as_ref()
-                .is_some_and(|name| preferences.selected.contains_key(name));
             let remove: Vec<String> = if !preferences.enabled {
                 preferences.selected.keys().cloned().collect()
             } else {
@@ -700,6 +703,35 @@ impl AgentCommunication {
             }
             Self::schedule(ctx);
         });
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inactive_cleanup_record_can_be_selected_again() {
+        let mut preferences = setup::Preferences::default();
+        let entry = setup::Installed {
+            active: false,
+            program: "qoder-cn".into(),
+            executable: PathBuf::from("/qodercn"),
+            adapter: setup::Adapter::Cli {
+                add: vec![],
+                remove: vec![],
+                get: vec![],
+                get_all: false,
+            },
+            bridge: PathBuf::from("/warpai-agent"),
+            server_name: setup::LOCAL_SERVER.into(),
+            search_paths: vec![],
+            launch_options: Default::default(),
+        };
+        preferences.selected.insert("qodercn".into(), entry.clone());
+        assert!(!selected_entry_is_active(&preferences, Some("qodercn")));
+        preferences.selected.get_mut("qodercn").unwrap().active = true;
+        assert!(selected_entry_is_active(&preferences, Some("qodercn")));
+        assert!(!selected_entry_is_active(&preferences, Some("other")));
     }
 }
 /// Tests and remote terminals without the native singleton receive no capabilities.
