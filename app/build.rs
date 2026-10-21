@@ -466,13 +466,30 @@ fn embed_resource_file(target_dir: &Path) {
     println!("cargo:rerun-if-env-changed=GIT_RELEASE_TAG");
     let version = env::var("GIT_RELEASE_TAG").unwrap_or("0.1.0".to_owned());
     let version = version.trim_start_matches('v');
-    let components: Vec<u16> = version
-        .split('.')
-        .map(|part| part.parse().expect("Invalid release version component"))
-        .collect();
-    let [major, minor, patch]: [u16; 3] = components
-        .try_into()
-        .expect("Expected three version components");
+    let mut components = version.split('.');
+    let major = components
+        .next()
+        .unwrap()
+        .parse::<u16>()
+        .expect("Invalid release version component");
+    let minor = components
+        .next()
+        .unwrap()
+        .parse::<u16>()
+        .expect("Invalid release version component");
+    let patch = components
+        .next()
+        .unwrap()
+        .parse::<u16>()
+        .expect("Invalid release version component");
+    let revision = components
+        .next()
+        .map(|part| part.parse::<u16>().expect("Invalid release version component"))
+        .unwrap_or(0);
+    assert!(
+        components.next().is_none(),
+        "Expected three or four version components"
+    );
     let app_name = env::var("WARP_APP_NAME").unwrap_or("Warpai".to_owned());
     let icon_path = Path::new("assets/branding/warpai.ico");
     println!("cargo:rerun-if-changed={}", icon_path.display());
@@ -491,8 +508,8 @@ fn embed_resource_file(target_dir: &Path) {
 
 IDI_ICON ICON "icon.ico"
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     {major},{minor},{patch},0
-PRODUCTVERSION  {major},{minor},{patch},0
+FILEVERSION     {major},{minor},{patch},{revision}
+PRODUCTVERSION  {major},{minor},{patch},{revision}
 FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
 FILEFLAGS       0
 FILEOS          VOS__WINDOWS32
