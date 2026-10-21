@@ -144,7 +144,7 @@ jobs:
           ARTIFACT_ONLY: ${{ inputs.artifact_only }}
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           git check-ref-format "refs/tags/$RELEASE_TAG"
           if [[ "$ARTIFACT_ONLY" != "true" ]] && gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release already exists; refusing to overwrite assets." >&2

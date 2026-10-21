@@ -22,7 +22,7 @@ Param(
 
 $ErrorActionPreference = 'Stop'
 $ProductVersion = $ReleaseTag -replace '^v', ''
-if ($ProductVersion -notmatch '^\d+\.\d+\.\d+$') {
+if ($ProductVersion -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
     throw 'ReleaseTag must be a semantic release version.'
 }
 

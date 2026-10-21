@@ -136,3 +136,21 @@ shell PID; PowerShell reports `$PID`. Missing/invalid PID fails closed for nativ
 remote observation. The Companion independently checks account ownership,
 process birth and ancestry; shell metadata alone never grants authority.
 
+
+## Local and SSH MCP namespace separation
+
+Local Agent setup and SSH Remote Agent setup share vendor adapters and bridge
+implementation, but use independent native MCP server names: local uses
+`warpai-local-com`, SSH uses `warpai-ssh-com`, and WSL uses `warpai-wsl-com`.
+Their persisted preferences and vendor entries stay scoped independently. An
+upgrade removes only verified Warpai entries under the prior shared local/SSH
+name or prior WSL name. User-owned or modified entries are preserved and
+reported. Setup or cleanup in one scope must not remove either of the other
+current scope names.
+
+| Feature path | Registration name | Runtime setup path |
+| --- | --- | --- |
+| Local Agent settings and local Codex per-run override | `warpai-local-com` | Desktop settings adapters and local session launch |
+| SSH Remote settings and ordinary remote Agent startup | `warpai-ssh-com` | Account-owned Companion setup and SSH-bound launch |
+| Direct WSL Agent settings | `warpai-wsl-com` | WSL Companion setup; WSL remains a remote guest |
+| MCP bridge tools (`warp_*`) | Tool names are unchanged | Shared bridge implementation across all three scopes |

@@ -12,12 +12,13 @@ use std::{
 use tokio::{io::AsyncWriteExt, process::Command};
 use uuid::Uuid;
 
-const SERVER: &str = "warp-lite-communication";
+const SERVER: &str = crate::setup::LOCAL_SERVER;
 
 #[derive(Serialize, Deserialize)]
 pub struct NativeLaunch {
     pub executable: PathBuf,
     pub program: String,
+    pub server_name: String,
     pub options: crate::launch::LaunchOptions,
 }
 
@@ -404,15 +405,17 @@ fn codex_launch_mode(
 
 /// Native runtime options bind one Codex process without modifying vendor configuration.
 pub fn codex_mcp_prefix(command: &Path, args: &[String], env_vars: &[&str]) -> Vec<String> {
+    codex_mcp_prefix_named(command, args, env_vars, SERVER)
+}
+
+pub fn codex_mcp_prefix_named(command: &Path, args: &[String], env_vars: &[&str], server_name: &str) -> Vec<String> {
     let command = json!(command);
     let args = json!(args);
     let env_vars = json!(env_vars);
     vec![
         "--no-daemon".into(),
         "-c".into(),
-        format!(
-        "mcp_servers.{SERVER}={{command={command},args={args},env_vars={env_vars},enabled=true}}"
-    ),
+        format!("mcp_servers.{server_name}={{command={command},args={args},env_vars={env_vars},enabled=true}}"),
     ]
 }
 
@@ -442,10 +445,11 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
     if let Some(relay) = &relay {
         let config = relay.config(companion.as_ref().unwrap());
         let mut native = if name == "codex" {
-            let mut prefix = codex_mcp_prefix(
+            let mut prefix = codex_mcp_prefix_named(
                 companion.as_ref().unwrap(),
                 &["forward".into(), relay.endpoint.clone()],
                 &[],
+                &binding.server_name,
             );
             if codex_launch_mode(&args, &binding.options).2 {
                 prefix.remove(0);
@@ -454,7 +458,9 @@ pub async fn launch(binding: &NativeLaunch, mut args: Vec<OsString>) -> Result<i
         } else {
             vec![
                 "--mcp-config".into(),
-                json!({"mcpServers": {SERVER: config}}).to_string().into(),
+                json!({"mcpServers": {binding.server_name.clone(): config}})
+                    .to_string()
+                    .into(),
             ]
         };
         native.append(&mut args);

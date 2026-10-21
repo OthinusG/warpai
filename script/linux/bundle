@@ -195,7 +195,7 @@ DEBUG_EXECUTABLE_PATH="$EXECUTABLE_PATH.debug"
 # expected name of the AppImage when downloading updates).
 export APPIMAGE_NAME="$APP_NAME-$BUILD_ARCH.AppImage"
 if [[ "$RELEASE_CHANNEL" == oss && "$ARTIFACT" == app ]]; then
-  [[ "${GIT_RELEASE_TAG:-}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'A semantic release tag is required' >&2; exit 1; }
+  [[ "${GIT_RELEASE_TAG:-}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'A semantic release tag is required' >&2; exit 1; }
   LINUX_ARCH=x64
   [[ "$BUILD_ARCH" != aarch64 ]] || LINUX_ARCH=arm64
   export APPIMAGE_NAME="Warpai-${GIT_RELEASE_TAG#v}-linux-$LINUX_ARCH.AppImage"

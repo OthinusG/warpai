@@ -61,7 +61,7 @@ fn published_installer(release: &Release, os: &str, arch: &str) -> Option<String
         .then_some(url)
 }
 
-fn version(value: &str) -> Option<[u64; 3]> {
+fn version(value: &str) -> Option<[u64; 4]> {
     let mut parts = value.strip_prefix('v').unwrap_or(value).split('.');
     let parse = |part: &str| {
         part.bytes()
@@ -69,11 +69,13 @@ fn version(value: &str) -> Option<[u64; 3]> {
             .then(|| part.parse().ok())
             .flatten()
     };
-    let result = [
-        parse(parts.next()?)?,
-        parse(parts.next()?)?,
-        parse(parts.next()?)?,
-    ];
+    let mut result = [0; 4];
+    for part in &mut result[..3] {
+        *part = parse(parts.next()?)?;
+    }
+    if let Some(revision) = parts.next() {
+        result[3] = parse(revision)?;
+    }
     parts.next().is_none().then_some(result)
 }
 
@@ -263,6 +265,14 @@ mod tests {
             newer_release(release("v1.10.0"), "v1.9.9").unwrap(),
             Some("v1.10.0".into())
         );
+        assert_eq!(
+            newer_release(release("v1.7.8.1"), "v1.7.8").unwrap(),
+            Some("v1.7.8.1".into())
+        );
+        assert_eq!(
+            newer_release(release("v1.7.9"), "v1.7.8.1").unwrap(),
+            Some("v1.7.9".into())
+        );
         for tag in ["v1.3.1", "v1.3.0"] {
             assert_eq!(newer_release(release(tag), "1.3.1").unwrap(), None);
         }
@@ -272,7 +282,7 @@ mod tests {
             "v1.4.0/evil",
             "vv1.4.0",
             "v1.4",
-            "v1.4.0.1",
+            "v1.4.0.1.1",
             "v+1.4.0",
             "v18446744073709551616.0.0",
         ] {

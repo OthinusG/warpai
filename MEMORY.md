@@ -155,6 +155,9 @@ Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   PATH/package ownership. No proxy, impersonation or persistent config writes;
   only explicit reserved legacy-MCP cleanup may edit persistent configuration.
   Preserve unrelated servers, report failures, and test Windows Unicode argv/TOML.
+- Collaboration MCP registrations are scope-specific: local `warpai-local-com`, SSH
+  `warpai-ssh-com`, and direct WSL `warpai-wsl-com`; updates remove only recognized
+  legacy Warpai entries and preserve user-owned MCP servers.
 - WSL stays native without host MCP injection; preserve listeners/drafts, run,
   distro/user identity and Windows-only UI. Verified observations precede wakes.
 - About Update checks stable releases/exact platform installers. Startup check

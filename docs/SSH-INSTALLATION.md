@@ -307,7 +307,7 @@ The switch gates remote file exploration, Review, and Agent communication. Basic
 With Companion 5.5.0 installed and the account selected:
 
 1. Warpai discovers managed CLI Agents installed on that remote account.
-2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warp-lite-communication` bridge into that Agent's own remote configuration.
+2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warpai-ssh-com` bridge into that Agent's own remote configuration.
 3. Use **Rescan agents** after installing or updating a CLI.
 4. Use **Remove Warpai MCP from all agents** to remove only the Warpai-owned entries.
 5. **SSH Companion setup** opens the remote component installation reference.

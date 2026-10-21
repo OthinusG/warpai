@@ -75,7 +75,7 @@ fn configure_in(request: Request, directory: &Path, bridge: &Path) -> Result<Res
         Default::default()
     } else { serde_json::from_slice(&bytes)? };
     let search_paths = request.search_paths.into_iter().map(PathBuf::from).collect();
-    let mut available = setup::discover(request.commands, bridge, search_paths);
+    let mut available = setup::discover_named(request.commands, bridge, search_paths, setup::SSH_SERVER);
     let failed = crate::wsl_setup::apply_native_action(&request.action, &mut preferences,
         &mut available, &path, "SSH", setup::configure_native_mcp)?;
     let response = Response {
@@ -144,14 +144,14 @@ mod tests {
         std::fs::write(&path, original).unwrap();
         let installed = setup::Installed { active: true, program: "codex".into(),
             executable: std::env::current_exe().unwrap(), adapter: setup::Adapter::Codex(path.clone()),
-            bridge: directory.path().join("warpai-companion"), search_paths: vec![], launch_options: Default::default() };
+            bridge: directory.path().join("warpai-companion"), server_name: setup::SSH_SERVER.into(), search_paths: vec![], launch_options: Default::default() };
         setup::configure_native_mcp(&installed, true, false).unwrap();
         assert!(setup::configure_native_mcp(&installed, true, false).is_err());
         setup::configure_native_mcp(&installed, true, true).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         let value: toml::Value = toml::from_str(&text).unwrap();
-        assert!(value["mcp_servers"][setup::SERVER].get("env").is_none());
-        assert_eq!(value["mcp_servers"][setup::SERVER]["args"].as_array().unwrap(),
+        assert!(value["mcp_servers"][setup::SSH_SERVER].get("env").is_none());
+        assert_eq!(value["mcp_servers"][setup::SSH_SERVER]["args"].as_array().unwrap(),
             &[toml::Value::String("mcp".into()), toml::Value::String("codex".into())]);
         setup::configure_native_mcp(&installed, false, true).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();

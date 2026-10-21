@@ -149,7 +149,7 @@ MCP configuration belongs to the environment where the Agent runs. For an Agent 
 With **WSL communication** enabled and the WSL account selected:
 
 1. Warpai discovers supported CLI Agents installed inside that distribution.
-2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warp-lite-communication` bridge into that Agent's own WSL configuration.
+2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warpai-wsl-com` bridge into that Agent's own WSL configuration.
 3. Use **Rescan agents** after installing or updating a CLI.
 4. Use **Remove Warpai MCP from all agents** to remove only the Warpai-owned entries.
 5. Use **Uninstall WSL Companion** to remove the guest component.
@@ -189,7 +189,7 @@ A CLI running inside WSL is a Linux process. It reads Linux paths such as `/home
 1. **File-based MCP scans local paths.** Warpai searches project-level configuration by walking up from the current session's working directory on the host filesystem. User-level configuration also lives in the local home directory. The desktop process does not mount or traverse WSL virtual disks or remote SSH filesystems to discover configuration.
 2. **MCP servers are child processes.** A host client spawns its MCP servers locally. There is no general MCP stdio tunnel across an SSH or WSL boundary.
 3. **Gallery installs are local records.** An MCP installed through the Warpai Gallery is persisted in that desktop installation's SQLite database. Another computer, a WSL distribution, and an SSH host do not inherit it.
-4. **The collaboration bridge is environment-specific.** The per-Agent checkbox writes only the `warp-lite-communication` bridge for the selected WSL account. It does not copy or synchronize your other MCP servers.
+4. **The collaboration bridge is environment-specific.** The per-Agent checkbox writes only the `warpai-wsl-com` bridge for the selected WSL account. It does not copy or synchronize your other MCP servers.
 
 ### Common questions
 

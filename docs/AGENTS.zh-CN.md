@@ -62,7 +62,7 @@ SSH 项目使用明确的 companion 启动入口。
 
 ## 配置和权限由谁管理
 
-Warpai 仅管理自己拥有的 `warp-lite-communication` 配置，不接管其他 MCP 服务或用户设置。
+Warpai 仅管理自己拥有的 `warpai-local-com` 配置，不接管其他 MCP 服务或用户设置。
 格式错误、所有权冲突、用户修改过的受管项或符号链接，会使配置操作停止并显示原因。
 
 取消勾选 Agent 或关闭功能，会立即撤销桥接服务中的权限。

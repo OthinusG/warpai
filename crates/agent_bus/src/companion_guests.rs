@@ -560,6 +560,7 @@ mod tests {
             executable: "/bin/sh".into(),
             adapter: crate::setup::Adapter::Codex("/unused/fixture.toml".into()),
             bridge: "/unused/bridge".into(),
+            server_name: crate::setup::SSH_SERVER.into(),
             search_paths: vec![],
             launch_options: Default::default(),
         };

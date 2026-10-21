@@ -3,7 +3,7 @@
 set -euo pipefail
 
 release_tag="${1:-}"
-[[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Usage: build-warpai-linux.sh vMAJOR.MINOR.PATCH' >&2; exit 1; }
+[[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Usage: build-warpai-linux.sh vMAJOR.MINOR.PATCH[.REVISION]' >&2; exit 1; }
 [[ "$(uname -s)" == Linux ]] || { echo 'Linux packages require a native Linux build host' >&2; exit 1; }
 architecture="$(uname -m)"
 case "$architecture" in

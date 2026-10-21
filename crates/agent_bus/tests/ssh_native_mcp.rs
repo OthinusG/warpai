@@ -62,7 +62,7 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
     let text = std::fs::read_to_string(&config).unwrap();
     assert!(text.contains("fixture-unrelated"));
     let value: toml::Value = toml::from_str(&text).unwrap();
-    assert!(value["mcp_servers"][warp_agent_bus::setup::SERVER].get("env").is_none());
+    assert!(value["mcp_servers"][warp_agent_bus::setup::SSH_SERVER].get("env").is_none());
     let args = ["--exact", "native_agent_child", "--ignored", "--nocapture"];
     #[cfg(unix)]
     let (shell, arguments) = {
@@ -156,7 +156,7 @@ fn installed_native_mcp_initializes_from_an_ordinary_terminal() {
     pty.stop().unwrap();
     let text = std::fs::read_to_string(&config).unwrap();
     assert!(text.contains("fixture-unrelated"));
-    assert!(!text.contains(warp_agent_bus::setup::SERVER));
+    assert!(!text.contains(warp_agent_bus::setup::SSH_SERVER));
     std::fs::remove_file(&config).unwrap();
 }
 
@@ -166,7 +166,7 @@ fn native_agent_child() {
     assert_eq!(std::env::var("WARPAI_DISPOSABLE_MCP_ACCOUNT").as_deref(), Ok("yes"));
     assert!(std::env::var_os(warp_agent_bus::transport::CAPABILITY).is_none());
     let config: toml::Value = toml::from_str(&std::fs::read_to_string(dirs::home_dir().unwrap().join(".codex/config.toml")).unwrap()).unwrap();
-    let server = &config["mcp_servers"][warp_agent_bus::setup::SERVER];
+    let server = &config["mcp_servers"][warp_agent_bus::setup::SSH_SERVER];
     let mut bridge = std::process::Command::new(server["command"].as_str().unwrap())
         .args(server["args"].as_array().unwrap().iter().map(|arg| arg.as_str().unwrap()))
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap();

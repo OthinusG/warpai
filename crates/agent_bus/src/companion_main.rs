@@ -90,6 +90,7 @@ pub(crate) async fn run() {
                     &warp_agent_bus::session::NativeLaunch {
                         program,
                         executable,
+                        server_name: warp_agent_bus::setup::SSH_SERVER.into(),
                         options,
                     },
                     arguments.collect(),

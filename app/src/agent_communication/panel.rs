@@ -5530,6 +5530,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         let installed = super::setup::Installed { active: true, program: "codex".into(),
                             executable: "/static-fixture/codex".into(), bridge: "/static-fixture/companion".into(),
                             adapter: super::setup::Adapter::Codex("/static-fixture/config.toml".into()),
+                            server_name: super::setup::SSH_SERVER.into(),
                             search_paths: vec![], launch_options: Default::default() };
                         model.ssh.remote_preferences.selected.insert("codex".into(), installed.clone());
                         model.ssh.available.push(super::setup::Available { command: "codex".into(), program: "codex".into(),

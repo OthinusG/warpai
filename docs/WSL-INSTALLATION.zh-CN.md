@@ -149,7 +149,7 @@ MCP 配置属于 Agent 实际运行的环境。对于 WSL 中的 Agent，就是�
 在 **WSL communication** 已开启且已选择 WSL 账号的情况下：
 
 1. Warpai 会探测该发行版中已安装且受支持的 CLI Agent。
-2. 每个被探测到的 Agent 都有一个复选框。启用后，Warpai 会将 `warp-lite-communication` 协同桥写入该 Agent 在 WSL 中的自有配置。
+2. 每个被探测到的 Agent 都有一个复选框。启用后，Warpai 会将 `warpai-wsl-com` 协同桥写入该 Agent 在 WSL 中的自有配置。
 3. 安装或更新 CLI 后，使用 **Rescan agents** 重新扫描。
 4. 使用 **Remove Warpai MCP from all agents** 仅移除 Warpai 自己的配置项。
 5. 使用 **Uninstall WSL Companion** 移除客户机组件。
@@ -190,7 +190,7 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 1. **文件型 MCP 只扫描本地路径。** Warpai 从宿主文件系统上当前会话的工作目录向上检索项目级配置；用户级配置同样位于本地主目录。桌面进程不会挂载或遍历 WSL 虚拟磁盘、远程 SSH 文件系统来发现配置。
 2. **MCP Server 是子进程。** 宿主客户端在本地派发自己的 MCP Server。系统底层不存在跨 SSH 或 WSL 边界的通用 MCP stdio 隧道。
 3. **Gallery 安装是本地记录。** 通过 Warpai Gallery 安装的 MCP 持久化在该桌面安装的 SQLite 数据库中。另一台电脑、一个 WSL 发行版和一台 SSH 主机都不会继承它。
-4. **协同桥是按环境独立写入的。** 每个 Agent 的复选框只把 `warp-lite-communication` 协同桥写入所选 WSL 账号，不会复制或同步你的其他 MCP Server。
+4. **协同桥是按环境独立写入的。** 每个 Agent 的复选框只把 `warpai-wsl-com` 协同桥写入所选 WSL 账号，不会复制或同步你的其他 MCP Server。
 
 ### 常见问题
 

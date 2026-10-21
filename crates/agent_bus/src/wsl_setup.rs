@@ -299,10 +299,11 @@ fn run_setup(removing: bool) -> Result<()> {
         Err(error) => return Err(error.into()),
     };
     let bridge = std::env::current_exe()?;
-    let mut available = setup::discover(
+    let mut available = setup::discover_named(
         request.commands,
         &bridge,
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect(),
+        setup::WSL_SERVER,
     );
     let failed = apply_action(&request.action, &mut preferences, &mut available, &path)?;
     ensure!(!removing || !failed, "Guest MCP removal did not complete; settings were preserved");
@@ -502,7 +503,7 @@ mod tests {
     }
 
     use super::*;
-    use crate::setup::{Adapter, Installed, SERVER};
+    use crate::setup::{Adapter, Installed, SERVER, WSL_SERVER};
 
     #[test]
     fn windows_path_translation_excludes_host_installs() {
@@ -586,6 +587,7 @@ mod tests {
                 executable: "/bin/sh".into(),
                 adapter: Adapter::Codex(config.clone()),
                 bridge: home.join("warpai-wsl-companion"),
+                server_name: WSL_SERVER.into(),
                 search_paths: vec![],
                 launch_options: Default::default(),
             };
