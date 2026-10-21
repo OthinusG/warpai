@@ -1890,7 +1890,7 @@ esac
             &installed.executable,
             source.replace(
                 "echo 'server not found' >&2; exit 1",
-                "echo 'Server \"warpai-local-com\" not found in user settings.'; exit 0",
+                "echo \"Server \\\"$3\\\" not found in user settings.\"; exit 0",
             ),
         )
         .unwrap();
@@ -1899,9 +1899,10 @@ esac
         assert!(configure(&installed, true, false).is_err());
         configure(&installed, false, true).unwrap();
         assert!(!directory.path().join("entry").exists());
-        let foreign =
-            "Server \"warpai-local-com\" not found in user settings.\n/user-command mcp";
-        std::fs::write(directory.path().join("entry"), foreign).unwrap();
+        let foreign = format!(
+            "{SERVER}\nServer \"{SERVER}\" not found in user settings.\n/user-command mcp"
+        );
+        std::fs::write(directory.path().join("entry"), &foreign).unwrap();
         assert!(configure(&installed, true, false).is_err());
         assert_eq!(
             std::fs::read_to_string(directory.path().join("entry")).unwrap(),
