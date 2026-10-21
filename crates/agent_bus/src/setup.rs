@@ -1616,7 +1616,7 @@ mod tests {
         }
         let path = home.path().join("vibe.toml");
         let original = format!("# user settings\n[[mcp_servers]]\nname = 'user-server'\ntransport = 'stdio'\ncommand = 'user-command'\n[[mcp_servers]]\nname = '{LEGACY_SHARED_SERVER}'\ntransport = 'stdio'\ncommand = '/bin/warpai-agent'\nargs = ['mcp']\n");
-        std::fs::write(&path, original).unwrap();
+        std::fs::write(&path, &original).unwrap();
         let installed = Installed {
             active: true,
             program: "vibe".into(),
