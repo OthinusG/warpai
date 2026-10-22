@@ -102,7 +102,7 @@ To understand Warpai's positioning in the modern developer ecosystem, the table 
     </tr>
     <tr>
       <td><strong>Task &amp; Collaboration Bus</strong></td>
-      <td><strong>Embedded MCP Server (<code>warp-lite-communication</code>)</strong>: 38+ native tools for durable task queues, FIFO execution dispatch, atomic file locks, and peer reviews.</td>
+      <td><strong>Embedded MCP Server (<code>warpai-local-com</code>)</strong>: 38+ native tools for durable task queues, FIFO execution dispatch, atomic file locks, and peer reviews.</td>
       <td><strong>None</strong>: Operates strictly as isolated character grids without inter-pane communication channels.</td>
     </tr>
     <tr>
@@ -295,7 +295,7 @@ To understand Warpai's positioning in the modern developer ecosystem, the table 
     </tr>
     <tr>
       <td><strong>Structured Coordination Bus</strong></td>
-      <td><strong>Embedded MCP Bus (<code>warp-lite-communication</code>)</strong>: 38+ native tools for durable SQLite task queues, FIFO task activation, atomic file locks, and peer review.</td>
+      <td><strong>Embedded MCP Bus (<code>warpai-local-com</code>)</strong>: 38+ native tools for durable SQLite task queues, FIFO task activation, atomic file locks, and peer review.</td>
       <td><strong>Raw Terminal Keys or Python Memory</strong>: Multiplexers rely on fragile <code>send-keys</code>; Python frameworks use in-memory state lost on process exit.</td>
     </tr>
     <tr>
@@ -428,7 +428,7 @@ To understand Warpai's positioning in the modern developer ecosystem, the table 
 - Built-in VT100 parser tracks ANSI rendering stream into three states: `Working`, `Idle`, and `WaitingApproval`.
 - **Guarded PTY Delivery**: Automatically injects queued tasks when the agent stabilizes at an idle prompt. Pauses when unsubmitted user drafts are detected or when approval is pending.
 
-#### 4. 38+ Native MCP Tools (`warp-lite-communication`)
+#### 4. 38+ Native MCP Tools (`warpai-local-com`)
 - Full task lifecycle, queuing, and dynamic supervision (`warp_task_assign`, `warp_task_start`, `warp_task_list`, `warp_task_claim`, `warp_task_progress`, `warp_task_submit`, `warp_task_review`, `warp_task_integrate`). Tasks enter durable queues (`queued`), agents execute one task at a time (`running`), and coordinators can continuously dispatch tasks to multiple peers at any time without blocking; new tasks automatically join the dynamic supervision list and actively exit upon final resolution.
 - P2P messaging (`warp_agent_send`, `warp_agent_ask`, `warp_agent_reply`, `warp_agent_inbox`, `warp_agent_ready`).
 - Shared context and memory (`warp_context_publish`, `warp_project_bootstrap`).

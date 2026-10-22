@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Installation & Setup
-description: "Step-by-step installation for Warpai 1.7.8 on macOS, Windows, and Linux desktops, plus Linux Companion and security verification."
+description: "Step-by-step installation for Warpai 1.7.8.2 on macOS, Windows, and Linux desktops, plus Linux Companion and security verification."
 section: Getting Started
 doc_id: install
 prev_url: /docs/
@@ -10,7 +10,9 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-Warpai 1.7.8 is a native desktop application for **macOS**, **Windows**, and **Linux**. Linux desktop packages are available for x64 and ARM64. For remote **Linux**, **macOS**, and **Windows** hosts and Windows **WSL 2**, use the standalone **Warpai Companion**.
+**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** fixes saved Agent MCP installation records after the 1.7.8.1 server-name change. Local, SSH, and WSL install, lookup, and cleanup commands now migrate to their scope-specific names. Inactive cleanup records can be selected again in Settings; existing user MCP entries and activation choices are preserved. Companion remains **5.5.0**.
+
+Warpai 1.7.8.2 is a native desktop application for **macOS**, **Windows**, and **Linux**. Linux desktop packages are available for x64 and ARM64. For remote **Linux**, **macOS**, and **Windows** hosts and Windows **WSL 2**, use the standalone **Warpai Companion**.
 
 ---
 
@@ -24,7 +26,7 @@ Warpai 1.7.8 is a native desktop application for **macOS**, **Windows**, and **L
   brew install --cask OthinusG/tap/warpai
   ```
 - **Direct Download**:
-  - [Download Warpai 1.7.8 for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-macos-arm64.dmg)
+  - [Download Warpai 1.7.8.2 for Apple Silicon (DMG)](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-macos-arm64.dmg)
 
 #### Installation Steps:
 1. Open the downloaded `.dmg` disk image.
@@ -59,10 +61,10 @@ Warpai 1.7.8 is a native desktop application for **macOS**, **Windows**, and **L
 
 - **System Requirements**: Windows 10 (version 1903+) or Windows 11; 64-bit x86 architecture.
 - **Direct Download**:
-  - [Download Warpai 1.7.8 Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiSetup-1.7.8-windows-x64.exe)
+  - [Download Warpai 1.7.8.2 Windows Installer (.exe)](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiSetup-1.7.8.2-windows-x64.exe)
 
 #### Installation Steps:
-1. Double-click `WarpaiSetup-1.7.8-windows-x64.exe`.
+1. Double-click `WarpaiSetup-1.7.8.2-windows-x64.exe`.
 2. If Windows Defender SmartScreen displays *"Windows protected your PC"*, click **More info** followed by **Run anyway**.
 3. Follow the wizard. A desktop shortcut and Start Menu entry will be created.
 
@@ -88,24 +90,24 @@ Warpai 1.7.8 is a native desktop application for **macOS**, **Windows**, and **L
 - **System requirements**: 64-bit x86 or ARM processor and glibc 2.31 or newer.
 - The commands below use x64 filenames; replace `x64` with `arm64` on ARM64 systems.
 - **Ubuntu / Debian (.deb)**:
-  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-x64.deb) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-arm64.deb)
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-x64.deb) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-arm64.deb)
   ```bash
-  sudo apt install ./Warpai-1.7.8-linux-x64.deb
+  sudo apt install ./Warpai-1.7.8.2-linux-x64.deb
   ```
 - **Fedora / RHEL (.rpm)**:
-  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-x64.rpm) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-arm64.rpm)
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-x64.rpm) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-arm64.rpm)
   ```bash
-  sudo dnf install ./Warpai-1.7.8-linux-x64.rpm
+  sudo dnf install ./Warpai-1.7.8.2-linux-x64.rpm
   ```
 - **Arch Linux (.pkg.tar.zst)**:
-  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-x64.pkg.tar.zst) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-arm64.pkg.tar.zst)
+  - [x64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-x64.pkg.tar.zst) · [ARM64 package](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-arm64.pkg.tar.zst)
   ```bash
-  sudo pacman -U ./Warpai-1.7.8-linux-x64.pkg.tar.zst
+  sudo pacman -U ./Warpai-1.7.8.2-linux-x64.pkg.tar.zst
   ```
-- **AppImage**: [x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-x64.AppImage) · [ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/Warpai-1.7.8-linux-arm64.AppImage)
+- **AppImage**: [x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-x64.AppImage) · [ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/Warpai-1.7.8.2-linux-arm64.AppImage)
   ```bash
-  chmod +x Warpai-1.7.8-linux-x64.AppImage
-  ./Warpai-1.7.8-linux-x64.AppImage
+  chmod +x Warpai-1.7.8.2-linux-x64.AppImage
+  ./Warpai-1.7.8.2-linux-x64.AppImage
   ```
 
 Use the package matching your processor architecture. Release checksums are published alongside the installers.
@@ -134,17 +136,17 @@ For complete host setup, see [OpenSSH Server Installation & Setup]({{ '/docs/ssh
   <tbody>
     <tr>
       <td><strong>Linux x64</strong> (Ubuntu 20.04+, Debian, RHEL)</td>
-      <td><a href="https://github.com/OthinusG/warpai/releases/latest">WarpaiCompanion-linux-x64.run</a></td>
+      <td><a href="https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-linux-x64.run">WarpaiCompanion-5.5.0-linux-x64.run</a></td>
       <td><code>chmod +x WarpaiCompanion-*.run &amp;&amp; ./WarpaiCompanion-*.run</code></td>
     </tr>
     <tr>
       <td><strong>macOS Apple Silicon</strong></td>
-      <td><a href="https://github.com/OthinusG/warpai/releases/latest">WarpaiCompanion-macos-arm64.dmg</a></td>
+      <td><a href="https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-macos-arm64.dmg">WarpaiCompanion-5.5.0-macos-arm64.dmg</a></td>
       <td>Copy <code>warpai-companion</code> to <code>~/.config/warpai/bin/</code></td>
     </tr>
     <tr>
       <td><strong>Windows x64</strong></td>
-      <td><a href="https://github.com/OthinusG/warpai/releases/latest">WarpaiCompanion-windows-x64-setup.exe</a></td>
+      <td><a href="https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-windows-x64-setup.exe">WarpaiCompanion-5.5.0-windows-x64-setup.exe</a></td>
       <td>Run setup installer on remote host.</td>
     </tr>
   </tbody>

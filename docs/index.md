@@ -8,6 +8,8 @@ next_url: /docs/install.html
 next_title: Installation & Setup
 ---
 
+**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** fixes saved Agent MCP installation records after the 1.7.8.1 server-name change. Local, SSH, and WSL install, lookup, and cleanup commands now migrate to their scope-specific names. Inactive cleanup records can be selected again in Settings; existing user MCP entries and activation choices are preserved. Companion remains **5.5.0**.
+
 Welcome to the official documentation for **Warpai** — the local-first, privacy-focused modern terminal built around autonomous multi-agent teams.
 
 Warpai elevates independent CLI Agent sessions into first-class units of work. For software engineering, Warpai provides a disciplined **Git Worktree Coding Mode** to develop features concurrently in isolated branches with automated peer reviews. For cross-domain and non-coding workflows, Warpai delivers an omnidirectional **Project Mode**, breaking rigid hierarchies so all agents freely exchange messages and tasks across scientific research, visual design, quant finance, and patent compliance.
@@ -94,7 +96,7 @@ Warpai elevates independent CLI Agent sessions into first-class units of work. F
     <tr>
       <td></td>
       <td><a href="{{ '/docs/mcp-api.html' | relative_url }}">Native MCP Tools API</a></td>
-      <td>Reference for the 38+ embedded MCP coordination tools (<code>warp-lite-communication</code>).</td>
+      <td>Reference for the 38+ embedded MCP coordination tools (<code>warpai-local-com</code>).</td>
     </tr>
     <tr>
       <td><strong>Configuration</strong></td>

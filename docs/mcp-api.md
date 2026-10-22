@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: Native MCP Tools API
-description: "Complete technical reference for the 38+ local MCP tools (warp-lite-communication) for task assignment, peer review, file reservation, and agent messaging."
+description: "Complete technical reference for the 38+ local MCP tools (warpai-local-com) for task assignment, peer review, file reservation, and agent messaging."
 section: Agent Ecosystem
 doc_id: mcp-api
 prev_url: /docs/cli-agents.html
@@ -12,7 +12,21 @@ next_title: Configuration & Themes
 
 The **Model Context Protocol (MCP)** provides the open coordination standard connecting independent CLI agents into a unified engineering team. 
 
-When Agent Communication is enabled in Warpai, the bundled `warp-lite-communication` MCP server exposes **38+ native tools** over standard JSON-RPC 2.0 to delegate tasks, conduct code reviews, publish contracts, and coordinate file edits.
+When Agent Communication is enabled in Warpai, the bundled `warpai-local-com` MCP server exposes **38+ native tools** over standard JSON-RPC 2.0 to delegate tasks, conduct code reviews, publish contracts, and coordinate file edits.
+
+## MCP Server Names and Upgrading to 1.7.8.2
+
+Each Agent environment has its own MCP server name:
+
+| Agent environment | MCP server name |
+| --- | --- |
+| Local desktop | `warpai-local-com` |
+| SSH remote account | `warpai-ssh-com` |
+| Direct WSL distribution/user | `warpai-wsl-com` |
+
+[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2) fixes saved installation records after the 1.7.8.1 name change. Install, lookup, and cleanup commands migrate with the server name in local, SSH, and WSL records. Inactive cleanup records can be selected again in Settings. Existing user MCP entries and activation choices are preserved; only recognized legacy Warpai registrations are removed.
+
+After updating, rescan Agents in the relevant local, SSH, or WSL settings. If a record is inactive, select its checkbox to reinstall, then start a new Agent session to reload the configuration. WSL configuration stays inside the selected Linux account and is not injected into the Windows host. Companion remains **5.5.0**, with SSH protocol major **1** and Agent Bus major **2** unchanged.
 
 ---
 

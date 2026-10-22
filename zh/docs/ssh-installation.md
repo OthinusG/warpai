@@ -11,7 +11,7 @@ next_url: /docs/wsl-installation.html
 next_title: Windows WSL 安装与配置
 ---
 
-本文档覆盖 Warpai 1.7.8 的完整 SSH 远程配置：在 Linux、macOS 和 Windows 上安装并启用 OpenSSH Server，将 Windows SSH 登录 Shell 从 CMD 切换为 PowerShell，安装 Warpai Companion，按 Agent 配置远端 MCP，并让远程项目获得与本地一致的多 Agent 协作体验。
+本文档覆盖 Warpai 1.7.8.2 的完整 SSH 远程配置：在 Linux、macOS 和 Windows 上安装并启用 OpenSSH Server，将 Windows SSH 登录 Shell 从 CMD 切换为 PowerShell，安装 Warpai Companion，按 Agent 配置远端 MCP，并让远程项目获得与本地一致的多 Agent 协作体验。
 
 相关文档：
 - [Windows WSL 安装与配置]({{ '/zh/docs/wsl-installation.html' | relative_url }})
@@ -24,7 +24,7 @@ next_title: Windows WSL 安装与配置
 
 | 项目 | 要求 |
 | :--- | :--- |
-| 客户端 | macOS、Windows 或 Linux 上的 Warpai 1.7.8 桌面端。 |
+| 客户端 | macOS、Windows 或 Linux 上的 Warpai 1.7.8.2 桌面端。 |
 | 远端主机 | Linux、macOS 或 Windows，且拥有可安装软件的账号。 |
 | 网络 | 客户端可访问远端 TCP 22 端口，或在 SSH config 中配置了自定义端口转发。 |
 | 认证 | 强烈建议使用密钥认证或已加载的 SSH Agent。SSH Remote 面板使用非交互式 SSH 控制连接，无法输入密码。 |
@@ -259,9 +259,9 @@ Companion 提供私有 Git 引擎、基于 SFTP 的文件浏览、VT100 状态�
 
 | 远端系统 | 架构 | 安装包 | 安装方式 |
 | :--- | :--- | :--- | :--- |
-| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
-| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-macos-arm64.dmg) | 打开镜像并运行 `Install Warpai Companion.command` |
-| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | 以远程 SSH 用户身份运行安装程序 |
+| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
+| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-macos-arm64.dmg) | 打开镜像并运行 `Install Warpai Companion.command` |
+| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | 以远程 SSH 用户身份运行安装程序 |
 
 Companion 5.5.0 只发布上述三个目标。其他远端架构不在本版本支持范围内。
 
@@ -318,7 +318,7 @@ Windows 会话中，终端横幅可能提示 **Integrate PowerShell**。按提�
 Companion 5.5.0 安装完成且账号已选中后：
 
 1. Warpai 会发现该远端账号下已安装的受支持 CLI Agent。
-2. 每个 Agent 对应一个复选框。勾选后，Warpai 会把 `warp-lite-communication` 通信桥写入该 Agent 自己的远端配置。
+2. 每个 Agent 对应一个复选框。勾选后，Warpai 会把 `warpai-ssh-com` 通信桥写入该 Agent 自己的远端配置。
 3. 安装或更新 CLI 后点击 **Rescan agents**。
 4. **Remove Warpai MCP from all agents** 只移除 Warpai 自己写入的条目。
 5. **SSH Companion setup** 打开远端组件安装参考。
@@ -336,6 +336,8 @@ Warpai 会保留厂商认证和其他无关的 MCP Server。复选框配置的�
 - 其他受支持 Agent：其文档规定的用户级 MCP 配置文件
 
 这些都是**远端机器上的文件**，不是 Warpai 桌面进程的 MCP 配置。
+
+升级至 **1.7.8.2** 后，重新扫描会将已保存记录中的安装、查询和清理命令迁移至 `warpai-ssh-com`。处于未启用状态的清理记录可重新勾选安装；已有用户 MCP 配置项和启用选择均保留。随后启动新的 Agent 会话以重新加载配置。
 
 ---
 

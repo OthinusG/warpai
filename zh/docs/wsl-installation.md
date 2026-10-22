@@ -11,7 +11,7 @@ next_url: /docs/cli-agents.html
 next_title: 20+ 款 CLI Agent 配置
 ---
 
-本文介绍 Warpai 1.7.8 在 Windows 上使用 WSL 2 的完整流程：启用所需的 Windows 功能、安装 Linux 发行版、在 Warpai 中打开 WSL 会话、安装专用的 WSL Companion、在发行版内部配置各 Agent 的 MCP，并获得与本地项目一致的多 Agent 协同体验。
+本文介绍 Warpai 1.7.8.2 在 Windows 上使用 WSL 2 的完整流程：启用所需的 Windows 功能、安装 Linux 发行版、在 Warpai 中打开 WSL 会话、安装专用的 WSL Companion、在发行版内部配置各 Agent 的 MCP，并获得与本地项目一致的多 Agent 协同体验。
 
 相关文档：
 - [OpenSSH Server 安装与配置]({{ '/zh/docs/ssh-installation.html' | relative_url }})
@@ -26,7 +26,7 @@ next_title: 20+ 款 CLI Agent 配置
 | :--- | :--- |
 | Windows | Windows 10 版本 2004（内部版本 19041）或更高版本，或 Windows 11。 |
 | 虚拟化 | 已在 BIOS/UEFI 中启用硬件虚拟化。 |
-| Warpai | Windows 版 Warpai 1.7.8。WSL 集成是 Windows 专属功能。 |
+| Warpai | Windows 版 Warpai 1.7.8.2。WSL 集成是 Windows 专属功能。 |
 | 发行版 | 一个 WSL 2 发行版，推荐 Ubuntu 22.04 LTS 或 24.04 LTS。内置 WSL Companion 支持 x86_64 客户机。 |
 | 账号 | 发行版内的 Linux 用户。Companion 安装到该用户的主目录下。 |
 
@@ -160,7 +160,7 @@ MCP 配置属于 Agent 实际运行的环境。对于 WSL 中的 Agent，就是�
 在 **WSL communication** 已开启且已选择 WSL 账号的情况下：
 
 1. Warpai 会探测该发行版中已安装且受支持的 CLI Agent。
-2. 每个被探测到的 Agent 都有一个复选框。启用后，Warpai 会将 `warp-lite-communication` 协同桥写入该 Agent 在 WSL 中的自有配置。
+2. 每个被探测到的 Agent 都有一个复选框。启用后，Warpai 会将 `warpai-wsl-com` 协同桥写入该 Agent 在 WSL 中的自有配置。
 3. 安装或更新 CLI 后，使用 **Rescan agents** 重新扫描。
 4. 使用 **Remove Warpai MCP from all agents** 仅移除 Warpai 自己的配置项。
 5. 使用 **Uninstall WSL Companion** 移除客户机组件。
@@ -168,6 +168,8 @@ MCP 配置属于 Agent 实际运行的环境。对于 WSL 中的 Agent，就是�
 这些变更只作用于所选的 WSL 账号。请在一个**新的 WSL 终端会话**中启动 Agent，使其重新加载配置。
 
 Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配置的是协同桥，而不是你的第三方 MCP 目录。若 Agent 在 WSL 中运行，请用在普通 Linux 机器上相同的方式和配置文件，在 WSL 内部安装第三方 MCP Server。
+
+升级至 **1.7.8.2** 后，重新扫描会将已保存记录中的安装、查询和清理命令迁移至 `warpai-wsl-com`。处于未启用状态的清理记录可重新勾选安装；已有用户 MCP 配置项和启用选择均保留。随后启动新的 Agent 会话以重新加载配置。
 
 ---
 
@@ -203,7 +205,7 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 1. **文件型 MCP 只扫描本地路径。** Warpai 从宿主文件系统上当前会话的工作目录向上检索项目级配置；用户级配置同样位于本地主目录。桌面进程不会挂载或遍历 WSL 虚拟磁盘、远程 SSH 文件系统来发现配置。
 2. **MCP Server 是子进程。** 宿主客户端在本地派发自己的 MCP Server。系统底层不存在跨 SSH 或 WSL 边界的通用 MCP stdio 隧道。
 3. **Gallery 安装是本地记录。** 通过 Warpai Gallery 安装的 MCP 持久化在该桌面安装的 SQLite 数据库中。另一台电脑、一个 WSL 发行版和一台 SSH 主机都不会继承它。
-4. **协同桥是按环境独立写入的。** 每个 Agent 的复选框只把 `warp-lite-communication` 协同桥写入所选 WSL 账号，不会复制或同步你的其他 MCP Server。
+4. **协同桥是按环境独立写入的。** 每个 Agent 的复选框只把 `warpai-wsl-com` 协同桥写入所选 WSL 账号，不会复制或同步你的其他 MCP Server。
 
 ### 常见问题
 
@@ -265,7 +267,7 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 | :--- | :--- |
 | `wsl --install` 失败或 WSL 无法启动 | BIOS/UEFI 中已启用虚拟化；Windows 功能已启用；启用后已重启。 |
 | Warpai 的 WSL 账号下拉列表中看不到发行版 | 先在 Warpai 中打开 WSL 终端；用 `wsl --list --verbose` 确认发行版与用户。 |
-| `wsl` 能打开，但命令块或 `cd` 跟踪不生效 | 运行 `wsl --shutdown`，重新打开会话，并确认使用的是 Warpai 1.7.8。 |
+| `wsl` 能打开，但命令块或 `cd` 跟踪不生效 | 运行 `wsl --shutdown`，重新打开会话，并确认使用的是 Warpai 1.7.8.2。 |
 | WSL Companion 安装失败 | 客户机必须为 x86_64；检查磁盘空间和所选的发行版/用户；重试前先重新扫描。 |
 | 安装后找不到 WSL Companion | 在同一个 Linux 账号下验证 `~/.config/warpai/wsl/bin/warpai-wsl-companion --check-runtime`。 |
 | Agent 复选框不可用 | Companion 未安装或不兼容、CLI 未被探测到，或未选择账号。 |

@@ -10,7 +10,7 @@ next_url: /docs/cli-agents.html
 next_title: 20+ CLI Agents Guide
 ---
 
-This guide covers Warpai 1.7.8 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
+This guide covers Warpai 1.7.8.2 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
 - [OpenSSH Server Installation & Setup]({{ '/docs/ssh-installation.html' | relative_url }})
@@ -25,7 +25,7 @@ Related documentation:
 | :--- | :--- |
 | Windows | Windows 10 version 2004 (build 19041) or later, or Windows 11. |
 | Virtualization | Hardware virtualization enabled in BIOS/UEFI. |
-| Warpai | Warpai 1.7.8 for Windows. WSL integration is a Windows-only feature. |
+| Warpai | Warpai 1.7.8.2 for Windows. WSL integration is a Windows-only feature. |
 | Distribution | A WSL 2 distribution, preferably Ubuntu 22.04 LTS or 24.04 LTS. The bundled WSL Companion supports x86_64 guests. |
 | Account | A Linux user inside the distribution. The Companion installs into that user's home directory. |
 
@@ -159,7 +159,7 @@ MCP configuration belongs to the environment where the Agent runs. For an Agent 
 With **WSL communication** enabled and the WSL account selected:
 
 1. Warpai discovers supported CLI Agents installed inside that distribution.
-2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warp-lite-communication` bridge into that Agent's own WSL configuration.
+2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warpai-wsl-com` bridge into that Agent's own WSL configuration.
 3. Use **Rescan agents** after installing or updating a CLI.
 4. Use **Remove Warpai MCP from all agents** to remove only the Warpai-owned entries.
 5. Use **Uninstall WSL Companion** to remove the guest component.
@@ -167,6 +167,8 @@ With **WSL communication** enabled and the WSL account selected:
 The changes apply only to the selected WSL account. Start the Agent in a **new WSL terminal session** so it reloads its configuration.
 
 Warpai preserves vendor authentication and unrelated MCP servers. The checkbox configures the collaboration bridge, not your third-party MCP catalog. Install third-party MCP servers inside WSL with the same commands and configuration files you would use on a normal Linux machine.
+
+After upgrading to **1.7.8.2**, rescanning migrates saved install, lookup, and cleanup commands to `warpai-wsl-com`. Inactive cleanup records can be selected again to reinstall; existing user MCP entries and activation choices are preserved. Start a new Agent session afterward to reload the configuration.
 
 ---
 
@@ -201,7 +203,7 @@ A CLI running inside WSL is a Linux process. It reads Linux paths such as `/home
 1. **File-based MCP scans local paths.** Warpai searches project-level configuration by walking up from the current session's working directory on the host filesystem. User-level configuration also lives in the local home directory. The desktop process does not mount or traverse WSL virtual disks or remote SSH filesystems to discover configuration.
 2. **MCP servers are child processes.** A host client spawns its MCP servers locally. There is no general MCP stdio tunnel across an SSH or WSL boundary.
 3. **Gallery installs are local records.** An MCP installed through the Warpai Gallery is persisted in that desktop installation's SQLite database. Another computer, a WSL distribution, and an SSH host do not inherit it.
-4. **The collaboration bridge is environment-specific.** The per-Agent checkbox writes only the `warp-lite-communication` bridge for the selected WSL account. It does not copy or synchronize your other MCP servers.
+4. **The collaboration bridge is environment-specific.** The per-Agent checkbox writes only the `warpai-wsl-com` bridge for the selected WSL account. It does not copy or synchronize your other MCP servers.
 
 ### Common questions
 
@@ -263,7 +265,7 @@ With WSL configured as above, Warpai provides the same core experience as a loca
 | :--- | :--- |
 | `wsl --install` fails or WSL will not start | Virtualization is enabled in BIOS/UEFI; the Windows features are enabled; reboot after enabling them. |
 | The distribution is not listed in Warpai's WSL account dropdown | Open a WSL terminal in Warpai first; confirm the distribution and user with `wsl --list --verbose`. |
-| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.7.8. |
+| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.7.8.2. |
 | WSL Companion install fails | The guest must be x86_64; check free disk space and the selected distribution/user. Rescan before retrying. |
 | WSL Companion is missing after install | Verify `~/.config/warpai/wsl/bin/warpai-wsl-companion --check-runtime` in the same Linux account. |
 | Agent checkbox is disabled | Companion is not installed or is incompatible, the CLI was not discovered, or the account is not selected. |

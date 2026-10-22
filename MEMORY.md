@@ -10,6 +10,14 @@
 
 ## Decisions & Context
 
+- **Warpai 1.7.8.2 documentation sync (2026-10-22)**: Updated bilingual home,
+  shared strings/footer, overview, installation, SSH/WSL, MCP API, and feature
+  pages to the published desktop release and its exact asset URLs. Companion
+  remains 5.5.0. MCP server names are `warpai-local-com`, `warpai-ssh-com`, and
+  `warpai-wsl-com` by Agent environment. The patch migrates persisted install,
+  lookup, and cleanup commands and allows reinstalling inactive cleanup records;
+  preserve user MCP entries and activation choices. Every release sync must
+  update main's bilingual READMEs/source guides and these website surfaces.
 - **Repository Structure**: Cloned the dedicated `gh-pages` branch directly into `/Users/wqin/workplace/warpai-gh-pages` for managing documentation and product landing pages.
 - **Language Support**: Uses dual-directory structure with root `/` for English and `/zh/` for Simplified Chinese.
 - **Jekyll Base URL**: Configured with `baseurl: /warpai`. All internal links and asset references must account for the baseurl prefix.

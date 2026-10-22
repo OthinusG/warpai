@@ -6,7 +6,7 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
 ---
 
 <header class="hd-hero">
-  <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases">Warpai 1.7.8 已发布 · 支持 macOS、Windows 与 Linux 桌面端 <span aria-hidden="true">↗</span></a>
+  <a class="seed-ribbon" href="https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2">Warpai 1.7.8.2 已发布 · 修复 Agent MCP 安装记录 <span aria-hidden="true">↗</span></a>
   <div class="in">
     <div class="hd-eyebrow"><s></s>the agent-native terminal</div>
     <h1>专为 Agent 打造的终端。<em>纯净原生，本地优先，多智能体协同。</em></h1>
@@ -475,10 +475,10 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
                     <div class="mock-agy-steps">
                       <div class="mock-step-row dim">○ Thought for 17.5s (The message defines the agent's role as Worktree Coordinator. This involves task assignment and context provision to other agents. Results c...)</div>
                       <div class="mock-step-row"><span class="green">●</span> <strong>Explored</strong> 4 files (warp_agent_inbox.json, warp_agent_ack.json, warp_agent_ready.json, +1)</div>
-                      <div class="mock-step-row"><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warp-lite-communication/warp_agent_inbox)</div>
+                      <div class="mock-step-row"><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warpai-local-com/warp_agent_inbox)</div>
                       <div class="mock-step-row"><span class="green">●</span> <strong>Explored</strong> 1 file (warp_agent_list.json)</div>
                       <div class="mock-step-row mock-collapsible-tool" id="mock-tool-expand-trigger" title="Click to expand/collapse payload">
-                        <div><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warp-lite-communication/warp_agent_list) <span class="mock-link-underline">(ctrl+o to expand)</span></div>
+                        <div><span class="amber">●</span> <strong>Called</strong> 1 MCP tool (warpai-local-com/warp_agent_list) <span class="mock-link-underline">(ctrl+o to expand)</span></div>
                         <div class="mock-tool-detail-drawer" id="mock-tool-detail-drawer">
                           <pre class="mock-json-preview"><code>{
   "status": "ready",
@@ -744,10 +744,10 @@ description: "专为多 Agent 打造的本地优先原生协同终端。支持 G
     <div class="n"><span>03</span></div>
     <div class="cap-in">
       <h3>原生 MCP 协同体系：38+ 内置工具。&nbsp;<b class="arw">&#8594;</b></h3>
-      <p>智能体之间通过内置的 <code>warp-lite-communication</code> 原生 MCP 服务高效协作。提供具备依赖解析与任务排队的多 Agent 任务池、原子级文件并发预订、对等代码评审（Peer Review）与跨智能体上下文广播，全程本地化运行，零云端订阅与外部依赖。</p>
+      <p>通过原生 MCP 桥协作：本地使用 <code>warpai-local-com</code>，SSH 使用 <code>warpai-ssh-com</code>，WSL 内使用 <code>warpai-wsl-com</code>。任务池、文件预订、对等评审、共享上下文与异步队列均在你自己的环境中运行。</p>
     </div>
     <div class="ev" aria-hidden="true">
-      <div class="ev-row"><span>warp-lite-communication</span><b><i class="beat"></i>运行中 (stdio)</b></div>
+      <div class="ev-row"><span>warpai-local-com</span><b><i class="beat"></i>运行中 (stdio)</b></div>
       <div class="ev-row"><span>任务池与排队调度</span><b>warp_task_claim · progress · submit</b></div>
       <div class="ev-row"><span>并发文件锁定与上下文</span><b>warp_file_reserve · context_publish</b></div>
       <div class="ev-note">38+ 个本地 MCP 工具 &middot; 零 API Key &middot; Stdio 物理隔离</div>
