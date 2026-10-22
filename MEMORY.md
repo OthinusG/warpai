@@ -10,6 +10,9 @@
 
 ## Decisions & Context
 
+- **Homepage release ribbon (2026-10-22)**: Keep the original bilingual
+  macOS/Windows/Linux Desktop release wording with the current version;
+  the owner prefers platform availability here rather than patch details.
 - **Warpai 1.7.8.2 documentation sync (2026-10-22)**: Updated bilingual home,
   shared strings/footer, overview, installation, SSH/WSL, MCP API, and feature
   pages to the published desktop release and its exact asset URLs. Companion
