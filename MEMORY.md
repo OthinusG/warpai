@@ -173,6 +173,8 @@ Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Release documentation must synchronize both READMEs, source SSH/WSL guides,
   and bilingual gh-pages home, strings, footer, install/MCP/features/overview
   pages. Check scope names and published assets, not just version labels.
+- Public READMEs and user guides describe current functionality; keep release
+  changes and migration history in release notes, not product documentation.
 - Feature catalog: docs/FEATURES.md.
 
 ## Retained native lifecycle constraints

@@ -48,9 +48,9 @@ Warpai provides two first-class modes tailored for different problem domains:
 - **Git Worktree Coding Mode**: Built for disciplined software engineering. Each feature or subtask is assigned to an isolated physical Git worktree checkout. Branch checkouts and file writes remain completely decoupled, eliminating Git checkout collisions and dirty working tree contention. An active Agent is selected as **Coordinator** to decompose requirements, assign tasks, orchestrate automated peer reviews (`accepted` vs. `needs_changes`), and integrate verified diffs into the mainline branch.
 - **Omnidirectional Project Mode**: Built for cross-domain and non-coding tasks (scientific research, literature reviews, quantitative finance, report writing, and patent compliance). Project mode breaks rigid single-coordinator hierarchies into an egalitarian mesh network. Any agent can directly message any peer, initiate structured two-way Q&A, publish shared context contracts, and pull work items from a shared task pool. No Git repository is required.
 
-### Dynamic task supervision (v1.7.0)
+### Dynamic task supervision
 
-Warpai v1.7.0 introduces **Dynamic Task Supervision**:
+Warpai supports **Dynamic Task Supervision**:
 
 1. **On-the-fly task dispatching**: Any supervising Agent or Coordinator can dynamically publish tasks to multiple agents at any time, adapting flexibly as execution unfolds rather than relying on static, upfront batch plans.
 2. **Persistent task queuing & sequential execution**: Dispatched tasks enter durable recipient queues (`queued`). Workers execute one task at a time (`running`), preventing dirty working tree contention, and pop queued items sequentially via `warp_task_start` upon submission.
@@ -155,7 +155,7 @@ Warpai is a native desktop application written in **Rust**, utilizing the `warpu
 
 ## Get Warpai
 
-**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** fixes saved Agent MCP installation records after the 1.7.8.1 server-name change. Local, SSH, and WSL records now migrate their install, lookup, and cleanup commands to `warpai-local-com`, `warpai-ssh-com`, and `warpai-wsl-com`, respectively. Inactive cleanup records can be selected again in Settings; existing user MCP entries and activation choices are preserved. Companion remains **5.5.0**.
+**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** is available for macOS, Windows, and Linux.
 
 Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Language** and restart to apply. Desktop settings and application data are stored locally in `~/.config/warpai`.
 

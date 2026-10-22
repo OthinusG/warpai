@@ -9,7 +9,8 @@ Use the GitHub release body and uploaded asset inventory as the release facts.
 ## Tasks and acceptance
 
 - Update current version labels, badges, desktop filenames, and download URLs.
-- Explain the persisted Agent MCP installation fix and inactive-record reinstall.
+- Keep public copy focused on current functionality and usage; release summaries,
+  fixes, and migration history belong only in release notes.
 - Document local `warpai-local-com`, SSH `warpai-ssh-com`, and direct WSL
   `warpai-wsl-com`; preserve the distinction between Agent environments.
 - Keep Companion at 5.5.0 and SSH/Agent Bus protocol majors at 1/2.
