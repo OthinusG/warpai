@@ -10,6 +10,10 @@
 
 ## Decisions & Context
 
+- **Documentation copy (2026-10-22)**: The owner requires current product and
+  usage documentation, without release summaries, patch fix lists, or upgrade
+  narratives. Keep current versions, downloads, and scope names; put change
+  history in release notes only.
 - **Homepage release ribbon (2026-10-22)**: Keep the original bilingual
   macOS/Windows/Linux Desktop release wording with the current version;
   the owner prefers platform availability here rather than patch details.

@@ -10,8 +10,6 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** fixes saved Agent MCP installation records after the 1.7.8.1 server-name change. Local, SSH, and WSL install, lookup, and cleanup commands now migrate to their scope-specific names. Inactive cleanup records can be selected again in Settings; existing user MCP entries and activation choices are preserved. Companion remains **5.5.0**.
-
 Warpai 1.7.8.2 is a native desktop application for **macOS**, **Windows**, and **Linux**. Linux desktop packages are available for x64 and ARM64. For remote **Linux**, **macOS**, and **Windows** hosts and Windows **WSL 2**, use the standalone **Warpai Companion**.
 
 ---

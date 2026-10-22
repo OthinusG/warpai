@@ -336,8 +336,6 @@ On the remote account, Warpai writes the bridge entry into each Agent's native c
 
 These are remote files on the remote machine. They are not the MCP configuration of the Warpai desktop process.
 
-After upgrading to **1.7.8.2**, rescanning migrates saved install, lookup, and cleanup commands to `warpai-ssh-com`. Inactive cleanup records can be selected again to reinstall; existing user MCP entries and activation choices are preserved. Start a new Agent session afterward to reload the configuration.
-
 ---
 
 ## 6. Two-Tier MCP Architecture

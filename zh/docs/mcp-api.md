@@ -15,7 +15,7 @@ next_title: 配置项与外观主题
 
 在 Warpai 中开启 Agent Communication 功能后，内置的 `warpai-local-com` 本地 MCP 服务将通过标准 JSON-RPC 2.0 协议暴露 **38+ 项原生工具**，用于任务委派分发、对等代码审阅、发布技术规范契约与协同文件加锁。
 
-## MCP 服务名称与 1.7.8.2 升级说明
+## MCP 服务名称
 
 每个 Agent 运行环境使用独立的 MCP 服务名称：
 
@@ -24,10 +24,6 @@ next_title: 配置项与外观主题
 | 本地桌面端 | `warpai-local-com` |
 | SSH 远端账号 | `warpai-ssh-com` |
 | 直连 WSL 发行版及用户 | `warpai-wsl-com` |
-
-[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2) 修复 1.7.8.1 名称调整后已保存的安装记录。本地、SSH 与 WSL 记录中的安装、查询和清理命令会随服务名称一同迁移。处于未启用状态的清理记录可在设置中重新勾选安装。已有用户 MCP 配置项和启用选择均保留；仅移除可识别的旧版 Warpai 注册项。
-
-升级后，在对应的本地、SSH 或 WSL 设置中重新扫描 Agent。若记录未启用，勾选对应复选框重新安装，再启动新的 Agent 会话以重新加载配置。WSL 配置始终保存在所选 Linux 账号内部，不会注入 Windows 宿主机。Companion 仍为 **5.5.0**，SSH 协议主版本 **1** 和 Agent Bus 主版本 **2** 均不变。
 
 ---
 

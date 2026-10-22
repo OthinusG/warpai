@@ -169,8 +169,6 @@ MCP 配置属于 Agent 实际运行的环境。对于 WSL 中的 Agent，就是�
 
 Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配置的是协同桥，而不是你的第三方 MCP 目录。若 Agent 在 WSL 中运行，请用在普通 Linux 机器上相同的方式和配置文件，在 WSL 内部安装第三方 MCP Server。
 
-升级至 **1.7.8.2** 后，重新扫描会将已保存记录中的安装、查询和清理命令迁移至 `warpai-wsl-com`。处于未启用状态的清理记录可重新勾选安装；已有用户 MCP 配置项和启用选择均保留。随后启动新的 Agent 会话以重新加载配置。
-
 ---
 
 <a id="two-tier-mcp-architecture-and-environment-isolation"></a>

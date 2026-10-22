@@ -11,8 +11,6 @@ next_url: /docs/quick-start.html
 next_title: 快速上手 (5分钟)
 ---
 
-**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** 修复 1.7.8.1 服务名称调整后已保存的 Agent MCP 安装记录：本地、SSH 与 WSL 的安装、查询和清理命令现会迁移至各自环境的服务名称。处于未启用状态的清理记录可在设置中重新勾选安装，已有用户 MCP 配置项和启用选择均保留。Companion 版本仍为 **5.5.0**。
-
 Warpai 1.7.8.2 是一款原生桌面应用程序，支持 **macOS（Apple 芯片）**、**Windows（x64）** 与 **Linux**。Linux 桌面端提供 x64 和 ARM64 安装包。连接 SSH 远端 **Linux**、**macOS**、**Windows** 主机及 Windows **WSL 2**，请使用独立的 **Warpai Companion**。
 
 ---

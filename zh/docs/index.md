@@ -9,8 +9,6 @@ next_url: /docs/install.html
 next_title: 安装指南
 ---
 
-**[Warpai 1.7.8.2](https://github.com/OthinusG/warpai/releases/tag/v1.7.8.2)** 修复 1.7.8.1 服务名称调整后已保存的 Agent MCP 安装记录：本地、SSH 与 WSL 的安装、查询和清理命令现会迁移至各自环境的服务名称。处于未启用状态的清理记录可在设置中重新勾选安装，已有用户 MCP 配置项和启用选择均保留。Companion 版本仍为 **5.5.0**。
-
 欢迎查阅 **Warpai** 官方技术文档 —— 专为多 Agent 深度协同打造的本地优先、高隐私原生终端工作空间。
 
 Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对代码工程，Warpai 提供严格的 **Git Worktree 并发编码模式**，支持在物理隔离的分支中并行开发不同功能并执行自动化对等评审；针对泛行业与非 Coding 场景，重磅提供 **Project 全向协同模式**，打破单一指挥链，让所有 Agent 自由互通消息与任务，在科研论文、视觉设计、量化金融、专利法务等场景中高效攻坚。

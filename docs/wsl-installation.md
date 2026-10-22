@@ -168,8 +168,6 @@ The changes apply only to the selected WSL account. Start the Agent in a **new W
 
 Warpai preserves vendor authentication and unrelated MCP servers. The checkbox configures the collaboration bridge, not your third-party MCP catalog. Install third-party MCP servers inside WSL with the same commands and configuration files you would use on a normal Linux machine.
 
-After upgrading to **1.7.8.2**, rescanning migrates saved install, lookup, and cleanup commands to `warpai-wsl-com`. Inactive cleanup records can be selected again to reinstall; existing user MCP entries and activation choices are preserved. Start a new Agent session afterward to reload the configuration.
-
 ---
 
 <a id="two-tier-mcp-architecture-and-environment-isolation"></a>
