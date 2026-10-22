@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 - 1.7.8.1 MCP renames must migrate persisted native CLI `add/get/remove` argv
   alongside `server_name`; otherwise QoderCN's status-zero not-found response
@@ -39,7 +39,7 @@ Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   remote OS owns path/completion semantics. Audit: SSH-POWERSHELL-AUDIT.md.
 - SSH tabs were correct while panel/MCP stayed Starting. Share WSL observation
   and guarded wake delivery with SSH; preserve native tab evidence and drafts.
-- Public: 1.7.1 / Companion 5.4.0; README links must match published assets.
+- Public: 1.7.8.2 / Companion 5.5.0; README links must match published assets.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >= 2.31.
 - Artifact-only macOS runs must not trigger Windows publication.
 - Windows CI/release uses pinned official protoc 36.2 + SHA-256; Chocolatey NuGet
@@ -170,6 +170,9 @@ Updated 2026-10-21. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   defaults off/runs once; no installation writes. Docs retain screenshot provenance.
 - https://othinusg.github.io/warpai/ lives on gh-pages (EN /, ZH /zh/); preserve
   branding/worktree, cmap-check font subsets, and Jekyll /warpai production baseurl.
+- Release documentation must synchronize both READMEs, source SSH/WSL guides,
+  and bilingual gh-pages home, strings, footer, install/MCP/features/overview
+  pages. Check scope names and published assets, not just version labels.
 - Feature catalog: docs/FEATURES.md.
 
 ## Retained native lifecycle constraints

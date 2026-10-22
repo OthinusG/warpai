@@ -2,7 +2,7 @@
 
 [English](SSH-INSTALLATION.md) | [简体中文](SSH-INSTALLATION.zh-CN.md)
 
-This guide covers the complete SSH remote setup for Warpai 1.7.8: installing and enabling OpenSSH Server on Linux, macOS, and Windows, switching the Windows SSH login shell from CMD to PowerShell, installing Warpai Companion, configuring per-Agent MCP on the remote account, and running the same multi-Agent workflow as a local project.
+This guide covers the complete SSH remote setup for Warpai 1.7.8.2: installing and enabling OpenSSH Server on Linux, macOS, and Windows, switching the Windows SSH login shell from CMD to PowerShell, installing Warpai Companion, configuring per-Agent MCP on the remote account, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
 - [Windows WSL Installation and Setup Guide](WSL-INSTALLATION.md)
@@ -15,7 +15,7 @@ Related documentation:
 
 | Requirement | Details |
 | :--- | :--- |
-| Client | Warpai 1.7.8 desktop on macOS, Windows, or Linux. |
+| Client | Warpai 1.7.8.2 desktop on macOS, Windows, or Linux. |
 | Remote host | Linux, macOS, or Windows with an account that can install software. |
 | Network | TCP port 22 reachable from the client, or a custom port forwarded through your SSH config. |
 | Authentication | Key-based authentication or a loaded SSH agent is strongly recommended. The SSH Remote panel uses a non-interactive SSH control connection and cannot type a password. |
@@ -248,9 +248,9 @@ Companion provides the private Git engine, SFTP-backed file exploration, VT100 o
 
 | Remote OS | Architecture | Package | Installation |
 | :--- | :--- | :--- | :--- |
-| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
-| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-macos-arm64.dmg) | Open the image and run `Install Warpai Companion.command` |
-| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | Run the installer as the remote SSH user |
+| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
+| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-macos-arm64.dmg) | Open the image and run `Install Warpai Companion.command` |
+| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.7.8.2/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | Run the installer as the remote SSH user |
 
 Companion 5.5.0 is published for these three targets. Other remote architectures are not supported by this release.
 
@@ -325,6 +325,8 @@ On the remote account, Warpai writes the bridge entry into each Agent's native c
 - Other supported Agents: their documented user-level MCP file
 
 These are remote files on the remote machine. They are not the MCP configuration of the Warpai desktop process.
+
+After upgrading to **1.7.8.2**, rescanning migrates saved install, lookup, and cleanup commands to `warpai-ssh-com`. Inactive cleanup records can be selected again to reinstall; existing user MCP entries and activation choices are preserved. Start a new Agent session afterward to reload the configuration.
 
 ---
 
