@@ -122,6 +122,14 @@ composition and use no purple, shadows, external background or mockup.
 
 ## Verification receipts
 
+- Pane ownership run 41041510659: both protocol jobs passed; both desktop checks
+  failed because the moved icon module declaration and imports were missing.
+  Fix plan: wire the existing module into pane/mod.rs, restore PaneIcon imports
+  in app state, actions, tab menus and vertical rendering, and verify the module
+  is reachable before rerunning both default/platform builds, regressions and
+  native captures. Keep publication paused. Do not use partial formatting that
+  can delete reordered imports without retaining their new location.
+
 - Run 41000830906 (a5e72de8): macOS and Windows default/platform builds passed;
   both protocol jobs passed; local SVG/PNG validation/refresh and external SVG
   image isolation tests passed on both platforms. The workspace precedence test

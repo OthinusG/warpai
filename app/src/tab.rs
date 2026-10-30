@@ -7,6 +7,7 @@ use crate::editor::EditorView;
 use crate::features::FeatureFlag;
 use crate::launch_configs::launch_config::LaunchConfig;
 use crate::menu::{MenuAction, MenuItem, MenuItemFields};
+use crate::pane_group::pane::icon::{local_icons, PaneIcon};
 use crate::pane_group::{PaneGroup, PaneId};
 use crate::terminal::model::terminal_model::ConversationTranscriptViewerStatus;
 use settings::Setting as _;

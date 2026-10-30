@@ -28,6 +28,7 @@ use crate::pane_group::TerminalPane;
 use crate::pane_group::{
     CodePane, NotebookPane, PaneGroup, PaneId, TabBarHoverIndex, WorkflowPane,
 };
+use crate::pane_group::pane::icon::PaneIcon;
 use crate::tab::{tab_position_id, SelectedTabColor, TabData};
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::TerminalView;

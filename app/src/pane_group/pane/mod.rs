@@ -18,6 +18,7 @@ pub(crate) mod environment_management_pane;
 pub(super) mod execution_profile_editor_pane;
 pub(super) mod file_pane;
 pub(super) mod get_started_pane;
+pub(crate) mod icon;
 pub(super) mod get_started_view;
 #[cfg(not(target_family = "wasm"))]
 pub(super) mod local_harness_launch;

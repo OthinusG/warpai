@@ -14,6 +14,7 @@ use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
 use crate::drive::OpenWarpDriveObjectSettings;
+use crate::pane_group::pane::icon::PaneIcon;
 use crate::root_view::quake_mode_window_id;
 use crate::server::ids::SyncId;
 use crate::settings_view::{environments_page::EnvironmentsPage, SettingsSection};
