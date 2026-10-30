@@ -2704,8 +2704,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .is_some_and(|terminals| terminals.len() == 1))
         }))
         .with_step(
-            TestStep::new("custom tab icon in horizontal layout")
+            TestStep::new("custom tab icon in vertical layout")
                 .with_action(|app, window, _| {
+                    app.update(|ctx| {
+                        crate::workspace::tab_settings::TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+                            settings.use_vertical_tabs.set_value(true, ctx).unwrap();
+                        });
+                    });
                     let root = app.root_view::<RootView>(window).unwrap();
                     let workspace =
                         root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -2719,7 +2724,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         )
                     });
                 })
-                .with_take_screenshot("custom-tab-icon-horizontal.png"),
+                .with_take_screenshot("custom-tab-icon-vertical.png"),
         )
         .with_step(
             TestStep::new("custom tab icon picker")
@@ -2742,38 +2747,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("custom-tab-icon-picker.png"),
         )
         .with_step(
-            TestStep::new("custom tab icon in vertical layout")
-                .with_action(|app, window, _| {
-                    let root = app.root_view::<RootView>(window).unwrap();
-                    let workspace =
-                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
-                    workspace.update(app, |workspace, ctx| {
-                        workspace.handle_action(
-                            &WorkspaceAction::ToggleTabRightClickMenu {
-                                tab_index: 0,
-                                anchor: crate::workspace::TabContextMenuAnchor::Pointer(
-                                    pathfinder_geometry::vector::vec2f(80., 80.),
-                                ),
-                            },
-                            ctx,
-                        )
-                    });
-                    app.update(|ctx| {
-                        crate::workspace::tab_settings::TabSettings::handle(ctx).update(
-                            ctx,
-                            |settings, ctx| {
-                                settings.use_vertical_tabs.set_value(true, ctx).unwrap();
-                            },
-                        )
-                    });
-                })
-                .with_take_screenshot("custom-tab-icon-vertical.png"),
-        )
-        .with_step(
             TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
+                    workspace.handle_action(&WorkspaceAction::ToggleTabRightClickMenu {
+                        tab_index: 0,
+                        anchor: crate::workspace::TabContextMenuAnchor::Pointer(
+                            pathfinder_geometry::vector::vec2f(80., 80.),
+                        ),
+                    }, ctx);
                     workspace.handle_action(
                         &WorkspaceAction::SetTabIcon {
                             tab_index: 0,

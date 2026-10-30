@@ -10,6 +10,26 @@ use super::command_executor::testing::TestCommandExecutor;
 use super::{BootstrapSessionType, Session, SessionId, SessionInfo, Sessions, SessionsEvent};
 
 #[test]
+fn terminal_ssh_session_tab_icon_requires_native_transport() {
+    let local = Session::test();
+    assert!(!local.is_ssh());
+    let mut remote = Session::test_remote();
+    assert!(!remote.is_ssh(), "remote metadata alone does not establish SSH");
+    remote.inherit_ssh_arguments("ssh -p 2222 user@fixture", Some(&local));
+    assert!(remote.is_ssh());
+    let mut subshell = Session::test_remote();
+    subshell.inherit_ssh_arguments("bash", Some(&remote));
+    assert!(subshell.is_ssh(), "a shell inside SSH retains its transport");
+    let mut legacy = Session::test_remote();
+    legacy.info.is_legacy_ssh_session = super::IsLegacySSHSession::Yes {
+        socket_path: std::path::PathBuf::from("/tmp/owned-ssh-icon-fixture"),
+    };
+    assert!(legacy.is_ssh());
+    legacy.info.is_legacy_ssh_session = super::IsLegacySSHSession::No;
+    assert!(!legacy.is_ssh(), "leaving SSH removes the default badge");
+}
+
+#[test]
 fn terminal_ssh_session_preserves_transport_without_adopting_nested_hosts() {
     let local = Session::test();
     let mut remote = Session::test_remote();

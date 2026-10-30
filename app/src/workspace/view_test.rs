@@ -1213,6 +1213,46 @@ fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
 }
 
 #[test]
+fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
+    use crate::terminal::cli_agent_sessions::{
+        CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus,
+    };
+    use crate::tab::TabIcon;
+    use super::vertical_tabs::{pane_summary_kind, SummaryPaneKind};
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.tabs[0].selected_icon = Some(TabIcon::Folder);
+            let group = workspace.tabs[0].pane_group.clone();
+            let pane = group.as_ref(ctx).focused_pane_id(ctx);
+            let terminal = group.as_ref(ctx).focused_session_view(ctx).unwrap();
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                model.set_session(terminal.id(), CLIAgentSession {
+                    agent: crate::terminal::CLIAgent::Codex,
+                    status: CLIAgentSessionStatus::InProgress,
+                    session_context: CLIAgentSessionContext::default(),
+                    input_state: CLIAgentInputState::Closed,
+                    should_auto_toggle_input: false,
+                    listener: None,
+                    plugin_version: None,
+                    remote_host: Some("fixture@example.invalid".into()),
+                    draft_text: None,
+                    custom_command_prefix: None,
+                }, ctx);
+            });
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(TabIcon::Folder), ctx),
+                Some(SummaryPaneKind::CLIAgent { agent: crate::terminal::CLIAgent::Codex }));
+            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.remove_session(terminal.id(), ctx));
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(TabIcon::Folder), ctx),
+                Some(SummaryPaneKind::CustomTerminal(TabIcon::Folder)));
+        });
+    });
+}
+
+#[test]
 fn test_workspace_sessions_retrieves_tabs() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);

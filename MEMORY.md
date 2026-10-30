@@ -151,7 +151,7 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Product defaults, CLI integration and website
 
-- Custom tab icons use bundled SVGs and a nullable per-tab snapshot/SQLite override; Agent branding wins. Contract: specs/custom-tab-icons.md.
+- Custom tab icons persist per tab in SQLite; native SSH defaults to the bundled circular grayscale PNG. Agent branding wins. Contract: specs/custom-tab-icons.md.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve

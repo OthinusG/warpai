@@ -1045,6 +1045,11 @@ impl Session {
         )
     }
 
+    /// SSH transport is distinct from other remote/shared/WSL sessions.
+    pub(crate) fn is_ssh(&self) -> bool {
+        self.ssh_arguments().is_some() || self.is_legacy_ssh_session()
+    }
+
     pub fn is_subshell_or_ssh(&self) -> bool {
         matches!(self.session_type(), SessionType::WarpifiedRemote { .. })
             || self.is_legacy_ssh_session()

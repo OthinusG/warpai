@@ -1150,23 +1150,8 @@ impl<'a> TabComponent<'a> {
             pane_group_id,
             pane_id,
         };
-        let mut rendered_tab = tab.clone();
-        let is_plain_terminal = tab
-            .pane_group
-            .as_ref(ctx)
-            .focused_session_view(ctx)
-            .is_some_and(|view| {
-                crate::terminal::cli_agent_sessions::CLIAgentSessionsModel::as_ref(ctx)
-                    .session(view.id())
-                    .is_none_or(|session| {
-                        matches!(session.agent, crate::terminal::CLIAgent::Unknown)
-                    })
-            });
-        if !is_plain_terminal {
-            rendered_tab.selected_icon = None;
-        }
         Self {
-            tab: rendered_tab,
+            tab: tab.clone(),
             tab_bar,
             editor,
             title,
@@ -1575,15 +1560,7 @@ impl<'a> TabComponent<'a> {
                 .with_uniform_margin(3.)
                 .finish(),
             ),
-            Indicator::None => self.tab.selected_icon.map(|icon| {
-                icon.icon()
-                    .to_warpui_icon(
-                        self.appearance
-                            .theme()
-                            .main_text_color(self.appearance.theme().background()),
-                    )
-                    .finish()
-            }),
+            Indicator::None => None,
             Indicator::Synced => Some(
                 Icon::LinkHorizontal
                     .to_warpui_icon(self.styles.synced_input_indicator_color.into())
@@ -1611,9 +1588,8 @@ impl<'a> TabComponent<'a> {
                     .finish(),
             ),
             Indicator::Shell(shell_indicator_type) => Some(
-                self.tab
-                    .selected_icon
-                    .map_or_else(|| shell_indicator_type.to_icon(), TabIcon::icon)
+                shell_indicator_type
+                    .to_icon()
                     .to_warpui_icon(internal_colors::neutral_5(self.appearance.theme()).into())
                     .finish(),
             ),

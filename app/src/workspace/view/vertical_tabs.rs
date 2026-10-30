@@ -8,7 +8,7 @@ use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::view::TerminalViewState;
 use crate::terminal::CLIAgent;
 use crate::ui_components::icon_with_status::{
-    render_icon_with_status, IconWithStatusSizing, IconWithStatusVariant,
+    render_icon_with_status, render_ssh_tab_icon, IconWithStatusSizing, IconWithStatusVariant,
 };
 use crate::workspace::view::vertical_tabs::telemetry::{
     VerticalTabsChipEntrypoint, VerticalTabsTelemetryEvent,
@@ -911,6 +911,7 @@ enum VerticalTabsResolvedMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum SummaryPaneKind {
     Terminal,
+    SshTerminal,
     CustomTerminal(TabIcon),
     OzAgent { is_ambient: bool },
     CLIAgent { agent: CLIAgent },
@@ -1420,6 +1421,10 @@ fn render_detail_kind_badge_icon(
                 .is_some()
             {
                 WarpIcon::Oz
+            } else if let Some(icon) = props.selected_icon {
+                icon.icon()
+            } else if terminal_view.is_ssh_for_tab(app) {
+                return render_ssh_tab_icon(16.);
             } else {
                 WarpIcon::Terminal
             };
@@ -3255,6 +3260,8 @@ fn resolve_icon_with_status_variant(
                     status: terminal_view.selected_conversation_status_for_display(app),
                     is_ambient,
                 }
+            } else if selected_icon.is_none() && terminal_view.is_ssh_for_tab(app) {
+                IconWithStatusVariant::Ssh
             } else {
                 // Plain terminal: use foreground color per design spec
                 IconWithStatusVariant::Neutral {
@@ -3429,6 +3436,7 @@ impl TypedPane<'_> {
                 let terminal_view = terminal_view.as_ref(app);
                 if let Some(session) =
                     CLIAgentSessionsModel::as_ref(app).session(terminal_view.id())
+                        .filter(|session| !matches!(session.agent, CLIAgent::Unknown))
                 {
                     return SummaryPaneKind::CLIAgent {
                         agent: session.agent,
@@ -3441,6 +3449,8 @@ impl TypedPane<'_> {
                     || is_ambient
                 {
                     SummaryPaneKind::OzAgent { is_ambient }
+                } else if terminal_view.is_ssh_for_tab(app) {
+                    SummaryPaneKind::SshTerminal
                 } else {
                     SummaryPaneKind::Terminal
                 }
@@ -4168,7 +4178,7 @@ pub(super) fn pane_summary_kind(
     let title = pane_configuration.title().trim();
     let typed = pane_group.resolve_pane_type(pane_id, app);
     Some(match (typed.summary_pane_kind(title, app), selected_icon) {
-        (SummaryPaneKind::Terminal, Some(icon)) => SummaryPaneKind::CustomTerminal(icon),
+        (SummaryPaneKind::Terminal | SummaryPaneKind::SshTerminal, Some(icon)) => SummaryPaneKind::CustomTerminal(icon),
         (kind, _) => kind,
     })
 }
@@ -4638,6 +4648,7 @@ pub(super) fn render_summary_pane_kind_icon_circle(
 ) -> Box<dyn Element> {
     let theme = appearance.theme();
     let (icon_element, background): (Box<dyn Element>, ElementFill) = match kind {
+        SummaryPaneKind::SshTerminal => return render_ssh_tab_icon(icon_size + padding * 2.),
         SummaryPaneKind::OzAgent { is_ambient } => {
             let icon = if is_ambient {
                 WarpIcon::OzCloud
@@ -4727,6 +4738,8 @@ fn summary_pane_kind_icon(
 
     match kind {
         SummaryPaneKind::Terminal => (WarpIcon::Terminal, main_text),
+        // Image-backed SSH icons are handled before this vector-only fallback.
+        SummaryPaneKind::SshTerminal => (WarpIcon::Terminal, main_text),
         SummaryPaneKind::CustomTerminal(icon) => (icon.icon(), main_text),
         SummaryPaneKind::OzAgent { is_ambient } => (
             if is_ambient {
