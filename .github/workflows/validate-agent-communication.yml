@@ -291,7 +291,8 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          $expectedImages = $fixtureCount * 8 + 230
+          # 232 = fixed checkpoints, including the two custom tab icon captures.
+          $expectedImages = $fixtureCount * 8 + 232
           if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 9 }
           $expectedImages *= 3
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs; found $($images.Count)" }
@@ -321,6 +322,8 @@ jobs:
     runs-on: macos-15
     env:
       GIT_RELEASE_TAG: v1.6.5
+      # Incremental state is disposable and the largest disk consumer on macOS runners.
+      CARGO_INCREMENTAL: "0"
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -348,6 +351,11 @@ jobs:
           restore-keys: |
             macos-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             macos-native-v1-
+      - name: Drop restored incremental state
+        run: |
+          df -h /
+          rm -rf target/debug/incremental
+          df -h /
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked
@@ -439,10 +447,15 @@ jobs:
       - name: Build isolated native UI review artifact
         if: ${{ inputs.capture_ui }}
         run: |
+          df -h /
+          # The review build relinks warpai anyway; its test binaries would exhaust the runner disk.
+          cargo clean -p warpai
+          df -h /
           cargo build -p warpai --bin warpai --features release_bundle --locked
           script/build-warpai-app.sh --debug
           codesign --verify --deep --strict WarpaiReview.app
           ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
+          df -h /
       - name: Upload isolated native UI review artifact
         if: ${{ inputs.capture_ui }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -472,7 +485,8 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          expected = (len(fixtures) * 8 + 230) * 3
+          # 232 = fixed checkpoints, including the two custom tab icon captures.
+          expected = (len(fixtures) * 8 + 232) * 3
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs; found {len(images)}'
           PY
       - name: Upload macOS native UI captures

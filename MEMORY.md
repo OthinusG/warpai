@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 - 1.7.8.1 MCP renames must migrate persisted native CLI `add/get/remove` argv
   alongside `server_name`; otherwise QoderCN's status-zero not-found response
@@ -11,6 +11,8 @@ Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
+- Capture needs `fixtures * 8 + 232` PNGs/language (two are custom tab icon captures); update both
+  workflow counts. The 14 GB macOS runner also needs incremental off and `cargo clean -p warpai` before relinking.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Peer wake cancellation fixtures must end the run on the captured paste event;
   scheduling all agents before cancellation can exhaust Claude's Enter delay.
@@ -151,6 +153,7 @@ Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Product defaults, CLI integration and website
 
+- Vertical tab icons persist per tab; discover SVG/PNG in ~/.config/warpai/icon asynchronously. Agent > selection > circular SSH badge > terminal. Contract: specs/custom-tab-icons.md.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve

@@ -2704,6 +2704,78 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .is_some_and(|terminals| terminals.len() == 1))
         }))
         .with_step(
+            TestStep::new("custom tab icon in vertical layout")
+                .with_action(|app, window, _| {
+                    app.update(|ctx| {
+                        crate::workspace::tab_settings::TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+                            settings.use_vertical_tabs.set_value(true, ctx).unwrap();
+                        });
+                    });
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(
+                            &WorkspaceAction::SetTabIcon {
+                                tab_index: 0,
+                                icon: Some(crate::tab::TabIcon::Folder),
+                            },
+                            ctx,
+                        )
+                    });
+                })
+                .with_take_screenshot("custom-tab-icon-vertical.png"),
+        )
+        .with_step(
+            TestStep::new("custom tab icon picker")
+                .with_action(|app, window, _| {
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(
+                            &WorkspaceAction::ToggleTabRightClickMenu {
+                                tab_index: 0,
+                                anchor: crate::workspace::TabContextMenuAnchor::Pointer(
+                                    pathfinder_geometry::vector::vec2f(80., 80.),
+                                ),
+                            },
+                            ctx,
+                        )
+                    });
+                })
+                .with_take_screenshot("custom-tab-icon-picker.png"),
+        )
+        .with_step(
+            TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| {
+                    workspace.handle_action(&WorkspaceAction::ToggleTabRightClickMenu {
+                        tab_index: 0,
+                        anchor: crate::workspace::TabContextMenuAnchor::Pointer(
+                            pathfinder_geometry::vector::vec2f(80., 80.),
+                        ),
+                    }, ctx);
+                    workspace.handle_action(
+                        &WorkspaceAction::SetTabIcon {
+                            tab_index: 0,
+                            icon: None,
+                        },
+                        ctx,
+                    )
+                });
+                app.update(|ctx| {
+                    crate::workspace::tab_settings::TabSettings::handle(ctx).update(
+                        ctx,
+                        |settings, ctx| {
+                            settings.use_vertical_tabs.set_value(false, ctx).unwrap();
+                        },
+                    )
+                });
+            }),
+        )
+        .with_step(
             TestStep::new("open tools panel").with_action(|app, window, _| {
                 app.update(|ctx| {
                     let origin = ctx.window_bounds(&window).unwrap().origin();
@@ -2748,6 +2820,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 warpui::async_assert!(app.views_of_type::<CollaborationPanel>(window).is_some())
             },
         ))
+        .with_step(
+            // Step actions run after events, so focus must be restored in a prior step.
+            TestStep::new("restore terminal focus").with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| workspace.focus_active_tab(ctx));
+            }),
+        )
         .with_step(
             TestStep::new("seed unsent draft")
                 .with_typed_characters(&["unsent collaboration draft"])

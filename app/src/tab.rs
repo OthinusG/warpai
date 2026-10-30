@@ -1,3 +1,5 @@
+pub(crate) mod local_icons;
+
 use crate::ai::agent::conversation::ConversationStatus;
 use crate::ai::conversation_status_ui::{render_status_element, STATUS_ELEMENT_PADDING};
 use crate::appearance::Appearance;
@@ -61,6 +63,7 @@ pub(crate) const TAB_INDICATOR_HEIGHT: f32 = 14.0;
 
 /// Label for the tab right-click menu's "Move to group" submenu parent.
 pub const MOVE_TO_GROUP_LABEL: &str = "Move to group";
+pub(crate) const LOCAL_TAB_ICONS_LABEL: &str = "Local icons";
 
 /// Decides which tab-group context-menu entries apply to a tab, based on its
 /// group membership, whether it is the sole member of that group, and whether
@@ -120,6 +123,74 @@ pub enum SelectedTabColor {
     Cleared,
     /// User explicitly chose this color.
     Color(AnsiColorIdentifier),
+}
+
+/// Stable selections persisted with a tab; local sources are resolved separately.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TabIcon {
+    Folder,
+    Code,
+    Globe,
+    Cloud,
+    Laptop,
+    Tool,
+    Lightbulb,
+    Notebook,
+    Local(local_icons::LocalTabIcon),
+}
+
+impl TabIcon {
+    pub(crate) const ALL: [Self; 8] = [
+        Self::Folder,
+        Self::Code,
+        Self::Globe,
+        Self::Cloud,
+        Self::Laptop,
+        Self::Tool,
+        Self::Lightbulb,
+        Self::Notebook,
+    ];
+
+    pub(crate) fn icon(&self) -> Icon {
+        match self {
+            Self::Folder => Icon::Folder,
+            Self::Code => Icon::Code2,
+            Self::Globe => Icon::Globe,
+            Self::Cloud => Icon::Cloud,
+            Self::Laptop => Icon::Laptop,
+            Self::Tool => Icon::Tool,
+            Self::Lightbulb => Icon::Lightbulb,
+            Self::Notebook => Icon::Notebook,
+            Self::Local(_) => Icon::Terminal,
+        }
+    }
+
+    pub(crate) fn label(&self) -> String {
+        match self {
+            Self::Folder => warpui::localization::text("Folder"),
+            Self::Code => warpui::localization::text("Code"),
+            Self::Globe => warpui::localization::text("Globe"),
+            Self::Cloud => warpui::localization::text("Cloud"),
+            Self::Laptop => warpui::localization::text("Laptop"),
+            Self::Tool => warpui::localization::text("Tool"),
+            Self::Lightbulb => warpui::localization::text("Lightbulb"),
+            Self::Notebook => warpui::localization::text("Notebook"),
+            Self::Local(icon) => &icon.name,
+        }
+        .to_string()
+    }
+
+    pub(crate) fn is_available(&self) -> bool {
+        !matches!(self, Self::Local(icon) if icon.source.is_none())
+    }
+
+    pub(crate) fn local_source(&self) -> Option<&warpui::assets::asset_cache::AssetSource> {
+        match self {
+            Self::Local(icon) => icon.source.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 impl SelectedTabColor {
@@ -192,6 +263,7 @@ pub struct TabData {
     pub default_directory_color: Option<AnsiColorIdentifier>,
     /// Color chosen manually by the user (e.g. right-click menu).
     pub selected_color: SelectedTabColor,
+    pub selected_icon: Option<TabIcon>,
     pub indicator_hover_state: MouseStateHandle,
     // Used by a later drag-tab branch to distinguish tabs that have moved into detached windows.
     pub detached: bool,
@@ -217,6 +289,7 @@ impl TabData {
             draggable_state: Default::default(),
             default_directory_color: None,
             selected_color: SelectedTabColor::Unset,
+            selected_icon: None,
             indicator_hover_state: Default::default(),
             detached: false,
             group_id: None,
@@ -293,6 +366,7 @@ impl TabData {
             self.modify_tab_menu_items(index, can_move_left, can_move_right, pane_name_target, ctx),
             self.close_tab_menu_items(index, tabs_len, ctx),
             Self::save_config_menu_items(index),
+            self.icon_option_menu_items(index, ctx),
             self.color_option_menu_items(index, terminal_colors),
         ] {
             // Skip empty sections so we don't emit a trailing separator (e.g.
@@ -688,6 +762,43 @@ impl TabData {
             );
         }
         menu_items
+    }
+
+    fn icon_option_menu_items(
+        &self,
+        index: usize,
+        ctx: &AppContext,
+    ) -> Vec<MenuItem<WorkspaceAction>> {
+        let theme = Appearance::as_ref(ctx).theme();
+        let items: Vec<_> = std::iter::once(None)
+            .chain(TabIcon::ALL.into_iter().map(Some))
+            .map(|icon| {
+                let label = icon.as_ref().map_or_else(
+                    || warpui::localization::text("Reset tab icon").to_string(),
+                    TabIcon::label,
+                );
+                let fill = if self.selected_icon == icon {
+                    theme.accent()
+                } else {
+                    theme.main_text_color(theme.background())
+                };
+                MenuItemFields::new_with_icon(
+                    icon.as_ref().map_or(Icon::RefreshCcw, TabIcon::icon).into(),
+                    fill,
+                    label.clone(),
+                )
+                .with_padding_override(5., 6.)
+                .with_tooltip(label)
+                .with_on_select_action(WorkspaceAction::SetTabIcon { tab_index: index, icon })
+            })
+            .collect();
+        // Five 30px cells fit within the native 186px menu and its 28px insets.
+        let mut rows: Vec<_> = items.chunks(5)
+            .map(|items| MenuItem::ItemsRow { items: items.to_vec() }).collect();
+        rows.push(MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
+            .with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
+            .into_item());
+        rows
     }
 
     fn color_option_menu_items(

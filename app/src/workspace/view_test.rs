@@ -89,6 +89,14 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 
 fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);
+    crate::settings::LanguageSettings::register(app);
+    crate::release_updates::UpdateSettings::register(app);
+    app.add_singleton_model(|_| crate::release_updates::ReleaseUpdates::default());
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    {
+        app.add_singleton_model(|_| crate::agent_communication::AgentCommunication::mock());
+        app.add_singleton_model(|_| crate::agent_usage::AgentUsage::default());
+    }
 
     // Add the necessary singleton models to the App
     app.add_singleton_model(|_ctx| ServerApiProvider::new_for_test());
@@ -138,6 +146,7 @@ fn initialize_app(app: &mut App) {
     });
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    app.add_singleton_model(crate::keep_awake::KeepAwake::new);
     app.add_singleton_model(|_| ActiveAgentViewsModel::new());
     app.add_singleton_model(AgentNotificationsModel::new);
     app.add_singleton_model(AgentConversationsModel::new);
@@ -269,6 +278,7 @@ fn transferred_tab_workspace(
             None,
             NewWorkspaceSource::TransferredTab {
                 tab_color: None,
+                selected_icon: None,
                 custom_title: None,
                 left_panel_open: false,
                 vertical_tabs_panel_open,
@@ -1128,6 +1138,135 @@ fn test_set_active_tab_color() {
                 workspace.tabs[active].selected_color,
                 SelectedTabColor::Unset,
             );
+        });
+    });
+}
+
+#[test]
+fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
+    use crate::menu::MenuItem;
+    use crate::tab::TabIcon;
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.add_terminal_tab(false, ctx);
+            let active = workspace.active_tab_index;
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: 0,
+                    icon: Some(TabIcon::Folder),
+                },
+                ctx,
+            );
+            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
+            assert_eq!(workspace.tabs[active].selected_icon, None);
+            let pane_group = workspace.tabs[0].pane_group.as_ref(ctx);
+            assert_eq!(
+                super::vertical_tabs::pane_summary_kind(
+                    pane_group,
+                    pane_group.focused_pane_id(ctx),
+                    workspace.tabs[0].selected_icon.as_ref(),
+                    ctx,
+                ),
+                Some(super::vertical_tabs::SummaryPaneKind::CustomTerminal(TabIcon::Folder)),
+            );
+            let menu = workspace.tabs[0].menu_items(
+                0,
+                workspace.tabs.len(),
+                &workspace.tab_groups,
+                false,
+                false,
+                false,
+                ctx,
+            );
+            let choices: Vec<_> = menu
+                .iter()
+                .filter_map(|item| match item {
+                    MenuItem::ItemsRow { items } => Some(items),
+                    _ => None,
+                })
+                .flatten()
+                .filter_map(|item| match item.on_select_action() {
+                    Some(WorkspaceAction::SetTabIcon { tab_index, icon }) => {
+                        Some((*tab_index, icon.clone()))
+                    }
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(choices.len(), TabIcon::ALL.len() + 1);
+            assert_eq!(choices[0], (0, None));
+            assert!(choices.iter().all(|(index, _)| *index == 0));
+            let transfer = workspace.get_tab_transfer_info(0, ctx).unwrap();
+            assert_eq!(transfer.selected_icon, Some(TabIcon::Folder));
+            let snapshot = workspace.snapshot(ctx.window_id(), false, ctx);
+            assert_eq!(snapshot.tabs[0].selected_icon, Some(TabIcon::Folder));
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: 0,
+                    icon: None,
+                },
+                ctx,
+            );
+            assert_eq!(workspace.tabs[0].selected_icon, None);
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: usize::MAX,
+                    icon: Some(TabIcon::Code),
+                },
+                ctx,
+            );
+            assert!(workspace.tabs.iter().all(|tab| tab.selected_icon.is_none()));
+        });
+    });
+}
+
+#[test]
+fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
+    use crate::terminal::cli_agent_sessions::{
+        CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus,
+    };
+    use crate::tab::TabIcon;
+    use super::vertical_tabs::{pane_summary_kind, SummaryPaneKind};
+
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+        let pane_group_id = workspace.update(&mut app, |workspace, ctx| {
+            ctx.focus(&workspace.tab_right_click_menu);
+            workspace.handle_action(&WorkspaceAction::SetTabIcon {
+                tab_index: 0, icon: Some(TabIcon::Folder),
+            }, ctx);
+            workspace.active_tab_pane_group().id()
+        });
+        // Focus changes are queued effects, so they only apply after the update returns.
+        assert!(app.read(|ctx| {
+            ctx.check_view_or_child_focused(workspace.window_id(ctx), &pane_group_id)
+        }));
+        workspace.update(&mut app, |workspace, ctx| {
+            let group = workspace.tabs[0].pane_group.clone();
+            let pane = group.as_ref(ctx).focused_pane_id(ctx);
+            let terminal = group.as_ref(ctx).focused_session_view(ctx).unwrap();
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| {
+                model.set_session(terminal.id(), CLIAgentSession {
+                    agent: crate::terminal::CLIAgent::Codex,
+                    status: CLIAgentSessionStatus::InProgress,
+                    session_context: CLIAgentSessionContext::default(),
+                    input_state: CLIAgentInputState::Closed,
+                    should_auto_toggle_input: false,
+                    listener: None,
+                    plugin_version: None,
+                    remote_host: Some("fixture@example.invalid".into()),
+                    draft_text: None,
+                    custom_command_prefix: None,
+                }, ctx);
+            });
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
+                Some(SummaryPaneKind::CLIAgent { agent: crate::terminal::CLIAgent::Codex }));
+            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
+            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.remove_session(terminal.id(), ctx));
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
+                Some(SummaryPaneKind::CustomTerminal(TabIcon::Folder)));
         });
     });
 }

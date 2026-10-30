@@ -15,6 +15,24 @@ use crate::ai::agent::conversation::ConversationStatus;
 use crate::terminal::CLIAgent;
 use crate::themes::theme::Fill as ThemeFill;
 
+pub(crate) const SSH_TAB_ICON_PATH: &str = "bundled/png/ssh-tab.png";
+
+pub(crate) fn render_ssh_tab_icon(size: f32) -> Box<dyn Element> {
+    render_image_tab_icon(
+        AssetSource::Bundled {
+            path: SSH_TAB_ICON_PATH,
+        },
+        size,
+    )
+}
+
+pub(crate) fn render_image_tab_icon(source: AssetSource, size: f32) -> Box<dyn Element> {
+    ConstrainedBox::new(Image::new(source, CacheOption::BySize).finish())
+        .with_width(size)
+        .with_height(size)
+        .finish()
+}
+
 /// Sizing configuration for the icon circle and its status badge.
 pub(crate) struct IconWithStatusSizing {
     pub(crate) icon_size: f32,
@@ -31,6 +49,9 @@ pub(crate) struct IconWithStatusSizing {
 
 /// What to render inside the circle.
 pub(crate) enum IconWithStatusVariant {
+    /// The SSH asset already contains its circular background.
+    Ssh,
+    Image { source: AssetSource },
     /// A generic icon with a given color on an overlay background.
     Neutral {
         icon: WarpIcon,
@@ -60,6 +81,11 @@ pub(crate) fn render_icon_with_status(
     let sub_text = theme.sub_text_color(theme.background());
 
     match variant {
+        IconWithStatusVariant::Ssh => render_ssh_tab_icon(
+            sizing.overall_size_override.unwrap_or(sizing.icon_size + sizing.padding * 2.),
+        ),
+        IconWithStatusVariant::Image { source } => render_image_tab_icon(source,
+            sizing.overall_size_override.unwrap_or(sizing.icon_size + sizing.padding * 2.)),
         IconWithStatusVariant::Neutral { icon, icon_color } => {
             let inner = ConstrainedBox::new(icon.to_warpui_icon(icon_color).finish())
                 .with_width(sizing.icon_size)

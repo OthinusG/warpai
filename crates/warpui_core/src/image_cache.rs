@@ -29,6 +29,24 @@ use resvg::{
 
 const MIN_REFRESH_DELAY_MS: u32 = 50;
 
+/// Normalize a user icon without allowing SVG image links to read other files.
+pub fn sanitize_local_icon_svg(data: &[u8]) -> Result<Vec<u8>> {
+    let options = usvg::Options {
+        fontdb: SVG_FONT_DB.clone(),
+        image_href_resolver: usvg::ImageHrefResolver {
+            resolve_string: Box::new(|_, _| None),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let tree = usvg::Tree::from_data(data, &options)?;
+    anyhow::ensure!(
+        tree.size().width() <= 4096. && tree.size().height() <= 4096.,
+        "Icon is too large"
+    );
+    Ok(tree.to_string(&usvg::WriteOptions::default()).into_bytes())
+}
+
 static SVG_FONT_DB: LazyLock<Arc<usvg::fontdb::Database>> = LazyLock::new(|| {
     let mut fontdb = usvg::fontdb::Database::new();
     fontdb.load_system_fonts();

@@ -8,7 +8,7 @@ use crate::terminal::cli_agent_sessions::CLIAgentSessionsModel;
 use crate::terminal::view::TerminalViewState;
 use crate::terminal::CLIAgent;
 use crate::ui_components::icon_with_status::{
-    render_icon_with_status, IconWithStatusSizing, IconWithStatusVariant,
+    render_icon_with_status, render_ssh_tab_icon, IconWithStatusSizing, IconWithStatusVariant,
 };
 use crate::workspace::view::vertical_tabs::telemetry::{
     VerticalTabsChipEntrypoint, VerticalTabsTelemetryEvent,
@@ -28,7 +28,7 @@ use crate::pane_group::TerminalPane;
 use crate::pane_group::{
     CodePane, NotebookPane, PaneGroup, PaneId, TabBarHoverIndex, WorkflowPane,
 };
-use crate::tab::{tab_position_id, SelectedTabColor, TabData};
+use crate::tab::{tab_position_id, SelectedTabColor, TabData, TabIcon};
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
@@ -398,6 +398,7 @@ fn render_pane_row_element(
     });
     let row_position_id = vtab_pane_row_position_id(props.pane_group_id, props.pane_id);
     let PaneProps {
+        selected_icon: _,
         pane_id,
         pane_group_id,
         is_active_tab,
@@ -828,6 +829,7 @@ impl VerticalTabsPanelState {
 }
 
 struct PaneProps<'a> {
+    selected_icon: Option<TabIcon>,
     pane_id: PaneId,
     pane_group_id: EntityId,
     is_active_tab: bool,
@@ -909,6 +911,8 @@ enum VerticalTabsResolvedMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum SummaryPaneKind {
     Terminal,
+    SshTerminal,
+    CustomTerminal(TabIcon),
     OzAgent { is_ambient: bool },
     CLIAgent { agent: CLIAgent },
     Code { title: String },
@@ -1098,10 +1102,11 @@ fn select_summary_pane_kind_icons(
 fn resolve_summary_pane_kind_icons(
     pane_group: &PaneGroup,
     visible_pane_ids: &[PaneId],
+    selected_icon: Option<&TabIcon>,
     app: &AppContext,
 ) -> Option<SummaryPaneKindIcons> {
     select_summary_pane_kind_icons(visible_pane_ids.iter().filter_map(|pane_id| {
-        let kind = pane_summary_kind(pane_group, *pane_id, app)?;
+        let kind = pane_summary_kind(pane_group, *pane_id, selected_icon, app)?;
         Some((pane_id.creation_order_id(), kind))
     }))
 }
@@ -1167,6 +1172,7 @@ impl VerticalTabsPanelState {
                                 pane_group,
                                 pane_id,
                                 tab.pane_group.id(),
+                                tab.selected_icon.clone(),
                                 *tab_index == active_tab_index,
                                 false,
                                 false,
@@ -1415,6 +1421,13 @@ fn render_detail_kind_badge_icon(
                 .is_some()
             {
                 WarpIcon::Oz
+            } else if let Some(icon) = props.selected_icon.as_ref().filter(|icon| icon.is_available()) {
+                if let Some(source) = icon.local_source() {
+                    return crate::ui_components::icon_with_status::render_image_tab_icon(source.clone(), 16.);
+                }
+                icon.icon()
+            } else if terminal_view.is_ssh_for_tab(app) {
+                return render_ssh_tab_icon(16.);
             } else {
                 WarpIcon::Terminal
             };
@@ -1759,6 +1772,7 @@ fn render_groups(
                                     pane_group,
                                     pane_id,
                                     tab.pane_group.id(),
+                                    tab.selected_icon.clone(),
                                     tab_index == workspace.active_tab_index,
                                     false,
                                     false,
@@ -1790,6 +1804,7 @@ fn render_groups(
                                 pane_group,
                                 pane_id,
                                 tab.pane_group.id(),
+                                tab.selected_icon.clone(),
                                 tab_index == workspace.active_tab_index,
                                 false,
                                 false,
@@ -2092,7 +2107,9 @@ fn render_tab_group_internal(
     let summary = matches!(resolved_mode, VerticalTabsResolvedMode::Summary)
         .then(|| build_vertical_tabs_summary_data(pane_group, &visible_pane_ids, app));
     let summary_pane_kind_icons = matches!(resolved_mode, VerticalTabsResolvedMode::Summary)
-        .then(|| resolve_summary_pane_kind_icons(pane_group, &visible_pane_ids, app))
+        .then(|| {
+            resolve_summary_pane_kind_icons(pane_group, &visible_pane_ids, tab.selected_icon.as_ref(), app)
+        })
         .flatten();
     let active_pane_context_menu_target = PaneViewLocator {
         pane_group_id,
@@ -2131,6 +2148,7 @@ fn render_tab_group_internal(
                     pane_group,
                     *pane_id,
                     pane_group_id,
+                    tab.selected_icon.clone(),
                     is_active,
                     is_in_multi_selection,
                     is_in_multi_tab_selection,
@@ -2189,6 +2207,7 @@ fn render_tab_group_internal(
                     pane_group,
                     *pane_id,
                     pane_group_id,
+                    tab.selected_icon.clone(),
                     is_active,
                     is_in_multi_selection,
                     is_in_multi_tab_selection,
@@ -3211,6 +3230,7 @@ fn render_passive_terminal_diff_stats_badge(
 fn resolve_icon_with_status_variant(
     typed: &TypedPane<'_>,
     title: &str,
+    selected_icon: Option<&TabIcon>,
     appearance: &Appearance,
     app: &AppContext,
 ) -> IconWithStatusVariant {
@@ -3243,10 +3263,14 @@ fn resolve_icon_with_status_variant(
                     status: terminal_view.selected_conversation_status_for_display(app),
                     is_ambient,
                 }
+            } else if let Some(source) = selected_icon.and_then(TabIcon::local_source) {
+                IconWithStatusVariant::Image { source: source.clone() }
+            } else if selected_icon.filter(|icon| icon.is_available()).is_none() && terminal_view.is_ssh_for_tab(app) {
+                IconWithStatusVariant::Ssh
             } else {
                 // Plain terminal: use foreground color per design spec
                 IconWithStatusVariant::Neutral {
-                    icon: WarpIcon::Terminal,
+                    icon: selected_icon.filter(|icon| icon.is_available()).map_or(WarpIcon::Terminal, TabIcon::icon),
                     icon_color: main_text,
                 }
             }
@@ -3306,7 +3330,13 @@ fn render_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn Element> {
     let font_family = appearance.ui_font_family();
 
     let icon = render_pane_icon_with_status(
-        resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+        resolve_icon_with_status_variant(
+            &props.typed,
+            &props.title,
+            props.selected_icon.as_ref(),
+            appearance,
+            app,
+        ),
         theme,
     );
 
@@ -3411,6 +3441,7 @@ impl TypedPane<'_> {
                 let terminal_view = terminal_view.as_ref(app);
                 if let Some(session) =
                     CLIAgentSessionsModel::as_ref(app).session(terminal_view.id())
+                        .filter(|session| !matches!(session.agent, CLIAgent::Unknown))
                 {
                     return SummaryPaneKind::CLIAgent {
                         agent: session.agent,
@@ -3423,6 +3454,8 @@ impl TypedPane<'_> {
                     || is_ambient
                 {
                     SummaryPaneKind::OzAgent { is_ambient }
+                } else if terminal_view.is_ssh_for_tab(app) {
+                    SummaryPaneKind::SshTerminal
                 } else {
                     SummaryPaneKind::Terminal
                 }
@@ -3671,6 +3704,7 @@ impl<'a> PaneProps<'a> {
         pane_group: &'a PaneGroup,
         pane_id: PaneId,
         pane_group_id: EntityId,
+        selected_icon: Option<TabIcon>,
         is_active_tab: bool,
         is_in_multi_selection: bool,
         is_in_multi_tab_selection: bool,
@@ -3708,6 +3742,7 @@ impl<'a> PaneProps<'a> {
         );
 
         Some(Self {
+            selected_icon,
             pane_id,
             pane_group_id,
             is_active_tab,
@@ -4139,6 +4174,7 @@ impl PaneGroup {
 pub(super) fn pane_summary_kind(
     pane_group: &PaneGroup,
     pane_id: PaneId,
+    selected_icon: Option<&TabIcon>,
     app: &AppContext,
 ) -> Option<SummaryPaneKind> {
     let pane = pane_group.pane_by_id(pane_id)?;
@@ -4146,7 +4182,10 @@ pub(super) fn pane_summary_kind(
     let pane_configuration = pane_configuration.as_ref(app);
     let title = pane_configuration.title().trim();
     let typed = pane_group.resolve_pane_type(pane_id, app);
-    Some(typed.summary_pane_kind(title, app))
+    Some(match (typed.summary_pane_kind(title, app), selected_icon.filter(|icon| icon.is_available())) {
+        (SummaryPaneKind::Terminal | SummaryPaneKind::SshTerminal, Some(icon)) => SummaryPaneKind::CustomTerminal(icon.clone()),
+        (kind, _) => kind,
+    })
 }
 
 fn render_terminal_row_content(
@@ -4461,7 +4500,13 @@ fn render_summary_tab_item(
         .map(|icons| render_summary_pane_kind_icons(icons, VERTICAL_TABS_ICON_SIZE, appearance))
         .unwrap_or_else(|| {
             render_pane_icon_with_status(
-                resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+                resolve_icon_with_status_variant(
+                    &props.typed,
+                    &props.title,
+                    props.selected_icon.as_ref(),
+                    appearance,
+                    app,
+                ),
                 theme,
             )
         });
@@ -4608,6 +4653,13 @@ pub(super) fn render_summary_pane_kind_icon_circle(
 ) -> Box<dyn Element> {
     let theme = appearance.theme();
     let (icon_element, background): (Box<dyn Element>, ElementFill) = match kind {
+        SummaryPaneKind::SshTerminal => return render_ssh_tab_icon(icon_size + padding * 2.),
+        SummaryPaneKind::CustomTerminal(TabIcon::Local(icon)) => {
+            if let Some(source) = icon.source {
+                return crate::ui_components::icon_with_status::render_image_tab_icon(source, icon_size + padding * 2.);
+            }
+            (WarpIcon::Terminal.to_warpui_icon(theme.main_text_color(theme.background())).finish(), internal_colors::fg_overlay_2(theme).into())
+        },
         SummaryPaneKind::OzAgent { is_ambient } => {
             let icon = if is_ambient {
                 WarpIcon::OzCloud
@@ -4651,6 +4703,7 @@ pub(super) fn render_summary_pane_kind_icon_circle(
             internal_colors::fg_overlay_2(theme).into(),
         ),
         SummaryPaneKind::Terminal
+        | SummaryPaneKind::CustomTerminal(_)
         | SummaryPaneKind::CodeDiff
         | SummaryPaneKind::File
         | SummaryPaneKind::Notebook { .. }
@@ -4696,6 +4749,9 @@ fn summary_pane_kind_icon(
 
     match kind {
         SummaryPaneKind::Terminal => (WarpIcon::Terminal, main_text),
+        // Image-backed SSH icons are handled before this vector-only fallback.
+        SummaryPaneKind::SshTerminal => (WarpIcon::Terminal, main_text),
+        SummaryPaneKind::CustomTerminal(icon) => (icon.icon(), main_text),
         SummaryPaneKind::OzAgent { is_ambient } => (
             if is_ambient {
                 WarpIcon::OzCloud
@@ -6297,6 +6353,11 @@ fn detail_pane_props<'a>(
         pane_group,
         pane_id,
         pane_group_id,
+        workspace
+            .tabs
+            .iter()
+            .find(|tab| tab.pane_group.id() == pane_group_id)
+            .and_then(|tab| tab.selected_icon.clone()),
         false,
         false,
         false,
@@ -6768,7 +6829,13 @@ fn render_compact_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
     let font_family = appearance.ui_font_family();
 
     let icon = render_pane_icon_with_status(
-        resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+        resolve_icon_with_status_variant(
+            &props.typed,
+            &props.title,
+            props.selected_icon.as_ref(),
+            appearance,
+            app,
+        ),
         theme,
     );
 

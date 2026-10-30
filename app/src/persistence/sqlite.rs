@@ -926,6 +926,9 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                 .map(|tab| NewTab {
                     window_id,
                     custom_title: tab.custom_title.clone(),
+                    icon: tab
+                        .selected_icon.as_ref()
+                        .and_then(|icon| serde_json::to_string(icon).ok()),
                     // We only persist and restore the selected color here
                     // (the default color based on the pwd is separately persisted and then applied on-restore)
                     color: match tab.selected_color {
@@ -2763,6 +2766,10 @@ fn read_sqlite_data(
                         Some(TabSnapshot {
                             root,
                             custom_title: tab.custom_title,
+                            selected_icon: tab
+                                .icon
+                                .as_deref()
+                                .and_then(|icon| serde_json::from_str(icon).ok()),
                             default_directory_color: None,
                             selected_color: tab
                                 .color

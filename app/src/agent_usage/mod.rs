@@ -1,5 +1,6 @@
 //! Opt-in, desktop-local provider usage; credentials never enter persisted metadata.
 pub(crate) mod providers;
+mod system_proxy;
 use async_compat::CompatExt as _;
 use providers::{Provider, Reading};
 use serde::{Deserialize, Serialize};
@@ -458,47 +459,6 @@ async fn output(program: &str, args: &[&str], seconds: u64) -> Result<Vec<u8>, &
 }
 
 async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
-    use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt};
-
-    async fn response<R: AsyncBufRead + Unpin>(
-        reader: &mut R,
-        request_id: &str,
-    ) -> Result<serde_json::Value, &'static str> {
-        let mut bytes_read = 0;
-        for _ in 0..128 {
-            let mut line = Vec::new();
-            loop {
-                let available = reader.fill_buf().await.map_err(|_| "CLI output unavailable")?;
-                if available.is_empty() {
-                    return Err("CLI output unavailable");
-                }
-                let end = available.iter().position(|byte| *byte == b'\n');
-                let take = end.map_or(available.len(), |index| index + 1);
-                bytes_read += take;
-                if bytes_read > 1024 * 1024 {
-                    return Err("CLI response too large");
-                }
-                line.extend_from_slice(&available[..take]);
-                reader.consume(take);
-                if end.is_some() {
-                    break;
-                }
-            }
-            let Ok(message) = serde_json::from_slice::<serde_json::Value>(&line) else {
-                continue;
-            };
-            if message["type"] == "control_response"
-                && message["response"]["request_id"] == request_id
-            {
-                if message["response"]["subtype"] != "success" {
-                    return Err("Qoder CLI version does not support usage queries");
-                }
-                return Ok(message["response"]["response"].clone());
-            }
-        }
-        Err("CLI output unavailable")
-    }
-
     let home = dirs::home_dir().ok_or("CLI home directory unavailable")?;
     let names: &[&str] = match provider {
         Provider::Qoder => &["qodercli", "qoder", "qoder-cli"],
@@ -512,13 +472,150 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
     let mut auth = tempfile::NamedTempFile::new().map_err(|_| "Could not start usage query")?;
     auth.write_all(br#"{"type":"qodercli"}"#)
         .map_err(|_| "Could not start usage query")?;
-    let mut command = tokio::process::Command::new(&executable);
-    #[cfg(windows)]
-    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
     let path = std::env::join_paths(executable.parent().into_iter().map(PathBuf::from).chain(
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
     ))
     .map_err(|_| "CLI executable search path unavailable")?;
+
+    match qoder_daemon_usage(provider, &executable, &path, auth.path()).await {
+        Ok(reading) => Ok(reading),
+        // CLIs older than the daemon protocol only speak the SDK worker bridge.
+        Err(error) => qoder_bridge_usage(provider, &executable, &path, auth.path())
+            .await
+            .map_err(|_| error),
+    }
+}
+
+async fn write_control_request(
+    stdin: &mut tokio::process::ChildStdin,
+    request_id: &str,
+    request: serde_json::Value,
+) -> Result<(), &'static str> {
+    use tokio::io::AsyncWriteExt;
+
+    let mut line = serde_json::json!({
+        "type": "control_request",
+        "request_id": request_id,
+        "request": request,
+    })
+    .to_string();
+    line.push('\n');
+    stdin
+        .write_all(line.as_bytes())
+        .await
+        .map_err(|_| "CLI query failed")?;
+    stdin.flush().await.map_err(|_| "CLI query failed")
+}
+
+async fn qoder_response<R>(
+    reader: &mut R,
+    request_id: &str,
+) -> Result<serde_json::Value, &'static str>
+where
+    R: tokio::io::AsyncBufRead + Unpin,
+{
+    use tokio::io::AsyncBufReadExt;
+
+    let mut bytes_read = 0;
+    for _ in 0..128 {
+        let mut line = Vec::new();
+        loop {
+            let available = reader.fill_buf().await.map_err(|_| "CLI output unavailable")?;
+            if available.is_empty() {
+                return Err("CLI output unavailable");
+            }
+            let end = available.iter().position(|byte| *byte == b'\n');
+            let take = end.map_or(available.len(), |index| index + 1);
+            bytes_read += take;
+            if bytes_read > 1024 * 1024 {
+                return Err("CLI response too large");
+            }
+            line.extend_from_slice(&available[..take]);
+            reader.consume(take);
+            if end.is_some() {
+                break;
+            }
+        }
+        let Ok(message) = serde_json::from_slice::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if message["type"] == "control_response" && message["response"]["request_id"] == request_id
+        {
+            if message["response"]["subtype"] != "success" {
+                return Err("Qoder CLI version does not support usage queries");
+            }
+            return Ok(message["response"]["response"].clone());
+        }
+    }
+    Err("CLI output unavailable")
+}
+
+/// Current Qoder CLIs expose usage through the daemon protocol (`--sdk`, protocol v2).
+async fn qoder_daemon_usage(
+    provider: Provider,
+    executable: &std::path::Path,
+    path: &std::ffi::OsStr,
+    auth: &std::path::Path,
+) -> Result<Reading, &'static str> {
+    let mut command = tokio::process::Command::new(executable);
+    #[cfg(windows)]
+    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+    let mut child = command
+        .arg("--sdk")
+        .env("PATH", path)
+        .env("QODER_SDK_AUTH_PAYLOAD_FILE", auth)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|_| "Could not start usage query")?;
+    let mut stdin = child.stdin.take().ok_or("CLI output unavailable")?;
+    let mut stdout =
+        tokio::io::BufReader::new(child.stdout.take().ok_or("CLI output unavailable")?);
+    let exchange = async {
+        write_control_request(
+            &mut stdin,
+            "warpai-usage-init",
+            serde_json::json!({
+                "type": "daemon.initialize",
+                "daemon_protocol_version": 2,
+                "sdk_version": "warpai",
+                "capabilities": ["multi_session_v2"],
+            }),
+        )
+        .await?;
+        qoder_response(&mut stdout, "warpai-usage-init").await?;
+        write_control_request(
+            &mut stdin,
+            "warpai-usage-query",
+            serde_json::json!({"type": "daemon.get_usage_info"}),
+        )
+        .await?;
+        let result = qoder_response(&mut stdout, "warpai-usage-query").await?;
+        if result["usage_error"].is_string() {
+            return Err("Qoder plan quota is unavailable for this account");
+        }
+        providers::parse(provider, &result["usage"])
+    };
+    let result = tokio::time::timeout(Duration::from_secs(25), exchange)
+        .await
+        .map_err(|_| "Qoder usage query timed out")?;
+    drop(stdin);
+    let _ = child.kill().await;
+    result
+}
+
+/// Legacy SDK worker bridge used by Qoder CLIs up to 1.1.80.
+async fn qoder_bridge_usage(
+    provider: Provider,
+    executable: &std::path::Path,
+    path: &std::ffi::OsStr,
+    auth: &std::path::Path,
+) -> Result<Reading, &'static str> {
+    let mut command = tokio::process::Command::new(executable);
+    #[cfg(windows)]
+    command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
     let mut child = command
         .args([
             "--print",
@@ -532,10 +629,9 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
             "--disable-builtin-skills",
         ])
         .env("PATH", path)
-        // shortcut: follows the 1.0.53 bridge contract; update when the CLI control protocol changes.
         .env("QODER_AGENT_SDK_ENTRYPOINT", "sdk-ts")
         .env("QODER_AGENT_SDK_VERSION", "1.0.53")
-        .env("QODER_SDK_AUTH_PAYLOAD_FILE", auth.path())
+        .env("QODER_SDK_AUTH_PAYLOAD_FILE", auth)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
@@ -546,36 +642,24 @@ async fn qoder_usage(provider: Provider) -> Result<Reading, &'static str> {
     let mut stdout =
         tokio::io::BufReader::new(child.stdout.take().ok_or("CLI output unavailable")?);
     let exchange = async {
-        for (request_id, request_type) in [
-            ("warpai-usage-init", "initialize"),
-            ("warpai-usage-query", "get_usage_info"),
-        ] {
-            let request = serde_json::json!({
-                "type":"control_request",
-                "request_id":request_id,
-                "request":{"type":request_type}
-            });
-            stdin
-                .write_all(request.to_string().as_bytes())
-                .await
-                .map_err(|_| "CLI query failed")?;
-            stdin
-                .write_all(b"\n")
-                .await
-                .map_err(|_| "CLI query failed")?;
-            stdin
-                .flush()
-                .await
-                .map_err(|_| "CLI query failed")?;
-            let result = response(&mut stdout, request_id).await?;
-            if request_type == "get_usage_info" {
-                if result["usage_error"].is_string() {
-                    return Err("Qoder plan quota is unavailable for this account");
-                }
-                return providers::parse(provider, &result["usage"]);
-            }
+        write_control_request(
+            &mut stdin,
+            "warpai-usage-init",
+            serde_json::json!({"type": "initialize"}),
+        )
+        .await?;
+        qoder_response(&mut stdout, "warpai-usage-init").await?;
+        write_control_request(
+            &mut stdin,
+            "warpai-usage-query",
+            serde_json::json!({"type": "get_usage_info"}),
+        )
+        .await?;
+        let result = qoder_response(&mut stdout, "warpai-usage-query").await?;
+        if result["usage_error"].is_string() {
+            return Err("Qoder plan quota is unavailable for this account");
         }
-        Err("CLI output unavailable")
+        providers::parse(provider, &result["usage"])
     };
     let result = tokio::time::timeout(Duration::from_secs(25), exchange)
         .await
