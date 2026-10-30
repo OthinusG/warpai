@@ -11,6 +11,10 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
+- Static collaboration capture expects `fixtures * 8 + 232` PNGs per language (232 includes
+  the two custom tab icon captures); update both workflow counts when adding capture steps.
+  The 14 GB macOS runner cannot hold warpai's test binaries plus the release_bundle relink,
+  so that job disables incremental builds and runs `cargo clean -p warpai` first.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Peer wake cancellation fixtures must end the run on the captured paste event;
   scheduling all agents before cancellation can exhaust Claude's Enter delay.
