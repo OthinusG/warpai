@@ -132,6 +132,8 @@ pub struct TabConfigPaneNode {
     /// Only applies to `terminal` and `agent` pane types.
     /// If omitted or the shell is not found, the user's default shell is used.
     pub shell: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<crate::pane_group::pane::icon::PaneIcon>,
 }
 
 // ── TabConfig ───────────────────────────────────────────────────────
@@ -235,6 +237,7 @@ pub fn render_tab_config(
                 is_focused: Some(true),
                 pane_mode: PaneMode::Terminal,
                 shell: None,
+                icon: None,
             }
         }
     };
@@ -401,6 +404,7 @@ fn resolve_pane_node(
                 is_focused: Some(is_focused),
                 pane_mode,
                 shell: node.shell.clone(),
+                icon: node.icon.clone(),
             },
             explicitly_focused || did_consume,
         ))

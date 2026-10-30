@@ -44,6 +44,7 @@ fn build_test_tab_config_toml(name: &str, commands: Vec<String>) -> String {
         title: None,
         color: None,
         panes: vec![TabConfigPaneNode {
+            icon: None,
             id: "main".to_string(),
             pane_type: Some(TabConfigPaneType::Terminal),
             split: None,

@@ -21,7 +21,8 @@ use crate::server::telemetry::{
     AddTabWithShellSource, AgentModeEntrypoint, PaletteSource, SharingDialogSource,
 };
 use crate::settings_view::{SettingsAction as SettingsTabAction, SettingsSection};
-use crate::tab::{NewSessionMenuItem, SelectedTabColor, TabIcon};
+use crate::pane_group::pane::icon::PaneIcon;
+use crate::tab::{NewSessionMenuItem, SelectedTabColor};
 use crate::tab_configs::TabConfig;
 use crate::terminal::available_shells::AvailableShell;
 use crate::terminal::view::inline_banner::ZeroStatePromptSuggestionType;
@@ -125,9 +126,9 @@ pub enum WorkspaceAction {
     /// - `Cleared` — explicitly clear (suppresses any directory default).
     /// - `Unset` — remove the manual override (lets the directory default apply, if any).
     SetActiveTabColor(SelectedTabColor),
-    SetTabIcon {
-        tab_index: usize,
-        icon: Option<TabIcon>,
+    SetPaneIcon {
+        pane: PaneViewLocator,
+        icon: Option<PaneIcon>,
     },
     ToggleTabRightClickMenu {
         tab_index: usize,
@@ -843,7 +844,7 @@ impl WorkspaceAction {
             | SetActiveTabName(_)
             | CycleActiveTabColor
             | SetActiveTabColor(_)
-            | SetTabIcon { .. }
+            | SetPaneIcon { .. }
             | CloseTab(_)
             | CloseActiveTab
             | CloseOtherTabs(_)

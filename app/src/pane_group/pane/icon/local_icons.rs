@@ -11,18 +11,43 @@ const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct LocalTabIcon {
+#[serde(into = "String", try_from = "String")]
+pub struct LocalPaneIcon {
     pub name: String,
     #[serde(skip)]
     pub source: Option<AssetSource>,
 }
 
-impl PartialEq for LocalTabIcon {
+impl From<LocalPaneIcon> for String {
+    fn from(icon: LocalPaneIcon) -> Self {
+        icon.name
+    }
+}
+
+impl TryFrom<String> for LocalPaneIcon {
+    type Error = &'static str;
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        let extension = Path::new(&name)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(str::to_ascii_lowercase);
+        if name.is_empty()
+            || name.contains(['/', '\\', ':'])
+            || name.chars().any(char::is_control)
+            || !matches!(extension.as_deref(), Some("svg" | "png"))
+        {
+            return Err("Local pane icons require an SVG/PNG basename");
+        }
+        Ok(Self { name, source: None })
+    }
+}
+
+impl PartialEq for LocalPaneIcon {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
     }
 }
-impl Eq for LocalTabIcon {}
+impl Eq for LocalPaneIcon {}
 
 struct LocalIconAsset;
 impl AsyncAssetType for LocalIconAsset {}
@@ -32,7 +57,7 @@ pub(crate) fn directory() -> Option<PathBuf> {
 }
 
 /// Run off the UI thread. Only direct regular files become in-memory assets.
-pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
+pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
     let Ok(entries) = std::fs::read_dir(root) else {
         return vec![];
     };
@@ -47,10 +72,9 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
     paths
         .into_iter()
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?.to_owned();
-            if name.chars().any(char::is_control) {
-                return None;
-            }
+            let name = LocalPaneIcon::try_from(path.file_name()?.to_str()?.to_owned())
+                .ok()?
+                .name;
             let extension = path.extension()?.to_str()?.to_ascii_lowercase();
             if !matches!(extension.as_str(), "png" | "svg") {
                 return None;
@@ -82,10 +106,14 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
                 if width == 0 || height == 0 || width > 4096 || height > 4096 {
                     return None;
                 }
-                let image = image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
+                let image =
+                    image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
                 // Tab previews never need a full-size bitmap resident in the UI cache.
                 let mut output = std::io::Cursor::new(Vec::new());
-                image.thumbnail(256, 256).write_to(&mut output, image::ImageFormat::Png).ok()?;
+                image
+                    .thumbnail(256, 256)
+                    .write_to(&mut output, image::ImageFormat::Png)
+                    .ok()?;
                 output.into_inner()
             };
             if data.len() > MAX_ICON_BYTES as usize || total + data.len() > MAX_TOTAL_BYTES {
@@ -103,7 +131,7 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
                     Box::pin(async move { Ok(bytes.as_ref().clone().into()) })
                 }),
             };
-            Some(LocalTabIcon {
+            Some(LocalPaneIcon {
                 name,
                 source: Some(source),
             })
@@ -115,7 +143,7 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tab::TabIcon;
+    use crate::pane_group::pane::icon::PaneIcon;
 
     const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="gray"/></svg>"#;
 
@@ -132,6 +160,8 @@ mod tests {
         std::fs::write(root.join("broken.svg"), "not an SVG").unwrap();
         std::fs::write(root.join("broken.png"), "not a PNG").unwrap();
         std::fs::write(root.join("ignored.jpg"), SVG).unwrap();
+        #[cfg(unix)]
+        std::fs::write(root.join("invalid:name.svg"), SVG).unwrap();
         std::fs::create_dir(root.join("nested")).unwrap();
         std::fs::write(root.join("nested/ignored.svg"), SVG).unwrap();
         File::create(root.join("large.svg"))
@@ -153,11 +183,11 @@ mod tests {
             ["A.SVG", "b.PNG"]
         );
         assert!(icons.iter().all(|icon| icon.source.is_some()));
-        let selection = TabIcon::Local(icons[0].clone());
+        let selection = PaneIcon::Local(icons[0].clone());
         let serialized = serde_json::to_string(&selection).unwrap();
         assert!(!serialized.contains("source"));
         assert!(!serialized.contains(&temp.path().to_string_lossy().to_string()));
-        let restored: TabIcon = serde_json::from_str(&serialized).unwrap();
+        let restored: PaneIcon = serde_json::from_str(&serialized).unwrap();
         assert_eq!(restored, selection);
         assert!(
             !restored.is_available(),
@@ -172,7 +202,7 @@ mod tests {
         );
         std::fs::remove_file(root.join("A.SVG")).unwrap();
         assert!(discover(&root).iter().all(|icon| icon.name != "A.SVG"));
-        let invalid = TabIcon::Local(LocalTabIcon {
+        let invalid = PaneIcon::Local(LocalPaneIcon {
             name: "../outside.svg".into(),
             source: None,
         });

@@ -2716,9 +2716,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         root.read(app, |root, _| root.workspace_view().unwrap().clone());
                     workspace.update(app, |workspace, ctx| {
                         workspace.handle_action(
-                            &WorkspaceAction::SetTabIcon {
-                                tab_index: 0,
-                                icon: Some(crate::tab::TabIcon::Folder),
+                            &WorkspaceAction::SetPaneIcon {
+                                pane: crate::workspace::PaneViewLocator {
+                                    pane_group_id: workspace.tabs[0].pane_group.id(),
+                                    pane_id: workspace.tabs[0]
+                                        .pane_group
+                                        .as_ref(ctx)
+                                        .focused_pane_id(ctx),
+                                },
+                                icon: Some(crate::pane_group::pane::icon::PaneIcon::Folder),
                             },
                             ctx,
                         )
@@ -2758,8 +2764,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         ),
                     }, ctx);
                     workspace.handle_action(
-                        &WorkspaceAction::SetTabIcon {
-                            tab_index: 0,
+                        &WorkspaceAction::SetPaneIcon {
+                            pane: crate::workspace::PaneViewLocator {
+                                pane_group_id: workspace.tabs[0].pane_group.id(),
+                                pane_id: workspace.tabs[0]
+                                    .pane_group
+                                    .as_ref(ctx)
+                                    .focused_pane_id(ctx),
+                            },
                             icon: None,
                         },
                         ctx,

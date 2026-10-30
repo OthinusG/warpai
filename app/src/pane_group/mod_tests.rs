@@ -675,6 +675,7 @@ fn test_initial_widths_are_computed_correctly() {
                     commands: vec![],
                     pane_mode: PaneMode::Terminal,
                     shell: None,
+                    icon: None,
                 }
             };
         }
@@ -1192,6 +1193,7 @@ fn test_pane_focus_does_not_have_an_infinite_event_loop() {
                 split_direction: crate::launch_configs::launch_config::SplitDirection::Horizontal,
                 panes: vec![
                     PaneTemplateType::PaneTemplate {
+                        icon: None,
                         is_focused: Some(true),
                         cwd: "/".into(),
                         commands: vec![],
@@ -1199,6 +1201,7 @@ fn test_pane_focus_does_not_have_an_infinite_event_loop() {
                         shell: None,
                     },
                     PaneTemplateType::PaneTemplate {
+                        icon: None,
                         is_focused: None,
                         cwd: "/".into(),
                         commands: vec![],
@@ -1318,6 +1321,7 @@ fn test_focused_pane_is_synchronized_with_application_focus() {
             split_direction: crate::launch_configs::launch_config::SplitDirection::Horizontal,
             panes: vec![
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     is_focused: Some(true),
                     cwd: "/".into(),
                     commands: vec![],
@@ -1325,6 +1329,7 @@ fn test_focused_pane_is_synchronized_with_application_focus() {
                     shell: None,
                 },
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     is_focused: None,
                     cwd: "/".into(),
                     commands: vec![],

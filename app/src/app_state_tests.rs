@@ -3,6 +3,7 @@ use super::*;
 #[test]
 fn test_has_horizontal_split() {
     let single_leaf = PaneNodeSnapshot::Leaf(LeafSnapshot {
+        selected_icon: None,
         is_focused: false,
         custom_vertical_tabs_title: None,
         contents: LeafContents::Code(CodePaneSnapShot::Local {
@@ -21,6 +22,7 @@ fn test_has_horizontal_split() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: false,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Code(CodePaneSnapShot::Local {
@@ -35,6 +37,7 @@ fn test_has_horizontal_split() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: false,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Code(CodePaneSnapShot::Local {

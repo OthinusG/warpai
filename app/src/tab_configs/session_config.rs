@@ -154,6 +154,7 @@ pub fn build_tab_config(
         title,
         color: None,
         panes: vec![TabConfigPaneNode {
+            icon: None,
             id: "main".to_string(),
             pane_type: Some(pane_type),
             split: None,
@@ -266,6 +267,7 @@ fn snapshot_to_flat_panes(
                     directory: None,
                     commands: None,
                     shell: None,
+                    icon: None,
                 },
             );
 
@@ -274,6 +276,7 @@ fn snapshot_to_flat_panes(
         PaneNodeSnapshot::Leaf(LeafSnapshot {
             is_focused,
             custom_vertical_tabs_title: _,
+            selected_icon,
             contents,
         }) => {
             *counter += 1;
@@ -303,6 +306,7 @@ fn snapshot_to_flat_panes(
                 directory,
                 commands: None,
                 shell: None,
+                icon: selected_icon.clone(),
             });
 
             my_id

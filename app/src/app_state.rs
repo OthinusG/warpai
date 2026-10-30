@@ -14,10 +14,11 @@ use crate::ai::blocklist::InputConfig;
 use crate::ai::blocklist::SerializedBlockListItem;
 use crate::code::editor_management::CodeSource;
 use crate::drive::OpenWarpDriveObjectSettings;
+use crate::pane_group::pane::icon::PaneIcon;
 use crate::root_view::quake_mode_window_id;
 use crate::server::ids::SyncId;
 use crate::settings_view::{environments_page::EnvironmentsPage, SettingsSection};
-use crate::tab::{SelectedTabColor, TabIcon};
+use crate::tab::SelectedTabColor;
 use crate::terminal::ShellLaunchData;
 use crate::themes::theme::AnsiColorIdentifier;
 use crate::workspace::tab_group::TabGroupId;
@@ -78,7 +79,6 @@ pub struct TabSnapshot {
     pub root: PaneNodeSnapshot,
     pub default_directory_color: Option<AnsiColorIdentifier>,
     pub selected_color: SelectedTabColor,
-    pub selected_icon: Option<TabIcon>,
     pub left_panel: Option<LeftPanelSnapshot>,
     pub right_panel: Option<RightPanelSnapshot>,
     /// Tab group this tab belongs to, if any.
@@ -131,6 +131,7 @@ pub struct BranchSnapshot {
 pub struct LeafSnapshot {
     pub is_focused: bool,
     pub custom_vertical_tabs_title: Option<String>,
+    pub selected_icon: Option<PaneIcon>,
     pub contents: LeafContents,
 }
 

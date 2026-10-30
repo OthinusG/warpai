@@ -6,13 +6,13 @@ use crate::ui_components::color_dot::TAB_COLOR_OPTIONS;
 use crate::workspace::tab_group::{TabGroup, TabGroupId};
 
 #[test]
-fn custom_tab_icons_have_stable_names_and_bundled_assets() {
-    use super::TabIcon;
+fn terminal_ssh_session_pane_icons_have_stable_names_and_bundled_assets() {
+    use super::PaneIcon;
     let mut names = std::collections::HashSet::new();
-    for icon in TabIcon::ALL {
+    for icon in PaneIcon::ALL {
         let name = serde_json::to_string(&icon).unwrap();
         assert!(names.insert(name.clone()));
-        assert_eq!(serde_json::from_str::<TabIcon>(&name).unwrap(), icon);
+        assert_eq!(serde_json::from_str::<PaneIcon>(&name).unwrap(), icon);
         let asset: &'static str = icon.icon().into();
         assert!(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -22,10 +22,10 @@ fn custom_tab_icons_have_stable_names_and_bundled_assets() {
         );
     }
     assert_eq!(
-        serde_json::to_string(&TabIcon::Folder).unwrap(),
+        serde_json::to_string(&PaneIcon::Folder).unwrap(),
         "\"folder\""
     );
-    assert!(serde_json::from_str::<TabIcon>("\"unknown_future_icon\"").is_err());
+    assert!(serde_json::from_str::<PaneIcon>("\"unknown_future_icon\"").is_err());
 }
 
 /// Build a `tab_groups` map containing exactly the given group ids.

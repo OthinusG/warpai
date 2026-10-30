@@ -120,6 +120,7 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
         tabs: vec![TabSnapshot {
             custom_title: None,
             root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+                selected_icon: None,
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -140,7 +141,6 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
             }),
             default_directory_color: None,
             selected_color: SelectedTabColor::default(),
-            selected_icon: None,
             left_panel: None,
             right_panel: None,
             group_id: None,
@@ -197,8 +197,8 @@ fn test_sqlite_round_trips_vertical_tabs_panel_open() {
 }
 
 #[test]
-fn custom_tab_icon_persistence_restores_resets_and_ignores_unknown_names() {
-    use crate::tab::TabIcon;
+fn terminal_ssh_session_pane_icon_persistence_restores_resets_and_ignores_unknown_names() {
+    use crate::pane_group::pane::icon::PaneIcon;
     let tempdir = tempfile::tempdir().unwrap();
     let mut conn = setup_database(&tempdir.path().join("warp.sqlite")).unwrap();
     let mut app_state = AppState {
@@ -208,20 +208,35 @@ fn custom_tab_icon_persistence_restores_resets_and_ignores_unknown_names() {
         running_mcp_servers: Default::default(),
     };
     for icon in std::iter::once(None)
-        .chain(TabIcon::ALL.into_iter().map(Some))
-        .chain([Some(TabIcon::Local(crate::tab::local_icons::LocalTabIcon {
-            name: "project.svg".into(), source: None,
-        })), None])
+        .chain(PaneIcon::ALL.into_iter().map(Some))
+        .chain([
+            Some(PaneIcon::Local(
+                crate::pane_group::pane::icon::local_icons::LocalPaneIcon {
+                    name: "project.svg".into(),
+                    source: None,
+                },
+            )),
+            None,
+        ])
     {
-        app_state.windows[0].tabs[0].selected_icon = icon.clone();
+        let PaneNodeSnapshot::Leaf(leaf) = &mut app_state.windows[0].tabs[0].root else {
+            panic!("Expected leaf");
+        };
+        leaf.selected_icon = icon.clone();
         save_app_state(&mut conn, &app_state).unwrap();
         let restored = read_sqlite_data(&mut conn, None).unwrap().app_state;
-        assert_eq!(restored.windows[0].tabs[0].selected_icon, icon);
+        let PaneNodeSnapshot::Leaf(leaf) = &restored.windows[0].tabs[0].root else {
+            panic!("Expected leaf");
+        };
+        assert_eq!(leaf.selected_icon, icon);
     }
-    conn.batch_execute("UPDATE tabs SET icon = '\"unknown_future_icon\"'")
+    conn.batch_execute("UPDATE pane_leaves SET icon = '\"unknown_future_icon\"'")
         .unwrap();
     let restored = read_sqlite_data(&mut conn, None).unwrap().app_state;
-    assert_eq!(restored.windows[0].tabs[0].selected_icon, None);
+    let PaneNodeSnapshot::Leaf(leaf) = &restored.windows[0].tabs[0].root else {
+        panic!("Expected leaf");
+    };
+    assert_eq!(leaf.selected_icon, None);
     assert_eq!(
         restored.windows[0].tabs[0].root,
         app_state.windows[0].tabs[0].root
@@ -239,6 +254,7 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
             tabs: vec![TabSnapshot {
                 custom_title: None,
                 root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: true,
                     custom_vertical_tabs_title: Some("Production API".to_string()),
                     contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -259,7 +275,6 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
                 }),
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 left_panel: None,
                 right_panel: None,
                 group_id: None,
@@ -315,6 +330,7 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
             tabs: vec![TabSnapshot {
                 custom_title: None,
                 root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: true,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Code(CodePaneSnapShot::Local {
@@ -335,7 +351,6 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
                 }),
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 left_panel: None,
                 right_panel: None,
                 group_id: None,
@@ -401,6 +416,7 @@ fn test_sqlite_round_trips_tab_groups() {
     let tab_in_group = TabSnapshot {
         custom_title: None,
         root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -421,7 +437,6 @@ fn test_sqlite_round_trips_tab_groups() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
-        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(group_id),
@@ -430,6 +445,7 @@ fn test_sqlite_round_trips_tab_groups() {
     let tab_outside_group = TabSnapshot {
         custom_title: None,
         root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: false,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -450,7 +466,6 @@ fn test_sqlite_round_trips_tab_groups() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
-        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: None,
@@ -525,6 +540,7 @@ fn test_sqlite_round_trips_pinned_state() {
     let pinned_tab = TabSnapshot {
         custom_title: None,
         root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -545,7 +561,6 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
-        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: None,
@@ -554,6 +569,7 @@ fn test_sqlite_round_trips_pinned_state() {
     let unpinned_tab = TabSnapshot {
         custom_title: None,
         root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: false,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -574,7 +590,6 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
-        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(unpinned_group_id),
@@ -583,6 +598,7 @@ fn test_sqlite_round_trips_pinned_state() {
     let tab_in_pinned_group = TabSnapshot {
         custom_title: None,
         root: PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: false,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -603,7 +619,6 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
-        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(pinned_group_id),

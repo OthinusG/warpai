@@ -1,113 +1,87 @@
 # Project Memory
 
-Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
-- 1.7.8.1 MCP renames must migrate persisted native CLI `add/get/remove` argv
-  alongside `server_name`; otherwise QoderCN's status-zero not-found response
-  is mistaken for a user-owned entry. Apply the same migration to SSH and WSL
-  preference stores during rescan. See the 1.7.8.2 bugfix contract in
-  specs/RELEASE.md.
+- MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
+  server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
 
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
-- Capture needs `fixtures * 8 + 232` PNGs/language (two are custom tab icon captures); update both
-  workflow counts. The 14 GB macOS runner also needs incremental off and `cargo clean -p warpai` before relinking.
+- Capture baseline: `fixtures * 8 + 232` PNGs/language, including two icon frames;
+  update both workflows. macOS 14 GB runner: incremental off, clean warpai before relink.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
-- Peer wake cancellation fixtures must end the run on the captured paste event;
-  scheduling all agents before cancellation can exhaust Claude's Enter delay.
-  CI repair and receipts: specs/agent-communication-v2/CI-2026-10-21.md.
-- Oct19 cloud acceptance passed: communication 39259499684, Companion 39254214995,
-  Linux packages 39249589503. The original v1.7.6 draft/tag remains immutable.
+- Peer wake cancellation fixtures end on captured paste; scheduling all agents
+  first can exhaust Claude's Enter delay. Receipts: specs/agent-communication-v2/CI-2026-10-21.md.
+- Historical cloud/release receipts: docs/history/MEMORY-2026-10-30.md.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
-  Debian bullseye Git 2.30.2 requires `git config --global --add safe.directory`
-  with the canonical `/__w/...` checkout root; `-c safe.directory` is ignored and
-  runner workspace paths resolve elsewhere.
-- Release immutable tags through existing workflows; desktops share tagged source.
-  Follow [release gates](specs/RELEASE.md), including five existing installers and
-  checksums. Finish UI acceptance before screenshots/packages. SSH major 1; Agent Bus 2.
+  Bullseye Git 2.30.2 needs global safe.directory for canonical `/__w/...`;
+  command-line `-c` and runner workspace aliases do not work.
+- Existing release workflows build immutable tagged source. Follow specs/RELEASE.md
+  installer/checksum gates; accept UI before packages. SSH major 1; Agent Bus 2.
 
 ## Published releases and maintenance
 
-- Oct19: preserve unpublished 1.7.2 and immutable v1.7.6 tag/draft. Oct20 owner
-  authorized stopping earlier jobs, fixing Zsh bootstrap echo on main, validating,
-  then publishing the combined changes as v1.7.7. Poll runs with `gh run view`
-  every 30 minutes maximum. See specs/RELEASE.md.
-- Owner Mac-to-Linux panels passed; 5.4.0 lacked MCP setup; supplied 5.5.0.
-  Latest Windows failure was ProxyJump before capture, not a proven GUI timeout.
-- Windows SSH defaults to PowerShell, never CMD. Select remote grammar before bootstrap;
-  remote OS owns path/completion semantics. Audit: SSH-POWERSHELL-AUDIT.md.
-- SSH tabs were correct while panel/MCP stayed Starting. Share WSL observation
-  and guarded wake delivery with SSH; preserve native tab evidence and drafts.
-- Public: 1.7.8.2 / Companion 5.5.0; README links must match published assets.
-  Owner authorized 1.8.0 on Oct30 after PR #8 acceptance (run 41025311966).
-  Change history belongs only in Release notes, not README, website or user guides.
-  Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >= 2.31.
-- Artifact-only macOS runs must not trigger Windows publication.
-- Windows CI/release uses pinned official protoc 36.2 + SHA-256; Chocolatey NuGet
-  protoc returned 503/504 and blocked Windows jobs. See specs/RELEASE.md.
-- Zsh bootstrap PTYs start raw with ZLE off, then restore sane mode after the
-  injected heredoc is read; remote Zsh follows the same sequence.
+- Public: Warpai 1.7.8.2 / Companion 5.5.0. Match README links to actual assets.
+  Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
+- Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
+  Owner resumed publication as 1.8.1 after macOS acceptance (run 41053972438).
+  Authorization/receipts: specs/RELEASE.md. Release monitoring follows its 30-minute cadence.
+- Windows SSH uses PowerShell, never CMD; remote OS owns grammar/path/completion.
+  Audit: SSH-POWERSHELL-AUDIT.md. Mac-to-Linux passed; Windows ProxyJump failure
+  preceded capture and cannot prove GUI timeout. Preserve SSH tab evidence/drafts.
+- Artifact-only macOS must not publish Windows. Windows CI/release pins official
+  protoc 36.2 + SHA-256; Chocolatey NuGet 503/504 blocked builds. See specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
 
-- Dynamic supervision: dispatch anytime; track task/request IDs, retire handled
-  outcomes, retain unresolved work across waits/yields. No batch/exclusive watch.
-- Warp's native worktree system owns creation, catalog and tabs; creation opens a
-  new tab without starting an Agent. No separate worktree registry/session manager.
-- Canonical Git common-directory identity joins registered checkouts/subdirectories,
-  including empty tabs/worktrees outside main. Ancestry, basename, branch and
-  remote URL cannot establish membership.
-- Reusing a terminal after changing checkout must scope identity lookup to the
-  current workspace. Preserve the previous checkout's tasks and history; never
-  move its durable identity or reuse its Coordinator authority.
-- Non-Git folders are independent canonical-root projects with Worktree unavailable.
-  They neither inherit nor clear a Git project's Coordinator. Preserve separate
-  clones and SSH host/account/service authorities.
-- Project lists online peers across checkouts before pagination. Worktree allows
-  same-checkout messages; cross-checkout traffic uses the Coordinator. File scope
-  stays checkout-local; panel reads never change admission/permissions.
-- Project owns mode. Eligible online Agents may replace the Coordinator; demote
-  the predecessor without stopping it or changing task ownership.
-- Coordinator belongs to the project and exact native run, surviving pane/tab/
-  project/focus changes; only process termination/revocation or app shutdown clears
-  it. A same-name restart cannot inherit authority. Handoffs remain bounded and
-  include unfinished-task counts plus paginated instructions.
-- Remove local worktrees via native Git: confirm/recheck exact registered path;
-  protect main/open/locked/dirty/untracked/ignored checkouts; never force/delete
-  branches. SSH removal is outside this patch.
-- Sidebar owns sessions; panel owns messages/tasks/reviews/history. Native widgets,
-  8px spacing, default closed; preserve focus/drafts.
-- Derive coverage/icons from CLIAgent; preserve aliases/custom native MCP sessions.
-  No duplicate vendor allowlist or shell-tool fallback.
+- Supervision dispatches anytime, retaining unresolved task/request IDs across
+  waits/yields and retiring only handled outcomes. No batch/exclusive watch.
+- Native worktrees own creation/catalog/tabs; creation never launches an Agent.
+- Membership uses canonical Git common-directory identity across registered
+  checkouts/subdirectories, including empty tabs. Never infer it from names,
+  ancestry, branches or remotes. Checkout changes keep old tasks/history and
+  cannot transfer durable identity or Coordinator authority.
+- Non-Git canonical roots are separate projects with Worktree unavailable; they
+  neither inherit nor clear Git Coordinators. Isolate clones and SSH authorities.
+- Project lists all online peers before pagination and owns mode. Worktree messages
+  stay checkout-local except Coordinator traffic; panel reads never grant admission.
+- Eligible Agents may replace the Coordinator without stopping its process or
+  changing tasks. Authority belongs to the project and exact native run, survives
+  focus/view changes, and ends only on termination/revocation/shutdown. Restarts
+  cannot inherit it. Bound handoffs with unfinished counts/paginated instructions.
+- Worktree removal: native Git, recheck exact registered path, protect main/open/
+  locked/dirty/untracked/ignored checkouts; never force or delete branches. No SSH removal.
+- Sidebar owns sessions; panel owns communication/history. Native widgets, 8px
+  spacing, default closed; preserve focus/drafts. Derive icons/coverage from
+  CLIAgent, retaining aliases/custom MCP; no duplicate allowlist/shell fallback.
 
 ## Usage accounts and native Orca port
 
-- Native Orca port: https://github.com/stablyai/orca at
-  3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices. Provider contracts:
-  specs/agent-communication-v2/USAGE-PROVIDERS.md; native UI/TLS, no new runtime.
-- Accounts and OS-secure credentials persist application-wide; never put credentials
-  in metadata/IPC/logs. Cache across focus changes; requery after restart. Vendor CLI
-  owns login; synthetic fixtures cannot prove auth and personal credentials are off-limits.
-- Preserve fixed HTTPS hosts, sensitive headers, bounded IO and generations. agy >=1.1.11
-  uses verified free `/usage` flags. Qoder/QoderCN may use local JSONL `get_usage_info`,
-  never a prompt/model turn or SDK. Poll once/account/five minutes; manual refresh bypasses.
-- Unknown buckets stay unavailable; Zen USD remains a balance. Usage UI keeps a fixed
-  header and independent scroll. CLI children prepend their binary path and hide Windows
-  consoles; preserve PTY/detached services. Revalidate provider protocol changes.
+- Native Orca: https://github.com/stablyai/orca at
+  3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices. Native UI/TLS,
+  no new runtime. Contract: specs/agent-communication-v2/USAGE-PROVIDERS.md.
+- Accounts/OS-secure credentials persist app-wide; never expose credentials in
+  metadata/IPC/logs. Cache across focus, requery on restart. Vendor CLI owns login;
+  synthetic fixtures cannot prove auth. Personal credentials are off-limits.
+- Keep fixed HTTPS hosts, sensitive headers, bounded IO/generations. agy >=1.1.11
+  uses verified free /usage flags. Qoder/CN query CLI --sdk daemon v2, falling back
+  to legacy JSONL get_usage_info; no Prompt/model turn or SDK dependency.
+  Poll once/account/5 minutes; manual bypass. Unknown quotas remain unavailable;
+  Zen USD stays a balance. Keep fixed header/scroll; children prepend binary PATH
+  and hide Windows consoles without breaking PTY/services. Revalidate protocol changes.
 
 ## SSH, task integrity and files
 
-- SSH masters need no retained launch arguments; independent native transport does.
-  OpenSSH owns ~/.ssh expansion. SSH Remote defaults off and gates every Companion API; OpenSSH stays independent; native MCP needs Companion 5.5.0. Contract/receipts: specs/agent-communication-v2/SSH-MCP-SETTINGS.md and INSTALLATION.md.
-- WSL setup/recovery run on spawn_blocking; owner v4 proved installed-Agent
-  discovery's nested-runtime panic. Receipts/audit: FIXES-1.6.4.md. Empty scans
-  cannot verify installed-Agent discovery.
-- Diagnose actual failed-stage exit/stderr, not failed diagnostic launchers.
-  script/diagnose-wsl-companion.bat + .ps1 confirms account/HOME and preserves
-  nonsecret stderr; redact configuration JSON/credentials.
+- SSH masters need no retained argv; independent transport does. OpenSSH owns
+  ~/.ssh. SSH Remote defaults off and gates all Companion APIs independently of
+  OpenSSH; MCP needs 5.5.0. Contracts: specs/agent-communication-v2/{SSH-MCP-SETTINGS,INSTALLATION}.md.
+- WSL setup/recovery/discovery must use spawn_blocking to avoid nested-runtime
+  panic; empty scans prove nothing. Receipts: FIXES-1.6.4.md.
+- Diagnose real stage exit/stderr, not launcher failures. Use script/diagnose-wsl-companion
+  .bat/.ps1 for account/HOME and nonsecret stderr; redact config/credentials.
 - Language restart: cancelable; Unix waits for exit; AppImage reopens its original
   file. Windows isolates jobs.
 - WSL contract: specs/wsl-1.6.0/TECH.md. Use the Windows-bundled guest binary,
@@ -143,8 +117,8 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   Native draft clearing was authorized Oct13; receipts: FIXES-1.6.4.md.
 - Replacement repositories need fresh admission; isolate old history/capabilities.
   Same-repository checkout replacement requires rejoin; receipt: FIXES-1.6.4.md.
-- Codex opaque OSC 9, warnings and silence cannot prove completion. Native
-  observations cover all managed Agents; vendor runtime acceptance stays pending.
+- OSC 9/warnings/silence cannot prove completion; native observations cover all
+  Agents. Vendor runtime acceptance stays pending.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
 - Input/cancel/run replacement fences Enter; closing invalidates its run.
@@ -155,17 +129,19 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Product defaults, CLI integration and website
 
-- Vertical tab icons persist per tab; discover SVG/PNG in ~/.config/warpai/icon asynchronously. Agent > selection > circular SSH badge > terminal. Contract: specs/custom-tab-icons.md.
+- Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
+  existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
+  Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.
+  Contract: specs/custom-tab-icons.md. Release as 1.8.1; preserve v1.8.0.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
   Keep-awake tracks activity; no cloud AI/telemetry.
-- Local Codex uses per-session MCP/--no-daemon while enabled, preserving CLI/args/cwd/
-  PATH/package ownership. No proxy, impersonation or persistent config writes;
-  only explicit reserved legacy-MCP cleanup may edit persistent configuration.
-  Preserve unrelated servers, report failures, and test Windows Unicode argv/TOML.
+- Local Codex uses session MCP/--no-daemon, preserving CLI/args/cwd/PATH/packages.
+  No proxy/impersonation/persistent config writes except explicit reserved legacy
+  cleanup. Preserve other servers, report failures, test Windows Unicode argv/TOML.
 - Collaboration MCP registrations are scope-specific: local `warpai-local-com`, SSH
   `warpai-ssh-com`, and direct WSL `warpai-wsl-com`; updates remove only recognized
   legacy Warpai entries and preserve user-owned MCP servers.
@@ -175,11 +151,9 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
   defaults off/runs once; no installation writes. Docs retain screenshot provenance.
 - https://othinusg.github.io/warpai/ lives on gh-pages (EN /, ZH /zh/); preserve
   branding/worktree, cmap-check font subsets, and Jekyll /warpai production baseurl.
-- Release documentation must synchronize both READMEs, source SSH/WSL guides,
-  and bilingual gh-pages home, strings, footer, install/MCP/features/overview
-  pages. Check scope names and published assets, not just version labels.
-- Public READMEs and user guides describe current functionality; keep release
-  changes and migration history in release notes, not product documentation.
+- Synchronize both READMEs, source SSH/WSL guides and bilingual gh-pages home,
+  strings/footer/install/MCP/features/overview; verify scope names and actual assets.
+  Keep change/migration history in Release notes, outside product documentation.
 - Feature catalog: docs/FEATURES.md.
 
 ## Retained native lifecycle constraints
@@ -190,12 +164,10 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - Focus publishes session before roots; replay cached roots and scope remote polls to admission.
 - Bindings register before MCP discovery; readiness stays separate. Focus never acknowledges work.
 - Preserve context/version/digest/public guards and task-anchored native threads/reviewed memory.
-- Remote bootstrap input must be raw: zsh/bash init subshells set `stty raw` and the zsh wrapper
-  restores sane before eval. The embedded PowerShell SSH seed is minified before UTF-16/base64
-  expansion; 1.7.6's unminified ~6.2 KB line exceeded MAX_CANON and hung Windows-to-zsh SSH
-  warpify at "Starting shell...".
-- Remote-peer polls leave the WSL/SSH configuration generation untouched without a target;
-  syncing it to the SSH generation bumped the epoch and aborted WSL auto-warpify (1.7.7; both fixes shipped in 1.7.8).
+- Zsh/Bash bootstrap uses raw PTY/ZLE off; Zsh restores sane after reading heredoc,
+  before eval. Minify PowerShell SSH seed before UTF-16/base64 to stay below MAX_CANON.
+- Untargeted remote-peer polls must not bump WSL/SSH generations or abort auto-warpify.
+  Both bootstrap/generation repairs shipped in 1.7.8; details in the Oct30 archive.
 
 ## Memory maintenance
 

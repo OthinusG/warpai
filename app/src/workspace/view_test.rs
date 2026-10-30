@@ -278,7 +278,6 @@ fn transferred_tab_workspace(
             None,
             NewWorkspaceSource::TransferredTab {
                 tab_color: None,
-                selected_icon: None,
                 custom_title: None,
                 left_panel_open: false,
                 vertical_tabs_panel_open,
@@ -1143,41 +1142,63 @@ fn test_set_active_tab_color() {
 }
 
 #[test]
-fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
+fn terminal_ssh_session_pane_icons_are_independent_and_menu_targets_clicked_pane() {
     use crate::menu::MenuItem;
-    use crate::tab::TabIcon;
+    use crate::pane_group::pane::icon::PaneIcon;
+    use crate::workspace::PaneViewLocator;
     App::test((), |mut app| async move {
         initialize_app(&mut app);
         let workspace = mock_workspace(&mut app);
         workspace.update(&mut app, |workspace, ctx| {
-            workspace.add_terminal_tab(false, ctx);
-            let active = workspace.active_tab_index;
+            let group = workspace.tabs[0].pane_group.clone();
+            let first = group.as_ref(ctx).focused_pane_id(ctx);
+            group.update(ctx, |group, ctx| {
+                group.handle_action(&PaneGroupAction::Add(Direction::Right), ctx)
+            });
+            let second = group.as_ref(ctx).pane_id_by_index(1).unwrap();
+            group.update(ctx, |group, ctx| group.focus_pane_by_id(second, ctx));
+            assert_ne!(first, second);
+            let pane = PaneViewLocator {
+                pane_group_id: group.id(),
+                pane_id: first,
+            };
             workspace.handle_action(
-                &WorkspaceAction::SetTabIcon {
-                    tab_index: 0,
-                    icon: Some(TabIcon::Folder),
+                &WorkspaceAction::SetPaneIcon {
+                    pane,
+                    icon: Some(PaneIcon::Folder),
                 },
                 ctx,
             );
-            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
-            assert_eq!(workspace.tabs[active].selected_icon, None);
-            let pane_group = workspace.tabs[0].pane_group.as_ref(ctx);
+            let selected = |id, ctx: &AppContext| {
+                group
+                    .as_ref(ctx)
+                    .pane_by_id(id)
+                    .unwrap()
+                    .pane_configuration()
+                    .as_ref(ctx)
+                    .selected_icon
+                    .clone()
+            };
+            assert_eq!(selected(first, ctx), Some(PaneIcon::Folder));
+            assert_eq!(selected(second, ctx), None);
             assert_eq!(
-                super::vertical_tabs::pane_summary_kind(
-                    pane_group,
-                    pane_group.focused_pane_id(ctx),
-                    workspace.tabs[0].selected_icon.as_ref(),
-                    ctx,
-                ),
-                Some(super::vertical_tabs::SummaryPaneKind::CustomTerminal(TabIcon::Folder)),
+                super::vertical_tabs::pane_summary_kind(group.as_ref(ctx), first, ctx),
+                Some(super::vertical_tabs::SummaryPaneKind::CustomTerminal(
+                    PaneIcon::Folder
+                ))
             );
-            let menu = workspace.tabs[0].menu_items(
+            let menu = workspace.tabs[0].menu_items_with_pane_name_target(
                 0,
                 workspace.tabs.len(),
                 &workspace.tab_groups,
                 false,
                 false,
                 false,
+                Some(crate::tab::PaneNameMenuTarget {
+                    locator: pane,
+                    rename_label: "Rename pane",
+                    reset_label: "Reset pane name",
+                }),
                 ctx,
             );
             let choices: Vec<_> = menu
@@ -1188,55 +1209,111 @@ fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
                 })
                 .flatten()
                 .filter_map(|item| match item.on_select_action() {
-                    Some(WorkspaceAction::SetTabIcon { tab_index, icon }) => {
-                        Some((*tab_index, icon.clone()))
+                    Some(WorkspaceAction::SetPaneIcon { pane, icon }) => {
+                        Some((*pane, icon.clone()))
                     }
                     _ => None,
                 })
                 .collect();
-            assert_eq!(choices.len(), TabIcon::ALL.len() + 1);
-            assert_eq!(choices[0], (0, None));
-            assert!(choices.iter().all(|(index, _)| *index == 0));
-            let transfer = workspace.get_tab_transfer_info(0, ctx).unwrap();
-            assert_eq!(transfer.selected_icon, Some(TabIcon::Folder));
-            let snapshot = workspace.snapshot(ctx.window_id(), false, ctx);
-            assert_eq!(snapshot.tabs[0].selected_icon, Some(TabIcon::Folder));
+            assert_eq!(choices.len(), PaneIcon::ALL.len() + 1);
+            assert_eq!(choices[0], (pane, None));
+            assert!(choices.iter().all(|(target, _)| *target == pane));
+            let second_target = PaneViewLocator {
+                pane_group_id: group.id(),
+                pane_id: second,
+            };
             workspace.handle_action(
-                &WorkspaceAction::SetTabIcon {
-                    tab_index: 0,
-                    icon: None,
+                &WorkspaceAction::SetPaneIcon {
+                    pane: second_target,
+                    icon: Some(PaneIcon::Code),
                 },
                 ctx,
             );
-            assert_eq!(workspace.tabs[0].selected_icon, None);
+            let snapshot = group.as_ref(ctx).snapshot(ctx);
+            let config = crate::tab_configs::session_config::tab_config_from_pane_snapshot(
+                &snapshot, None, None,
+            );
+            assert_eq!(
+                config
+                    .panes
+                    .iter()
+                    .filter_map(|node| node.icon.clone())
+                    .collect::<Vec<_>>(),
+                vec![PaneIcon::Folder, PaneIcon::Code]
+            );
+            let transfer = workspace.get_tab_transfer_info_for_attach(0, ctx).unwrap();
+            assert_eq!(transfer.pane_group.as_ref(ctx).snapshot(ctx), snapshot);
+            workspace.open_tab_config(config, ctx);
+            let reopened = workspace.active_tab_pane_group();
+            let reopened_icons: Vec<_> = reopened
+                .as_ref(ctx)
+                .visible_pane_ids()
+                .into_iter()
+                .map(|id| {
+                    reopened
+                        .as_ref(ctx)
+                        .pane_by_id(id)
+                        .unwrap()
+                        .pane_configuration()
+                        .as_ref(ctx)
+                        .selected_icon
+                        .clone()
+                })
+                .collect();
+            assert_eq!(
+                reopened_icons,
+                vec![Some(PaneIcon::Folder), Some(PaneIcon::Code)]
+            );
+            workspace.handle_action(&WorkspaceAction::SetPaneIcon { pane, icon: None }, ctx);
+            assert_eq!(selected(first, ctx), None);
+            assert_eq!(selected(second, ctx), Some(PaneIcon::Code));
+            workspace.add_terminal_tab(false, ctx);
+            let other = workspace
+                .active_tab_pane_group()
+                .as_ref(ctx)
+                .focused_pane_id(ctx);
             workspace.handle_action(
-                &WorkspaceAction::SetTabIcon {
-                    tab_index: usize::MAX,
-                    icon: Some(TabIcon::Code),
+                &WorkspaceAction::SetPaneIcon {
+                    pane: PaneViewLocator {
+                        pane_group_id: group.id(),
+                        pane_id: other,
+                    },
+                    icon: Some(PaneIcon::Cloud),
                 },
                 ctx,
             );
-            assert!(workspace.tabs.iter().all(|tab| tab.selected_icon.is_none()));
+            assert_eq!(selected(first, ctx), None);
+            assert_eq!(selected(second, ctx), Some(PaneIcon::Code));
         });
     });
 }
 
 #[test]
-fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
+fn terminal_ssh_session_pane_icon_yields_to_agent_and_restores_manual_choice() {
+    use super::vertical_tabs::{pane_summary_kind, SummaryPaneKind};
+    use crate::pane_group::pane::icon::PaneIcon;
     use crate::terminal::cli_agent_sessions::{
         CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus,
     };
-    use crate::tab::TabIcon;
-    use super::vertical_tabs::{pane_summary_kind, SummaryPaneKind};
 
     App::test((), |mut app| async move {
         initialize_app(&mut app);
         let workspace = mock_workspace(&mut app);
         let pane_group_id = workspace.update(&mut app, |workspace, ctx| {
             ctx.focus(&workspace.tab_right_click_menu);
-            workspace.handle_action(&WorkspaceAction::SetTabIcon {
-                tab_index: 0, icon: Some(TabIcon::Folder),
-            }, ctx);
+            workspace.handle_action(
+                &WorkspaceAction::SetPaneIcon {
+                    pane: crate::workspace::PaneViewLocator {
+                        pane_group_id: workspace.tabs[0].pane_group.id(),
+                        pane_id: workspace.tabs[0]
+                            .pane_group
+                            .as_ref(ctx)
+                            .focused_pane_id(ctx),
+                    },
+                    icon: Some(PaneIcon::Folder),
+                },
+                ctx,
+            );
             workspace.active_tab_pane_group().id()
         });
         // Focus changes are queued effects, so they only apply after the update returns.
@@ -1261,12 +1338,28 @@ fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
                     custom_command_prefix: None,
                 }, ctx);
             });
-            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
-                Some(SummaryPaneKind::CLIAgent { agent: crate::terminal::CLIAgent::Codex }));
-            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
-            CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.remove_session(terminal.id(), ctx));
-            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
-                Some(SummaryPaneKind::CustomTerminal(TabIcon::Folder)));
+            assert_eq!(
+                pane_summary_kind(group.as_ref(ctx), pane, ctx),
+                Some(SummaryPaneKind::CLIAgent {
+                    agent: crate::terminal::CLIAgent::Codex
+                })
+            );
+            assert_eq!(
+                group
+                    .as_ref(ctx)
+                    .pane_by_id(pane)
+                    .unwrap()
+                    .pane_configuration()
+                    .as_ref(ctx)
+                    .selected_icon,
+                Some(PaneIcon::Folder)
+            );
+            CLIAgentSessionsModel::handle(ctx)
+                .update(ctx, |model, ctx| model.remove_session(terminal.id(), ctx));
+            assert_eq!(
+                pane_summary_kind(group.as_ref(ctx), pane, ctx),
+                Some(SummaryPaneKind::CustomTerminal(PaneIcon::Folder))
+            );
         });
     });
 }
@@ -2534,6 +2627,7 @@ fn set_left_panel_visibility_across_tabs(is_enabled: bool, ctx: &mut ViewContext
 fn add_get_started_tab(workspace: &mut Workspace, ctx: &mut ViewContext<Workspace>) {
     workspace.add_tab_with_pane_layout(
         PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::GetStarted,
@@ -3083,6 +3177,7 @@ fn test_open_tab_config_with_params_does_not_use_worktree_branch_as_implicit_tit
             title: None,
             color: None,
             panes: vec![TabConfigPaneNode {
+                icon: None,
                 id: "main".to_string(),
                 pane_type: Some(TabConfigPaneType::Terminal),
                 split: None,
@@ -3129,6 +3224,7 @@ fn test_open_tab_config_with_params_uses_explicit_title_template() {
             title: Some("{{autogenerated_branch_name}}".to_string()),
             color: None,
             panes: vec![TabConfigPaneNode {
+                icon: None,
                 id: "main".to_string(),
                 pane_type: Some(TabConfigPaneType::Terminal),
                 split: None,

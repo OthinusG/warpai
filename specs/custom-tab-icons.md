@@ -1,5 +1,38 @@
 # Custom tab icons
 
+## Current contract: pane icons and tab config reuse (2026-10-30)
+
+This section supersedes the tab-scoped ownership described below. The owner
+requires independent pane icons, serialized by the existing tab config system.
+Publication remains paused; preserve the existing v1.8.0 tag without moving it.
+
+- Store the selection in PaneConfiguration and each leaf snapshot, not TabData.
+  Context menus target the clicked pane, or the focused pane for a tab-level menu.
+  Changing/resetting one pane must not change its siblings or another tab.
+- Reuse the existing bounded asynchronous SVG/PNG discovery and native picker.
+  Support bundled icons (`icon = "folder"`) and local files
+  (`icon = { local = "my-icon.svg" }`) directly in each `[[panes]]` TOML entry.
+  Local values are validated basenames, never arbitrary paths or image bytes.
+- Save through tab_config_from_pane_snapshot/write_tab_config; load through
+  render_tab_config and PaneTemplateType. Preserve old TOML without icon fields.
+  Missing local files retain their selection and use the native fallback until
+  refreshed. Reuse the same selection for session restoration and pane transfers.
+- Vertical pane rows, focused-session views, summaries and group collages resolve
+  each pane's own selection. Preserve Agent > selection > SSH > terminal precedence
+  and unchanged horizontal rendering. Keep native focus restoration and locales.
+- Keep historical tab-icon database migration intact; new selections live on
+  pane leaves. Do not guess ownership for legacy tab-level overrides.
+
+Tasks: move ownership and action target; extend leaf persistence and templates;
+round-trip both icon kinds through saved tab configs; update callers, fixtures,
+native captures and current product documentation. No new dependencies.
+
+Verification: independent sibling selection/reset, stale pane targeting, SQLite
+restore, nested TOML save/load/reopen with both kinds, legacy/no-icon TOML,
+invalid local paths and missing-file refresh. Run locale/syntax checks locally;
+use existing GitHub default/platform builds, focused Rust tests and native
+macOS/Windows captures. Do not build Rust locally or touch personal settings.
+
 ## Scope and acceptance
 
 - Add an icon picker to the existing tab context menu, using bundled SVG icons.
@@ -88,6 +121,26 @@ composition and use no purple, shadows, external background or mockup.
   Agent precedence with isolated files and native captures where available.
 
 ## Verification receipts
+
+- Pane ownership run 41041510659: both protocol jobs passed; both desktop checks
+  failed because the moved icon module declaration and imports were missing.
+  Fix plan: wire the existing module into pane/mod.rs, restore PaneIcon imports
+  in app state, actions, tab menus and vertical rendering, and verify the module
+  is reachable before rerunning both default/platform builds, regressions and
+  native captures. Keep publication paused. Do not use partial formatting that
+  can delete reordered imports without retaining their new location.
+
+- Run 41046053799: macOS default/platform checks and both protocol jobs passed.
+  Test compilation found one unqualified PaneTemplate initializer inside the
+  existing leaf_pane! macro; its seven expansions omitted icon. Add icon: None
+  there and audit qualified, unqualified, Self and macro constructors before
+  rerunning application tests and native captures on both platforms.
+
+- Run 41048421325: the test binary compiled; 12 focused regressions passed,
+  including saved TOML, SQLite and local icons. The combined pane-isolation
+  fixture called the normal drag-out API with one tab, which correctly returned
+  None. Use the existing single-tab attach API for its transfer assertion;
+  preserve the production last-tab guard and all remaining reopen/reset checks.
 
 - Run 41000830906 (a5e72de8): macOS and Windows default/platform builds passed;
   both protocol jobs passed; local SVG/PNG validation/refresh and external SVG

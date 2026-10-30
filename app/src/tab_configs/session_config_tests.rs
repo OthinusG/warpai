@@ -4,6 +4,82 @@ use crate::terminal::cli_agent::CLIAgent;
 
 use super::*;
 
+#[test]
+fn terminal_ssh_session_pane_icons_round_trip_through_saved_tab_config() {
+    use crate::launch_configs::launch_config::PaneTemplateType;
+    use crate::pane_group::pane::icon::{local_icons::LocalPaneIcon, PaneIcon};
+
+    let icons = [
+        PaneIcon::Folder,
+        PaneIcon::Local(LocalPaneIcon::try_from("project.svg".to_string()).unwrap()),
+    ];
+    let children = icons
+        .iter()
+        .enumerate()
+        .map(|(index, icon)| {
+            let mut snapshot = make_terminal_leaf(Some("/tmp"), index == 0);
+            let PaneNodeSnapshot::Leaf(leaf) = &mut snapshot else {
+                unreachable!()
+            };
+            leaf.selected_icon = Some(icon.clone());
+            (crate::app_state::PaneFlex(1.), snapshot)
+        })
+        .collect();
+    let snapshot = PaneNodeSnapshot::Branch(BranchSnapshot {
+        direction: crate::app_state::SplitDirection::Vertical,
+        children,
+    });
+    let config = tab_config_from_pane_snapshot(&snapshot, Some("Icons".into()), None);
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_tab_config(&config, dir.path(), "icons").unwrap();
+    let text = std::fs::read_to_string(path).unwrap();
+    let document: toml::Value = toml::from_str(&text).unwrap();
+    assert_eq!(document["panes"][1]["icon"].as_str(), Some("folder"));
+    assert_eq!(
+        document["panes"][2]["icon"]["local"].as_str(),
+        Some("project.svg")
+    );
+    assert!(!text.contains("source"));
+    let restored: TabConfig = toml::from_str(&text).unwrap();
+    let (_, template) = crate::tab_configs::render_tab_config(&restored, &HashMap::new(), None);
+    let PaneTemplateType::PaneBranchTemplate { panes, .. } = template else {
+        panic!("Expected split");
+    };
+    for (pane, expected) in panes.into_iter().zip(icons) {
+        let PaneTemplateType::PaneTemplate { icon, .. } = pane else {
+            panic!("Expected leaf");
+        };
+        assert_eq!(icon, Some(expected));
+    }
+}
+
+#[test]
+fn terminal_ssh_session_pane_icon_toml_accepts_legacy_and_rejects_paths() {
+    use crate::pane_group::pane::icon::PaneIcon;
+    let base = "name = 'Icons'\n[[panes]]\nid = 'main'\ntype = 'terminal'\n";
+    let legacy: TabConfig = toml::from_str(base).unwrap();
+    assert_eq!(legacy.panes[0].icon, None);
+    for name in [
+        "../outside.svg",
+        "sub/file.png",
+        "C:\\file.png",
+        "/tmp/file.svg",
+        "file.jpg",
+    ] {
+        let local = serde_json::to_string(name).unwrap();
+        assert!(
+            toml::from_str::<TabConfig>(&format!("{base}icon = {{ local = {local} }}")).is_err(),
+            "{name}"
+        );
+    }
+    let missing: TabConfig =
+        toml::from_str(&format!("{base}icon = {{ local = 'missing.PNG' }}")).unwrap();
+    assert!(
+        matches!(&missing.panes[0].icon, Some(PaneIcon::Local(icon)) if icon.name == "missing.PNG")
+    );
+    assert!(!missing.panes[0].icon.as_ref().unwrap().is_available());
+}
+
 fn generated_worktree_path_string(repo: &str, worktree_name: &str) -> String {
     super::super::tab_config::generated_worktree_path(Path::new(repo), worktree_name)
         .display()
@@ -401,6 +477,7 @@ use crate::tab_configs::tab_config::TabConfigPaneType;
 
 fn make_terminal_leaf(cwd: Option<&str>, is_focused: bool) -> PaneNodeSnapshot {
     PaneNodeSnapshot::Leaf(LeafSnapshot {
+        selected_icon: None,
         is_focused,
         custom_vertical_tabs_title: None,
         contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -526,6 +603,7 @@ fn snapshot_non_terminal_leaf_replaced_with_terminal() {
     use crate::drive::OpenWarpDriveObjectSettings;
 
     let notebook_leaf = PaneNodeSnapshot::Leaf(LeafSnapshot {
+        selected_icon: None,
         is_focused: false,
         custom_vertical_tabs_title: None,
         contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -603,6 +681,7 @@ use crate::app_state::AmbientAgentPaneSnapshot;
 
 fn make_agent_leaf(cwd: Option<&str>, is_focused: bool) -> PaneNodeSnapshot {
     PaneNodeSnapshot::Leaf(LeafSnapshot {
+        selected_icon: None,
         is_focused,
         custom_vertical_tabs_title: None,
         contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -622,6 +701,7 @@ fn make_agent_leaf(cwd: Option<&str>, is_focused: bool) -> PaneNodeSnapshot {
 
 fn make_cloud_leaf(is_focused: bool) -> PaneNodeSnapshot {
     PaneNodeSnapshot::Leaf(LeafSnapshot {
+        selected_icon: None,
         is_focused,
         custom_vertical_tabs_title: None,
         contents: LeafContents::AmbientAgent(AmbientAgentPaneSnapshot {
