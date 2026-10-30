@@ -5,6 +5,29 @@ use crate::themes::theme::AnsiColorIdentifier;
 use crate::ui_components::color_dot::TAB_COLOR_OPTIONS;
 use crate::workspace::tab_group::{TabGroup, TabGroupId};
 
+#[test]
+fn custom_tab_icons_have_stable_names_and_bundled_assets() {
+    use super::TabIcon;
+    let mut names = std::collections::HashSet::new();
+    for icon in TabIcon::ALL {
+        let name = serde_json::to_string(&icon).unwrap();
+        assert!(names.insert(name.clone()));
+        assert_eq!(serde_json::from_str::<TabIcon>(&name).unwrap(), icon);
+        let asset: &'static str = icon.icon().into();
+        assert!(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join(asset)
+                .is_file()
+        );
+    }
+    assert_eq!(
+        serde_json::to_string(&TabIcon::Folder).unwrap(),
+        "\"folder\""
+    );
+    assert!(serde_json::from_str::<TabIcon>("\"unknown_future_icon\"").is_err());
+}
+
 /// Build a `tab_groups` map containing exactly the given group ids.
 fn groups(ids: &[TabGroupId]) -> HashMap<TabGroupId, TabGroup> {
     ids.iter()

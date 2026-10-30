@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
+Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 - 1.7.8.1 MCP renames must migrate persisted native CLI `add/get/remove` argv
   alongside `server_name`; otherwise QoderCN's status-zero not-found response
@@ -151,6 +151,7 @@ Updated 2026-10-22. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Product defaults, CLI integration and website
 
+- Custom tab icons use bundled SVGs and a nullable per-tab snapshot/SQLite override; Agent branding wins. Contract: specs/custom-tab-icons.md.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve

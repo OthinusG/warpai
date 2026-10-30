@@ -140,6 +140,7 @@ fn test_terminal_window_snapshot(vertical_tabs_panel_open: bool) -> WindowSnapsh
             }),
             default_directory_color: None,
             selected_color: SelectedTabColor::default(),
+            selected_icon: None,
             left_panel: None,
             right_panel: None,
             group_id: None,
@@ -196,6 +197,36 @@ fn test_sqlite_round_trips_vertical_tabs_panel_open() {
 }
 
 #[test]
+fn custom_tab_icon_persistence_restores_resets_and_ignores_unknown_names() {
+    use crate::tab::TabIcon;
+    let tempdir = tempfile::tempdir().unwrap();
+    let mut conn = setup_database(&tempdir.path().join("warp.sqlite")).unwrap();
+    let mut app_state = AppState {
+        windows: vec![test_terminal_window_snapshot(false)],
+        active_window_index: Some(0),
+        block_lists: Default::default(),
+        running_mcp_servers: Default::default(),
+    };
+    for icon in std::iter::once(None)
+        .chain(TabIcon::ALL.into_iter().map(Some))
+        .chain([None])
+    {
+        app_state.windows[0].tabs[0].selected_icon = icon;
+        save_app_state(&mut conn, &app_state).unwrap();
+        let restored = read_sqlite_data(&mut conn, None).unwrap().app_state;
+        assert_eq!(restored.windows[0].tabs[0].selected_icon, icon);
+    }
+    conn.batch_execute("UPDATE tabs SET icon = '\"unknown_future_icon\"'")
+        .unwrap();
+    let restored = read_sqlite_data(&mut conn, None).unwrap().app_state;
+    assert_eq!(restored.windows[0].tabs[0].selected_icon, None);
+    assert_eq!(
+        restored.windows[0].tabs[0].root,
+        app_state.windows[0].tabs[0].root
+    );
+}
+
+#[test]
 fn test_sqlite_round_trips_custom_vertical_tabs_title() {
     let tempdir = tempfile::tempdir().expect("tempdir should be created");
     let database_path = tempdir.path().join("warp.sqlite");
@@ -226,6 +257,7 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
                 }),
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
+                selected_icon: None,
                 left_panel: None,
                 right_panel: None,
                 group_id: None,
@@ -301,6 +333,7 @@ fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
                 }),
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
+                selected_icon: None,
                 left_panel: None,
                 right_panel: None,
                 group_id: None,
@@ -386,6 +419,7 @@ fn test_sqlite_round_trips_tab_groups() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
+        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(group_id),
@@ -414,6 +448,7 @@ fn test_sqlite_round_trips_tab_groups() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
+        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: None,
@@ -508,6 +543,7 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
+        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: None,
@@ -536,6 +572,7 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
+        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(unpinned_group_id),
@@ -564,6 +601,7 @@ fn test_sqlite_round_trips_pinned_state() {
         }),
         default_directory_color: None,
         selected_color: SelectedTabColor::default(),
+        selected_icon: None,
         left_panel: None,
         right_panel: None,
         group_id: Some(pinned_group_id),

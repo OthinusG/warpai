@@ -28,7 +28,7 @@ use crate::pane_group::TerminalPane;
 use crate::pane_group::{
     CodePane, NotebookPane, PaneGroup, PaneId, TabBarHoverIndex, WorkflowPane,
 };
-use crate::tab::{tab_position_id, SelectedTabColor, TabData};
+use crate::tab::{tab_position_id, SelectedTabColor, TabData, TabIcon};
 use crate::terminal::session_settings::SessionSettings;
 use crate::terminal::TerminalView;
 use crate::themes::theme::Fill as ThemeFill;
@@ -398,6 +398,7 @@ fn render_pane_row_element(
     });
     let row_position_id = vtab_pane_row_position_id(props.pane_group_id, props.pane_id);
     let PaneProps {
+        selected_icon: _,
         pane_id,
         pane_group_id,
         is_active_tab,
@@ -828,6 +829,7 @@ impl VerticalTabsPanelState {
 }
 
 struct PaneProps<'a> {
+    selected_icon: Option<TabIcon>,
     pane_id: PaneId,
     pane_group_id: EntityId,
     is_active_tab: bool,
@@ -909,6 +911,7 @@ enum VerticalTabsResolvedMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum SummaryPaneKind {
     Terminal,
+    CustomTerminal(TabIcon),
     OzAgent { is_ambient: bool },
     CLIAgent { agent: CLIAgent },
     Code { title: String },
@@ -1098,10 +1101,11 @@ fn select_summary_pane_kind_icons(
 fn resolve_summary_pane_kind_icons(
     pane_group: &PaneGroup,
     visible_pane_ids: &[PaneId],
+    selected_icon: Option<TabIcon>,
     app: &AppContext,
 ) -> Option<SummaryPaneKindIcons> {
     select_summary_pane_kind_icons(visible_pane_ids.iter().filter_map(|pane_id| {
-        let kind = pane_summary_kind(pane_group, *pane_id, app)?;
+        let kind = pane_summary_kind(pane_group, *pane_id, selected_icon, app)?;
         Some((pane_id.creation_order_id(), kind))
     }))
 }
@@ -1167,6 +1171,7 @@ impl VerticalTabsPanelState {
                                 pane_group,
                                 pane_id,
                                 tab.pane_group.id(),
+                                tab.selected_icon,
                                 *tab_index == active_tab_index,
                                 false,
                                 false,
@@ -1759,6 +1764,7 @@ fn render_groups(
                                     pane_group,
                                     pane_id,
                                     tab.pane_group.id(),
+                                    tab.selected_icon,
                                     tab_index == workspace.active_tab_index,
                                     false,
                                     false,
@@ -1790,6 +1796,7 @@ fn render_groups(
                                 pane_group,
                                 pane_id,
                                 tab.pane_group.id(),
+                                tab.selected_icon,
                                 tab_index == workspace.active_tab_index,
                                 false,
                                 false,
@@ -2092,7 +2099,9 @@ fn render_tab_group_internal(
     let summary = matches!(resolved_mode, VerticalTabsResolvedMode::Summary)
         .then(|| build_vertical_tabs_summary_data(pane_group, &visible_pane_ids, app));
     let summary_pane_kind_icons = matches!(resolved_mode, VerticalTabsResolvedMode::Summary)
-        .then(|| resolve_summary_pane_kind_icons(pane_group, &visible_pane_ids, app))
+        .then(|| {
+            resolve_summary_pane_kind_icons(pane_group, &visible_pane_ids, tab.selected_icon, app)
+        })
         .flatten();
     let active_pane_context_menu_target = PaneViewLocator {
         pane_group_id,
@@ -2131,6 +2140,7 @@ fn render_tab_group_internal(
                     pane_group,
                     *pane_id,
                     pane_group_id,
+                    tab.selected_icon,
                     is_active,
                     is_in_multi_selection,
                     is_in_multi_tab_selection,
@@ -2189,6 +2199,7 @@ fn render_tab_group_internal(
                     pane_group,
                     *pane_id,
                     pane_group_id,
+                    tab.selected_icon,
                     is_active,
                     is_in_multi_selection,
                     is_in_multi_tab_selection,
@@ -3211,6 +3222,7 @@ fn render_passive_terminal_diff_stats_badge(
 fn resolve_icon_with_status_variant(
     typed: &TypedPane<'_>,
     title: &str,
+    selected_icon: Option<TabIcon>,
     appearance: &Appearance,
     app: &AppContext,
 ) -> IconWithStatusVariant {
@@ -3246,7 +3258,7 @@ fn resolve_icon_with_status_variant(
             } else {
                 // Plain terminal: use foreground color per design spec
                 IconWithStatusVariant::Neutral {
-                    icon: WarpIcon::Terminal,
+                    icon: selected_icon.map_or(WarpIcon::Terminal, TabIcon::icon),
                     icon_color: main_text,
                 }
             }
@@ -3306,7 +3318,13 @@ fn render_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn Element> {
     let font_family = appearance.ui_font_family();
 
     let icon = render_pane_icon_with_status(
-        resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+        resolve_icon_with_status_variant(
+            &props.typed,
+            &props.title,
+            props.selected_icon,
+            appearance,
+            app,
+        ),
         theme,
     );
 
@@ -3671,6 +3689,7 @@ impl<'a> PaneProps<'a> {
         pane_group: &'a PaneGroup,
         pane_id: PaneId,
         pane_group_id: EntityId,
+        selected_icon: Option<TabIcon>,
         is_active_tab: bool,
         is_in_multi_selection: bool,
         is_in_multi_tab_selection: bool,
@@ -3708,6 +3727,7 @@ impl<'a> PaneProps<'a> {
         );
 
         Some(Self {
+            selected_icon,
             pane_id,
             pane_group_id,
             is_active_tab,
@@ -4139,6 +4159,7 @@ impl PaneGroup {
 pub(super) fn pane_summary_kind(
     pane_group: &PaneGroup,
     pane_id: PaneId,
+    selected_icon: Option<TabIcon>,
     app: &AppContext,
 ) -> Option<SummaryPaneKind> {
     let pane = pane_group.pane_by_id(pane_id)?;
@@ -4146,7 +4167,10 @@ pub(super) fn pane_summary_kind(
     let pane_configuration = pane_configuration.as_ref(app);
     let title = pane_configuration.title().trim();
     let typed = pane_group.resolve_pane_type(pane_id, app);
-    Some(typed.summary_pane_kind(title, app))
+    Some(match (typed.summary_pane_kind(title, app), selected_icon) {
+        (SummaryPaneKind::Terminal, Some(icon)) => SummaryPaneKind::CustomTerminal(icon),
+        (kind, _) => kind,
+    })
 }
 
 fn render_terminal_row_content(
@@ -4461,7 +4485,13 @@ fn render_summary_tab_item(
         .map(|icons| render_summary_pane_kind_icons(icons, VERTICAL_TABS_ICON_SIZE, appearance))
         .unwrap_or_else(|| {
             render_pane_icon_with_status(
-                resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+                resolve_icon_with_status_variant(
+                    &props.typed,
+                    &props.title,
+                    props.selected_icon,
+                    appearance,
+                    app,
+                ),
                 theme,
             )
         });
@@ -4651,6 +4681,7 @@ pub(super) fn render_summary_pane_kind_icon_circle(
             internal_colors::fg_overlay_2(theme).into(),
         ),
         SummaryPaneKind::Terminal
+        | SummaryPaneKind::CustomTerminal(_)
         | SummaryPaneKind::CodeDiff
         | SummaryPaneKind::File
         | SummaryPaneKind::Notebook { .. }
@@ -4696,6 +4727,7 @@ fn summary_pane_kind_icon(
 
     match kind {
         SummaryPaneKind::Terminal => (WarpIcon::Terminal, main_text),
+        SummaryPaneKind::CustomTerminal(icon) => (icon.icon(), main_text),
         SummaryPaneKind::OzAgent { is_ambient } => (
             if is_ambient {
                 WarpIcon::OzCloud
@@ -6297,6 +6329,11 @@ fn detail_pane_props<'a>(
         pane_group,
         pane_id,
         pane_group_id,
+        workspace
+            .tabs
+            .iter()
+            .find(|tab| tab.pane_group.id() == pane_group_id)
+            .and_then(|tab| tab.selected_icon),
         false,
         false,
         false,
@@ -6768,7 +6805,13 @@ fn render_compact_pane_row(props: PaneProps<'_>, app: &AppContext) -> Box<dyn El
     let font_family = appearance.ui_font_family();
 
     let icon = render_pane_icon_with_status(
-        resolve_icon_with_status_variant(&props.typed, &props.title, appearance, app),
+        resolve_icon_with_status_variant(
+            &props.typed,
+            &props.title,
+            props.selected_icon,
+            appearance,
+            app,
+        ),
         theme,
     );
 

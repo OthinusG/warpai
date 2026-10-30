@@ -269,6 +269,7 @@ fn transferred_tab_workspace(
             None,
             NewWorkspaceSource::TransferredTab {
                 tab_color: None,
+                selected_icon: None,
                 custom_title: None,
                 left_panel_open: false,
                 vertical_tabs_panel_open,
@@ -1128,6 +1129,85 @@ fn test_set_active_tab_color() {
                 workspace.tabs[active].selected_color,
                 SelectedTabColor::Unset,
             );
+        });
+    });
+}
+
+#[test]
+fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
+    use crate::menu::MenuItem;
+    use crate::tab::TabIcon;
+    App::test((), |mut app| async move {
+        initialize_app(&mut app);
+        let workspace = mock_workspace(&mut app);
+        workspace.update(&mut app, |workspace, ctx| {
+            workspace.add_terminal_tab(false, ctx);
+            let active = workspace.active_tab_index;
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: 0,
+                    icon: Some(TabIcon::Folder),
+                },
+                ctx,
+            );
+            assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
+            assert_eq!(workspace.tabs[active].selected_icon, None);
+            let pane_group = workspace.tabs[0].pane_group.as_ref(ctx);
+            assert_eq!(
+                super::vertical_tabs::pane_summary_kind(
+                    pane_group,
+                    pane_group.focused_pane_id(ctx),
+                    workspace.tabs[0].selected_icon,
+                    ctx,
+                ),
+                Some(super::vertical_tabs::SummaryPaneKind::CustomTerminal(TabIcon::Folder)),
+            );
+            let menu = workspace.tabs[0].menu_items(
+                0,
+                workspace.tabs.len(),
+                &workspace.tab_groups,
+                false,
+                false,
+                false,
+                ctx,
+            );
+            let choices: Vec<_> = menu
+                .iter()
+                .filter_map(|item| match item {
+                    MenuItem::ItemsRow { items } => Some(items),
+                    _ => None,
+                })
+                .flatten()
+                .filter_map(|item| match item.on_select_action() {
+                    Some(WorkspaceAction::SetTabIcon { tab_index, icon }) => {
+                        Some((*tab_index, *icon))
+                    }
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(choices.len(), TabIcon::ALL.len() + 1);
+            assert_eq!(choices[0], (0, None));
+            assert!(choices.iter().all(|(index, _)| *index == 0));
+            let transfer = workspace.get_tab_transfer_info(0, ctx).unwrap();
+            assert_eq!(transfer.selected_icon, Some(TabIcon::Folder));
+            let snapshot = workspace.snapshot(ctx.window_id(), false, ctx);
+            assert_eq!(snapshot.tabs[0].selected_icon, Some(TabIcon::Folder));
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: 0,
+                    icon: None,
+                },
+                ctx,
+            );
+            assert_eq!(workspace.tabs[0].selected_icon, None);
+            workspace.handle_action(
+                &WorkspaceAction::SetTabIcon {
+                    tab_index: usize::MAX,
+                    icon: Some(TabIcon::Code),
+                },
+                ctx,
+            );
+            assert!(workspace.tabs.iter().all(|tab| tab.selected_icon.is_none()));
         });
     });
 }

@@ -927,6 +927,7 @@ enum PendingSessionConfigTabConfigChipTutorial {
 /// animation continues seamlessly after a handoff.
 pub struct TransferredTab {
     pub pane_group: ViewHandle<PaneGroup>,
+    pub selected_icon: Option<crate::tab::TabIcon>,
     pub color: Option<AnsiColorIdentifier>,
     pub custom_title: Option<String>,
     pub left_panel_open: bool,
@@ -3803,6 +3804,7 @@ impl Workspace {
                         self.tabs[tab_index].default_directory_color =
                             saved_tab.default_directory_color;
                         self.tabs[tab_index].selected_color = saved_tab.selected_color;
+                        self.tabs[tab_index].selected_icon = saved_tab.selected_icon;
                         // Only restore pinned state when the Pinned Tabs
                         // feature is enabled.
                         if FeatureFlag::PinnedTabs.is_enabled() {
@@ -3898,6 +3900,7 @@ impl Workspace {
             #[cfg(feature = "local_fs")]
             NewWorkspaceSource::TransferredTab {
                 tab_color,
+                selected_icon,
                 custom_title,
                 left_panel_open,
                 right_panel_open,
@@ -3915,6 +3918,9 @@ impl Workspace {
                 if let (Some(color), Some(tab)) = (tab_color, self.tabs.last_mut()) {
                     tab.selected_color = SelectedTabColor::Color(color);
                 }
+                if let Some(tab) = self.tabs.last_mut() {
+                    tab.selected_icon = selected_icon;
+                }
                 if self.left_panel_visibility_across_tabs_enabled(ctx) {
                     self.left_panel_open = left_panel_open;
                 }
@@ -3929,6 +3935,7 @@ impl Workspace {
             #[cfg(not(feature = "local_fs"))]
             NewWorkspaceSource::TransferredTab {
                 tab_color,
+                selected_icon,
                 custom_title,
                 left_panel_open,
                 is_tab_drag_preview,
@@ -3943,6 +3950,9 @@ impl Workspace {
                 );
                 if let (Some(color), Some(tab)) = (tab_color, self.tabs.last_mut()) {
                     tab.selected_color = SelectedTabColor::Color(color);
+                }
+                if let Some(tab) = self.tabs.last_mut() {
+                    tab.selected_icon = selected_icon;
                 }
                 if self.left_panel_visibility_across_tabs_enabled(ctx) {
                     self.left_panel_open = left_panel_open;
@@ -11276,6 +11286,7 @@ impl Workspace {
                 TabSnapshot {
                     root,
                     custom_title: pane_group.custom_title(app),
+                    selected_icon: self.tabs.get(tab_index).and_then(|tab| tab.selected_icon),
                     default_directory_color: self
                         .tabs
                         .get(tab_index)
@@ -18555,7 +18566,7 @@ impl Workspace {
                 .visible_pane_ids()
                 .iter()
                 .filter_map(|pane_id| {
-                    pane_summary_kind(pane_group, *pane_id, ctx)
+                    pane_summary_kind(pane_group, *pane_id, tab.selected_icon, ctx)
                         .map(|kind| (pane_id.creation_order_id(), kind))
                 })
                 .collect();
@@ -21938,6 +21949,12 @@ impl TypedActionView for Workspace {
                     self.set_tab_group_color(group_id, next_tab_color(current), ctx);
                 } else {
                     self.set_tab_color(self.active_tab_index, next_tab_color(tab_color), ctx);
+                }
+            }
+            SetTabIcon { tab_index, icon } => {
+                if let Some(tab) = self.tabs.get_mut(*tab_index) {
+                    tab.selected_icon = *icon;
+                    ctx.notify();
                 }
             }
             SetActiveTabColor(color) => {
@@ -25555,6 +25572,7 @@ impl Workspace {
 
         Some(TransferredTab {
             pane_group,
+            selected_icon: tab.selected_icon,
             color,
             custom_title,
             left_panel_open,
@@ -25611,6 +25629,7 @@ impl Workspace {
     ) {
         let TransferredTab {
             pane_group,
+            selected_icon,
             color,
             draggable_state,
             ..
@@ -25626,6 +25645,7 @@ impl Workspace {
         // run is pushed past the group's last member instead.
         let index = self.clamp_past_group(index);
         let mut tab_data = TabData::new(pane_group);
+        tab_data.selected_icon = selected_icon;
         tab_data.selected_color = color.map_or(SelectedTabColor::Unset, SelectedTabColor::Color);
         tab_data.draggable_state = draggable_state;
         self.tabs.insert(index, tab_data);

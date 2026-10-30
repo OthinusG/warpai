@@ -122,6 +122,59 @@ pub enum SelectedTabColor {
     Color(AnsiColorIdentifier),
 }
 
+/// Stable names persisted with a tab; assets remain bundled and theme-aware.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TabIcon {
+    Folder,
+    Code,
+    Globe,
+    Cloud,
+    Laptop,
+    Tool,
+    Lightbulb,
+    Notebook,
+}
+
+impl TabIcon {
+    pub(crate) const ALL: [Self; 8] = [
+        Self::Folder,
+        Self::Code,
+        Self::Globe,
+        Self::Cloud,
+        Self::Laptop,
+        Self::Tool,
+        Self::Lightbulb,
+        Self::Notebook,
+    ];
+
+    pub(crate) fn icon(self) -> Icon {
+        match self {
+            Self::Folder => Icon::Folder,
+            Self::Code => Icon::Code2,
+            Self::Globe => Icon::Globe,
+            Self::Cloud => Icon::Cloud,
+            Self::Laptop => Icon::Laptop,
+            Self::Tool => Icon::Tool,
+            Self::Lightbulb => Icon::Lightbulb,
+            Self::Notebook => Icon::Notebook,
+        }
+    }
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Folder => warpui::localization::text("Folder"),
+            Self::Code => warpui::localization::text("Code"),
+            Self::Globe => warpui::localization::text("Globe"),
+            Self::Cloud => warpui::localization::text("Cloud"),
+            Self::Laptop => warpui::localization::text("Laptop"),
+            Self::Tool => warpui::localization::text("Tool"),
+            Self::Lightbulb => warpui::localization::text("Lightbulb"),
+            Self::Notebook => warpui::localization::text("Notebook"),
+        }
+    }
+}
+
 impl SelectedTabColor {
     /// Resolves the effective tab color: manual selection takes priority,
     /// falling back to `default` when no override is set.
@@ -192,6 +245,7 @@ pub struct TabData {
     pub default_directory_color: Option<AnsiColorIdentifier>,
     /// Color chosen manually by the user (e.g. right-click menu).
     pub selected_color: SelectedTabColor,
+    pub selected_icon: Option<TabIcon>,
     pub indicator_hover_state: MouseStateHandle,
     // Used by a later drag-tab branch to distinguish tabs that have moved into detached windows.
     pub detached: bool,
@@ -217,6 +271,7 @@ impl TabData {
             draggable_state: Default::default(),
             default_directory_color: None,
             selected_color: SelectedTabColor::Unset,
+            selected_icon: None,
             indicator_hover_state: Default::default(),
             detached: false,
             group_id: None,
@@ -293,6 +348,7 @@ impl TabData {
             self.modify_tab_menu_items(index, can_move_left, can_move_right, pane_name_target, ctx),
             self.close_tab_menu_items(index, tabs_len, ctx),
             Self::save_config_menu_items(index),
+            self.icon_option_menu_items(index, ctx),
             self.color_option_menu_items(index, terminal_colors),
         ] {
             // Skip empty sections so we don't emit a trailing separator (e.g.
@@ -690,6 +746,40 @@ impl TabData {
         menu_items
     }
 
+    fn icon_option_menu_items(
+        &self,
+        index: usize,
+        ctx: &AppContext,
+    ) -> Vec<MenuItem<WorkspaceAction>> {
+        let theme = Appearance::as_ref(ctx).theme();
+        vec![MenuItem::ItemsRow {
+            items: std::iter::once(None)
+                .chain(TabIcon::ALL.into_iter().map(Some))
+                .map(|icon| {
+                    let label = icon.map_or_else(
+                        || warpui::localization::text("Reset tab icon"),
+                        TabIcon::label,
+                    ).to_string();
+                    let fill = if self.selected_icon == icon {
+                        theme.accent()
+                    } else {
+                        theme.main_text_color(theme.background())
+                    };
+                    MenuItemFields::new_with_icon(
+                        icon.map_or(Icon::RefreshCcw, TabIcon::icon).into(),
+                        fill,
+                        label.clone(),
+                    )
+                    .with_tooltip(label)
+                    .with_on_select_action(WorkspaceAction::SetTabIcon {
+                        tab_index: index,
+                        icon,
+                    })
+                })
+                .collect(),
+        }]
+    }
+
     fn color_option_menu_items(
         &self,
         index: usize,
@@ -1060,8 +1150,23 @@ impl<'a> TabComponent<'a> {
             pane_group_id,
             pane_id,
         };
+        let mut rendered_tab = tab.clone();
+        let is_plain_terminal = tab
+            .pane_group
+            .as_ref(ctx)
+            .focused_session_view(ctx)
+            .is_some_and(|view| {
+                crate::terminal::cli_agent_sessions::CLIAgentSessionsModel::as_ref(ctx)
+                    .session(view.id())
+                    .is_none_or(|session| {
+                        matches!(session.agent, crate::terminal::CLIAgent::Unknown)
+                    })
+            });
+        if !is_plain_terminal {
+            rendered_tab.selected_icon = None;
+        }
         Self {
-            tab: tab.clone(),
+            tab: rendered_tab,
             tab_bar,
             editor,
             title,
@@ -1470,7 +1575,15 @@ impl<'a> TabComponent<'a> {
                 .with_uniform_margin(3.)
                 .finish(),
             ),
-            Indicator::None => None,
+            Indicator::None => self.tab.selected_icon.map(|icon| {
+                icon.icon()
+                    .to_warpui_icon(
+                        self.appearance
+                            .theme()
+                            .main_text_color(self.appearance.theme().background()),
+                    )
+                    .finish()
+            }),
             Indicator::Synced => Some(
                 Icon::LinkHorizontal
                     .to_warpui_icon(self.styles.synced_input_indicator_color.into())
@@ -1498,8 +1611,9 @@ impl<'a> TabComponent<'a> {
                     .finish(),
             ),
             Indicator::Shell(shell_indicator_type) => Some(
-                shell_indicator_type
-                    .to_icon()
+                self.tab
+                    .selected_icon
+                    .map_or_else(|| shell_indicator_type.to_icon(), TabIcon::icon)
                     .to_warpui_icon(internal_colors::neutral_5(self.appearance.theme()).into())
                     .finish(),
             ),
