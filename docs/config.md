@@ -77,6 +77,23 @@ Warpai ships with two signature themes: the default **Claude Warm Light** (warm 
 
 ---
 
+## Vertical Tab Icons
+
+Right-click a vertical tab to choose a bundled icon. To use your own artwork,
+place SVG or PNG files directly in `~/.config/warpai/icon` (on Windows,
+`%USERPROFILE%\.config\warpai\icon`) and open **Local icons** in the tab menu.
+The menu previews each valid image and refreshes when opened. Files in subfolders
+and symbolic links are not listed.
+
+Each tab remembers its selection across restarts and moves between windows.
+Choose **Default** to clear it. A missing or invalid local file uses the default
+icon; restoring the file under the same name restores the selection on refresh.
+SSH sessions show a circular SSH badge unless an icon is selected. Active Agent
+branding and status take priority. Horizontal tab icons keep their standard
+appearance.
+
+---
+
 ## Essential Keyboard Shortcuts
 
 <div class="table-wrapper">

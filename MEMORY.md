@@ -10,6 +10,12 @@
 
 ## Decisions & Context
 
+- Release documentation uses current functionality and exact published download
+  links. Keep update history in GitHub Release notes, not homepages or user guides.
+- Vertical tab icon usage belongs in bilingual config/features pages: local
+  SVG/PNG files live in `~/.config/warpai/icon`; selections persist per tab;
+  Agent branding/status takes priority over selections and automatic SSH badges.
+
 - **Documentation copy (2026-10-22)**: The owner requires current product and
   usage documentation, without release summaries, patch fix lists, or upgrade
   narratives. Keep current versions, downloads, and scope names; put change

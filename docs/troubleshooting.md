@@ -80,3 +80,5 @@ Warpai uses **Guarded PTY Delivery** to protect your workflow:
 - **Honest Metrics Principle**: Warpai strictly adheres to truthful data reporting. If an API returns missing quota data, Warpai displays `"Unavailable"` rather than fabricating a false "0%" or "100%".
 - **CLI Authentication**: Ensure you are logged into your vendor CLI on your desktop (e.g. run `claude` or `codex` interactively once to complete OAuth sign-in).
 - **Google Antigravity**: Requires `agy` version `>= 1.1.11` to parse the free `/usage` command.
+- **Proxy Configuration**: Usage requests support macOS automatic proxy configuration (PAC). Check that the configured proxy can reach your provider's usage service.
+- **Qoder / QoderCN**: Keep the vendor CLI installed and authenticated. Usage is read through its local daemon protocol, with a fallback for older CLI versions.

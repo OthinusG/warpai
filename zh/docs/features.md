@@ -444,6 +444,7 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
 - **智能交互式补全**：内置常用 CLI 命令签名库，键入时即时弹出参数描述与语法帮助。
 - **全局命令面板（Command Palette）**：`Cmd + P`（macOS）/ `Ctrl + P`（Windows）一键模糊搜索操作、配置与标签页。
 - **垂直标签栏与分屏**：左右/上下分屏排布，支持垂直标签树，适应超宽屏与多任务并行。
+- **自定义标签图标**：支持内置图标与 `~/.config/warpai/icon` 中的本地 SVG/PNG，按标签保存；SSH 标签自动显示圆形标识，Agent 品牌与状态优先显示。详见[配置说明]({{ site.baseurl }}/zh/docs/config.html#垂直标签图标)。
 
 ---
 
