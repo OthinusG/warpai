@@ -706,6 +706,14 @@ impl TabData {
         pane: PaneViewLocator,
         ctx: &AppContext,
     ) -> Vec<MenuItem<WorkspaceAction>> {
+        let pane = PaneViewLocator {
+            pane_id: self
+                .pane_group
+                .as_ref(ctx)
+                .original_pane_for_replacement(pane.pane_id)
+                .unwrap_or(pane.pane_id),
+            ..pane
+        };
         let selected_icon = self
             .pane_group
             .as_ref(ctx)

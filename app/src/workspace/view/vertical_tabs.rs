@@ -4169,6 +4169,9 @@ pub(super) fn pane_summary_kind(
     pane_id: PaneId,
     app: &AppContext,
 ) -> Option<SummaryPaneKind> {
+    let pane_id = pane_group
+        .original_pane_for_replacement(pane_id)
+        .unwrap_or(pane_id);
     let pane = pane_group.pane_by_id(pane_id)?;
     let pane_configuration = pane.pane_configuration();
     let pane_configuration = pane_configuration.as_ref(app);

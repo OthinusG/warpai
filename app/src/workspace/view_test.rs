@@ -1155,7 +1155,8 @@ fn terminal_ssh_session_pane_icons_are_independent_and_menu_targets_clicked_pane
             group.update(ctx, |group, ctx| {
                 group.handle_action(&PaneGroupAction::Add(Direction::Right), ctx)
             });
-            let second = group.as_ref(ctx).focused_pane_id(ctx);
+            let second = group.as_ref(ctx).pane_id_by_index(1).unwrap();
+            group.update(ctx, |group, ctx| group.focus_pane_by_id(second, ctx));
             assert_ne!(first, second);
             let pane = PaneViewLocator {
                 pane_group_id: group.id(),

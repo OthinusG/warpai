@@ -2,6 +2,11 @@
 
 ## 1.8.0 delivery contract
 
+Publication is on hold per the owner's subsequent 2026-10-30 instruction.
+Preserve immutable v1.8.0 at 56493761; release run 41037908298 was canceled.
+The pane-icon/tab-config correction must be verified before any new release
+authorization. Prepared 1.8.0 download pages remain local and unpublished.
+
 Owner authorization on 2026-10-30: merge PR #8 after cloud acceptance and publish
 1.8.0. Synchronize both READMEs, current source guides and bilingual website/docs
 in place. Keep change history in the Release notes, outside README, the website

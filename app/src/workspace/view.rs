@@ -7602,6 +7602,7 @@ impl Workspace {
                                 .visible_pane_ids()
                                 .into_iter()
                                 .filter_map(|id| {
+                                    let id = group.original_pane_for_replacement(id).unwrap_or(id);
                                     group.pane_by_id(id).map(|pane| pane.pane_configuration())
                                 })
                                 .collect::<Vec<_>>()
@@ -22128,7 +22129,11 @@ impl TypedActionView for Workspace {
                     .iter()
                     .find(|tab| tab.pane_group.id() == pane.pane_group_id)
                 {
-                    if let Some(target) = tab.pane_group.as_ref(ctx).pane_by_id(pane.pane_id) {
+                    let group = tab.pane_group.as_ref(ctx);
+                    let pane_id = group
+                        .original_pane_for_replacement(pane.pane_id)
+                        .unwrap_or(pane.pane_id);
+                    if let Some(target) = group.pane_by_id(pane_id) {
                         target
                             .pane_configuration()
                             .update(ctx, |configuration, ctx| {

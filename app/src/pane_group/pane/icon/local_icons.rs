@@ -72,10 +72,9 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
     paths
         .into_iter()
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?.to_owned();
-            if name.chars().any(char::is_control) {
-                return None;
-            }
+            let name = LocalPaneIcon::try_from(path.file_name()?.to_str()?.to_owned())
+                .ok()?
+                .name;
             let extension = path.extension()?.to_str()?.to_ascii_lowercase();
             if !matches!(extension.as_str(), "png" | "svg") {
                 return None;
@@ -161,6 +160,8 @@ mod tests {
         std::fs::write(root.join("broken.svg"), "not an SVG").unwrap();
         std::fs::write(root.join("broken.png"), "not a PNG").unwrap();
         std::fs::write(root.join("ignored.jpg"), SVG).unwrap();
+        #[cfg(unix)]
+        std::fs::write(root.join("invalid:name.svg"), SVG).unwrap();
         std::fs::create_dir(root.join("nested")).unwrap();
         std::fs::write(root.join("nested/ignored.svg"), SVG).unwrap();
         File::create(root.join("large.svg"))
