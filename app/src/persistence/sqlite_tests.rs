@@ -209,9 +209,11 @@ fn custom_tab_icon_persistence_restores_resets_and_ignores_unknown_names() {
     };
     for icon in std::iter::once(None)
         .chain(TabIcon::ALL.into_iter().map(Some))
-        .chain([None])
+        .chain([Some(TabIcon::Local(crate::tab::local_icons::LocalTabIcon {
+            name: "project.svg".into(), source: None,
+        })), None])
     {
-        app_state.windows[0].tabs[0].selected_icon = icon;
+        app_state.windows[0].tabs[0].selected_icon = icon.clone();
         save_app_state(&mut conn, &app_state).unwrap();
         let restored = read_sqlite_data(&mut conn, None).unwrap().app_state;
         assert_eq!(restored.windows[0].tabs[0].selected_icon, icon);

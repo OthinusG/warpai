@@ -1,3 +1,5 @@
+pub(crate) mod local_icons;
+
 use crate::ai::agent::conversation::ConversationStatus;
 use crate::ai::conversation_status_ui::{render_status_element, STATUS_ELEMENT_PADDING};
 use crate::appearance::Appearance;
@@ -61,6 +63,7 @@ pub(crate) const TAB_INDICATOR_HEIGHT: f32 = 14.0;
 
 /// Label for the tab right-click menu's "Move to group" submenu parent.
 pub const MOVE_TO_GROUP_LABEL: &str = "Move to group";
+pub(crate) const LOCAL_TAB_ICONS_LABEL: &str = "Local icons";
 
 /// Decides which tab-group context-menu entries apply to a tab, based on its
 /// group membership, whether it is the sole member of that group, and whether
@@ -122,8 +125,8 @@ pub enum SelectedTabColor {
     Color(AnsiColorIdentifier),
 }
 
-/// Stable names persisted with a tab; assets remain bundled and theme-aware.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Stable selections persisted with a tab; local sources are resolved separately.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TabIcon {
     Folder,
@@ -134,6 +137,7 @@ pub enum TabIcon {
     Tool,
     Lightbulb,
     Notebook,
+    Local(local_icons::LocalTabIcon),
 }
 
 impl TabIcon {
@@ -148,7 +152,7 @@ impl TabIcon {
         Self::Notebook,
     ];
 
-    pub(crate) fn icon(self) -> Icon {
+    pub(crate) fn icon(&self) -> Icon {
         match self {
             Self::Folder => Icon::Folder,
             Self::Code => Icon::Code2,
@@ -158,10 +162,11 @@ impl TabIcon {
             Self::Tool => Icon::Tool,
             Self::Lightbulb => Icon::Lightbulb,
             Self::Notebook => Icon::Notebook,
+            Self::Local(_) => Icon::Terminal,
         }
     }
 
-    pub(crate) fn label(self) -> &'static str {
+    pub(crate) fn label(&self) -> String {
         match self {
             Self::Folder => warpui::localization::text("Folder"),
             Self::Code => warpui::localization::text("Code"),
@@ -171,6 +176,19 @@ impl TabIcon {
             Self::Tool => warpui::localization::text("Tool"),
             Self::Lightbulb => warpui::localization::text("Lightbulb"),
             Self::Notebook => warpui::localization::text("Notebook"),
+            Self::Local(icon) => &icon.name,
+        }
+        .to_string()
+    }
+
+    pub(crate) fn is_available(&self) -> bool {
+        !matches!(self, Self::Local(icon) if icon.source.is_none())
+    }
+
+    pub(crate) fn local_source(&self) -> Option<&warpui::assets::asset_cache::AssetSource> {
+        match self {
+            Self::Local(icon) => icon.source.as_ref(),
+            _ => None,
         }
     }
 }
@@ -752,32 +770,43 @@ impl TabData {
         ctx: &AppContext,
     ) -> Vec<MenuItem<WorkspaceAction>> {
         let theme = Appearance::as_ref(ctx).theme();
-        vec![MenuItem::ItemsRow {
-            items: std::iter::once(None)
-                .chain(TabIcon::ALL.into_iter().map(Some))
-                .map(|icon| {
-                    let label = icon.map_or_else(
-                        || warpui::localization::text("Reset tab icon"),
-                        TabIcon::label,
-                    ).to_string();
-                    let fill = if self.selected_icon == icon {
-                        theme.accent()
-                    } else {
-                        theme.main_text_color(theme.background())
-                    };
-                    MenuItemFields::new_with_icon(
-                        icon.map_or(Icon::RefreshCcw, TabIcon::icon).into(),
-                        fill,
-                        label.clone(),
-                    )
-                    .with_tooltip(label)
-                    .with_on_select_action(WorkspaceAction::SetTabIcon {
-                        tab_index: index,
-                        icon,
+        vec![
+            MenuItem::ItemsRow {
+                items: std::iter::once(None)
+                    .chain(TabIcon::ALL.into_iter().map(Some))
+                    .map(|icon| {
+                        let label = icon.as_ref().map_or_else(
+                            || warpui::localization::text("Reset tab icon").to_string(),
+                            TabIcon::label,
+                        );
+                        let fill = if self.selected_icon == icon {
+                            theme.accent()
+                        } else {
+                            theme.main_text_color(theme.background())
+                        };
+                        MenuItemFields::new_with_icon(
+                            icon.as_ref().map_or(Icon::RefreshCcw, TabIcon::icon).into(),
+                            fill,
+                            label.clone(),
+                        )
+                        .with_tooltip(label)
+                        .with_on_select_action(
+                            WorkspaceAction::SetTabIcon {
+                                tab_index: index,
+                                icon,
+                            },
+                        )
                     })
-                })
-                .collect(),
-        }]
+                    .collect(),
+            },
+            MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
+                .with_tooltip(
+                    local_icons::directory()
+                        .map(|path| path.display().to_string())
+                        .unwrap_or_default(),
+                )
+                .into_item(),
+        ]
     }
 
     fn color_option_menu_items(

@@ -11,8 +11,8 @@
 - Store the selection per tab in the existing workspace snapshot/database. Restore
   it after restart; preserve it when moving the whole tab between windows.
 - Existing databases migrate with no override. Unknown persisted icon names fall
-  back to Default. No arbitrary paths, image decoding, new dependencies, directory
-  rules, Agent detection changes, or herdr/tmux integration.
+  back to Default. No new dependencies, Agent detection changes, or herdr/tmux
+  integration.
 
 ## Technical contract and tasks
 
@@ -62,3 +62,25 @@ Imagegen prompt: edit the supplied SSH icon into a perfect circular badge with
 charcoal left half, near-black right half, off-white rounded `>_` above `SSH`,
 generous internal padding and a true transparent exterior; preserve the original
 composition and use no purple, shadows, external background or mockup.
+
+## Local SVG/PNG discovery (2026-10-30)
+
+- Discover direct `.svg`/`.png` files (case-insensitive extensions) in the exact
+  home-relative `~/.config/warpai/icon` directory; do not recurse or follow symlinks.
+- Add a native Local icons submenu with image previews and filenames. Keep
+  English, Simplified and Traditional Chinese interface labels. An absent or empty
+  folder is a normal empty state. Refresh on startup and whenever a tab/pane menu
+  opens, asynchronously, without filesystem reads on the render path.
+- Persist only the basename as `TabIcon::Local`; keep validated image sources in
+  memory. On restart refresh the source from that directory. Reject traversal and
+  unsupported files. A deleted/invalid file falls back to the SSH/local default;
+  re-adding a valid file with the same name restores the selection on refresh.
+- Bound scanning and image sizes. Validate PNGs before loading. Parse and normalize
+  SVGs with the existing renderer while disabling external image-file resolution.
+  Feed validated bytes through the existing async asset cache, retaining colors,
+  alpha and vector scaling. Do not add a file watcher, import dialog or dependency.
+- Retain Agent > selected local/bundled icon > SSH > terminal precedence in all
+  vertical modes; leave horizontal rendering unchanged.
+- Verify supported/uppercase extensions, broken files, symlinks/traversal, stable
+  ordering, rename/delete/replacement refresh, persistence, missing directory and
+  Agent precedence with isolated files and native captures where available.

@@ -1135,6 +1135,9 @@ pub struct Workspace {
     /// tab group; each selection dispatches `WorkspaceAction::MoveTabToGroup`.
     move_to_group_sidecar_menu: ViewHandle<Menu<WorkspaceAction>>,
     show_move_to_group_sidecar: bool,
+    local_tab_icons: Vec<crate::tab::local_icons::LocalTabIcon>,
+    local_tab_icon_scan_pending: bool,
+    local_tab_icon_sidecar_active: bool,
     tab_config_action_sidecar_item: Option<SidecarItemKind>,
     tab_config_action_sidecar_mouse_states: crate::tab_configs::action_sidecar::SidecarMouseStates,
     remove_tab_config_confirmation_dialog: ViewHandle<RemoveTabConfigConfirmationDialog>,
@@ -3369,6 +3372,9 @@ impl Workspace {
             new_session_sidecar_add_repo_mouse_state: Default::default(),
             move_to_group_sidecar_menu,
             show_move_to_group_sidecar: false,
+            local_tab_icons: Vec::new(),
+            local_tab_icon_scan_pending: false,
+            local_tab_icon_sidecar_active: false,
             tab_config_action_sidecar_item: None,
             tab_config_action_sidecar_mouse_states: Default::default(),
             remove_tab_config_confirmation_dialog:
@@ -3376,6 +3382,7 @@ impl Workspace {
         };
 
         ws.configure_new_workspace(workspace_setting, ctx);
+        ws.refresh_local_tab_icons(ctx);
         Self::ensure_tools_panel_in_config(ctx);
         ws.sync_panel_positions_from_config(ctx);
         ws.sync_window_button_visibility(ctx);
@@ -3804,7 +3811,7 @@ impl Workspace {
                         self.tabs[tab_index].default_directory_color =
                             saved_tab.default_directory_color;
                         self.tabs[tab_index].selected_color = saved_tab.selected_color;
-                        self.tabs[tab_index].selected_icon = saved_tab.selected_icon;
+                        self.tabs[tab_index].selected_icon = saved_tab.selected_icon.clone();
                         // Only restore pinned state when the Pinned Tabs
                         // feature is enabled.
                         if FeatureFlag::PinnedTabs.is_enabled() {
@@ -7575,6 +7582,119 @@ impl Workspace {
             == 1
     }
 
+    fn refresh_local_tab_icons(&mut self, ctx: &mut ViewContext<Self>) {
+        #[cfg(not(target_family = "wasm"))]
+        {
+            if self.local_tab_icon_scan_pending {
+                return;
+            }
+            self.local_tab_icon_scan_pending = true;
+            ctx.spawn(
+                async {
+                    tokio::task::spawn_blocking(|| {
+                        crate::tab::local_icons::directory()
+                            .map(|root| crate::tab::local_icons::discover(&root))
+                            .unwrap_or_default()
+                    })
+                    .await
+                    .unwrap_or_default()
+                },
+                |me, icons, ctx| {
+                    me.local_tab_icon_scan_pending = false;
+                    me.local_tab_icons = icons;
+                    for tab in &mut me.tabs {
+                        if let Some(crate::tab::TabIcon::Local(selected)) =
+                            tab.selected_icon.as_mut()
+                        {
+                            selected.source = me
+                                .local_tab_icons
+                                .iter()
+                                .find(|icon| icon.name == selected.name)
+                                .and_then(|icon| icon.source.clone());
+                        }
+                    }
+                    if me.show_move_to_group_sidecar && me.local_tab_icon_sidecar_active {
+                        if let Some((index, _)) = me.show_tab_right_click_menu {
+                            let items = me.local_tab_icon_menu_items(index);
+                            me.move_to_group_sidecar_menu.update(ctx, |menu, ctx| menu.set_items(items, ctx));
+                        }
+                    }
+                    ctx.notify();
+                },
+            );
+        }
+    }
+
+    fn local_tab_icon_menu_items(&self, tab_index: usize) -> Vec<MenuItem<WorkspaceAction>> {
+        if self.local_tab_icons.is_empty() {
+            let label = if self.local_tab_icon_scan_pending {
+                warpui::localization::text("Loading local icons…")
+            } else {
+                warpui::localization::text("No SVG or PNG icons found")
+            };
+            return vec![MenuItemFields::new(label).with_disabled(true).into_item()];
+        }
+        self.local_tab_icons
+            .iter()
+            .filter_map(|icon| {
+                let source = icon.source.clone()?;
+                let selection = crate::tab::TabIcon::Local(icon.clone());
+                let selected = self
+                    .tabs
+                    .get(tab_index)
+                    .and_then(|tab| tab.selected_icon.as_ref())
+                    == Some(&selection);
+                let label = if selected {
+                    format!("✓ {}", icon.name)
+                } else {
+                    icon.name.clone()
+                };
+                Some(
+                    MenuItemFields::new_with_custom_label(
+                        Arc::new(move |_, _, appearance, _| {
+                            Flex::row()
+                                .with_cross_axis_alignment(CrossAxisAlignment::Center)
+                                .with_spacing(8.)
+                                .with_child(
+                                    crate::ui_components::icon_with_status::render_image_tab_icon(
+                                        source.clone(),
+                                        20.,
+                                    ),
+                                )
+                                .with_child(
+                                    Shrinkable::new(
+                                        1.,
+                                        Text::new_inline(
+                                            label.clone(),
+                                            appearance.ui_font_family(),
+                                            12.,
+                                        )
+                                        .with_color(
+                                            appearance
+                                                .theme()
+                                                .main_text_color(appearance.theme().background())
+                                                .into(),
+                                        )
+                                        .with_clip(ClipConfig::end())
+                                        .finish(),
+                                    )
+                                    .finish(),
+                                )
+                                .finish()
+                        }),
+                        Some(icon.name.clone()),
+                    )
+                    .with_tooltip(icon.name.clone())
+                    .with_on_select_action(WorkspaceAction::SetTabIcon {
+                        tab_index,
+                        icon: Some(selection),
+                    })
+                    .into_item(),
+                )
+            })
+            .collect()
+    }
+
     pub fn toggle_tab_right_click_menu(
         &mut self,
         tab_index: usize,
@@ -7588,6 +7708,7 @@ impl Workspace {
             return;
         }
 
+        self.refresh_local_tab_icons(ctx);
         let can_move_left = self.can_move_tab(tab_index, TabMovement::Left);
         let can_move_right = self.can_move_tab(tab_index, TabMovement::Right);
         let is_only_member_of_group = self.tab_is_only_member_of_its_group(tab_index);
@@ -7675,6 +7796,7 @@ impl Workspace {
                 reset_label: "Reset active pane name",
             },
         };
+        self.refresh_local_tab_icons(ctx);
         let can_move_left = self.can_move_tab(tab_index, TabMovement::Left);
         let can_move_right = self.can_move_tab(tab_index, TabMovement::Right);
         let is_only_member_of_group = self.tab_is_only_member_of_its_group(tab_index);
@@ -9821,14 +9943,20 @@ impl Workspace {
             return;
         };
 
-        if label == warpui::localization::text(MOVE_TO_GROUP_LABEL) {
+        let local_icons = label == warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL);
+        if local_icons || label == warpui::localization::text(MOVE_TO_GROUP_LABEL) {
             // Single-tab pane menu carries a `tab_index`; the multi-tab
             // selection menu has no single source tab so we pass `None` and
             // the sidecar builder infers the multi-tab selection.
             let source_tab_index = self
                 .show_tab_right_click_menu
                 .map(|(tab_index, _)| tab_index);
-            let items = self.build_move_to_group_sidecar_items(source_tab_index);
+            let items = if local_icons {
+                source_tab_index.map(|index| self.local_tab_icon_menu_items(index)).unwrap_or_default()
+            } else {
+                self.build_move_to_group_sidecar_items(source_tab_index)
+            };
+            self.local_tab_icon_sidecar_active = local_icons;
             if items.is_empty() {
                 self.hide_move_to_group_sidecar(ctx);
                 return;
@@ -9858,6 +9986,7 @@ impl Workspace {
             return;
         }
         self.show_move_to_group_sidecar = false;
+        self.local_tab_icon_sidecar_active = false;
         self.tab_right_click_menu.update(ctx, |menu, _| {
             menu.set_safe_zone_target(None);
             menu.set_submenu_being_shown_for_item_index(None);
@@ -9879,8 +10008,10 @@ impl Workspace {
         .finish();
 
         // Flip the anchor side when the sidecar would overflow the window.
-        let render_left =
-            self.should_render_sidecar_left(warpui::localization::text(MOVE_TO_GROUP_LABEL), MOVE_TO_GROUP_SIDECAR_WIDTH, app);
+        let label = warpui::localization::text(if self.local_tab_icon_sidecar_active {
+            crate::tab::LOCAL_TAB_ICONS_LABEL
+        } else { MOVE_TO_GROUP_LABEL });
+        let render_left = self.should_render_sidecar_left(label, MOVE_TO_GROUP_SIDECAR_WIDTH, app);
         let (offset, parent_anchor, child_anchor) = if render_left {
             (
                 vec2f(-4., 0.),
@@ -9898,7 +10029,7 @@ impl Workspace {
         stack.add_positioned_overlay_child(
             sidecar_element,
             OffsetPositioning::offset_from_save_position_element(
-                warpui::localization::text(MOVE_TO_GROUP_LABEL),
+                label,
                 offset,
                 PositionedElementOffsetBounds::WindowByPosition,
                 parent_anchor,
@@ -9921,6 +10052,7 @@ impl Workspace {
                     self.show_tab_selection_right_click_menu = None;
                 }
                 self.show_move_to_group_sidecar = false;
+                self.local_tab_icon_sidecar_active = false;
                 self.tab_right_click_menu.update(ctx, |menu, _| {
                     menu.set_safe_zone_target(None);
                     menu.set_submenu_being_shown_for_item_index(None);
@@ -11286,7 +11418,7 @@ impl Workspace {
                 TabSnapshot {
                     root,
                     custom_title: pane_group.custom_title(app),
-                    selected_icon: self.tabs.get(tab_index).and_then(|tab| tab.selected_icon),
+                    selected_icon: self.tabs.get(tab_index).and_then(|tab| tab.selected_icon.clone()),
                     default_directory_color: self
                         .tabs
                         .get(tab_index)
@@ -18566,7 +18698,7 @@ impl Workspace {
                 .visible_pane_ids()
                 .iter()
                 .filter_map(|pane_id| {
-                    pane_summary_kind(pane_group, *pane_id, tab.selected_icon, ctx)
+                    pane_summary_kind(pane_group, *pane_id, tab.selected_icon.as_ref(), ctx)
                         .map(|kind| (pane_id.creation_order_id(), kind))
                 })
                 .collect();
@@ -21953,7 +22085,7 @@ impl TypedActionView for Workspace {
             }
             SetTabIcon { tab_index, icon } => {
                 if let Some(tab) = self.tabs.get_mut(*tab_index) {
-                    tab.selected_icon = *icon;
+                    tab.selected_icon = icon.clone();
                     ctx.notify();
                 }
             }
@@ -25572,7 +25704,7 @@ impl Workspace {
 
         Some(TransferredTab {
             pane_group,
-            selected_icon: tab.selected_icon,
+            selected_icon: tab.selected_icon.clone(),
             color,
             custom_title,
             left_panel_open,

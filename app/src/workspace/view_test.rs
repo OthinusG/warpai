@@ -1157,7 +1157,7 @@ fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
                 super::vertical_tabs::pane_summary_kind(
                     pane_group,
                     pane_group.focused_pane_id(ctx),
-                    workspace.tabs[0].selected_icon,
+                    workspace.tabs[0].selected_icon.as_ref(),
                     ctx,
                 ),
                 Some(super::vertical_tabs::SummaryPaneKind::CustomTerminal(TabIcon::Folder)),
@@ -1180,7 +1180,7 @@ fn custom_tab_icon_menu_targets_requested_tab_and_resets() {
                 .flatten()
                 .filter_map(|item| match item.on_select_action() {
                     Some(WorkspaceAction::SetTabIcon { tab_index, icon }) => {
-                        Some((*tab_index, *icon))
+                        Some((*tab_index, icon.clone()))
                     }
                     _ => None,
                 })
@@ -1242,11 +1242,11 @@ fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
                     custom_command_prefix: None,
                 }, ctx);
             });
-            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(TabIcon::Folder), ctx),
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
                 Some(SummaryPaneKind::CLIAgent { agent: crate::terminal::CLIAgent::Codex }));
             assert_eq!(workspace.tabs[0].selected_icon, Some(TabIcon::Folder));
             CLIAgentSessionsModel::handle(ctx).update(ctx, |model, ctx| model.remove_session(terminal.id(), ctx));
-            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(TabIcon::Folder), ctx),
+            assert_eq!(pane_summary_kind(group.as_ref(ctx), pane, Some(&TabIcon::Folder), ctx),
                 Some(SummaryPaneKind::CustomTerminal(TabIcon::Folder)));
         });
     });

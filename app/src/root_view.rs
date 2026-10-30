@@ -616,7 +616,7 @@ pub fn create_transferred_window(
                 global_resource_handles.clone(),
                 NewWorkspaceSource::TransferredTab {
                     tab_color: transferred_tab.color,
-                    selected_icon: transferred_tab.selected_icon,
+                    selected_icon: transferred_tab.selected_icon.clone(),
                     custom_title: transferred_tab.custom_title.clone(),
                     left_panel_open: transferred_tab.left_panel_open,
                     vertical_tabs_panel_open: transferred_tab.vertical_tabs_panel_open,

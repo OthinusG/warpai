@@ -927,8 +927,8 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                     window_id,
                     custom_title: tab.custom_title.clone(),
                     icon: tab
-                        .selected_icon
-                        .and_then(|icon| serde_json::to_string(&icon).ok()),
+                        .selected_icon.as_ref()
+                        .and_then(|icon| serde_json::to_string(icon).ok()),
                     // We only persist and restore the selected color here
                     // (the default color based on the pwd is separately persisted and then applied on-restore)
                     color: match tab.selected_color {
