@@ -2821,13 +2821,15 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             },
         ))
         .with_step(
+            // Step actions run after events, so focus must be restored in a prior step.
+            TestStep::new("restore terminal focus").with_action(|app, window, _| {
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| workspace.focus_active_tab(ctx));
+            }),
+        )
+        .with_step(
             TestStep::new("seed unsent draft")
-                .with_action(|app, window, _| {
-                    // Menu captures temporarily own focus; this draft belongs to the terminal.
-                    let root = app.root_view::<RootView>(window).unwrap();
-                    let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
-                    workspace.update(app, |workspace, ctx| workspace.focus_active_tab(ctx));
-                })
                 .with_typed_characters(&["unsent collaboration draft"])
                 .add_named_assertion("draft entered", |app, window| {
                     warpui::async_assert!(
