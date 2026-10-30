@@ -1,5 +1,29 @@
 # Warpai releases
 
+## 1.8.1 delivery contract
+
+Owner authorization on 2026-10-30 resumes release work as 1.8.1 after macOS
+acceptance of the pane-icon correction. Merge the accepted branch and begin
+formal packaging; preserve the unpublished immutable v1.8.0 tag at 56493761.
+Do not resume its canceled release job or move its tag.
+
+Runtime/test source 693559e1 passed macOS default/platform builds, focused
+regressions and native captures plus both protocol jobs in run 41053972438.
+Subsequent changes affect memory and release documentation only. Retain the
+pending Windows native validation gate and every existing tagged macOS,
+Windows, Companion and Linux installer/provenance/checksum gate. Keep the release
+private until all 13 installers and four checksum inventories are verified.
+
+Release notes describe pane-owned icons, builtin/local SVG/PNG choices, existing
+tab config TOML save/reopen, SSH badges, PAC and Qoder usage queries. Companion
+remains 5.5.0; SSH protocol major 1 and Agent Bus major 2 remain unchanged.
+After public assets resolve, update both READMEs, current source guides,
+bilingual gh-pages home/docs/strings/footer and Homebrew. Product documentation
+describes current usage, without changelog or migration narratives. Verify the
+production Jekyll build, internal links, native captures, live deployment and
+independently downloaded installer hashes. No local Rust builds or personal
+application/configuration changes.
+
 ## 1.8.0 delivery contract
 
 Publication is on hold per the owner's subsequent 2026-10-30 instruction.

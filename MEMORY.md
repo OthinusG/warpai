@@ -26,7 +26,8 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - Public: Warpai 1.7.8.2 / Companion 5.5.0. Match README links to actual assets.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
-- Preserve unpublished v1.7.2, immutable v1.7.6 and paused v1.8.0 tags/drafts.
+- Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
+  Owner resumed publication as 1.8.1 after macOS acceptance (run 41053972438).
   Authorization/receipts: specs/RELEASE.md. Release monitoring follows its 30-minute cadence.
 - Windows SSH uses PowerShell, never CMD; remote OS owns grammar/path/completion.
   Audit: SSH-POWERSHELL-AUDIT.md. Mac-to-Linux passed; Windows ProxyJump failure
@@ -131,7 +132,7 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
   existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
   Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.
-  Contract: specs/custom-tab-icons.md. Publication remains paused; preserve v1.8.0.
+  Contract: specs/custom-tab-icons.md. Release as 1.8.1; preserve v1.8.0.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
