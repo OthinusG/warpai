@@ -927,7 +927,6 @@ enum PendingSessionConfigTabConfigChipTutorial {
 /// animation continues seamlessly after a handoff.
 pub struct TransferredTab {
     pub pane_group: ViewHandle<PaneGroup>,
-    pub selected_icon: Option<crate::tab::TabIcon>,
     pub color: Option<AnsiColorIdentifier>,
     pub custom_title: Option<String>,
     pub left_panel_open: bool,
@@ -1135,7 +1134,7 @@ pub struct Workspace {
     /// tab group; each selection dispatches `WorkspaceAction::MoveTabToGroup`.
     move_to_group_sidecar_menu: ViewHandle<Menu<WorkspaceAction>>,
     show_move_to_group_sidecar: bool,
-    local_tab_icons: Vec<crate::tab::local_icons::LocalTabIcon>,
+    local_tab_icons: Vec<crate::pane_group::pane::icon::local_icons::LocalPaneIcon>,
     local_tab_icon_scan_pending: bool,
     local_tab_icon_sidecar_active: bool,
     tab_config_action_sidecar_item: Option<SidecarItemKind>,
@@ -3811,7 +3810,6 @@ impl Workspace {
                         self.tabs[tab_index].default_directory_color =
                             saved_tab.default_directory_color;
                         self.tabs[tab_index].selected_color = saved_tab.selected_color;
-                        self.tabs[tab_index].selected_icon = saved_tab.selected_icon.clone();
                         // Only restore pinned state when the Pinned Tabs
                         // feature is enabled.
                         if FeatureFlag::PinnedTabs.is_enabled() {
@@ -3907,7 +3905,6 @@ impl Workspace {
             #[cfg(feature = "local_fs")]
             NewWorkspaceSource::TransferredTab {
                 tab_color,
-                selected_icon,
                 custom_title,
                 left_panel_open,
                 right_panel_open,
@@ -3925,9 +3922,6 @@ impl Workspace {
                 if let (Some(color), Some(tab)) = (tab_color, self.tabs.last_mut()) {
                     tab.selected_color = SelectedTabColor::Color(color);
                 }
-                if let Some(tab) = self.tabs.last_mut() {
-                    tab.selected_icon = selected_icon;
-                }
                 if self.left_panel_visibility_across_tabs_enabled(ctx) {
                     self.left_panel_open = left_panel_open;
                 }
@@ -3942,7 +3936,6 @@ impl Workspace {
             #[cfg(not(feature = "local_fs"))]
             NewWorkspaceSource::TransferredTab {
                 tab_color,
-                selected_icon,
                 custom_title,
                 left_panel_open,
                 is_tab_drag_preview,
@@ -3957,9 +3950,6 @@ impl Workspace {
                 );
                 if let (Some(color), Some(tab)) = (tab_color, self.tabs.last_mut()) {
                     tab.selected_color = SelectedTabColor::Color(color);
-                }
-                if let Some(tab) = self.tabs.last_mut() {
-                    tab.selected_icon = selected_icon;
                 }
                 if self.left_panel_visibility_across_tabs_enabled(ctx) {
                     self.left_panel_open = left_panel_open;
@@ -6823,6 +6813,7 @@ impl Workspace {
             rendered_title,
             ctx,
         );
+        self.refresh_local_tab_icons(ctx);
         if let Some(tab) = self.tabs.get_mut(self.active_tab_index) {
             // Apply tab color if specified, matching the launch config pattern.
             if let Some(color) = tab_color {
@@ -7592,8 +7583,8 @@ impl Workspace {
             ctx.spawn(
                 async {
                     tokio::task::spawn_blocking(|| {
-                        crate::tab::local_icons::directory()
-                            .map(|root| crate::tab::local_icons::discover(&root))
+                        crate::pane_group::pane::icon::local_icons::directory()
+                            .map(|root| crate::pane_group::pane::icon::local_icons::discover(&root))
                             .unwrap_or_default()
                     })
                     .await
@@ -7602,20 +7593,41 @@ impl Workspace {
                 |me, icons, ctx| {
                     me.local_tab_icon_scan_pending = false;
                     me.local_tab_icons = icons;
-                    for tab in &mut me.tabs {
-                        if let Some(crate::tab::TabIcon::Local(selected)) =
-                            tab.selected_icon.as_mut()
+                    let configurations: Vec<_> = me
+                        .tabs
+                        .iter()
+                        .flat_map(|tab| {
+                            let group = tab.pane_group.as_ref(ctx);
+                            group
+                                .visible_pane_ids()
+                                .into_iter()
+                                .filter_map(|id| {
+                                    group.pane_by_id(id).map(|pane| pane.pane_configuration())
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
+                    for configuration in configurations {
+                        let selected = configuration.as_ref(ctx).selected_icon.clone();
+                        if let Some(crate::pane_group::pane::icon::PaneIcon::Local(mut selected)) =
+                            selected
                         {
                             selected.source = me
                                 .local_tab_icons
                                 .iter()
                                 .find(|icon| icon.name == selected.name)
                                 .and_then(|icon| icon.source.clone());
+                            configuration.update(ctx, |configuration, ctx| {
+                                configuration.set_selected_icon(
+                                    Some(crate::pane_group::pane::icon::PaneIcon::Local(selected)),
+                                    ctx,
+                                );
+                            });
                         }
                     }
                     if me.show_move_to_group_sidecar && me.local_tab_icon_sidecar_active {
-                        if let Some((index, _)) = me.show_tab_right_click_menu {
-                            let items = me.local_tab_icon_menu_items(index);
+                        if let Some(pane) = me.pane_icon_menu_target(ctx) {
+                            let items = me.local_tab_icon_menu_items(pane, ctx);
                             me.move_to_group_sidecar_menu.update(ctx, |menu, ctx| menu.set_items(items, ctx));
                         }
                     }
@@ -7625,7 +7637,25 @@ impl Workspace {
         }
     }
 
-    fn local_tab_icon_menu_items(&self, tab_index: usize) -> Vec<MenuItem<WorkspaceAction>> {
+    fn pane_icon_menu_target(&self, ctx: &AppContext) -> Option<PaneViewLocator> {
+        self.tab_right_click_menu.read(ctx, |menu, _| {
+            menu.items().iter().find_map(|item| {
+                let MenuItem::ItemsRow { items } = item else {
+                    return None;
+                };
+                items.iter().find_map(|item| match item.on_select_action() {
+                    Some(WorkspaceAction::SetPaneIcon { pane, .. }) => Some(*pane),
+                    _ => None,
+                })
+            })
+        })
+    }
+
+    fn local_tab_icon_menu_items(
+        &self,
+        pane: PaneViewLocator,
+        ctx: &AppContext,
+    ) -> Vec<MenuItem<WorkspaceAction>> {
         if self.local_tab_icons.is_empty() {
             let label = if self.local_tab_icon_scan_pending {
                 warpui::localization::text("Loading local icons…")
@@ -7638,12 +7668,14 @@ impl Workspace {
             .iter()
             .filter_map(|icon| {
                 let source = icon.source.clone()?;
-                let selection = crate::tab::TabIcon::Local(icon.clone());
+                let selection = crate::pane_group::pane::icon::PaneIcon::Local(icon.clone());
                 let selected = self
                     .tabs
-                    .get(tab_index)
-                    .and_then(|tab| tab.selected_icon.as_ref())
-                    == Some(&selection);
+                    .iter()
+                    .find(|tab| tab.pane_group.id() == pane.pane_group_id)
+                    .and_then(|tab| tab.pane_group.as_ref(ctx).pane_by_id(pane.pane_id))
+                    .and_then(|pane| pane.pane_configuration().as_ref(ctx).selected_icon.clone())
+                    == Some(selection.clone());
                 let label = if selected {
                     format!("✓ {}", icon.name)
                 } else {
@@ -7685,8 +7717,8 @@ impl Workspace {
                         Some(icon.name.clone()),
                     )
                     .with_tooltip(icon.name.clone())
-                    .with_on_select_action(WorkspaceAction::SetTabIcon {
-                        tab_index,
+                    .with_on_select_action(WorkspaceAction::SetPaneIcon {
+                        pane,
                         icon: Some(selection),
                     })
                     .into_item(),
@@ -8442,6 +8474,7 @@ impl Workspace {
         });
 
         let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Settings(SettingsPaneSnapshot::Local {
@@ -9952,7 +9985,9 @@ impl Workspace {
                 .show_tab_right_click_menu
                 .map(|(tab_index, _)| tab_index);
             let items = if local_icons {
-                source_tab_index.map(|index| self.local_tab_icon_menu_items(index)).unwrap_or_default()
+                self.pane_icon_menu_target(ctx)
+                    .map(|pane| self.local_tab_icon_menu_items(pane, ctx))
+                    .unwrap_or_default()
             } else {
                 self.build_move_to_group_sidecar_items(source_tab_index)
             };
@@ -11418,7 +11453,6 @@ impl Workspace {
                 TabSnapshot {
                     root,
                     custom_title: pane_group.custom_title(app),
-                    selected_icon: self.tabs.get(tab_index).and_then(|tab| tab.selected_icon.clone()),
                     default_directory_color: self
                         .tabs
                         .get(tab_index)
@@ -12170,6 +12204,7 @@ impl Workspace {
         );
         self.add_tab_with_pane_layout(
             PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+                selected_icon: None,
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::Welcome { startup_directory },
@@ -12184,6 +12219,7 @@ impl Workspace {
     fn add_get_started_tab(&mut self, ctx: &mut ViewContext<Self>) {
         self.add_tab_with_pane_layout(
             PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+                selected_icon: None,
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::GetStarted,
@@ -12572,6 +12608,7 @@ impl Workspace {
     ) {
         // TODO: We should validate that this notebook exists and fallback if it doesn't
         let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -12589,6 +12626,7 @@ impl Workspace {
         ctx: &mut ViewContext<Self>,
     ) {
         let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Workflow(WorkflowPaneSnapshot::CloudWorkflow {
@@ -12606,6 +12644,7 @@ impl Workspace {
         ctx: &mut ViewContext<Self>,
     ) {
         let panes_layout = PanesLayout::Snapshot(Box::new(PaneNodeSnapshot::Leaf(LeafSnapshot {
+            selected_icon: None,
             is_focused: true,
             custom_vertical_tabs_title: None,
             contents: LeafContents::Notebook(NotebookPaneSnapshot::LocalFileNotebook {
@@ -18698,7 +18737,7 @@ impl Workspace {
                 .visible_pane_ids()
                 .iter()
                 .filter_map(|pane_id| {
-                    pane_summary_kind(pane_group, *pane_id, tab.selected_icon.as_ref(), ctx)
+                    pane_summary_kind(pane_group, *pane_id, ctx)
                         .map(|kind| (pane_id.creation_order_id(), kind))
                 })
                 .collect();
@@ -22083,11 +22122,21 @@ impl TypedActionView for Workspace {
                     self.set_tab_color(self.active_tab_index, next_tab_color(tab_color), ctx);
                 }
             }
-            SetTabIcon { tab_index, icon } => {
-                if let Some(tab) = self.tabs.get_mut(*tab_index) {
-                    tab.selected_icon = icon.clone();
-                    ctx.notify();
-                    self.focus_active_tab(ctx);
+            SetPaneIcon { pane, icon } => {
+                if let Some(tab) = self
+                    .tabs
+                    .iter()
+                    .find(|tab| tab.pane_group.id() == pane.pane_group_id)
+                {
+                    if let Some(target) = tab.pane_group.as_ref(ctx).pane_by_id(pane.pane_id) {
+                        target
+                            .pane_configuration()
+                            .update(ctx, |configuration, ctx| {
+                                configuration.set_selected_icon(icon.clone(), ctx);
+                            });
+                        ctx.notify();
+                        self.focus_active_tab(ctx);
+                    }
                 }
             }
             SetActiveTabColor(color) => {
@@ -25705,7 +25754,6 @@ impl Workspace {
 
         Some(TransferredTab {
             pane_group,
-            selected_icon: tab.selected_icon.clone(),
             color,
             custom_title,
             left_panel_open,
@@ -25762,7 +25810,6 @@ impl Workspace {
     ) {
         let TransferredTab {
             pane_group,
-            selected_icon,
             color,
             draggable_state,
             ..
@@ -25778,7 +25825,6 @@ impl Workspace {
         // run is pushed past the group's last member instead.
         let index = self.clamp_past_group(index);
         let mut tab_data = TabData::new(pane_group);
-        tab_data.selected_icon = selected_icon;
         tab_data.selected_color = color.map_or(SelectedTabColor::Unset, SelectedTabColor::Color);
         tab_data.draggable_state = draggable_state;
         self.tabs.insert(index, tab_data);

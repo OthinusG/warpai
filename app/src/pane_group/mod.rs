@@ -1303,6 +1303,7 @@ impl PaneGroup {
                 is_focused,
                 pane_mode,
                 shell,
+                icon,
             } => {
                 let uuid = Uuid::new_v4();
 
@@ -1379,6 +1380,11 @@ impl PaneGroup {
                     ctx,
                 );
 
+                pane_data
+                    .pane_configuration()
+                    .update(ctx, |configuration, ctx| {
+                        configuration.set_selected_icon(icon, ctx);
+                    });
                 let terminal_pane_id = pane_data.terminal_pane_id();
                 let pane_id = terminal_pane_id.into();
                 pane_contents.insert(pane_id, Box::new(pane_data));
@@ -1542,6 +1548,7 @@ impl PaneGroup {
         deferred_panes: &mut Vec<(PaneId, LeafSnapshot)>,
         pending_ambient_restorations: &mut Vec<(AmbientAgentTaskId, PaneId)>,
     ) -> anyhow::Result<(PaneData, InitialFocus)> {
+        let selected_icon = leaf.selected_icon.clone();
         let custom_vertical_tabs_title = leaf.custom_vertical_tabs_title.clone();
         let result = match leaf.contents {
             LeafContents::AIDocument(_) => {
@@ -1960,14 +1967,16 @@ impl PaneGroup {
             }
         };
 
-        if let (Ok((pane_data, _)), Some(title)) = (&result, custom_vertical_tabs_title.as_deref())
-        {
+        if let Ok((pane_data, _)) = &result {
             if let PaneNode::Leaf(pane_id) = &pane_data.root {
                 if let Some(pane) = pane_contents.get(pane_id) {
                     pane.as_pane()
                         .pane_configuration()
                         .update(ctx, |configuration, ctx| {
-                            configuration.set_custom_vertical_tabs_title(title, ctx);
+                            configuration.set_selected_icon(selected_icon, ctx);
+                            if let Some(title) = custom_vertical_tabs_title.as_deref() {
+                                configuration.set_custom_vertical_tabs_title(title, ctx);
+                            }
                         });
                 }
             }
@@ -1984,6 +1993,7 @@ impl PaneGroup {
         ctx: &mut ViewContext<Self>,
     ) -> (PaneData, InitialFocus) {
         for (placeholder_id, leaf) in deferred_panes {
+            let selected_icon = leaf.selected_icon.clone();
             let custom_vertical_tabs_title = leaf.custom_vertical_tabs_title.clone();
             match leaf.contents {
                 LeafContents::AIDocument(aidocument_snapshot) => {
@@ -2041,6 +2051,12 @@ impl PaneGroup {
                                     },
                                 );
                             }
+                            pane.as_pane().pane_configuration().update(
+                                ctx,
+                                |configuration, ctx| {
+                                    configuration.set_selected_icon(selected_icon, ctx);
+                                },
+                            );
                             pane_contents.insert(real_id, pane);
                         }
                     }
@@ -2113,6 +2129,13 @@ impl PaneGroup {
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
                     is_focused: *pane_id == self.focused_pane_id(app),
                     custom_vertical_tabs_title,
+                    selected_icon: self.pane_contents.get(pane_id).and_then(|pane| {
+                        pane.as_pane()
+                            .pane_configuration()
+                            .as_ref(app)
+                            .selected_icon
+                            .clone()
+                    }),
                     contents,
                 })
             }

@@ -926,9 +926,7 @@ fn save_app_state(conn: &mut SqliteConnection, app_state: &AppState) -> Result<(
                 .map(|tab| NewTab {
                     window_id,
                     custom_title: tab.custom_title.clone(),
-                    icon: tab
-                        .selected_icon.as_ref()
-                        .and_then(|icon| serde_json::to_string(icon).ok()),
+                    icon: None,
                     // We only persist and restore the selected color here
                     // (the default color based on the pwd is separately persisted and then applied on-restore)
                     color: match tab.selected_color {
@@ -1112,6 +1110,10 @@ fn save_pane_state(
         kind: kind.into(),
         is_focused: snapshot.is_focused,
         custom_vertical_tabs_title: snapshot.custom_vertical_tabs_title.clone(),
+        icon: snapshot
+            .selected_icon
+            .as_ref()
+            .and_then(|icon| serde_json::to_string(icon).ok()),
     };
 
     diesel::insert_into(schema::pane_leaves::dsl::pane_leaves)
@@ -2642,6 +2644,10 @@ fn read_node(conn: &mut SqliteConnection, node: model::PaneNode) -> Result<PaneN
             };
 
             Ok(PaneNodeSnapshot::Leaf(LeafSnapshot {
+                selected_icon: pane
+                    .icon
+                    .as_deref()
+                    .and_then(|icon| serde_json::from_str(icon).ok()),
                 is_focused: pane.is_focused,
                 custom_vertical_tabs_title: pane.custom_vertical_tabs_title,
                 contents,
@@ -2766,10 +2772,6 @@ fn read_sqlite_data(
                         Some(TabSnapshot {
                             root,
                             custom_title: tab.custom_title,
-                            selected_icon: tab
-                                .icon
-                                .as_deref()
-                                .and_then(|icon| serde_json::from_str(icon).ok()),
                             default_directory_color: None,
                             selected_color: tab
                                 .color

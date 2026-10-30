@@ -2,7 +2,7 @@
   "Local icons": ["本地图标", "本機圖示"],
   "Loading local icons…": ["正在加载本地图标…", "正在載入本機圖示…"],
   "No SVG or PNG icons found": ["未找到 SVG 或 PNG 图标", "找不到 SVG 或 PNG 圖示"],
-  "Reset tab icon": ["恢复默认图标", "還原預設圖示"],
+  "Reset pane icon": ["恢复窗格默认图标", "還原窗格預設圖示"],
   "Globe": ["地球", "地球"],
   "Cloud": ["云", "雲端"],
   "Laptop": ["电脑", "電腦"],

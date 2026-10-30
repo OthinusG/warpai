@@ -689,6 +689,7 @@ pub struct PaneConfiguration {
     title: String,
     title_secondary: String,
     custom_vertical_tabs_title: Option<String>,
+    pub(crate) selected_icon: Option<icon::PaneIcon>,
     show_active_pane_indicator: bool,
 
     /// If true, we draw an accent border around the pane.
@@ -716,6 +717,7 @@ impl PaneConfiguration {
             title: title.into(),
             title_secondary: String::from(""),
             custom_vertical_tabs_title: None,
+            selected_icon: None,
             show_active_pane_indicator: false,
             show_accent_border: false,
             has_open_modal: false,
@@ -734,6 +736,15 @@ impl PaneConfiguration {
 
     pub fn custom_vertical_tabs_title(&self) -> Option<&str> {
         self.custom_vertical_tabs_title.as_deref()
+    }
+
+    pub(crate) fn set_selected_icon(
+        &mut self,
+        icon: Option<icon::PaneIcon>,
+        ctx: &mut ModelContext<Self>,
+    ) {
+        self.selected_icon = icon;
+        ctx.emit(PaneConfigurationEvent::VerticalTabsTitleUpdated);
     }
 
     pub fn dim_even_if_focused(&self) -> bool {

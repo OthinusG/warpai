@@ -164,6 +164,7 @@ impl TypedActionView for UsageSettingsView {
                             title: None,
                             color: None,
                             panes: vec![TabConfigPaneNode {
+                                icon: None,
                                 id: "main".into(),
                                 pane_type: Some(TabConfigPaneType::Terminal),
                                 split: None,

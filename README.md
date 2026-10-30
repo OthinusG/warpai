@@ -87,7 +87,7 @@ Warpai brings Agent management and project work into one unified application, re
 - **Center GPU-accelerated terminal**:
   - High-performance GPU rendering powered by Rust `wgpu` and `winit`.
   - Discrete command blocks with exit codes, execution duration, and isolated copy/share tools.
-  - Vertical tab management, split panes, intelligent autocompletion, fuzzy command palette, and configurable keep-awake controls.
+  - Vertical tab management, independent pane icons, split panes, intelligent autocompletion, fuzzy command palette, and configurable keep-awake controls.
 - **Right Project Explorer & built-in editor**:
   - Browse, create, rename, and delete project files locally or across SSH remote hosts.
   - Built-in text and code editor with syntax highlighting, line numbers, and Vim keybindings.
@@ -103,6 +103,14 @@ Enable **Settings > Features > Agent communication** to select participating age
 ### Multi-provider quota monitoring
 
 The collaboration panel's **Data usage** footer displays connected provider accounts. Configure accounts and thresholds in **Settings > Features > Data usage**. The footer independently scrolls up to four accounts, keeping provider badges, quota progress bars, and token balances visible while you coordinate active tasks.
+
+### Pane icons and reusable tab configs
+
+Right-click a pane in the vertical sidebar to choose a bundled icon or a local
+SVG/PNG from `~/.config/warpai/icon`. Each pane keeps its own selection. Saving a
+tab config includes the icons in the corresponding `[[panes]]` TOML entries and
+restores them when reopened. Use **Reset pane icon** to clear a selection. Agent
+branding and status take priority, followed by the selected icon and SSH badge.
 
 <a id="remote-work-is-part-of-the-same-workflow"></a>
 

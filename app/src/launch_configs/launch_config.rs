@@ -105,6 +105,8 @@ pub enum PaneTemplateType {
         /// Sourced from the `shell` field of a tab config pane node.
         #[serde(skip_serializing_if = "Option::is_none", default)]
         shell: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        icon: Option<crate::pane_group::pane::icon::PaneIcon>,
     },
     PaneBranchTemplate {
         split_direction: SplitDirection,
@@ -143,6 +145,7 @@ impl TryFrom<PaneNodeSnapshot> for PaneTemplateType {
                     is_focused: Some(leaf.is_focused),
                     pane_mode: PaneMode::Terminal,
                     shell: None,
+                    icon: leaf.selected_icon,
                 }),
                 // Currently, notebook panes cannot be saved in launch configurations.
                 LeafContents::Notebook(_)
@@ -286,6 +289,7 @@ pub fn make_mock_single_window_launch_config() -> LaunchConfig {
                         commands: vec!["echo test_command".into()],
                         pane_mode: PaneMode::Terminal,
                         shell: None,
+                        icon: None,
                     },
                     commands: Vec::new(),
                     color: None,
@@ -298,6 +302,7 @@ pub fn make_mock_single_window_launch_config() -> LaunchConfig {
                         commands: vec!["echo test_command_on_another_tab".into()],
                         pane_mode: PaneMode::Terminal,
                         shell: None,
+                        icon: None,
                     },
                     commands: Vec::new(),
                     color: None,

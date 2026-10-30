@@ -155,7 +155,10 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 
 ## Product defaults, CLI integration and website
 
-- Vertical tab icons persist per tab; discover SVG/PNG in ~/.config/warpai/icon asynchronously. Agent > selection > circular SSH badge > terminal. Contract: specs/custom-tab-icons.md.
+- Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
+  existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
+  Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.
+  Contract: specs/custom-tab-icons.md. Publication remains paused; preserve v1.8.0.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve

@@ -18,7 +18,6 @@ fn single_tab_snapshot(root: PaneNodeSnapshot) -> AppState {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root,
                 left_panel: None,
                 right_panel: None,
@@ -82,6 +81,7 @@ fn test_config_from_snapshot_flattens_single_pane() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: true,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -93,6 +93,7 @@ fn test_config_from_snapshot_flattens_single_pane() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: true,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -116,6 +117,7 @@ fn test_config_from_snapshot_flattens_single_pane() {
     assert_eq!(
         template.windows[0].tabs[0].layout,
         PaneTemplateType::PaneTemplate {
+            icon: None,
             is_focused: Some(true),
             cwd: PathBuf::from("/some/dir"),
             commands: vec![],
@@ -133,6 +135,7 @@ fn test_config_from_snapshot_filters_panes() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: true,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -152,6 +155,7 @@ fn test_config_from_snapshot_filters_panes() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: false,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -163,6 +167,7 @@ fn test_config_from_snapshot_filters_panes() {
             (
                 PaneFlex(1.),
                 PaneNodeSnapshot::Leaf(LeafSnapshot {
+                    selected_icon: None,
                     is_focused: false,
                     custom_vertical_tabs_title: None,
                     contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -189,6 +194,7 @@ fn test_config_from_snapshot_filters_panes() {
             split_direction: SplitDirection::Vertical.into(),
             panes: vec![
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     is_focused: Some(true),
                     cwd: PathBuf::from("/path/to/dir"),
                     commands: vec![],
@@ -196,6 +202,7 @@ fn test_config_from_snapshot_filters_panes() {
                     shell: None,
                 },
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     is_focused: Some(false),
                     cwd: PathBuf::from("/some/dir"),
                     commands: vec![],
@@ -216,6 +223,7 @@ fn test_config_from_snapshot_filters_tabs() {
         children: vec![(
             PaneFlex(1.),
             PaneNodeSnapshot::Leaf(LeafSnapshot {
+                selected_icon: None,
                 is_focused: true,
                 custom_vertical_tabs_title: None,
                 contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -250,6 +258,7 @@ windows:
     assert_eq!(
         layout,
         PaneTemplateType::PaneTemplate {
+            icon: None,
             cwd: PathBuf::from("/tmp"),
             commands: vec![CommandTemplate {
                 exec: "echo hello".to_string()
@@ -289,6 +298,7 @@ windows:
             split_direction: SplitDirection::Horizontal.into(),
             panes: vec![
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     cwd: PathBuf::from("/tmp/left"),
                     commands: vec![],
                     is_focused: Some(false),
@@ -296,6 +306,7 @@ windows:
                     shell: None,
                 },
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     cwd: PathBuf::from("/tmp/right"),
                     commands: vec![CommandTemplate {
                         exec: "echo focused".to_string()
@@ -335,6 +346,7 @@ windows:
             split_direction: SplitDirection::Horizontal.into(),
             panes: vec![
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     cwd: PathBuf::from("/tmp/left"),
                     commands: vec![CommandTemplate {
                         exec: "echo first".to_string()
@@ -344,6 +356,7 @@ windows:
                     shell: None,
                 },
                 PaneTemplateType::PaneTemplate {
+                    icon: None,
                     cwd: PathBuf::from("/tmp/right"),
                     commands: vec![],
                     is_focused: None,
@@ -364,12 +377,12 @@ fn test_config_with_active_tab_index() {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root: PaneNodeSnapshot::Branch(BranchSnapshot {
                     direction: SplitDirection::Vertical,
                     children: vec![(
                         PaneFlex(1.),
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
+                            selected_icon: None,
                             is_focused: true,
                             custom_vertical_tabs_title: None,
                             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -409,12 +422,12 @@ fn test_config_with_active_tab_index_and_filtered_tabs() {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root: PaneNodeSnapshot::Branch(BranchSnapshot {
                     direction: SplitDirection::Vertical,
                     children: vec![(
                         PaneFlex(1.),
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
+                            selected_icon: None,
                             is_focused: true,
                             custom_vertical_tabs_title: None,
                             contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
@@ -433,12 +446,12 @@ fn test_config_with_active_tab_index_and_filtered_tabs() {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root: PaneNodeSnapshot::Branch(BranchSnapshot {
                     direction: SplitDirection::Vertical,
                     children: vec![(
                         PaneFlex(1.),
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
+                            selected_icon: None,
                             is_focused: true,
                             custom_vertical_tabs_title: None,
                             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -477,12 +490,12 @@ fn test_config_with_active_tab_being_filtered() {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root: PaneNodeSnapshot::Branch(BranchSnapshot {
                     direction: SplitDirection::Vertical,
                     children: vec![(
                         PaneFlex(1.),
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
+                            selected_icon: None,
                             is_focused: true,
                             custom_vertical_tabs_title: None,
                             contents: LeafContents::Terminal(TerminalPaneSnapshot {
@@ -509,12 +522,12 @@ fn test_config_with_active_tab_being_filtered() {
                 custom_title: None,
                 default_directory_color: None,
                 selected_color: SelectedTabColor::default(),
-                selected_icon: None,
                 root: PaneNodeSnapshot::Branch(BranchSnapshot {
                     direction: SplitDirection::Vertical,
                     children: vec![(
                         PaneFlex(1.),
                         PaneNodeSnapshot::Leaf(LeafSnapshot {
+                            selected_icon: None,
                             is_focused: true,
                             custom_vertical_tabs_title: None,
                             contents: LeafContents::Notebook(NotebookPaneSnapshot::CloudNotebook {
