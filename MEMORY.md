@@ -3,12 +3,19 @@
 ## Project
 
 - **Name**: Warpai Website (`warpai` repository, `gh-pages` branch)
-- **Path**: `/Users/wqin/workplace/warpai-gh-pages`
+- **Path**: `/Users/wqin/workplace/warpai-release-site`
 - **Remote**: `https://github.com/OthinusG/warpai.git` (branch: `gh-pages`)
 - **Hosting**: GitHub Pages at `https://othinusg.github.io/warpai/`
 - **Stack**: Jekyll, HTML5, CSS3, Vanilla JS, GitHub Pages native build
 
 ## Decisions & Context
+
+- **Warpai 1.8.1 download sync (2026-10-31)**: Both homepages, strings/footer,
+  install and SSH/WSL guides target the public 1.8.1 installers; Companion remains
+  5.5.0. Config/features pages describe pane-owned icons saved in existing tab
+  configs. PAC and Qoder CLI usage guidance describe current behavior. All 19
+  release assets passed independent checksum checks and public HTTP checks.
+  Production Jekyll build and internal links across 34 current pages passed.
 
 - Release documentation uses current functionality and exact published download
   links. Keep update history in GitHub Release notes, not homepages or user guides.
