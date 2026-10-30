@@ -27,6 +27,18 @@ production Jekyll build, internal links, native captures, live deployment and
 independently downloaded installer hashes. No local Rust builds or personal
 application/configuration changes.
 
+### GitHub release-service recovery
+
+The first attempt of macOS run 41060413768 passed all compilation, test,
+packaging, signing and DMG gates, but GitHub returned HTTP 500 while creating
+the draft. Both tag lookup and release-list inspection confirmed that no
+v1.8.1 draft or assets were created. Formal macOS installers are not retained
+as standalone workflow artifacts, so rerun only its failed desktop job; reuse
+the three successful Companion jobs. Do not move the tag or bypass gates.
+Windows run 41072512977 and Linux run 41067669163 build the same tag in parallel
+with automatic publication disabled. Verify all assets before publication;
+avoid duplicate automatic platform builds after recovery.
+
 ## 1.8.0 delivery contract
 
 Publication is on hold per the owner's subsequent 2026-10-30 instruction.
