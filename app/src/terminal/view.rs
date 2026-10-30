@@ -6557,6 +6557,7 @@ impl TerminalView {
     /// Uses native SSH metadata so local WSL and shared viewers keep their own icons.
     pub(crate) fn is_ssh_for_tab<C: ModelAsRef>(&self, ctx: &C) -> bool {
         self.has_pending_ssh_command()
+            || self.model.lock().is_warpified_ssh()
             || self.active_block_session_id()
                 .and_then(|id| self.sessions.as_ref(ctx).get(id))
                 .is_some_and(|session| session.is_ssh())
