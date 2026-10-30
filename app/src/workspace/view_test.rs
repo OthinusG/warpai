@@ -1290,6 +1290,8 @@ fn terminal_ssh_session_pane_icons_are_independent_and_menu_targets_clicked_pane
 
 #[test]
 fn terminal_ssh_session_pane_icon_yields_to_agent_and_restores_manual_choice() {
+    use super::vertical_tabs::{pane_summary_kind, SummaryPaneKind};
+    use crate::pane_group::pane::icon::PaneIcon;
     use crate::terminal::cli_agent_sessions::{
         CLIAgentInputState, CLIAgentSession, CLIAgentSessionContext, CLIAgentSessionStatus,
     };
