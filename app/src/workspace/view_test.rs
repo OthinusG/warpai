@@ -89,6 +89,14 @@ use warpui::{platform::WindowStyle, App, ViewHandle};
 
 fn initialize_app(app: &mut App) {
     initialize_settings_for_tests(app);
+    crate::settings::LanguageSettings::register(app);
+    crate::release_updates::UpdateSettings::register(app);
+    app.add_singleton_model(|_| crate::release_updates::ReleaseUpdates::default());
+    #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
+    {
+        app.add_singleton_model(|_| crate::agent_communication::AgentCommunication::mock());
+        app.add_singleton_model(|_| crate::agent_usage::AgentUsage::default());
+    }
 
     // Add the necessary singleton models to the App
     app.add_singleton_model(|_ctx| ServerApiProvider::new_for_test());
@@ -138,6 +146,7 @@ fn initialize_app(app: &mut App) {
     });
     app.add_singleton_model(|_| BlocklistAIHistoryModel::new_for_test());
     app.add_singleton_model(|_| CLIAgentSessionsModel::new());
+    app.add_singleton_model(crate::keep_awake::KeepAwake::new);
     app.add_singleton_model(|_| ActiveAgentViewsModel::new());
     app.add_singleton_model(AgentNotificationsModel::new);
     app.add_singleton_model(AgentConversationsModel::new);

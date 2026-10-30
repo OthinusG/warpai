@@ -82,8 +82,11 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalTabIcon> {
                 if width == 0 || height == 0 || width > 4096 || height > 4096 {
                     return None;
                 }
-                image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
-                data
+                let image = image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
+                // Tab previews never need a full-size bitmap resident in the UI cache.
+                let mut output = std::io::Cursor::new(Vec::new());
+                image.thumbnail(256, 256).write_to(&mut output, image::ImageFormat::Png).ok()?;
+                output.into_inner()
             };
             if data.len() > MAX_ICON_BYTES as usize || total + data.len() > MAX_TOTAL_BYTES {
                 return None;

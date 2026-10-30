@@ -75,7 +75,9 @@ composition and use no purple, shadows, external background or mockup.
   memory. On restart refresh the source from that directory. Reject traversal and
   unsupported files. A deleted/invalid file falls back to the SSH/local default;
   re-adding a valid file with the same name restores the selection on refresh.
-- Bound scanning and image sizes. Validate PNGs before loading. Parse and normalize
+- Bound scanning (1,024 directory entries / 128 icons), source files (4 MiB),
+  dimensions (4,096 px) and total encoded data (16 MiB). Validate PNGs and cache
+  at most 256 px previews without changing original files. Parse and normalize
   SVGs with the existing renderer while disabling external image-file resolution.
   Feed validated bytes through the existing async asset cache, retaining colors,
   alpha and vector scaling. Do not add a file watcher, import dialog or dependency.
@@ -84,3 +86,15 @@ composition and use no purple, shadows, external background or mockup.
 - Verify supported/uppercase extensions, broken files, symlinks/traversal, stable
   ordering, rename/delete/replacement refresh, persistence, missing directory and
   Agent precedence with isolated files and native captures where available.
+
+## Verification receipts
+
+- Run 41000830906 (a5e72de8): macOS and Windows default/platform builds passed;
+  both protocol jobs passed; local SVG/PNG validation/refresh and external SVG
+  image isolation tests passed on both platforms. The workspace precedence test
+  failed before its assertions because the shared workspace test initializer did
+  not register LanguageSettings. Its eagerly-created settings pages also require
+  UpdateSettings, ReleaseUpdates, AgentUsage and AgentCommunication; the workspace
+  subscribes to KeepAwake. Register test defaults/mocks for these dependencies so
+  this regression fixture matches the production initialization contract without
+  loading credentials or starting external services. Re-run required after fix.
