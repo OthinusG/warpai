@@ -98,3 +98,12 @@ composition and use no purple, shadows, external background or mockup.
   subscribes to KeepAwake. Register test defaults/mocks for these dependencies so
   this regression fixture matches the production initialization contract without
   loading credentials or starting external services. Re-run required after fix.
+
+- Run 41006688910 (ba0aca90): the missing test-model setup is fixed; both
+  desktop build/test phases passed. macOS produced the vertical-icon and picker
+  screenshots, then the legacy capture's `seed unsent draft` step failed after
+  the menu focus sequence. Restore active-pane focus when selecting/resetting an
+  icon, assert this in the precedence regression, and explicitly target terminal
+  input before typing the capture draft. Screenshot QA also found the ninth
+  picker icon extending beyond the right inset; split the picker into five/four
+  30px cells within the native 186px menu. Re-run native capture after both fixes.

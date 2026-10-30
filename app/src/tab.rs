@@ -770,43 +770,35 @@ impl TabData {
         ctx: &AppContext,
     ) -> Vec<MenuItem<WorkspaceAction>> {
         let theme = Appearance::as_ref(ctx).theme();
-        vec![
-            MenuItem::ItemsRow {
-                items: std::iter::once(None)
-                    .chain(TabIcon::ALL.into_iter().map(Some))
-                    .map(|icon| {
-                        let label = icon.as_ref().map_or_else(
-                            || warpui::localization::text("Reset tab icon").to_string(),
-                            TabIcon::label,
-                        );
-                        let fill = if self.selected_icon == icon {
-                            theme.accent()
-                        } else {
-                            theme.main_text_color(theme.background())
-                        };
-                        MenuItemFields::new_with_icon(
-                            icon.as_ref().map_or(Icon::RefreshCcw, TabIcon::icon).into(),
-                            fill,
-                            label.clone(),
-                        )
-                        .with_tooltip(label)
-                        .with_on_select_action(
-                            WorkspaceAction::SetTabIcon {
-                                tab_index: index,
-                                icon,
-                            },
-                        )
-                    })
-                    .collect(),
-            },
-            MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
-                .with_tooltip(
-                    local_icons::directory()
-                        .map(|path| path.display().to_string())
-                        .unwrap_or_default(),
+        let items: Vec<_> = std::iter::once(None)
+            .chain(TabIcon::ALL.into_iter().map(Some))
+            .map(|icon| {
+                let label = icon.as_ref().map_or_else(
+                    || warpui::localization::text("Reset tab icon").to_string(),
+                    TabIcon::label,
+                );
+                let fill = if self.selected_icon == icon {
+                    theme.accent()
+                } else {
+                    theme.main_text_color(theme.background())
+                };
+                MenuItemFields::new_with_icon(
+                    icon.as_ref().map_or(Icon::RefreshCcw, TabIcon::icon).into(),
+                    fill,
+                    label.clone(),
                 )
-                .into_item(),
-        ]
+                .with_padding_override(5., 6.)
+                .with_tooltip(label)
+                .with_on_select_action(WorkspaceAction::SetTabIcon { tab_index: index, icon })
+            })
+            .collect();
+        // Five 30px cells fit within the native 186px menu and its 28px insets.
+        let mut rows: Vec<_> = items.chunks(5)
+            .map(|items| MenuItem::ItemsRow { items: items.to_vec() }).collect();
+        rows.push(MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
+            .with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
+            .into_item());
+        rows
     }
 
     fn color_option_menu_items(
