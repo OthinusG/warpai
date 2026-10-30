@@ -426,9 +426,13 @@ pub(crate) async fn fetch(
     if token.is_empty() {
         return Err("Sign in or connect an account in Settings");
     }
-    let client = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(reqwest::redirect::Policy::none());
+    if let Some(proxy) = super::system_proxy::custom_proxy() {
+        builder = builder.proxy(proxy);
+    }
+    let client = builder
         .build()
         .map_err(|_| "Could not start usage query")?;
     let project;
