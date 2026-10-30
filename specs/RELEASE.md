@@ -39,6 +39,38 @@ Windows run 41072512977 and Linux run 41067669163 build the same tag in parallel
 with automatic publication disabled. Verify all assets before publication;
 avoid duplicate automatic platform builds after recovery.
 
+Both Linux architecture jobs passed package verification and installed X11
+startup checks. Their attachment job failed only because the macOS retry had
+not yet created the draft (`release not found`). Retain both package artifacts
+and rerun only the failed attachment job after the draft exists.
+Windows run 41072512977 likewise passed build, application/installer version,
+icon and package checks, then failed on upload because the draft was absent.
+Its retained `windows-release-installer` artifact provides the source receipt,
+installer and checksum for verified attachment after macOS recovery.
+
+### Public package acceptance
+
+Published [Warpai 1.8.1](https://github.com/OthinusG/warpai/releases/tag/v1.8.1)
+as latest stable at 2026-10-30T17:35:52Z. macOS retry 41060413768, Windows
+41084203549 and the attachment-only retry of Linux 41067669163 succeeded.
+The automatic duplicate Linux run 41095231880 was canceled; no package or tag
+was overwritten. Windows publication uses the successful follow-up's installer,
+not the earlier parallel attempt's retained artifact.
+
+Downloaded all 13 installers and six checksum/provenance files. All 19 hashes
+match GitHub digests; four checksum inventories and both Linux source/tag/target/
+glibc manifests pass. Every public asset URL returns HTTP 200. All three
+Companion installers match their native CI artifacts; the Windows desktop
+installer matches run 41084203549 and its immutable source receipt. The macOS
+desktop passed DMG verification and read-only inspection of bundle version,
+identity, ARM64 architecture, strict deep signature, bridge, canonical artwork,
+Applications shortcut and Finder custom-volume icon. Both Companion payloads
+inspected locally passed internal checksums, provenance and artwork checks;
+native Windows installation was verified in CI.
+
+The independently downloaded macOS DMG SHA-256 is
+`b512a5805c8ce6c50346788a33482bd4344f0f0b81c6f62c9d8b4e1ee6dafb8c`.
+
 ## 1.8.0 delivery contract
 
 Publication is on hold per the owner's subsequent 2026-10-30 instruction.

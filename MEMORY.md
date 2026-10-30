@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -13,25 +13,23 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Peer wake cancellation fixtures end on captured paste; scheduling all agents
   first can exhaust Claude's Enter delay. Receipts: specs/agent-communication-v2/CI-2026-10-21.md.
-- Historical cloud/release receipts: docs/history/MEMORY-2026-10-30.md.
 - Dependencies: docs/FEATURE-DEPENDENCIES.md; desktop Git stays unbundled.
 - Preserve assets/receipts and gh-pages; remove only authorized, merged, clean,
   unused branches/worktrees. Linux packaging: specs/linux-desktop/TECH.md.
   Bullseye Git 2.30.2 needs global safe.directory for canonical `/__w/...`;
   command-line `-c` and runner workspace aliases do not work.
-- Existing release workflows build immutable tagged source. Follow specs/RELEASE.md
-  installer/checksum gates; accept UI before packages. SSH major 1; Agent Bus 2.
+- Immutable tagged releases: accept UI, create draft, then attach Windows/Linux.
+  See specs/RELEASE.md gates/HTTP 500 recovery. SSH major 1; Agent Bus 2.
 
 ## Published releases and maintenance
 
-- Public: Warpai 1.7.8.2 / Companion 5.5.0. Match README links to actual assets.
+- Public: Warpai 1.8.1 / Companion 5.5.0. All 19 assets verified; match README links.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
 - Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
-  Owner resumed publication as 1.8.1 after macOS acceptance (run 41053972438).
+  Pane icons passed both desktops (41053972438); immutable release source 8ff0c00f.
   Authorization/receipts: specs/RELEASE.md. Release monitoring follows its 30-minute cadence.
 - Windows SSH uses PowerShell, never CMD; remote OS owns grammar/path/completion.
-  Audit: SSH-POWERSHELL-AUDIT.md. Mac-to-Linux passed; Windows ProxyJump failure
-  preceded capture and cannot prove GUI timeout. Preserve SSH tab evidence/drafts.
+  See SSH-POWERSHELL-AUDIT.md; preserve SSH evidence and drafts.
 - Artifact-only macOS must not publish Windows. Windows CI/release pins official
   protoc 36.2 + SHA-256; Chocolatey NuGet 503/504 blocked builds. See specs/RELEASE.md.
 
@@ -132,7 +130,7 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
   existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
   Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.
-  Contract: specs/custom-tab-icons.md. Release as 1.8.1; preserve v1.8.0.
+  Contract: specs/custom-tab-icons.md. Published in 1.8.1; preserve v1.8.0.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
