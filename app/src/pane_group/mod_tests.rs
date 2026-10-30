@@ -675,6 +675,7 @@ fn test_initial_widths_are_computed_correctly() {
                     commands: vec![],
                     pane_mode: PaneMode::Terminal,
                     shell: None,
+                    icon: None,
                 }
             };
         }

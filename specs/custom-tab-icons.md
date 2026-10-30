@@ -130,6 +130,12 @@ composition and use no purple, shadows, external background or mockup.
   native captures. Keep publication paused. Do not use partial formatting that
   can delete reordered imports without retaining their new location.
 
+- Run 41046053799: macOS default/platform checks and both protocol jobs passed.
+  Test compilation found one unqualified PaneTemplate initializer inside the
+  existing leaf_pane! macro; its seven expansions omitted icon. Add icon: None
+  there and audit qualified, unqualified, Self and macro constructors before
+  rerunning application tests and native captures on both platforms.
+
 - Run 41000830906 (a5e72de8): macOS and Windows default/platform builds passed;
   both protocol jobs passed; local SVG/PNG validation/refresh and external SVG
   image isolation tests passed on both platforms. The workspace precedence test
