@@ -22087,6 +22087,7 @@ impl TypedActionView for Workspace {
                 if let Some(tab) = self.tabs.get_mut(*tab_index) {
                     tab.selected_icon = icon.clone();
                     ctx.notify();
+                    self.focus_active_tab(ctx);
                 }
             }
             SetActiveTabColor(color) => {
