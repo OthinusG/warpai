@@ -322,6 +322,8 @@ jobs:
     runs-on: macos-15
     env:
       GIT_RELEASE_TAG: v1.6.5
+      # Incremental state is disposable and the largest disk consumer on macOS runners.
+      CARGO_INCREMENTAL: "0"
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -349,6 +351,11 @@ jobs:
           restore-keys: |
             macos-native-v1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             macos-native-v1-
+      - name: Drop restored incremental state
+        run: |
+          df -h /
+          rm -rf target/debug/incremental
+          df -h /
       - name: Build native acceptance fixtures
         run: |
           cargo build -p warp-agent-bus --bins --locked
@@ -440,10 +447,15 @@ jobs:
       - name: Build isolated native UI review artifact
         if: ${{ inputs.capture_ui }}
         run: |
+          df -h /
+          # The review build relinks warpai anyway; its test binaries would exhaust the runner disk.
+          cargo clean -p warpai
+          df -h /
           cargo build -p warpai --bin warpai --features release_bundle --locked
           script/build-warpai-app.sh --debug
           codesign --verify --deep --strict WarpaiReview.app
           ditto -c -k --sequesterRsrc --keepParent WarpaiReview.app WarpaiReview.app.zip
+          df -h /
       - name: Upload isolated native UI review artifact
         if: ${{ inputs.capture_ui }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
