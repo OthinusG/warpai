@@ -1232,12 +1232,18 @@ fn terminal_ssh_session_tab_icon_yields_to_agent_and_restores_manual_choice() {
     App::test((), |mut app| async move {
         initialize_app(&mut app);
         let workspace = mock_workspace(&mut app);
-        workspace.update(&mut app, |workspace, ctx| {
+        let pane_group_id = workspace.update(&mut app, |workspace, ctx| {
             ctx.focus(&workspace.tab_right_click_menu);
             workspace.handle_action(&WorkspaceAction::SetTabIcon {
                 tab_index: 0, icon: Some(TabIcon::Folder),
             }, ctx);
-            assert!(ctx.check_view_or_child_focused(ctx.window_id(), &workspace.active_tab_pane_group().id()));
+            workspace.active_tab_pane_group().id()
+        });
+        // Focus changes are queued effects, so they only apply after the update returns.
+        assert!(app.read(|ctx| {
+            ctx.check_view_or_child_focused(workspace.window_id(ctx), &pane_group_id)
+        }));
+        workspace.update(&mut app, |workspace, ctx| {
             let group = workspace.tabs[0].pane_group.clone();
             let pane = group.as_ref(ctx).focused_pane_id(ctx);
             let terminal = group.as_ref(ctx).focused_session_view(ctx).unwrap();
