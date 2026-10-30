@@ -27,7 +27,7 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Public: Warpai 1.7.8.2 / Companion 5.5.0. Match README links to actual assets.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
 - Preserve unpublished v1.7.2, immutable v1.7.6 and paused v1.8.0 tags/drafts.
-  Authorization/receipts: specs/RELEASE.md. Poll cloud runs at most every 30 minutes.
+  Authorization/receipts: specs/RELEASE.md. Release monitoring follows its 30-minute cadence.
 - Windows SSH uses PowerShell, never CMD; remote OS owns grammar/path/completion.
   Audit: SSH-POWERSHELL-AUDIT.md. Mac-to-Linux passed; Windows ProxyJump failure
   preceded capture and cannot prove GUI timeout. Preserve SSH tab evidence/drafts.
