@@ -1241,7 +1241,7 @@ fn terminal_ssh_session_pane_icons_are_independent_and_menu_targets_clicked_pane
                     .collect::<Vec<_>>(),
                 vec![PaneIcon::Folder, PaneIcon::Code]
             );
-            let transfer = workspace.get_tab_transfer_info(0, ctx).unwrap();
+            let transfer = workspace.get_tab_transfer_info_for_attach(0, ctx).unwrap();
             assert_eq!(transfer.pane_group.as_ref(ctx).snapshot(ctx), snapshot);
             workspace.open_tab_config(config, ctx);
             let reopened = workspace.active_tab_pane_group();

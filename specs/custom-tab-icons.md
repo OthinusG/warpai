@@ -136,6 +136,12 @@ composition and use no purple, shadows, external background or mockup.
   there and audit qualified, unqualified, Self and macro constructors before
   rerunning application tests and native captures on both platforms.
 
+- Run 41048421325: the test binary compiled; 12 focused regressions passed,
+  including saved TOML, SQLite and local icons. The combined pane-isolation
+  fixture called the normal drag-out API with one tab, which correctly returned
+  None. Use the existing single-tab attach API for its transfer assertion;
+  preserve the production last-tab guard and all remaining reopen/reset checks.
+
 - Run 41000830906 (a5e72de8): macOS and Windows default/platform builds passed;
   both protocol jobs passed; local SVG/PNG validation/refresh and external SVG
   image isolation tests passed on both platforms. The workspace precedence test
