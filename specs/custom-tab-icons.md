@@ -122,6 +122,13 @@ composition and use no purple, shadows, external background or mockup.
 
 ## Verification receipts
 
+- Final acceptance: run 41053972438 at source 693559e1 passed both macOS/Windows
+  default/platform checks, focused regressions and native captures, plus both
+  protocol jobs. Each native archive contains 1008 valid PNGs; the picker and
+  selected-icon frames exist in all three locales. Representative macOS/Windows
+  icon/menu frames passed visual review. TOML save/reopen, independent pane
+  selection/reset/stale targets, transfer, SQLite and local asset checks passed.
+
 - Pane ownership run 41041510659: both protocol jobs passed; both desktop checks
   failed because the moved icon module declaration and imports were missing.
   Fix plan: wire the existing module into pane/mod.rs, restore PaneIcon imports

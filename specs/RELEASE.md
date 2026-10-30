@@ -7,12 +7,15 @@ acceptance of the pane-icon correction. Merge the accepted branch and begin
 formal packaging; preserve the unpublished immutable v1.8.0 tag at 56493761.
 Do not resume its canceled release job or move its tag.
 
-Runtime/test source 693559e1 passed macOS default/platform builds, focused
-regressions and native captures plus both protocol jobs in run 41053972438.
-Subsequent changes affect memory and release documentation only. Retain the
-pending Windows native validation gate and every existing tagged macOS,
-Windows, Companion and Linux installer/provenance/checksum gate. Keep the release
-private until all 13 installers and four checksum inventories are verified.
+Runtime/test source 693559e1 passed macOS and Windows default/platform builds,
+focused regressions and native captures plus both protocol jobs in run
+41053972438. Both native archives contain 1008 PNGs with valid structure/CRCs;
+representative icon/menu frames were reviewed. Subsequent changes affect memory
+and release documentation only. Immutable v1.8.1 points to
+8ff0c00f41a096fc032e5caef6fe204773a4fbbf; formal release run 41060413768 passed
+all three Companion jobs. Retain every tagged desktop/Companion installer,
+provenance and checksum gate. Keep the release private until all 13 installers
+and four checksum inventories are verified.
 
 Release notes describe pane-owned icons, builtin/local SVG/PNG choices, existing
 tab config TOML save/reopen, SSH badges, PAC and Qoder usage queries. Companion
