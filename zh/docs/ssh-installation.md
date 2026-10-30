@@ -11,7 +11,7 @@ next_url: /docs/wsl-installation.html
 next_title: Windows WSL 安装与配置
 ---
 
-本文档覆盖 Warpai 1.8.0 的完整 SSH 远程配置：在 Linux、macOS 和 Windows 上安装并启用 OpenSSH Server，将 Windows SSH 登录 Shell 从 CMD 切换为 PowerShell，安装 Warpai Companion，按 Agent 配置远端 MCP，并让远程项目获得与本地一致的多 Agent 协作体验。
+本文档覆盖 Warpai 1.8.1 的完整 SSH 远程配置：在 Linux、macOS 和 Windows 上安装并启用 OpenSSH Server，将 Windows SSH 登录 Shell 从 CMD 切换为 PowerShell，安装 Warpai Companion，按 Agent 配置远端 MCP，并让远程项目获得与本地一致的多 Agent 协作体验。
 
 相关文档：
 - [Windows WSL 安装与配置]({{ '/zh/docs/wsl-installation.html' | relative_url }})
@@ -24,7 +24,7 @@ next_title: Windows WSL 安装与配置
 
 | 项目 | 要求 |
 | :--- | :--- |
-| 客户端 | macOS、Windows 或 Linux 上的 Warpai 1.8.0 桌面端。 |
+| 客户端 | macOS、Windows 或 Linux 上的 Warpai 1.8.1 桌面端。 |
 | 远端主机 | Linux、macOS 或 Windows，且拥有可安装软件的账号。 |
 | 网络 | 客户端可访问远端 TCP 22 端口，或在 SSH config 中配置了自定义端口转发。 |
 | 认证 | 强烈建议使用密钥认证或已加载的 SSH Agent。SSH Remote 面板使用非交互式 SSH 控制连接，无法输入密码。 |
@@ -259,9 +259,9 @@ Companion 提供私有 Git 引擎、基于 SFTP 的文件浏览、VT100 状态�
 
 | 远端系统 | 架构 | 安装包 | 安装方式 |
 | :--- | :--- | :--- | :--- |
-| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.8.0/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
-| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.8.0/WarpaiCompanion-5.5.0-macos-arm64.dmg) | 打开镜像并运行 `Install Warpai Companion.command` |
-| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.8.0/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | 以远程 SSH 用户身份运行安装程序 |
+| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
+| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-macos-arm64.dmg) | 打开镜像并运行 `Install Warpai Companion.command` |
+| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | 以远程 SSH 用户身份运行安装程序 |
 
 Companion 5.5.0 只发布上述三个目标。其他远端架构不在本版本支持范围内。
 
