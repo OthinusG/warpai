@@ -2,7 +2,7 @@
 
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
-Warpai 1.5.5 uses the remote component installed for the SSH account. Install it
+Warpai 1.8.1 uses the remote component installed for the SSH account. Install it
 once on each remote machine, then connect from an ordinary Warpai terminal:
 
 ```sh
@@ -24,9 +24,9 @@ Choose the installer for the **remote** operating system and architecture.
 
 | Remote system | Package | Installation |
 | --- | --- | --- |
-| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-linux-x64.run) | Run `sh WarpaiCompanion-4.0.0-linux-x64.run`. |
-| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.5.5/WarpaiCompanion-4.0.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
+| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-linux-x64.run) | Run `sh WarpaiCompanion-5.5.0-linux-x64.run`. |
+| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
 
 The packages contain the correct executable, checksum, version/source manifest and
 license notices. No manual extraction or executable-path entry is required. Unix
@@ -42,7 +42,7 @@ from the same release; protocol compatibility is checked before project binding.
 
 ## Connect and troubleshoot
 
-Companion 4.0.0 bundles a private Git runtime. Explorer/file operations,
+Companion 5.5.0 bundles a private Git runtime. Explorer/file operations,
 Agent coordination and the MCP bridge run
 inside Companion; code/text and Markdown preview render in the desktop app.
 These features do not require a separate Git, Python, Node, tmux or socat
@@ -66,11 +66,14 @@ authenticate CLI agents with their own tools on the remote machine.
 
 ## Start a remote agent
 
-Selecting a remote project connects its collaboration panel. To join an agent,
-use the installed companion's explicit `agent` entry from that remote terminal;
-ordinary remote vendor commands are not automatically rewritten.
+In **Settings > Features > Agent communication**, enable **SSH Remote**, select
+its confirmed SSH account and enable the discovered Agents you want to use.
+Warpai configures `warpai-ssh-com` in each selected Agent's remote configuration.
+Start that Agent in a new remote terminal session. See the [SSH setup guide](SSH-INSTALLATION.md#53-configure-per-agent-mcp)
+for installation, rescanning and account-specific settings.
 
-For example, on Linux/macOS with a native Codex executable on PATH:
+The explicit Companion entry is also available. For example, on Linux/macOS
+with a native Codex executable on PATH:
 
 ```sh
 "$HOME/.config/warpai/bin/warpai-companion" agent "$PWD" codex "$(command -v codex)"
@@ -114,42 +117,20 @@ authentication failure and offers reconnect. No password is stored.
 
 Reference: [Microsoft Win32-OpenSSH scope](https://github.com/PowerShell/Win32-OpenSSH/wiki/Project-Scope).
 
-## Direct WSL on Windows (1.5.8)
+## Direct WSL on Windows
 
-Direct WSL requires Warpai 1.5.8 and Companion 5.0.0. Install the matching Linux
-x64 Companion package inside the distribution under the Linux user you will use.
-Companion 4.0.0 does not implement the WSL file channel. Use the Linux installer
-from the matching [Warpai release](https://github.com/OthinusG/warpai/releases);
-installing the Windows Companion does not install it into WSL.
+Warpai for Windows bundles the dedicated WSL Companion payload. Open a WSL
+terminal, then enable **WSL communication** in
+**Settings > Features > Agent communication**, select the distribution and
+Linux user, and check **Install WSL Companion**.
 
-From a Windows Warpai terminal, enter the distribution and user explicitly:
+The installer streams the bundled payload over `wsl.exe` standard input without
+an external download. The dedicated service lives at
+`~/.config/warpai/wsl/bin/warpai-wsl-companion`; the SSH Linux `.run` package does
+not install this service. WSL files travel through bounded stdio chunks without
+an SSH daemon or SFTP.
 
-```powershell
-wsl.exe --distribution Ubuntu --user your-linux-user
-```
-
-In that Linux shell, install and check Companion, then enter your project:
-
-```sh
-sh WarpaiCompanion-5.0.0-linux-x64.run
-"$HOME/.config/warpai/bin/warpai-companion" --check-runtime
-cd /absolute/path/to/project
-```
-
-Warpai follows confirmed WSL shell metadata. Explorer, editor, previews, Review
-and collaboration use the Linux project. Files travel through bounded Companion
-stdio chunks; an SSH daemon, SSH keys and SFTP are not needed for this connection.
-A nested SSH session continues to use the SSH route.
-
-With Agent communication enabled, recognized ordinary Agent invocations in Bash,
-Zsh and Fish use the Linux Companion entry. CLI installation and authentication
-stay in Linux. Existing aliases, functions and administrative commands remain
-native. You can also use the explicit `companion agent` entry shown above.
-Codex's `--cd`/`-C` selects its actual project while preserving the original
-working directory for relative CLI arguments.
-
-Project and Coordinator state belongs to the Linux account and repository,
-including its worktrees. Switching panes, tabs or panel connections preserves a
-running Coordinator. Other distributions/users and Windows-local projects have
-separate authority. If WSL stops, reconnect explicitly; old run authority cannot
-be reused. Missing or outdated Companion requires the matching Linux installation.
+After entering your Linux project directory, Explorer, editing, previews, Review
+and Agent collaboration follow the confirmed WSL project. Distributions, users
+and Windows-local projects remain isolated. See the [WSL installation guide](WSL-INSTALLATION.md)
+for complete installation, MCP configuration and troubleshooting steps.
