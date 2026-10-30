@@ -42,6 +42,8 @@ Updated 2026-10-30. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP}.md.
 - SSH tabs were correct while panel/MCP stayed Starting. Share WSL observation
   and guarded wake delivery with SSH; preserve native tab evidence and drafts.
 - Public: 1.7.8.2 / Companion 5.5.0; README links must match published assets.
+  Owner authorized 1.8.0 on Oct30 after PR #8 acceptance (run 41025311966).
+  Change history belongs only in Release notes, not README, website or user guides.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >= 2.31.
 - Artifact-only macOS runs must not trigger Windows publication.
 - Windows CI/release uses pinned official protoc 36.2 + SHA-256; Chocolatey NuGet

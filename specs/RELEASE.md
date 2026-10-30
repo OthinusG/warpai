@@ -1,5 +1,30 @@
 # Warpai releases
 
+## 1.8.0 delivery contract
+
+Owner authorization on 2026-10-30: merge PR #8 after cloud acceptance and publish
+1.8.0. Synchronize both READMEs, current source guides and bilingual website/docs
+in place. Keep change history in the Release notes, outside README, the website
+and user guides.
+
+Accepted runtime source `28342ace849d577053179a1d44efc49e68bcef3c` passed
+[communication validation](https://github.com/OthinusG/warpai/actions/runs/41025311966)
+on macOS and Windows, including both protocol jobs. The PR head differs only in
+MEMORY.md. Companion remains 5.5.0, SSH protocol major 1 and Agent Bus major 2.
+
+Reuse the immutable-tag macOS, Windows and Linux release workflows and the
+existing release-notes source convention. Keep all native build, installer,
+source, version and checksum gates. Publish only after all platform packages
+are attached and verified, then update public download links and Homebrew.
+Describe vertical tab icon selection, local SVG/PNG discovery and automatic SSH
+badges as current usage. Preserve layouts, screenshots and prior release assets.
+
+Acceptance: all 13 desktop/Companion installers, checksum inventories and source
+manifests match v1.8.0; bilingual download URLs resolve; production Jekyll build
+and internal links pass; GitHub Pages deployment succeeds; the Homebrew cask
+uses an independently verified macOS DMG hash. No local Rust builds or changes
+to personal application installations, CLI configuration or credentials.
+
 ## 2026-10-21 MCP adapter migration and 1.7.8.2 bugfix
 
 The owner authorized fixing persisted MCP argv migration and publishing 1.7.8.2
