@@ -77,20 +77,34 @@ Warpai ships with two signature themes: the default **Claude Warm Light** (warm 
 
 ---
 
-## Vertical Tab Icons
+## Pane Icons and Tab Configs
 
-Right-click a vertical tab to choose a bundled icon. To use your own artwork,
-place SVG or PNG files directly in `~/.config/warpai/icon` (on Windows,
-`%USERPROFILE%\.config\warpai\icon`) and open **Local icons** in the tab menu.
-The menu previews each valid image and refreshes when opened. Files in subfolders
-and symbolic links are not listed.
+Right-click a pane in the vertical sidebar to choose a bundled icon. To use your
+own artwork, place SVG or PNG files directly in `~/.config/warpai/icon` (on Windows,
+`%USERPROFILE%\.config\warpai\icon`) and open **Local icons**. Each pane keeps its
+own selection; changing one split does not change its siblings. A tab-level menu
+sets the focused pane's icon.
 
-Each tab remembers its selection across restarts and moves between windows.
-Choose **Default** to clear it. A missing or invalid local file uses the default
-icon; restoring the file under the same name restores the selection on refresh.
-SSH sessions show a circular SSH badge unless an icon is selected. Active Agent
-branding and status take priority. Horizontal tab icons keep their standard
-appearance.
+Use **Save as new config** to save the layout and each pane's icon as a tab
+config TOML file. Opening that config restores the corresponding selections:
+
+```toml
+name = "My workspace"
+
+[[panes]]
+id = "main"
+type = "terminal"
+icon = "folder"
+# For a local image, use this instead:
+# icon = { local = "my-icon.svg" }
+```
+
+The icon menu refreshes valid direct files when opened; subfolders and symbolic
+links are excluded. Selections also survive session restoration and pane moves.
+Use **Reset pane icon** to clear a selection. Missing local files use the native
+fallback until restored under the same name. Agent branding and status take
+priority, followed by the selected icon and automatic SSH badge. Horizontal tabs
+keep their standard appearance.
 
 ---
 

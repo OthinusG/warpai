@@ -443,7 +443,7 @@ To understand Warpai's positioning in the modern developer ecosystem, the table 
 - **Smart Autocompletion**: Interactive parameter suggestions with inline documentation for hundreds of popular CLI commands.
 - **Global Command Palette**: `Cmd + P` (macOS) / `Ctrl + P` (Windows) for instant fuzzy search across actions, settings, and tabs.
 - **Split Panes & Vertical Tabs**: Arrange terminal panes horizontally or vertically with keyboard shortcuts.
-- **Personal Tab Icons**: Choose persistent bundled icons or local SVG/PNG files from `~/.config/warpai/icon`. SSH tabs show a circular badge; Agent branding and status take priority. See [configuration]({{ site.baseurl }}/docs/config.html#vertical-tab-icons).
+- **Independent Pane Icons**: Choose bundled icons or SVG/PNG files from `~/.config/warpai/icon` for each pane. Save and reopen them with the existing tab config TOML. See [configuration]({{ site.baseurl }}/docs/config.html#pane-icons-and-tab-configs).
 
 ---
 

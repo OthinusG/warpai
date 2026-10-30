@@ -78,17 +78,31 @@ Warpai 原生搭载两款核心主题：默认的 **Claude Warm Light**（温暖
 
 ---
 
-## 垂直标签图标
+## 窗格图标与 tab config
 
-右键点击垂直标签可选择内置图标。使用自己的图片时，将 SVG 或 PNG 文件直接放入
-`~/.config/warpai/icon`（Windows 为 `%USERPROFILE%\.config\warpai\icon`），
-然后打开标签菜单中的 **Local icons（本地图标）**。菜单展示有效图片的预览，
-每次打开时刷新；不列出子文件夹中的文件或符号链接。
+右键点击垂直侧栏中的窗格可选择内置图标。使用自己的图片时，将 SVG 或 PNG 文件直接
+放入 `~/.config/warpai/icon`（Windows 为 `%USERPROFILE%\.config\warpai\icon`），
+再打开 **Local icons（本地图标）**。各窗格独立保存选择，修改一个分屏不会影响其他分屏；
+从 tab 菜单设置时，目标是当前聚焦的窗格。
 
-每个标签会保存自己的选择，重启或移动到其他窗口后仍保留。选择 **Default（默认）**
-可清除。文件缺失或无效时使用默认图标；恢复同名文件后，刷新菜单即可恢复选择。
-未选择图标的 SSH 会话显示圆形 SSH 标识；活动 Agent 的品牌图标与状态优先显示。
-水平标签保持标准图标样式。
+通过 **Save as new config** 保存布局时，各窗格的图标直接写入 tab config TOML 文件。
+再次打开该配置时，按窗格恢复选择：
+
+```toml
+name = "My workspace"
+
+[[panes]]
+id = "main"
+type = "terminal"
+icon = "folder"
+# For a local image, use this instead:
+# icon = { local = "my-icon.svg" }
+```
+
+每次打开图标菜单时刷新有效图片，不列出子文件夹或符号链接。会话恢复和移动窗格时
+也保留选择。选择 **Reset pane icon（恢复窗格默认图标）** 可清除。本地文件缺失时
+显示原生默认图标，恢复同名文件后可重新显示。Agent 品牌与状态优先，其次为所选图标
+和自动 SSH 标识。水平标签保持标准样式。
 
 ---
 
