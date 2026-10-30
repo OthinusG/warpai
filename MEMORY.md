@@ -152,7 +152,6 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Synchronize both READMEs, source SSH/WSL guides and bilingual gh-pages home,
   strings/footer/install/MCP/features/overview; verify scope names and actual assets.
   Keep change/migration history in Release notes, outside product documentation.
-- Feature catalog: docs/FEATURES.md.
 
 ## Retained native lifecycle constraints
 

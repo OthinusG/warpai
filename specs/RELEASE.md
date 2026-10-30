@@ -39,6 +39,10 @@ Windows run 41072512977 and Linux run 41067669163 build the same tag in parallel
 with automatic publication disabled. Verify all assets before publication;
 avoid duplicate automatic platform builds after recovery.
 
+GitHub's REST tag-specific endpoint can return 404 for an existing draft. Use
+`gh release view`, the release-list API or its numeric release ID to establish
+draft existence before retrying creation; do not infer absence from tag lookup.
+
 Both Linux architecture jobs passed package verification and installed X11
 startup checks. Their attachment job failed only because the macOS retry had
 not yet created the draft (`release not found`). Retain both package artifacts
@@ -70,6 +74,23 @@ native Windows installation was verified in CI.
 
 The independently downloaded macOS DMG SHA-256 is
 `b512a5805c8ce6c50346788a33482bd4344f0f0b81c6f62c9d8b4e1ee6dafb8c`.
+
+Public README/source-guide synchronization: e363570a. Bilingual website source:
+6cbaa2a5; its strict production Jekyll build and links/anchors across 34 current
+pages pass, with 13 exact current installer filenames and no stale release URLs.
+Homebrew [PR 1](https://github.com/OthinusG/homebrew-tap/pull/1) merged as
+2878603f with the independently downloaded public DMG checksum above. Metadata
+parsing, style, online audit, Homebrew fetch/checksum and installation dry-run
+passed; quarantine/platform requirements remain intact and no app was installed.
+
+GitHub Pages reports source 6cbaa2a5 as `built` at 2026-10-30T17:46:00Z.
+Fourteen live bilingual home, installation, config, feature, troubleshooting,
+SSH and WSL pages match the prepared release/source markers; their 13 installer
+URLs and pane TOML/MCP scope guidance pass, without stale release links. The
+Actions status for Pages run 41100424488 lagged in `waiting` despite the completed
+Pages build and live delivery. A cancellation request reported it already
+completed; the subsequent rebuild request 41102196860 targets the identical
+source and does not change published content or environment permissions.
 
 ## 1.8.0 delivery contract
 
