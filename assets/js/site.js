@@ -43,6 +43,20 @@
 
   paintGround(window.warpaiGround.read());
 
+  var endPreview = document.querySelector(".end-preview");
+  if (endPreview && "IntersectionObserver" in window &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    endPreview.classList.add("is-pending");
+    var previewObserver = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) {
+        endPreview.classList.add("is-revealed");
+        endPreview.classList.remove("is-pending");
+        previewObserver.disconnect();
+      }
+    }, { threshold: 0.2 });
+    previewObserver.observe(endPreview);
+  }
+
   /* 2. Mobile Nav Sheet */
   var menuBtn = document.getElementById("nav-menu");
   var sheet = document.getElementById("nav-sheet");

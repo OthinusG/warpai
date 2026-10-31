@@ -13,8 +13,8 @@ Welcome to the official documentation for **Warpai** — the local-first, privac
 Warpai elevates independent CLI Agent sessions into first-class units of work. For software engineering, Warpai provides a disciplined **Git Worktree Coding Mode** to develop features concurrently in isolated branches with automated peer reviews. For cross-domain and non-coding workflows, Warpai delivers an omnidirectional **Project Mode**, breaking rigid hierarchies so all agents freely exchange messages and tasks across scientific research, visual design, quant finance, and patent compliance.
 
 <figure class="docs-figure">
-  <img src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai All-in-One Hero Workspace" width="100%">
-  <figcaption>Warpai 3-Column Hero Workspace: Left Agent Collaboration Panel &amp; Task Pool, Center GPU Terminal (Claude Warm Light theme), Right Project Explorer &amp; Live Editor</figcaption>
+  <img src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel" width="100%">
+  <figcaption>Warpai in Claude Warm Light: vertical tabs on the left, Spotify and btop in split terminal panes, and Agent collaboration with provider usage on the right.</figcaption>
 </figure>
 
 ---

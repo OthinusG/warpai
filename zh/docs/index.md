@@ -14,8 +14,8 @@ next_title: 安装指南
 Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对代码工程，Warpai 提供严格的 **Git Worktree 并发编码模式**，支持在物理隔离的分支中并行开发不同功能并执行自动化对等评审；针对泛行业与非 Coding 场景，重磅提供 **Project 全向协同模式**，打破单一指挥链，让所有 Agent 自由互通消息与任务，在科研论文、视觉设计、量化金融、专利法务等场景中高效攻坚。
 
 <figure class="docs-figure">
-  <img src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai 3 栏全景协同工作空间" width="100%">
-  <figcaption>Warpai 三栏全景视觉：左侧 Agent 协同面板与任务池、中间 GPU 原生终端（Claude Warm Light 主题）、右侧 Project Explorer 与源码编辑器</figcaption>
+  <img src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板" width="100%">
+  <figcaption>Claude Warm Light 主题下的 Warpai：左侧垂直标签栏，中间 Spotify 与 btop 分屏终端，右侧 Agent 协同面板与服务商用量。</figcaption>
 </figure>
 
 ---

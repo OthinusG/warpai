@@ -10,6 +10,14 @@
 
 ## Decisions & Context
 
+- **Workspace screenshot (2026-10-31)**: Owner-supplied
+  `warpai-window-clean-original-resolution.png` (3836 × 2114) replaces both hero
+  asset copies, synchronized with main's bilingual READMEs. Both Overview pages
+  show the complete capture with matching captions. Both homepage download
+  sections use a decorative right-side CSS crop, edge masks and a one-time
+  IntersectionObserver blur reveal; mobile stacks it below the copy. Reduced
+  motion/no JavaScript keeps it static. Scope and QA: docs/SCREENSHOT-REFRESH.md.
+
 - **Warpai 1.8.1 download sync (2026-10-31)**: Both homepages, strings/footer,
   install and SSH/WSL guides target the public 1.8.1 installers; Companion remains
   5.5.0. Config/features pages describe pane-owned icons saved in existing tab
