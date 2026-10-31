@@ -6,6 +6,18 @@ The README brand cover is a generated marketing image, documented separately in
 [Social preview provenance and upload instructions](SOCIAL-PREVIEW.md).
 The following provenance applies only to the native application screenshots.
 
+## Workspace hero (2026-10-31)
+
+[warpai-hero-showcase.png](warpai-hero-showcase.png) is the owner-supplied
+`warpai-window-clean-original-resolution.png`, preserved byte-for-byte at
+3836 × 2114 pixels. It shows vertical tabs, Spotify/btop split terminals,
+and the right Agent collaboration and provider usage panel. Both READMEs and
+both website documentation overviews use this capture; the homepage download
+section uses a decorative CSS crop. The CI provenance below applies to the
+older workspace/SSH captures only.
+
+## Native review captures
+
 These are unmodified PNG captures from the native macOS application, not mockups
 or generated product images. Sample projects, agents and tasks were exercised by
 the native review driver; they are not customer projects or authenticated vendor

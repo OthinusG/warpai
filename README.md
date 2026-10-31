@@ -28,9 +28,9 @@ Linux, macOS, and Windows machines.
 
 </div>
 
-![Warpai All-in-One Hero Workspace](docs/images/warpai-hero-showcase.png)
+![Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel](docs/images/warpai-hero-showcase.png)
 
-*Warpai 3-column workspace with vertical tabs and default Claude Warm Light theme: Left Agent collaboration panel with dynamic task supervision, center GPU terminal with command blocks, and right Project Explorer with live editor.*
+*Warpai in Claude Warm Light: vertical tabs on the left, Spotify and btop in split terminal panes, and Agent collaboration with provider usage on the right.*
 
 <a id="agents-as-the-unit-of-work"></a>
 

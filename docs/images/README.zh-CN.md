@@ -5,6 +5,16 @@
 README 顶部封面是生成的品牌宣传图，来源与上传说明见
 [Social preview 文档（英文）](SOCIAL-PREVIEW.md)。以下来源记录仅适用于原生应用截图。
 
+## 工作空间主图（2026-10-31）
+
+[warpai-hero-showcase.png](warpai-hero-showcase.png) 来自用户提供的
+`warpai-window-clean-original-resolution.png`，逐字节保留原图，尺寸为
+3836 × 2114。图中展示垂直标签栏、Spotify/btop 分屏终端及右侧 Agent 协同与用量面板。
+中英文 README 和官网文档概览使用完整截图；首页下载区使用 CSS 局部裁切。
+下方 CI 来源仅适用于原有工作空间与 SSH 截图。
+
+## 原生验收截图
+
 这些图片是原生 macOS 应用输出的原始 PNG 截图，未经修改。
 截图中的项目、Agent 和任务是原生验收驱动使用的样例，不是用户项目或经过认证的服务商模型会话。
 

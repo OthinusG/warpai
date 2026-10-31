@@ -127,6 +127,9 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Product defaults, CLI integration and website
 
+- Hero screenshot: owner-supplied 3836x2114 PNG (Oct31), shared by bilingual
+  READMEs/gh-pages Overview; homepage CTA uses a CSS crop. Provenance: docs/images/README.md.
+
 - Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
   existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
   Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.

@@ -26,9 +26,9 @@
 
 </div>
 
-![Warpai 三栏全景协同工作空间](docs/images/warpai-hero-showcase.png)
+![Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板](docs/images/warpai-hero-showcase.png)
 
-*Warpai 三栏全景工作空间（默认 Claude Warm Light 暖光主题与垂直标签页）：左侧 Agent 协同面板与动态监督任务列表、中间 GPU 原生终端与独立执行块、右侧 Project Explorer 与内置源码编辑器。*
+*Claude Warm Light 主题下的 Warpai：左侧垂直标签栏，中间 Spotify 与 btop 分屏终端，右侧 Agent 协同面板与服务商用量。*
 
 <a id="agents-as-the-unit-of-work"></a>
 
