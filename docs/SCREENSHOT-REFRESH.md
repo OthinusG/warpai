@@ -3,11 +3,24 @@
 ## Scope and source
 
 Use the owner-provided `warpai-window-clean-original-resolution.png` unchanged
-as the visual source for both main-branch READMEs, both documentation overviews,
-and both homepage download sections. Preserve existing typography, colors,
+for light previews and as the source for the approved derived dark preview.
+Both documentation overviews and both homepage download sections follow the
+website theme; main-branch READMEs retain the original. Preserve typography, colors,
 download links, and the interactive workbench elsewhere on the homepage.
 
 ## Implementation and acceptance
+
+### Dark variant (owner correction, 2026-10-31)
+
+- Keep the approved full inversion except for the original macOS traffic lights,
+  Spotify/Monitor/Codex sidebar icons (including the Codex status badge), and
+  album artwork. Restore these regions directly from the original capture.
+- Preserve the 3836 × 2114 canvas and verify every pixel outside those regions
+  matches the approved inverted preview.
+- Select the corrected dark asset with the site's existing ink/paper theme in
+  both homepages and both documentation overviews. Keep the light assets intact.
+- Validate asset selection on initial load and manual theme changes, desktop and
+  mobile, plus the existing blur reveal/reduced-motion behavior.
 
 - Replace existing hero screenshot assets; synchronize English/Chinese captions
   with the visible vertical tabs, Spotify/btop split terminals, and right Agent panel.
@@ -34,10 +47,10 @@ must stay synchronized when the screenshot changes again.
 
 | Point | Source / expected | Rendered result |
 | --- | --- | --- |
-| Asset | Owner's 3836 × 2114 PNG | All three repository copies have the same SHA-256 as the source. |
+| Asset | Owner's 3836 × 2114 PNG | All original light copies match the source; the dark copy retains the same canvas. |
 | Layout | Existing download copy and controls | Text stays left of the decorative crop on desktop; mobile stacks the crop below all controls. |
 | Typography | Existing Archivo/Inter/monospace styles | Existing fonts retained; balanced heading wrapping keeps Chinese phrases together, and commands wrap within the download section. |
-| Palette | Existing ink/paper theme tokens | Edge masks blend into each theme without recoloring the screenshot. |
+| Palette | Existing ink/paper theme tokens | Edge masks blend into each theme; ink uses the approved selective inversion, paper uses the original. |
 | Spacing | Existing section gutters | Gutters and download control spacing retained at desktop/mobile sizes. |
 | Crop | Full image in documentation; enlarged detail in CTA | Overview retains the full aspect ratio; CTA intentionally emphasizes btop and the right Agent panel. |
 | Motion | Blur-to-clear reveal, static reduced-motion fallback | One reveal when entering the viewport; default image remains visible without JavaScript. |
@@ -53,3 +66,19 @@ must stay synchronized when the screenshot changes again.
 - Inspected desktop/mobile CTA screenshots in ink/paper and both mobile
   Overview figures. Native screenshot copies are byte-identical to the source.
 - JavaScript syntax and `git diff --check` passed. No Rust sources changed.
+
+### Dark correction verification
+
+- Native canvas restored 64,892 pixels in the approved regions. Checks found
+  zero changed channels outside those regions, zero mismatches inside them,
+  and zero changed channels after encoding/decoding the final PNG.
+- Restore masks in source pixels: traffic-light circles `(52,55,12)`,
+  `(92,55,12)`, `(132,55,12)`; Spotify `(74,238,24)`; Codex `(70,458,20)`
+  and status badge `(87,475,16)` (center x/y/radius); Monitor rounded rectangle
+  `(50,313)-(98,361)`, radius 4; album rectangle `(530,140)-(770,380)`.
+- Final dark PNG SHA-256:
+  `0567c54264b0a330483e7e4b582781f49ea75eba24e6f66fa47f404751967b84`.
+- Browser checks passed for both homepages and Overviews at 1440px/390px,
+  switching ink → paper → ink, image dimensions, download controls, text
+  bounds and the existing reveal. Inspected dark and light screenshots.
+- Jekyll build, all 34 pages' local link/asset targets and diff checks passed.

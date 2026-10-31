@@ -10,6 +10,13 @@
 
 ## Decisions & Context
 
+- **Dark screenshot correction (2026-10-31)**: Ink mode uses the selectively
+  inverted `assets/images/warpai-hero-showcase-dark.png` on both homepages and
+  both Overviews; paper retains the original. Restore the original traffic
+  lights, Spotify/Monitor/Codex sidebar icons and album cover; all other pixels
+  match the approved inverted preview. This is a derived marketing image,
+  not a native dark-theme capture. Shared CSS follows `data-mode` immediately.
+
 - **Workspace screenshot (2026-10-31)**: Owner-supplied
   `warpai-window-clean-original-resolution.png` (3836 × 2114) replaces both hero
   asset copies, synchronized with main's bilingual READMEs. Both Overview pages
