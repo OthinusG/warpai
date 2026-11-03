@@ -2779,9 +2779,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     });
                 })
                 .add_named_assertion("vertical toolbar belongs to its sidebar column", |app, window| {
-                    let sidebar = app.element_position_by_id_at_last_frame(window, "workspace_view:vertical_tabs_panel");
-                    let toolbar = app.element_position_by_id_at_last_frame(window, "workspace_view:tab_bar");
-                    warpui::async_assert!(sidebar.zip(toolbar).is_some_and(|(sidebar, toolbar)|
+                    let bounds = app.read(|ctx| {
+                        let sidebar = ctx.element_position_by_id_at_last_frame(window, "workspace_view:vertical_tabs_panel");
+                        let toolbar = ctx.element_position_by_id_at_last_frame(window, "workspace_view:tab_bar");
+                        sidebar.zip(toolbar)
+                    });
+                    warpui::async_assert!(bounds.is_some_and(|(sidebar, toolbar)|
                         toolbar.min_x() >= sidebar.min_x() - 1.
                         && toolbar.max_x() <= sidebar.max_x() + 1.
                         && toolbar.max_y() <= sidebar.min_y() + 1.))
