@@ -1,5 +1,9 @@
 # Warpai Agent-to-Agent Handoff Brief 修改指导
 
+> Original implementation request, preserved below. The implemented contract is
+> [HANDOFF.md](HANDOFF.md); source-linked verification and pending gates are in
+> [HANDOFF-ACCEPTANCE.md](HANDOFF-ACCEPTANCE.md).
+
 日期：2026-11-03
 
 状态：实现指导，尚未实施。本文中的新增字段及 capability 名称是建议目标契约，不代表当前已经存在。

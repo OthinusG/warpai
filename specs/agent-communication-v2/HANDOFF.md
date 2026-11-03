@@ -54,7 +54,7 @@ picker without loading bodies; the new flag is capability-gated and omitted
 when false for strict older services.
 `context_get(reference, handoff_part?)` optionally reads `binding`, `status`, `task`, `result` or
 `evidence {id}` from that exact brief's retained source. Each response is bounded
-to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. Evidence parts preserve the original reporter/attempt/native binding when retained;
+to 48 KiB, except the 256-KiB binding part; evidence selection must be one of the snapshot's evidence IDs. Evidence parts preserve the original reporter/attempt/native binding when retained;
 missing provenance remains null. Evidence verification is a current projection,
 not an immutable claim that tests ran. This
 lets a target consume the full result without granting source task/history access.
