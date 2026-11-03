@@ -111,3 +111,17 @@ and position the toolbar with ParentBySize bounds. This keeps live resize state
 in its original owner, avoids cached/manual width synchronization, and bounds
 the toolbar before its max-size Flex is laid out. Preserve both regression and
 native screenshot assertions; rerun exact-source cloud acceptance.
+
+## CI correction plan: Windows native C++ runtime
+
+Run 41680297211 passed every macOS check, application regression and native
+capture assertion, plus both protocol suites. Windows default/platform checks,
+release-profile checks and application regressions passed; the native review
+executable failed to link with LNK2038/LNK2005/LNK1169. The new system_http C++
+bridge uses MD while the locked esaxx-rs 0.1.10 library forces MT. Its downloaded
+crate checksum matches Cargo.lock, and its build.rs calls static_crt(true).
+Match that existing Windows C++ runtime in system_http's Windows branch only;
+leave the Rust target flags, allocator boundaries and macOS/Linux branches
+unchanged. Rerun Windows desktop/protocol/native acceptance. macOS UI sources
+remain identical to the fully captured 5edbad2f revision; packaging repeats the
+macOS compile/protocol gates on the final source.

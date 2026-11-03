@@ -10,6 +10,8 @@ fn main() {
     } else if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         cc::Build::new()
             .cpp(true)
+            // Match the static C++ runtime used by the existing tokenizer libraries.
+            .static_crt(true)
             .std("c++17")
             .file("src/session.cc")
             .compile("warpai_system_http");
