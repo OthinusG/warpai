@@ -9,9 +9,17 @@ The terminal remains Warp-theme driven. No API or persistence changes.
 
 Shared pixel radii in `warp_core::ui::corner_radii`:
 
-- Control: 6 (buttons, search and text inputs, dropdown triggers).
-- Panel: 8 (existing inset functional containers and review file sections).
-- Surface: 10 (standalone surfaces, dialogs, menus and popovers).
+- Control: 8 (buttons, search and text inputs, dropdown triggers).
+- Panel: 12 (existing inset functional containers and review file sections).
+- Surface: 20 (standalone surfaces, dialogs, menus and popovers).
+
+Owner final direction: use larger Apple-style corners and merge directly into
+`main`. This final code adjustment changes only the three shared pixel values
+from 6/8/10 to 8/12/20. All existing layout, paint, clipping and interaction paths
+remain as validated for `d256086`; the earlier screenshots show the smaller radii.
+The final values pass formatting and focused source-diff checks. The existing
+main-push workflow validates the integrated source after merge; the earlier
+cloud receipts below do not claim to test these final numeric values.
 
 Retain circular indicators, small keycaps, checkboxes and single-edge separators.
 Configurable application panels must have visibly rounded outer contours in
