@@ -59,6 +59,8 @@ Resource generation, association, task transition, events, notifications and
 idempotency receipt share the existing transaction. Any error rolls all back.
 Same UUID/content returns the original reference; changed content is rejected.
 No new acknowledgement, read receipt, retry or auto-accept semantics.
+Notifications retain the existing structured body schema; exact handoff URIs use
+the existing instruction text rather than new fields rejected by older readers.
 
 ## Authority, sharing and retention
 
@@ -85,6 +87,7 @@ visible through source task refresh; consumers must revalidate before use.
 Use capability `handoff_briefs_v1`, Agent Bus 2 / SSH major 1 unchanged. New optional
 fields serialize only when supplied. Reject handoff-bearing remote requests
 before transmission when capability is absent. Do not flatten into inline prose.
+Panel projections include handoff_briefs_v1=true; missing means unsupported.
 Legacy records have no brief. A companion may advertise the capability only after
 the full contract and transport gates pass; packaging versions follow release gates.
 

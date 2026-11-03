@@ -187,8 +187,6 @@ pub enum StructuredBody {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TaskDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub handoff_ref: Option<ContextRef>,
     pub instruction: String,
     pub state: String,
     pub result: Option<String>,

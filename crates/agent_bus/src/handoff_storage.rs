@@ -606,6 +606,69 @@ mod tests {
     }
 
     #[test]
+    fn handoff_message_sharing_is_explicit_version_scoped_and_non_recursive() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let peer = store
+            .register("peer", "custom", "/project", "peer")
+            .unwrap();
+        let reader = store
+            .register("reader", "custom", "/project", "reader")
+            .unwrap();
+        let input_task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &input_task, 1);
+        let input = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&input_task, 1))
+                .unwrap(),
+        );
+        let task = assign(&store, &issuer, &worker, vec![input.clone()]);
+        start(&store, &worker, &task, 1);
+        let pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&task, 1))
+                .unwrap(),
+        );
+        let request: Operation = serde_json::from_value(json!({"op":"agent_send", "to":worker.id,
+            "body":"Return the registered handoff", "task_id":task, "expects_result":true,
+            "request_id":Uuid::new_v4().to_string()}))
+        .unwrap();
+        let message = store.execute(&peer, "peer-run", &request).unwrap();
+        let reply = store
+            .execute(
+                &worker,
+                "worker-run",
+                &Operation::AgentReply {
+                    handoff_ref: Some(pin.clone()),
+                    reply_to: message["id"].as_str().unwrap().into(),
+                    body: "Read the pinned result".into(),
+                    outcome: crate::ReplyOutcome::Succeeded,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        assert!(reply["body"]["details"]["instruction"]
+            .as_str()
+            .unwrap()
+            .contains(&pin.uri()));
+        assert!(reply["body"]["details"].get("handoff_ref").is_none());
+        let send: Operation = serde_json::from_value(json!({"op":"agent_send", "to":reader.id,
+            "content":{"objective":"Consume the exact handoff", "context_refs":[pin]},
+            "request_id":Uuid::new_v4().to_string()}))
+        .unwrap();
+        store.execute(&worker, "worker-run", &send).unwrap();
+        store.set_worktree_mode("/project", true).unwrap();
+        for actor in [&peer, &reader] {
+            assert!(store.task(actor, &task).is_err());
+            assert!(store.context_get(actor, &pin).is_ok());
+            assert!(store.context_get(actor, &input).is_err());
+            let list = store.context_list(actor, None, None).unwrap();
+            assert_eq!(list["resources"].as_array().unwrap().len(), 1);
+            assert_eq!(list["resources"][0]["reference"], json!(pin));
+        }
+    }
+
+    #[test]
     fn handoff_pins_protect_source_history_until_the_target_is_purged() {
         let store = Store::open(":memory:").unwrap();
         let (issuer, worker) = actors(&store);
@@ -671,6 +734,37 @@ mod tests {
             .transaction(|| store.history_purge("/project", &issuer, true, true))
             .unwrap();
         assert!(store.context_get(&worker, &pin).is_err());
+    }
+
+    #[test]
+    fn handoff_keeps_maximum_legacy_results_readable_without_copying_them_into_content() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let mut operation = submit(&task, 1);
+        if let Operation::TaskSubmit {
+            result, evidence, ..
+        } = &mut operation
+        {
+            *result = "\"".repeat(crate::MAX_TEXT);
+            *evidence = "\"".repeat(crate::MAX_TEXT);
+        }
+        let pin = reference(&store.execute(&worker, "worker-run", &operation).unwrap());
+        let resource = store.context_get(&issuer, &pin).unwrap();
+        assert!(serde_json::to_vec(&resource.content).unwrap().len() <= 32 * 1024);
+        let ContextContent::Handoff { snapshot } = resource.content else {
+            panic!("Missing brief");
+        };
+        assert!(snapshot.preview_truncated);
+        let part = store
+            .handoff_source(&issuer, &pin, &crate::handoff::HandoffPart::Result)
+            .unwrap();
+        assert_eq!(
+            part["source"]["result"].as_str().unwrap().len(),
+            crate::MAX_TEXT
+        );
+        assert!(serde_json::to_vec(&part).unwrap().len() <= 48 * 1024);
     }
 
     #[test]

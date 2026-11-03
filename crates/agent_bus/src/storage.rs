@@ -702,12 +702,8 @@ impl Store {
         if let Some(task_id) = &message.task_id {
             use crate::context::{StructuredBody, TaskDetails};
             let task = self.operator_task(project, task_id)?;
-            let handoff_ref = match StructuredBody::decode(&message.body) {
-                Some(StructuredBody::Task { details, .. }) => details.handoff_ref,
-                _ => task.handoff_ref.clone(),
-            };
             let mut references = task.context_refs.clone();
-            let instruction = match StructuredBody::decode(&message.body) {
+            let mut instruction = match StructuredBody::decode(&message.body) {
                 Some(StructuredBody::Instruction { instruction, .. }) => {
                     for reference in instruction.context_refs {
                         if !references.contains(&reference) { references.push(reference); }
@@ -717,11 +713,14 @@ impl Store {
                 Some(body) => body.display(),
                 None => message.body.clone(),
             };
+            if !message.kind.starts_with("result_") {
+                if let Some(reference) = &task.handoff_ref { instruction.push_str(&format!("\nPinned handoff: {}", reference.uri())); }
+            }
             ensure!(references.len() <= 16, invalid_input("Too many combined context references"));
             message.body = StructuredBody::Task { schema_version:1, event:message.kind.clone(),
                 task_id:task.id.clone(), revision:message.revision.unwrap_or(task.revision),
                 objective:task.description, acceptance:task.acceptance, context_refs:references,
-                details:TaskDetails { handoff_ref, instruction, state:task.state, result:task.result,
+                details:TaskDetails { instruction, state:task.state, result:task.result,
                     evidence_ids:task.evidence_records.into_iter().map(|evidence| evidence.id).collect() } }.encode()?;
         }
         let control = !matches!(message.kind.as_str(), "message" | "request" | "assignment" | "available");
@@ -2000,13 +1999,10 @@ impl Store {
                 let mut result_body = body.clone();
                 if let Some(reference) = handoff_ref {
                     let task_id = parent.task_id.as_deref().ok_or_else(|| invalid_input("Handoff replies require a tracked task"))?;
-                    let task = self.actor_task(actor, task_id)?;
+                    self.actor_task(actor, task_id)?;
                     let resource = self.context_get(actor, reference)?;
                     ensure!(resource.summary.source_task.as_deref() == Some(task_id), invalid_input("Reply handoff belongs to another task"));
-                    result_body = crate::context::StructuredBody::Task { schema_version:1, event:"result".into(),
-                        task_id:task.id, revision:task.revision, objective:task.description, acceptance:task.acceptance,
-                        context_refs:task.context_refs, details:crate::context::TaskDetails { handoff_ref:Some(reference.clone()),
-                            instruction:body.clone(), state:task.state, result:task.result, evidence_ids:vec![] } }.encode()?;
+                    result_body.push_str(&format!("\nPinned handoff: {}", reference.uri()));
                 }
                 let kind = match outcome {
                     crate::ReplyOutcome::Succeeded => "result_succeeded",
