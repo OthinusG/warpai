@@ -29,6 +29,11 @@ color when the root `<svg>` declares `autocolor="true"` and the geometry uses
 draws it as a mask, matching the native icon convention. This is
 single-color-only: omit `autocolor` for brand or multi-tone artwork.
 
+Bundled pane icons live in `app/assets/bundled/pane-icons` and join the same
+picker list through bounded discovery. A same-named user file overrides the
+bundled copy. Without an explicit selection, SSH sessions render the bundled
+`ssh.svg` and WSL sessions render `wsl.svg`.
+
 ## Implementation and verification
 
 1. Record the reference, target entry and acceptance in the relevant UI spec.

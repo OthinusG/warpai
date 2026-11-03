@@ -107,7 +107,9 @@ Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、G
 `[[panes]]` TOML 配置，再次打开时恢复。选择 **Reset pane icon（恢复窗格默认图标）**
 可清除。Agent 品牌与状态优先显示，其次为所选图标和 SSH 标识。根元素声明
 `autocolor="true"` 且使用 `currentColor` 绘制的 SVG 图标会跟随主题前景色，
-自动适配深色与浅色主题。
+自动适配深色与浅色主题。btop、herdr、Spotify、SSH 与 WSL 图标随应用内置，
+同名文件会覆盖内置版本；未选择图标时，SSH 会话默认显示 `ssh.svg`，WSL 会话
+默认显示 `wsl.svg`。
 
 <a id="remote-workflow"></a>
 

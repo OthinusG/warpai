@@ -15,16 +15,19 @@ use crate::ai::agent::conversation::ConversationStatus;
 use crate::terminal::CLIAgent;
 use crate::themes::theme::Fill as ThemeFill;
 
-pub(crate) const SSH_TAB_ICON_PATH: &str = "bundled/png/ssh-tab.png";
+pub(crate) const SSH_TAB_ICON_PATH: &str = "bundled/pane-icons/ssh.svg";
+pub(crate) const WSL_TAB_ICON_PATH: &str = "bundled/pane-icons/wsl.svg";
 
 pub(crate) fn render_ssh_tab_icon(size: f32) -> Box<dyn Element> {
-    render_image_tab_icon(
-        AssetSource::Bundled {
-            path: SSH_TAB_ICON_PATH,
-        },
-        size,
-        None,
-    )
+    render_bundled_tab_icon(SSH_TAB_ICON_PATH, size)
+}
+
+pub(crate) fn render_wsl_tab_icon(size: f32) -> Box<dyn Element> {
+    render_bundled_tab_icon(WSL_TAB_ICON_PATH, size)
+}
+
+fn render_bundled_tab_icon(path: &'static str, size: f32) -> Box<dyn Element> {
+    render_image_tab_icon(AssetSource::Bundled { path }, size, None)
 }
 
 pub(crate) fn render_image_tab_icon(
@@ -61,6 +64,8 @@ pub(crate) struct IconWithStatusSizing {
 pub(crate) enum IconWithStatusVariant {
     /// The SSH asset already contains its circular background.
     Ssh,
+    /// The WSL asset already contains its circular background.
+    Wsl,
     Image {
         source: AssetSource,
         tint: Option<ColorU>,
@@ -95,7 +100,14 @@ pub(crate) fn render_icon_with_status(
 
     match variant {
         IconWithStatusVariant::Ssh => render_ssh_tab_icon(
-            sizing.overall_size_override.unwrap_or(sizing.icon_size + sizing.padding * 2.),
+            sizing
+                .overall_size_override
+                .unwrap_or(sizing.icon_size + sizing.padding * 2.),
+        ),
+        IconWithStatusVariant::Wsl => render_wsl_tab_icon(
+            sizing
+                .overall_size_override
+                .unwrap_or(sizing.icon_size + sizing.padding * 2.),
         ),
         IconWithStatusVariant::Image { source, tint } => render_image_tab_icon(
             source,

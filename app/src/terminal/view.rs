@@ -6563,6 +6563,13 @@ impl TerminalView {
                 .is_some_and(|session| session.is_ssh())
     }
 
+    /// Returns whether the active session is a local WSL session.
+    pub(crate) fn is_wsl_for_tab<C: ModelAsRef>(&self, ctx: &C) -> bool {
+        self.active_block_session_id()
+            .and_then(|id| self.sessions.as_ref(ctx).get(id))
+            .is_some_and(|session| session.is_wsl())
+    }
+
     /// Returns the active session's launch shell, if it is specified.
     /// Returns None if there is no active session or if the current session does not
     /// have a launch shell.

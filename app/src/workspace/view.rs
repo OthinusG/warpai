@@ -7583,9 +7583,10 @@ impl Workspace {
             ctx.spawn(
                 async {
                     tokio::task::spawn_blocking(|| {
-                        crate::pane_group::pane::icon::local_icons::directory()
-                            .map(|root| crate::pane_group::pane::icon::local_icons::discover(&root))
-                            .unwrap_or_default()
+                        let directory = crate::pane_group::pane::icon::local_icons::directory();
+                        crate::pane_group::pane::icon::local_icons::discover_all(
+                            directory.as_deref(),
+                        )
                     })
                     .await
                     .unwrap_or_default()

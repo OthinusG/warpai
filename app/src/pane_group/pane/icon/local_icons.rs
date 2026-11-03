@@ -10,6 +10,30 @@ use warpui::assets::asset_cache::{AssetSource, AsyncAssetId, AsyncAssetType};
 const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES: usize = 16 * 1024 * 1024;
 
+/// Icon files compiled into the app; a same-named file in `directory()` overrides them.
+const BUNDLED_ICONS: &[(&str, &[u8])] = &[
+    (
+        "btop.svg",
+        include_bytes!("../../../../assets/bundled/pane-icons/btop.svg"),
+    ),
+    (
+        "herdr.svg",
+        include_bytes!("../../../../assets/bundled/pane-icons/herdr.svg"),
+    ),
+    (
+        "spotify.svg",
+        include_bytes!("../../../../assets/bundled/pane-icons/spotify.svg"),
+    ),
+    (
+        "ssh.svg",
+        include_bytes!("../../../../assets/bundled/pane-icons/ssh.svg"),
+    ),
+    (
+        "wsl.svg",
+        include_bytes!("../../../../assets/bundled/pane-icons/wsl.svg"),
+    ),
+];
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(into = "String", try_from = "String")]
 pub struct LocalPaneIcon {
@@ -63,6 +87,34 @@ pub(crate) fn directory() -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".config/warpai/icon"))
 }
 
+/// Bundled icons plus validated files from `root`; files override bundles by name.
+///
+/// Run off the UI thread when a directory is present.
+pub(crate) fn discover_all(root: Option<&Path>) -> Vec<LocalPaneIcon> {
+    let mut icons = bundled_icons();
+    if let Some(root) = root {
+        for icon in discover(root) {
+            match icons.iter_mut().find(|existing| existing.name == icon.name) {
+                Some(existing) => *existing = icon,
+                None => icons.push(icon),
+            }
+        }
+    }
+    icons.sort_by(|left, right| left.name.cmp(&right.name));
+    icons
+}
+
+fn bundled_icons() -> Vec<LocalPaneIcon> {
+    BUNDLED_ICONS
+        .iter()
+        .filter_map(|(name, data)| {
+            let name = LocalPaneIcon::try_from((*name).to_owned()).ok()?.name;
+            let (data, tinted) = icon_from_bytes(&name, *data)?;
+            Some(pane_icon(name, data, tinted))
+        })
+        .collect()
+}
+
 /// Run off the UI thread. Only direct regular files become in-memory assets.
 pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
     let Ok(entries) = std::fs::read_dir(root) else {
@@ -82,72 +134,77 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
             let name = LocalPaneIcon::try_from(path.file_name()?.to_str()?.to_owned())
                 .ok()?
                 .name;
-            let extension = path.extension()?.to_str()?.to_ascii_lowercase();
-            if !matches!(extension.as_str(), "png" | "svg") {
-                return None;
-            }
             let mut data = Vec::new();
             File::open(&path)
                 .ok()?
                 .take(MAX_ICON_BYTES + 1)
                 .read_to_end(&mut data)
                 .ok()?;
-            if data.len() as u64 > MAX_ICON_BYTES {
-                return None;
-            }
-            let (data, tinted) = if extension == "svg" {
-                let source = std::str::from_utf8(&data)
-                    .ok()?
-                    .trim_start_matches('\u{feff}')
-                    .trim_start();
-                if !source.starts_with('<') {
-                    return None;
-                }
-                let sanitized =
-                    warpui::image_cache::sanitize_local_icon_svg(source.as_bytes()).ok()?;
-                (sanitized.data, sanitized.tinted)
-            } else {
-                let reader = image::ImageReader::with_format(
-                    std::io::Cursor::new(&data),
-                    image::ImageFormat::Png,
-                );
-                let (width, height) = reader.into_dimensions().ok()?;
-                if width == 0 || height == 0 || width > 4096 || height > 4096 {
-                    return None;
-                }
-                let image =
-                    image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
-                // Tab previews never need a full-size bitmap resident in the UI cache.
-                let mut output = std::io::Cursor::new(Vec::new());
-                image
-                    .thumbnail(256, 256)
-                    .write_to(&mut output, image::ImageFormat::Png)
-                    .ok()?;
-                (output.into_inner(), false)
-            };
-            if data.len() > MAX_ICON_BYTES as usize || total + data.len() > MAX_TOTAL_BYTES {
+            let (data, tinted) = icon_from_bytes(&name, &data)?;
+            if total + data.len() > MAX_TOTAL_BYTES {
                 return None;
             }
             total += data.len();
-            let mut hasher = DefaultHasher::new();
-            data.hash(&mut hasher);
-            let id = AsyncAssetId::new::<LocalIconAsset>(format!("{name}:{:x}", hasher.finish()));
-            let bytes = Arc::new(data);
-            let source = AssetSource::Async {
-                id,
-                fetch: Arc::new(move || {
-                    let bytes = bytes.clone();
-                    Box::pin(async move { Ok(bytes.as_ref().clone().into()) })
-                }),
-            };
-            Some(LocalPaneIcon {
-                name,
-                source: Some(source),
-                tinted,
-            })
+            Some(pane_icon(name, data, tinted))
         })
         .take(128)
         .collect()
+}
+
+/// Validate and normalize an SVG or PNG icon, returning the bytes to cache and whether
+/// the icon follows the theme foreground color.
+fn icon_from_bytes(name: &str, data: &[u8]) -> Option<(Vec<u8>, bool)> {
+    if data.len() as u64 > MAX_ICON_BYTES {
+        return None;
+    }
+    let extension = Path::new(name).extension()?.to_str()?.to_ascii_lowercase();
+    if extension == "svg" {
+        let source = std::str::from_utf8(data)
+            .ok()?
+            .trim_start_matches('\u{feff}')
+            .trim_start();
+        if !source.starts_with('<') {
+            return None;
+        }
+        let sanitized = warpui::image_cache::sanitize_local_icon_svg(source.as_bytes()).ok()?;
+        Some((sanitized.data, sanitized.tinted))
+    } else if extension == "png" {
+        let reader =
+            image::ImageReader::with_format(std::io::Cursor::new(data), image::ImageFormat::Png);
+        let (width, height) = reader.into_dimensions().ok()?;
+        if width == 0 || height == 0 || width > 4096 || height > 4096 {
+            return None;
+        }
+        let image = image::load_from_memory_with_format(data, image::ImageFormat::Png).ok()?;
+        // Tab previews never need a full-size bitmap resident in the UI cache.
+        let mut output = std::io::Cursor::new(Vec::new());
+        image
+            .thumbnail(256, 256)
+            .write_to(&mut output, image::ImageFormat::Png)
+            .ok()?;
+        Some((output.into_inner(), false))
+    } else {
+        None
+    }
+}
+
+fn pane_icon(name: String, data: Vec<u8>, tinted: bool) -> LocalPaneIcon {
+    let mut hasher = DefaultHasher::new();
+    data.hash(&mut hasher);
+    let id = AsyncAssetId::new::<LocalIconAsset>(format!("{name}:{:x}", hasher.finish()));
+    let bytes = Arc::new(data);
+    let source = AssetSource::Async {
+        id,
+        fetch: Arc::new(move || {
+            let bytes = bytes.clone();
+            Box::pin(async move { Ok(bytes.as_ref().clone().into()) })
+        }),
+    };
+    LocalPaneIcon {
+        name,
+        source: Some(source),
+        tinted,
+    }
 }
 
 #[cfg(test)]
@@ -218,6 +275,44 @@ mod tests {
             tinted: false,
         });
         assert!(!invalid.is_available());
+    }
+
+    #[test]
+    fn terminal_ssh_session_bundled_icons_merge_and_yield_to_user_files() {
+        use warpui::AssetProvider;
+
+        for path in [
+            crate::ui_components::icon_with_status::SSH_TAB_ICON_PATH,
+            crate::ui_components::icon_with_status::WSL_TAB_ICON_PATH,
+        ] {
+            assert!(
+                crate::ASSETS.get(path).is_ok(),
+                "missing bundled asset {path}"
+            );
+        }
+
+        let bundled = discover_all(None);
+        assert_eq!(
+            bundled
+                .iter()
+                .map(|icon| icon.name.as_str())
+                .collect::<Vec<_>>(),
+            ["btop.svg", "herdr.svg", "spotify.svg", "ssh.svg", "wsl.svg"]
+        );
+        assert!(bundled.iter().all(|icon| icon.source.is_some()));
+
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::write(temp.path().join("ssh.svg"), SVG.replace("gray", "black")).unwrap();
+        std::fs::write(temp.path().join("custom.svg"), SVG).unwrap();
+        let merged = discover_all(Some(temp.path()));
+        assert_eq!(merged.len(), 6);
+        let user_ssh = merged.iter().find(|icon| icon.name == "ssh.svg").unwrap();
+        let bundled_ssh = bundled.iter().find(|icon| icon.name == "ssh.svg").unwrap();
+        assert_ne!(
+            user_ssh.source, bundled_ssh.source,
+            "a user file overrides the bundled icon"
+        );
+        assert!(merged.iter().any(|icon| icon.name == "custom.svg"));
     }
 
     #[test]

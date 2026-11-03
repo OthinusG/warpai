@@ -113,6 +113,9 @@ restores them when reopened. Use **Reset pane icon** to clear a selection. Agent
 branding and status take priority, followed by the selected icon and SSH badge.
 SVG icons that declare `autocolor="true"` on the root element and paint with
 `currentColor` follow the theme foreground color in light and dark themes.
+Icons for btop, herdr, Spotify, SSH and WSL ship with the app; a same-named file
+in the icon directory overrides the bundled copy. SSH sessions default to
+`ssh.svg` and WSL sessions to `wsl.svg` when no icon is selected.
 
 <a id="remote-work-is-part-of-the-same-workflow"></a>
 

@@ -189,3 +189,25 @@ composition and use no purple, shadows, external background or mockup.
 - Verification: focused discovery/sanitizer tests cover opt-in, plain
   `currentColor`, and `autocolor` without `currentColor`; native light/dark
   captures remain part of the GitHub desktop validation flow.
+
+## Bundled pane icons and session defaults (2026-11-03)
+
+- Ship the owner's pane icon set inside the app under
+  `app/assets/bundled/pane-icons`: `btop.svg`, `herdr.svg`, `spotify.svg`,
+  `ssh.svg`, `wsl.svg`. `herdr-white.svg` stays out; `herdr.svg` carries
+  `autocolor="true"` and `currentColor`, so one file covers both themes.
+- Bundled icons join the same picker list as `~/.config/warpai/icon`. They pass
+  through the identical sanitizer, size limits and content-hashed cache. A
+  same-named user file overrides the bundled copy; persistence is unchanged
+  (`icon = { local = "ssh.svg" }`), so selections survive restarts.
+- Session defaults: when a terminal pane has no explicit selection, an SSH
+  session shows bundled `ssh.svg`, and a local WSL session shows bundled
+  `wsl.svg`. Precedence is Agent > selection > SSH > WSL > terminal. The
+  defaults apply to the vertical row icon, the detail badge, the summary circle
+  and the summary kind, replacing the legacy `bundled/png/ssh-tab.png` badge.
+- WSL detection uses the active session's native WSL metadata
+  (`is_wsl_for_tab`), matching the existing SSH session check; pending SSH
+  commands still show the SSH icon.
+- Verification: discovery tests cover bundled ordering, user-file override and
+  bundled asset presence; focused `terminal_ssh_session_` tests run in the
+  GitHub desktop workflow. Native light/dark captures remain required.
