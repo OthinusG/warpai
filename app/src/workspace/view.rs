@@ -21062,11 +21062,27 @@ impl Workspace {
         }
     }
 
+    fn column_toolbar_height(&self, side: PanelPosition, app: &AppContext) -> f32 {
+        if side == PanelPosition::Right
+            && traffic_light_data(app, self.window_id)
+                .is_some_and(|data| data.side == TrafficLightSide::Right)
+        {
+            TAB_BAR_HEIGHT * 2.
+        } else {
+            TAB_BAR_HEIGHT
+        }
+    }
+
     fn render_column_toolbar(&self, side: PanelPosition, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
         let config = &TabSettings::as_ref(app).header_toolbar_chip_selection;
         let mut row = Flex::row()
             .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_alignment(if side == PanelPosition::Right {
+                MainAxisAlignment::End
+            } else {
+                MainAxisAlignment::Start
+            })
             .with_cross_axis_alignment(CrossAxisAlignment::Center);
         if side == PanelPosition::Left {
             for item in config.left_items() {
@@ -21093,25 +21109,11 @@ impl Workspace {
             })
             .with_padding_right(8.)
             .finish();
-        let reserve_window_controls = side == PanelPosition::Right
-            && traffic_light_data(app, self.window_id)
-                .is_some_and(|data| data.side == TrafficLightSide::Right);
+        let height = self.column_toolbar_height(side, app);
         let toolbar = Container::new(row)
-            .with_padding_top(if reserve_window_controls {
-                TAB_BAR_HEIGHT
-            } else {
-                0.
-            })
+            .with_padding_top(height - TAB_BAR_HEIGHT)
             .finish();
-        let toolbar = EventHandler::new(
-            ConstrainedBox::new(toolbar)
-                .with_height(if reserve_window_controls {
-                    TAB_BAR_HEIGHT * 2.
-                } else {
-                    TAB_BAR_HEIGHT
-                })
-                .finish(),
-        )
+        let toolbar = EventHandler::new(ConstrainedBox::new(toolbar).with_height(height).finish())
         .on_right_mouse_down(|ctx, _, position| {
             ctx.dispatch_typed_action(WorkspaceAction::ShowHeaderToolbarContextMenu { position });
             DispatchEventResult::StopPropagation
@@ -21148,11 +21150,22 @@ impl Workspace {
         if !has_panels {
             return None;
         }
-        let column = Flex::column()
-            .with_main_axis_size(MainAxisSize::Max)
-            .with_cross_axis_alignment(CrossAxisAlignment::Stretch)
-            .with_child(self.render_column_toolbar(side, app))
-            .with_child(Shrinkable::new(1., panels.finish()).finish())
+        // Resizable bodies determine the column width before the toolbar can fill it.
+        let column = Stack::new()
+            .with_child(
+                Container::new(panels.finish())
+                    .with_padding_top(self.column_toolbar_height(side, app))
+                    .finish(),
+            )
+            .with_positioned_child(
+                self.render_column_toolbar(side, app),
+                OffsetPositioning::offset_from_parent(
+                    Vector2F::zero(),
+                    ParentOffsetBounds::ParentBySize,
+                    ParentAnchor::TopLeft,
+                    ChildAnchor::TopLeft,
+                ),
+            )
             .finish();
         Some(
             Container::new(column)

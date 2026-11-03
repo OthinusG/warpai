@@ -99,3 +99,15 @@ entry in `crates/settings/src/owner-defaults.json`. Default/platform compilation
 and both protocol suites had passed. Remove only the obsolete bundled default;
 retain the schema consistency test and rerun the same cloud validation/captures.
 The test installer remains gated on acceptance.
+
+## CI correction plan: finite column toolbar layout
+
+Run 41674696749 passed the default consistency gate, then the retained vertical
+column regression caught an infinite horizontal constraint in the toolbar's
+max-size Flex. The outer workspace lays out side columns without a fixed width;
+that width belongs to the existing resizable panel bodies. Measure those bodies
+first using the existing Stack, reserve the toolbar height in their container,
+and position the toolbar with ParentBySize bounds. This keeps live resize state
+in its original owner, avoids cached/manual width synchronization, and bounds
+the toolbar before its max-size Flex is laid out. Preserve both regression and
+native screenshot assertions; rerun exact-source cloud acceptance.
