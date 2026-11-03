@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -55,6 +55,8 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Sidebar owns sessions; panel owns communication/history. Native widgets, 8px
   spacing, default closed; preserve focus/drafts. Derive icons/coverage from
   CLIAgent, retaining aliases/custom MCP; no duplicate allowlist/shell fallback.
+
+- Native system HTTP on all desktops (Nov3): specs/system-network.md.
 
 ## Usage accounts and native Orca port
 

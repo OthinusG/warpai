@@ -39,6 +39,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   system-network:
+    timeout-minutes: 180
     if: ${{ inputs.network_only }}
     strategy:
       fail-fast: false
@@ -50,9 +51,11 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          lfs: ${{ inputs.check_app }}
       - run: rustup toolchain install 1.92.0 --profile minimal
       - if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libsoup2.4-dev glib-networking
+        run: sudo apt-get update -qq && sudo apt-get install -y libsoup2.4-dev glib-networking dbus-x11 gsettings-desktop-schemas
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
@@ -61,6 +64,11 @@ jobs:
             target
           key: system-network-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo test -p system_http --locked
+      - run: cargo build -p system_http --example system_http_probe --locked
+      - if: runner.os == 'Linux'
+        run: dbus-run-session -- python3 script/test-system-proxy.py target/debug/examples/system_http_probe
+      - if: runner.os != 'Linux'
+        run: python3 script/test-system-proxy.py target/debug/examples/system_http_probe${{ runner.os == 'Windows' && '.exe' || '' }}
       - if: inputs.check_app && runner.os != 'Linux'
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:

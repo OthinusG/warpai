@@ -43,3 +43,20 @@ Native ownership, cancellation races, streaming memory use, redirected secrets,
 and TLS trust are the main regression risks. Preserve release/download validation;
 the current public updater opens installer links in the browser and does not
 download or install packages itself.
+
+## Inventory and verification receipts
+
+- Routed: provider HTTP quotas, public release metadata, URL assets (including
+  shared fallback resources), LSP/node downloads, the existing shared HTTP client
+  and its streaming/OAuth adapter. HTTP request/response types remain compatible.
+- Native CLI usage commands retain vendor-owned networking. SSH/SFTP, local
+  sockets, terminal subprocesses and browser-opened installer links keep their
+  existing transports. Retained built-in cloud AI/MCP scaffolding remains disabled
+  in the local-first product; this change does not restore that product surface.
+- macOS local credential-free Foundation probe: Codex endpoint HTTP 401 through
+  the existing PAC; GitHub endpoint HTTP 403 (reachable; no API authentication).
+- Disposable GitHub runners test request/body/status/header preservation,
+  streaming before EOF, cancellation, upload staging, deadlines and redirect
+  credential isolation. An additional fixture changes **only disposable hosted
+  runner** proxy settings, clears shell proxy variables, and requires an
+  otherwise-unresolvable target to arrive at the local proxy.
