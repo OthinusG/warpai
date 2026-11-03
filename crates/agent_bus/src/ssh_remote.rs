@@ -230,6 +230,19 @@ pub struct HostClient {
     access_epoch: Option<u64>,
 }
 
+        fn requires_handoff(command: &crate::companion::TaskCommand) -> bool {
+            use crate::{companion::TaskCommand, Operation};
+            match command {
+                TaskCommand::Scoped { command, .. } => requires_handoff(command),
+                TaskCommand::Operator(Operation::TaskSubmit { handoff, .. }
+                    | Operation::TaskProgress { handoff, .. } | Operation::TaskFail { handoff, .. }
+                    | Operation::TaskFinishCancel { handoff, .. }) => handoff.is_some(),
+                TaskCommand::Operator(Operation::AgentReply { handoff_ref, .. }) => handoff_ref.is_some(),
+                TaskCommand::Operator(Operation::ContextGet { handoff_part, .. }) => handoff_part.is_some(),
+                TaskCommand::Operator(Operation::ContextPublish { content:crate::context::ContextContent::Handoff { .. }, .. }) => true,
+                _ => false,
+            }
+        }
 impl HostClient {
     /// Use the selected guest account without an interactive shell or TCP listener.
     #[cfg(windows)]
@@ -527,18 +540,6 @@ impl HostClient {
             || !self.capabilities.iter().any(|c| c == "structured_task_messages")) {
             return Err(ConnectionError::FeatureUnavailable);
         }
-        fn requires_handoff(command: &crate::companion::TaskCommand) -> bool {
-            use crate::{companion::TaskCommand, Operation};
-            match command {
-                TaskCommand::Scoped { command, .. } => requires_handoff(command),
-                TaskCommand::Operator(Operation::TaskSubmit { handoff, .. }
-                    | Operation::TaskProgress { handoff, .. } | Operation::TaskFail { handoff, .. }
-                    | Operation::TaskFinishCancel { handoff, .. }) => handoff.is_some(),
-                TaskCommand::Operator(Operation::AgentReply { handoff_ref, .. }) => handoff_ref.is_some(),
-                TaskCommand::Operator(Operation::ContextGet { handoff_part, .. }) => handoff_part.is_some(),
-                _ => false,
-            }
-        }
         if requires_handoff(command) && !self.capabilities.iter().any(|c| c == "handoff_briefs_v1") {
             return Err(ConnectionError::FeatureUnavailable);
         }
@@ -771,6 +772,20 @@ mod windows_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handoff_capability_gate_covers_scoped_requests_and_preserves_legacy_requests() {
+        use crate::{companion::TaskCommand, handoff::{HandoffPart, HandoffSubmission}, Operation};
+        let mut operation: Operation = serde_json::from_value(serde_json::json!({
+            "op":"task_progress", "task_id":"fixture", "revision":1,"note":"Checkpoint", "request_id":"fixture"
+        })).unwrap();
+        assert!(!requires_handoff(&TaskCommand::Operator(operation.clone())));
+        if let Operation::TaskProgress { handoff, .. } = &mut operation { *handoff = Some(HandoffSubmission::default()); }
+        assert!(requires_handoff(&TaskCommand::Scoped { scope:"fixture".into(), command:Box::new(TaskCommand::Operator(operation)) }));
+        let reference = crate::context::ContextRef { id:"fixture".into(), revision:1, sha256:"fixture".into() };
+        assert!(!requires_handoff(&TaskCommand::Operator(Operation::ContextGet { reference:reference.clone(), handoff_part:None })));
+        assert!(requires_handoff(&TaskCommand::Operator(Operation::ContextGet { reference, handoff_part:Some(HandoffPart::Status) })));
+    }
 
     #[test]
     fn control_socket_accepts_native_home_without_reinterpreting_guest_paths() {

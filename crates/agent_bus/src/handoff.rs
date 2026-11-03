@@ -112,6 +112,27 @@ mod tests {
         assert!(oversized.validate().is_err());
         assert!(serde_json::from_str::<HandoffSubmission>(r#"{"producer":"spoof"}"#).is_err());
     }
+
+    #[test]
+    fn legacy_requests_omit_new_fields_and_strict_input_stays_strict() {
+        let submit: crate::Operation = serde_json::from_str(r#"{"op":"task_submit","task_id":"fixture","revision":1,"result":"Done","evidence":"Reported","request_id":"fixture"}"#).unwrap();
+        assert!(serde_json::to_value(submit)
+            .unwrap()
+            .get("handoff")
+            .is_none());
+        let get: crate::Operation = serde_json::from_str(
+            r#"{"op":"context_get","reference":{"id":"fixture","revision":1,"sha256":"fixture"}}"#,
+        )
+        .unwrap();
+        assert!(serde_json::to_value(get)
+            .unwrap()
+            .get("handoff_part")
+            .is_none());
+        assert!(serde_json::from_str::<HandoffSubmission>(
+            r#"{"next_steps":{"status":"not_provided","items":["hidden"]}}"#
+        )
+        .is_err());
+    }
 }
 
 /// Read only the bounded source records explicitly covered by an authorized brief.

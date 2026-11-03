@@ -4427,6 +4427,13 @@ impl Store {
             let sequence = event.sequence;
             records.push((sequence, "event", serde_json::to_value(event)?));
         }
+        let briefs = diesel::sql_query("SELECT value FROM meta WHERE key >= 'context/version/' AND key < 'context/version0' AND json_extract(value,'$.project')=? AND json_extract(value,'$.kind')='handoff' AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
+            .bind::<Text, _>(project).bind::<BigInt, _>(after).bind::<BigInt, _>(fetch)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        for row in briefs {
+            let resource: crate::context::ContextResource = serde_json::from_str(&row.value)?;
+            records.push((resource.summary.created_seq, "handoff", json!(resource)));
+        }
         records.sort_by_key(|(sequence, kind, _)| (*sequence, *kind));
         let (records, cursor) = bounded_items(records.into_iter()
             .map(|(sequence, kind, data)| (sequence, json!({"type": kind, "sequence": sequence, "data": data}))), limit)?;

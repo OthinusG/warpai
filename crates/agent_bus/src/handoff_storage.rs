@@ -20,7 +20,7 @@ impl Store {
             HandoffPart::Status => {
                 let task = self.operator_task(&actor.project, &snapshot.task_id)?;
                 json!({"state":task.state,"task_revision":task.revision,
-                    "result_is_current":task.revision == snapshot.task_revision && task.attempts.last().is_some_and(|attempt| attempt.id == snapshot.attempt_id),
+                    "result_is_current":task.handoff_ref.as_ref() == Some(reference),
                     "execution_uncertain":task.attempts.iter().any(|attempt| attempt.finished_at.is_none() && attempt.certainty != "active")})
             }
             HandoffPart::Task => {
@@ -60,6 +60,8 @@ impl Store {
     }
 
     pub(super) fn purge_task_handoff(&self, task: &str) -> Result<()> {
+        diesel::sql_query("DELETE FROM meta WHERE key >= 'handoff/retain/' AND key < 'handoff/retain0' AND json_extract(value,'$.target_task')=?")
+            .bind::<Text, _>(task).execute(&mut *self.connection.borrow_mut())?;
         let head: Option<ContextSummary> = self.context_meta(&format!("handoff/task/{task}"))?;
         if let Some(head) = head {
             let prefix = format!("context/version/{}/", head.reference.id);
@@ -211,7 +213,15 @@ impl Store {
             source_event_sequence: event_sequence,
             result_preview: preview.chars().take(512).collect(),
             preview_truncated: preview.chars().count() > 512,
-            evidence_ids: evidence_ids.to_vec(),
+            evidence_ids: task
+                .evidence_records
+                .iter()
+                .filter(|evidence| {
+                    evidence.attempt_id.as_deref() == Some(&attempt.id)
+                        || evidence_ids.contains(&evidence.id)
+                })
+                .map(|evidence| evidence.id.clone())
+                .collect(),
             input_context_refs: task.context_refs.clone(),
             agent_report,
         };
@@ -364,6 +374,13 @@ mod tests {
         assert_eq!(pin.id, second.id);
         assert_eq!(second.revision, 2);
         assert_eq!(
+            store
+                .handoff_source(&worker, &pin, &crate::handoff::HandoffPart::Status)
+                .unwrap()["source"]["result_is_current"],
+            false
+        );
+
+        assert_eq!(
             store.execute(&worker, "worker-run", &operation).unwrap(),
             submitted
         );
@@ -434,8 +451,9 @@ mod tests {
             .as_array()
             .unwrap()
             .is_empty());
-        let operator = Store::operator("/project");
-        let target = assign(&store, &operator, &peer, vec![pin.clone()]);
+        store.set_worktree_mode("/project", false).unwrap();
+        let target = assign(&store, &issuer, &peer, vec![pin.clone()]);
+        store.set_worktree_mode("/project", true).unwrap();
         assert!(store.task(&peer, &source).is_err());
         assert!(store.context_get(&peer, &pin).is_ok());
         let result = store
@@ -467,6 +485,192 @@ mod tests {
         newer.revision += 1;
         assert!(store.context_get(&peer, &newer).is_err());
         assert!(store.context_get(&worker, &pin).is_ok());
+    }
+
+    #[test]
+    fn handoff_partial_outcomes_keep_test_reports_and_task_semantics() {
+        for cancelled in [false, true] {
+            let store = Store::open(":memory:").unwrap();
+            let (issuer, worker) = actors(&store);
+            let task = assign(&store, &issuer, &worker, vec![]);
+            start(&store, &worker, &task, 1);
+            let added = store
+                .execute(
+                    &worker,
+                    "worker-run",
+                    &Operation::EvidenceAdd {
+                        task_id: task.clone(),
+                        kind: "test".into(),
+                        attempt_id: None,
+                        path: None,
+                        hash: None,
+                        commit: None,
+                        repository: None,
+                        branch: None,
+                        base: None,
+                        head: None,
+                        command: Some("fixture-check".into()),
+                        outcome: Some("passed".into()),
+                        exit_code: Some(0),
+                        summary: Some("Agent report, no independent execution".into()),
+                        request_id: Uuid::new_v4().to_string(),
+                    },
+                )
+                .unwrap();
+            let operation = if cancelled {
+                store
+                    .execute(
+                        &issuer,
+                        "issuer-run",
+                        &Operation::TaskCancel {
+                            task_id: task.clone(),
+                            reason: "Stop requested".into(),
+                            expected_version: None,
+                            request_id: Uuid::new_v4().to_string(),
+                        },
+                    )
+                    .unwrap();
+                Operation::TaskFinishCancel {
+                    handoff: None,
+                    task_id: task.clone(),
+                    revision: 1,
+                    reason: "Stopped with partial evidence".into(),
+                    attempt_id: None,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                }
+            } else {
+                Operation::TaskFail {
+                    handoff: None,
+                    task_id: task.clone(),
+                    revision: 1,
+                    reason: "Could not complete".into(),
+                    evidence_ids: vec![],
+                    attempt_id: None,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                }
+            };
+            let result = store.execute(&worker, "worker-run", &operation).unwrap();
+            assert_eq!(
+                result["state"],
+                if cancelled { "cancelled" } else { "failed" }
+            );
+            let pin = reference(&result);
+            let id = added["evidence_id"].as_str().unwrap().to_owned();
+            let evidence = store
+                .handoff_source(&issuer, &pin, &crate::handoff::HandoffPart::Evidence { id })
+                .unwrap();
+            assert_eq!(evidence["source"]["evidence"]["verified"], false);
+            assert_eq!(evidence["source"]["evidence"]["outcome"], "passed");
+            assert_eq!(evidence["source"]["test_outcome_source"], "agent_reported");
+            assert_eq!(
+                store.execute(&worker, "worker-run", &operation).unwrap(),
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn handoff_pins_protect_source_history_until_the_target_is_purged() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let source = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &source, 1);
+        let pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&source, 1))
+                .unwrap(),
+        );
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskReview {
+                    task_id: source.clone(),
+                    revision: 1,
+                    accepted: true,
+                    feedback: "Accepted".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let target = assign(&store, &issuer, &worker, vec![pin.clone()]);
+        store.task_archive("/project", &issuer, &source).unwrap();
+        store
+            .connection
+            .borrow_mut()
+            .batch_execute("UPDATE messages SET acknowledged=1")
+            .unwrap();
+        assert_eq!(
+            store.purge_preview("/project").unwrap()["handoff_protected_tasks"],
+            1
+        );
+        store
+            .transaction(|| store.history_purge("/project", &issuer, true, true))
+            .unwrap();
+        assert!(store.context_get(&worker, &pin).is_ok());
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskCancel {
+                    task_id: target.clone(),
+                    reason: "Fixture complete".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store.task_archive("/project", &issuer, &target).unwrap();
+        store
+            .connection
+            .borrow_mut()
+            .batch_execute("UPDATE messages SET acknowledged=1")
+            .unwrap();
+        store
+            .transaction(|| store.history_purge("/project", &issuer, true, true))
+            .unwrap();
+        assert!(store.context_get(&worker, &pin).is_ok());
+        store
+            .transaction(|| store.history_purge("/project", &issuer, true, true))
+            .unwrap();
+        assert!(store.context_get(&worker, &pin).is_err());
+    }
+
+    #[test]
+    fn handoff_generation_does_not_consume_input_pin_capacity() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let mut pins = Vec::new();
+        for _ in 0..16 {
+            let publication = store
+                .execute(
+                    &issuer,
+                    "issuer-run",
+                    &Operation::ContextPublish {
+                        resource_id: None,
+                        expected_revision: None,
+                        title: "Input".into(),
+                        source_revision: None,
+                        content: ContextContent::Analysis {
+                            summary: "Input snapshot".into(),
+                            findings: vec![],
+                        },
+                        request_id: Uuid::new_v4().to_string(),
+                    },
+                )
+                .unwrap();
+            pins.push(serde_json::from_value(publication["reference"].clone()).unwrap());
+        }
+        let task = assign(&store, &issuer, &worker, pins.clone());
+        start(&store, &worker, &task, 1);
+        let result = store
+            .execute(&worker, "worker-run", &submit(&task, 1))
+            .unwrap();
+        assert_eq!(store.task(&worker, &task).unwrap().context_refs, pins);
+        assert!(result["handoff_ref"].is_object());
     }
 
     #[test]

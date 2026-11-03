@@ -73,7 +73,8 @@ reads remain subject to current task permissions.
 
 Keep source task/evidence/events while a live target task or message pins any
 handoff version so provenance cannot dangle. Unreferenced archived source tasks
-use the existing purge policy, deleting their briefs in the same transaction. Cleanup preview reports protected tasks. Resources already follow Store
+use the existing purge policy, deleting their briefs in the same transaction. Cleanup preview reports protected tasks. History export includes immutable brief
+resources as `handoff` records alongside their source events and task evidence. Resources already follow Store
 capacity limits; no independent retention service or automatic memory promotion.
 Retiring memory never deletes immutable versions. Source review changes are
 visible through source task refresh; consumers must revalidate before use.
