@@ -1,6 +1,7 @@
 # Task handoff briefs
 
-Date: 2026-11-03. Status: implementation in progress; runtime gates pending.
+Date: 2026-11-03. Status: implemented and acceptance passed.
+Source-linked receipts: [HANDOFF-ACCEPTANCE.md](HANDOFF-ACCEPTANCE.md).
 
 ## Scope and acceptance
 

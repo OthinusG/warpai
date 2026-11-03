@@ -1,6 +1,6 @@
 # Handoff implementation acceptance
 
-Date: 2026-11-03. Status: final source verification in progress; no release or
+Date: 2026-11-03. Status: implementation acceptance passed; no release or
 personal installation changes. Contract: [HANDOFF.md](HANDOFF.md).
 
 ## Source and scope
@@ -36,59 +36,67 @@ assertions/steps or panics. Static screenshots were inspected before live wiring
 The older macOS static job stopped before screenshots at a subsequently corrected
 test compilation error. It is not evidence of a macOS visual pass.
 
-## Completed intermediate checks
+## Final source and verification
 
-- [Three-platform remote suite](https://github.com/OthinusG/warpai/actions/runs/41575573619)
-  at `6240a4f`: all jobs passed, including real disposable SSH/native MCP,
-  standalone Companion packaging and control-wire checks. Superseded by final
-  source verification for the expanded continuation flow.
-- [Complete macOS/Windows protocol suites](https://github.com/OthinusG/warpai/actions/runs/41578504377)
-  at `d8ac553`: passed, including persistence, native IPC/MCP and focused library
-  and binary Clippy. The earlier all-target Clippy invocation exposed an existing
-  non-octal Unix-permission literal in an unrelated test; production library/bin
-  linting is used while the full test suite still compiles and executes tests.
-- Local Rust parsing/diff checks, strict interface locale coverage, Python fixture
-  syntax and WSL packaging/installation checks passed. Rust builds run on GitHub.
-- New handoff modules pass rustfmt checks. Repository-wide cargo fmt --check
-  reports pre-existing formatting differences (starting in app/build.rs and
-  codex_launch.rs); unrelated files were not reformatted.
+Final runtime/UI source: `4ca3f2f2c08b330abc3d5587c6acc4c004c9624e`.
+The difference from `0845757cffc73cb24f7481831c44d9aae71ecf47` is exactly two
+Chinese heading entries in interface.json. Shared Agent Bus, SSH and WSL code
+is unchanged. Later receipt-only commits do not change tested code.
 
-## Final delivery gates
+| Gate | Source / run | Result |
+| --- | --- | --- |
+| Protocol, persistence, native IPC/MCP, focused library/bin Clippy, query budget | `4ca3f2f` · [macOS/Windows](https://github.com/OthinusG/warpai/actions/runs/41620326280) | Both jobs passed |
+| Default/platform desktop checks and application tests; native UI | `4ca3f2f` · [macOS/Windows](https://github.com/OthinusG/warpai/actions/runs/41620326280) | Both desktop jobs passed |
+| Real direct WSL checkpoint, submit, replay and exact-reference reads | `0845757` · [complete desktop/WSL suite](https://github.com/OthinusG/warpai/actions/runs/41613853838) | All jobs passed |
+| Real SSH two-Agent continuation through explicit TaskStart; standalone Companion and installers | `0845757` · [Linux/macOS/Windows](https://github.com/OthinusG/warpai/actions/runs/41613903821) | All three jobs passed |
+| Linux x64/ARM64 AppImage, DEB, RPM and Arch packages; installed X11 desktop smoke | `4ca3f2f` · [artifact-only packaging](https://github.com/OthinusG/warpai/actions/runs/41620331662) | Both architectures passed; release attachment skipped |
 
-### CI correction plan
+Legacy compatibility is covered by strict request serialization and scoped
+capability-gate tests. Absent optional fields remain omitted; new requests
+require handoff_briefs_v1. Companion artifacts report 5.6.0, Agent Bus major 2
+and SSH major 1 remain unchanged. Linux packages use test version 1.8.2.1;
+no tag, release or personal installation was changed.
 
-Run 41588568446 passed both protocol jobs and desktop compilation, but failed:
+## Final artifact receipts
 
-- macOS native search: automatic handoff decoration changed an ordinary peer
-  instruction. Restrict automatic URI decoration to system task notifications;
-  assert both preserved peer text and decorated review notifications in a
-  focused regression test, then rerun native captures.
-- Windows direct WSL: the new fixture mode change omitted its selected scope.
-  Wrap both mode changes in the existing Scoped command and retain error
-  details in assertions; rerun the real disposable WSL test.
+| Artifact | Receipt |
+| --- | --- |
+| macOS native captures | [13226520671](https://github.com/OthinusG/warpai/actions/runs/41620326280/artifacts/13226520671) |
+| Windows native captures | [13227187129](https://github.com/OthinusG/warpai/actions/runs/41620326280/artifacts/13227187129) |
+| Linux x64 packages | [13227308477](https://github.com/OthinusG/warpai/actions/runs/41620331662/artifacts/13227308477) |
+| Linux ARM64 packages | [13227932525](https://github.com/OthinusG/warpai/actions/runs/41620331662/artifacts/13227932525) |
+| Linux x64 / ARM64 desktop smoke | [13228755069](https://github.com/OthinusG/warpai/actions/runs/41620331662/artifacts/13228755069) / [13227763687](https://github.com/OthinusG/warpai/actions/runs/41620331662/artifacts/13227763687) |
+| Linux / macOS / Windows Companion installers | [13220836586](https://github.com/OthinusG/warpai/actions/runs/41613903821/artifacts/13220836586) / [13221520315](https://github.com/OthinusG/warpai/actions/runs/41613903821/artifacts/13221520315) / [13220189247](https://github.com/OthinusG/warpai/actions/runs/41613903821/artifacts/13220189247) |
 
-The same source passed three-platform remote/SSH and Linux x64/ARM64 packages.
-The corrected source must receive fresh protocol and desktop/WSL/UI checks.
+Each final desktop capture archive contains 1,110 PNGs across English, zh-Hans
+and zh-Hant. Both diagnostics identify source 4ca3f2f, exit 0, no failed steps,
+assertions or panics. Native assertions cover exact-version history, loaded
+checkpoint/evidence, Agent-reported not_run with verified=false, late responses
+after Back and retained drafts. Representative long/narrow, light/dark,
+loading/unavailable/history and loaded handoff frames were visually inspected.
+QA found missing Result/Evidence headings; both Chinese translations were
+added, all eight handoff headings were checked and final captures re-inspected.
+The Linux x64/ARM64 smoke screenshots show the installed desktop and live terminal.
 
-Current implementation source: `b415199` (the correction above).
-Source-matched runs (results and artifact review pending):
+## Corrections and validation limits
 
-- [Protocol, desktop, WSL and native UI](https://github.com/OthinusG/warpai/actions/runs/41613146491).
-- [Three-platform SSH/Companion](https://github.com/OthinusG/warpai/actions/runs/41613152058).
-- [Linux x64/ARM64 artifact-only packages](https://github.com/OthinusG/warpai/actions/runs/41613158735).
+The native search regression exposed automatic URI decoration of ordinary peer
+instructions. Decoration is now restricted to system task notifications;
+a focused test preserves peer text and verifies the review URI. The WSL fixture
+mode changes now use their selected scope. Both original failing paths passed
+the complete desktop/WSL suite above.
 
-Pending gates:
+Local changed-Rust parsing, new-module rustfmt, strict locale coverage,
+Python/JSON/shell syntax and diff checks passed. Rust builds and native acceptance
+ran on GitHub with caches. Repository-wide cargo fmt --check reports existing
+differences starting in app/build.rs and codex_launch.rs; unrelated files were
+not reformatted. Clippy covers the production library/binaries; an existing
+non-octal permission literal blocks all-target Clippy in an unrelated test,
+while the full protocol test suite still compiles and runs test targets.
 
-- Final protocol/Clippy and default/platform desktop checks.
-- Native loaded detail, evidence, paged history and late-response assertions;
-  English/zh-Hans/zh-Hant screenshots on macOS and Windows.
-- Disposable direct WSL checkpoint/submit/replay/exact-reference read.
-- Real SSH two-Agent continuation from a reviewed pin through explicit TaskStart.
-- Linux x64/ARM64 desktop packaging/smoke checks and Companion manifests.
-
-Reviewable [draft PR #11](https://github.com/OthinusG/warpai/pull/11) tracks these
-gates. The original worktree remains independent. Documentation-only receipt
-commits after the implementation source do not change the tested code.
-
-Synthetic owned Agent fixtures prove transport, state, authorization and rendering;
-they do not claim paid vendor/model authentication or model comprehension.
+The [draft PR #11](https://github.com/OthinusG/warpai/pull/11) is reviewable.
+MEMORY.md was updated within 200 lines / 12 KiB. The original worktree's
+independent HTTP changes remain untouched. There are no pending implementation
+acceptance gates. Synthetic owned Agent fixtures prove transport, state,
+authorization and rendering; they do not claim paid vendor/model authentication
+or model comprehension.
