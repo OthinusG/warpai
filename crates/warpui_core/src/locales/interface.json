@@ -1,4 +1,5 @@
 {
+  "Evidence": ["证据", "證據"],
   "Saved handoff is unavailable.": ["已保存的交接内容不可用。", "已儲存的交接內容無法使用。"],
   "An input handoff is stale or unavailable. Revalidate its source before continuing.": ["输入交接内容已过时或不可用，请先重新核验来源再继续。", "輸入交接內容已過時或無法使用，請先重新核驗來源再繼續。"],
   "Evidence task revision: {revision}": ["证据对应任务修订：{revision}", "證據對應任務修訂：{revision}"],
