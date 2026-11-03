@@ -59,7 +59,35 @@ impl Store {
                     .into_iter()
                     .find(|evidence| &evidence.id == id)
                     .ok_or_else(|| invalid_state("Handoff evidence is unavailable"))?;
-                json!({"same_attempt":evidence.attempt_id.as_deref() == Some(&snapshot.attempt_id),"evidence":evidence,"test_outcome_source":"agent_reported","review_is_separate":true})
+                let attempt = if let Some(id) = &evidence.attempt_id {
+                    diesel::sql_query("SELECT id, task_id, revision, owner, run, certainty, outcome, started_at, finished_at FROM attempts WHERE id=? AND task_id=?")
+                        .bind::<Text, _>(id).bind::<Text, _>(&snapshot.task_id)
+                        .get_result::<AttemptRow>(&mut *self.connection.borrow_mut()).optional()?.map(AttemptRow::attempt)
+                } else {
+                    None
+                };
+                let binding: Option<NativeThreadBinding> = match &attempt {
+                    Some(attempt) => {
+                        self.context_meta(&format!("execution/binding/{}", attempt.id))?
+                    }
+                    None => None,
+                };
+                let test_outcome_source = if evidence.kind == "test" {
+                    "agent_reported"
+                } else {
+                    "not_applicable"
+                };
+                json!(crate::handoff::HandoffEvidence {
+                    same_attempt: evidence.attempt_id.as_deref() == Some(&snapshot.attempt_id),
+                    reported_by: attempt.as_ref().map(|attempt| attempt.owner.clone()),
+                    task_revision: attempt.as_ref().map(|attempt| attempt.revision),
+                    attempt_available: attempt.is_some(),
+                    binding,
+                    verification_is_current: true,
+                    evidence,
+                    test_outcome_source: test_outcome_source.into(),
+                    review_is_separate: true,
+                })
             }
         };
         let value = json!({"reference":reference,"task_id":snapshot.task_id,"task_revision":snapshot.task_revision,
@@ -74,8 +102,6 @@ impl Store {
     }
 
     pub(super) fn purge_task_handoff(&self, task: &str) -> Result<()> {
-        diesel::sql_query("DELETE FROM meta WHERE key >= 'handoff/retain/' AND key < 'handoff/retain0' AND json_extract(value,'$.target_task')=?")
-            .bind::<Text, _>(task).execute(&mut *self.connection.borrow_mut())?;
         let head: Option<ContextSummary> = self.context_meta(&format!("handoff/task/{task}"))?;
         if let Some(head) = head {
             let prefix = format!("context/version/{}/", head.reference.id);
@@ -163,7 +189,7 @@ impl Store {
         );
         self.save_context_meta(&key, &ids)?;
         self.save_context_meta(
-            &format!("handoff/retain/message/{}", message.id),
+            &format!("handoff/retain/{}/message/{}", resource.summary.source_task.as_deref().ok_or_else(|| invalid_state("Handoff source is missing"))?, message.id),
             &json!({"project":actor.project,"source_task":resource.summary.source_task,"message":message.id}),
         )
     }
@@ -595,6 +621,8 @@ mod tests {
             let evidence = store
                 .handoff_source(&issuer, &pin, &crate::handoff::HandoffPart::Evidence { id })
                 .unwrap();
+            assert_eq!(evidence["source"]["reported_by"], worker.id);
+            assert_eq!(evidence["source"]["verification_is_current"], true);
             assert_eq!(evidence["source"]["evidence"]["verified"], false);
             assert_eq!(evidence["source"]["evidence"]["outcome"], "passed");
             assert_eq!(evidence["source"]["test_outcome_source"], "agent_reported");
@@ -666,6 +694,46 @@ mod tests {
             assert_eq!(list["resources"].as_array().unwrap().len(), 1);
             assert_eq!(list["resources"][0]["reference"], json!(pin));
         }
+        store.set_worktree_mode("/project", false).unwrap();
+        let independent = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &independent, 1);
+        let independent_pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&independent, 1))
+                .unwrap(),
+        );
+        let multiple: Operation = serde_json::from_value(json!({"op":"agent_send", "to":reader.id,
+            "content":{"objective":"Read both fixed versions", "context_refs":[independent_pin, input]},
+            "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&worker, "worker-run", &multiple).unwrap();
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskCancel {
+                    task_id: independent.clone(),
+                    reason: "Fixture done".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store
+            .task_archive("/project", &issuer, &independent)
+            .unwrap();
+        store
+            .connection
+            .borrow_mut()
+            .batch_execute("UPDATE messages SET acknowledged=1")
+            .unwrap();
+        assert_eq!(
+            store.purge_preview("/project").unwrap()["handoff_protected_tasks"],
+            1
+        );
+        store
+            .transaction(|| store.history_purge("/project", &issuer, true, false))
+            .unwrap();
+        assert!(store.context_get(&issuer, &independent_pin).is_ok());
     }
 
     #[test]
@@ -752,6 +820,81 @@ mod tests {
             .transaction(|| store.history_purge("/project", &issuer, true, true))
             .unwrap();
         assert!(store.context_get(&worker, &pin).is_err());
+    }
+
+    #[test]
+    fn handoff_evidence_keeps_its_original_reporter_after_reassignment() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let replacement = store
+            .register("replacement", "custom", "/project", "replacement")
+            .unwrap();
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let add: Operation = serde_json::from_value(json!({"op":"evidence_add", "task_id":task,
+            "kind":"test", "command":"original-fixture", "outcome":"passed", "exit_code":0,
+            "request_id":Uuid::new_v4().to_string()}))
+        .unwrap();
+        let evidence = store.execute(&worker, "worker-run", &add).unwrap()["evidence_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        store
+            .execute(
+                &worker,
+                "worker-run",
+                &Operation::TaskFail {
+                    handoff: None,
+                    task_id: task.clone(),
+                    revision: 1,
+                    reason: "Partial delivery".into(),
+                    evidence_ids: vec![evidence.clone()],
+                    attempt_id: None,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskReassign {
+                    task_id: task.clone(),
+                    assignee: replacement.id.clone(),
+                    reviewer: None,
+                    reason: "Continue the stopped task".into(),
+                    start_deadline: None,
+                    clear_start_deadline: false,
+                    override_uncertain: false,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let revision = store.task(&replacement, &task).unwrap().revision;
+        start(&store, &replacement, &task, revision);
+        let mut operation = submit(&task, revision);
+        if let Operation::TaskSubmit { evidence_ids, .. } = &mut operation {
+            evidence_ids.push(evidence.clone());
+        }
+        let pin = reference(
+            &store
+                .execute(&replacement, "worker-run", &operation)
+                .unwrap(),
+        );
+        let source = store
+            .handoff_source(
+                &issuer,
+                &pin,
+                &crate::handoff::HandoffPart::Evidence { id: evidence },
+            )
+            .unwrap();
+        assert_eq!(source["source"]["reported_by"], worker.id);
+        assert_eq!(source["source"]["binding"]["agent"], worker.id);
+        assert_eq!(source["source"]["task_revision"], 1);
+        assert_eq!(source["source"]["same_attempt"], false);
+        assert!(revision > 1);
     }
 
     #[test]

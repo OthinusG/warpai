@@ -240,7 +240,7 @@ impl Store {
                 if !targets.iter().any(|id| id == task) { targets.push(task.into()); }
                 ensure!(targets.len() <= 1000, capacity_exceeded("Handoff share limit reached"));
                 self.save_context_meta(&key, &targets)?;
-                self.save_context_meta(&format!("handoff/retain/task/{task}/{}", reference.id),
+                self.save_context_meta(&format!("handoff/retain/{}/task/{task}/{}", resource.summary.source_task.as_deref().ok_or_else(|| invalid_state("Handoff source is missing"))?, reference.id),
                     &json!({"project":actor.project,"source_task":resource.summary.source_task,"target_task":task}))?;
             }
         }

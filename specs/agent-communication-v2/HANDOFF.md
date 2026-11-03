@@ -44,7 +44,9 @@ when the resource matches the current task revision and attempt; historical
 versions remain accessible through paged task events and exact context_get.
 `context_get(reference, handoff_part?)` optionally reads `status`, `task`, `result` or
 `evidence {id}` from that exact brief's retained source. Each response is bounded
-to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. This
+to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. Evidence parts preserve the original reporter/attempt/native binding when retained;
+missing provenance remains null. Evidence verification is a current projection,
+not an immutable claim that tests ran. This
 lets a target consume the full result without granting source task/history access.
 The status part exposes only current state/revision, whether this pin is still
 current and execution uncertainty, including for explicitly shared readers.

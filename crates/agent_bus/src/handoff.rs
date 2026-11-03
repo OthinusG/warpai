@@ -172,3 +172,17 @@ pub enum HandoffPart {
     Result,
     Evidence { id: String },
 }
+
+/// Evidence provenance and current verification are separate from the immutable brief.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct HandoffEvidence {
+    pub evidence: crate::Evidence,
+    pub reported_by: Option<String>,
+    pub task_revision: Option<u32>,
+    pub attempt_available: bool,
+    pub binding: Option<NativeThreadBinding>,
+    pub same_attempt: bool,
+    pub verification_is_current: bool,
+    pub test_outcome_source: String,
+    pub review_is_separate: bool,
+}
