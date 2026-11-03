@@ -334,6 +334,36 @@ mod tests {
     use crate::worktrees::tests::{assign, call, client, git, id, Fixture};
 
     #[test]
+    fn explicit_tasks_reach_native_panel_inbox_and_history_without_converting_messages() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("panel-routing.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let worker = client(broker, &root, "worker");
+        let message = call(broker, &issuer, Operation::AgentSend {
+            content: None, expects_result: true, to: "worker".into(),
+            body: "This is a task: check the terminal".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: None, request_id: id(),
+        }).unwrap();
+        let query = PanelQuery { project:root.to_str().unwrap().into(), terminal:Some(issuer.terminal.clone()), history:true, ..Default::default() };
+        assert!(broker.operator_panel(&query).unwrap()["tasks"].as_array().unwrap().is_empty());
+        let assignment = assign("worker");
+        let task = call(broker, &issuer, assignment.clone()).unwrap();
+        assert_eq!(call(broker, &issuer, assignment).unwrap()["id"], task["id"]);
+        let panel = broker.operator_panel(&query).unwrap();
+        assert_eq!(panel["tasks"].as_array().unwrap().len(), 1);
+        assert_eq!(panel["tasks"][0]["id"], task["id"]);
+        let records = panel["history"]["records"].as_array().unwrap();
+        assert!(records.iter().any(|row| row["type"] == "task" && row["data"]["id"] == task["id"]));
+        assert!(records.iter().any(|row| row["type"] == "message" && row["data"]["id"] == message["id"]));
+        let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|row| row["task_id"] == task["id"]));
+        broker.end(&worker.terminal);
+        assert_eq!(broker.operator_panel(&query).unwrap()["tasks"][0]["id"], task["id"], "Offline agents must not hide their tasks");
+    }
+
+    #[test]
     fn every_agent_dispatches_idle_drafts_once_and_fences_cancelled_or_changed_runs() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

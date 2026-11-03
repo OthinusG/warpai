@@ -3543,7 +3543,7 @@ fn test_worktree_sidecar_hides_linked_worktrees_from_repo_list() {
 }
 
 #[test]
-fn test_vertical_tabs_context_menu_does_not_show_hover_only_tab_bar() {
+fn collaboration_vertical_column_controls_remain_visible_in_hover_mode() {
     let _full_screen_zen_mode_guard = FeatureFlag::FullScreenZenMode.override_enabled(true);
     let _vertical_tabs_guard = FeatureFlag::VerticalTabs.override_enabled(true);
 
@@ -3565,7 +3565,7 @@ fn test_vertical_tabs_context_menu_does_not_show_hover_only_tab_bar() {
             workspace.show_tab_right_click_menu =
                 Some((0, TabContextMenuAnchor::Pointer(Vector2F::zero())));
 
-            assert_eq!(workspace.tab_bar_mode(ctx), ShowTabBar::Hidden);
+            assert_eq!(workspace.tab_bar_mode(ctx), ShowTabBar::Stacked);
         });
     });
 }

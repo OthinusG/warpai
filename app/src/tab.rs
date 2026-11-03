@@ -1952,6 +1952,7 @@ impl<'a> TabComponent<'a> {
         }
 
         let mut tab = Container::new(stack)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(warp_core::ui::corner_radii::CONTROL)))
             .with_vertical_padding(2.)
             .with_background(background_color);
         if FeatureFlag::NewTabStyling.is_enabled() {
@@ -1964,7 +1965,7 @@ impl<'a> TabComponent<'a> {
             );
         } else {
             tab = tab
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.0)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(warp_core::ui::corner_radii::CONTROL)))
                 .with_border(Border::all(1.).with_border_fill(border_fill));
         }
 

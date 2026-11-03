@@ -186,7 +186,7 @@ impl Input {
         .with_margin_left(6.)
         .with_margin_right(6.)
         .with_margin_top(margin_top)
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)));
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(warp_core::ui::corner_radii::SURFACE)));
 
         // Apply styling based on focus state
         if self.is_pane_focused(app) {

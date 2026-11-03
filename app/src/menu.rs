@@ -1182,7 +1182,8 @@ impl<A: Action + Clone> MenuItemFields<A> {
             .with_padding_top(vertical_padding)
             .with_padding_bottom(vertical_padding)
             .with_padding_left(left_padding)
-            .with_padding_right(horizontal_padding);
+            .with_padding_right(horizontal_padding)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)));
 
             let container_element = if let Some(background_color) = background_color {
                 container.with_background(background_color).finish()
@@ -2661,7 +2662,8 @@ impl<A: Action + Clone> SubMenu<A> {
                     ConstrainedBox::new(container.finish())
                         .with_width(submenu_width)
                         .finish(),
-                );
+                )
+                .with_corner_radius(corner_radius);
 
                 if with_drop_shadow {
                     menu = menu.with_drop_shadow(DropShadow::new_with_standard_offset_and_spread(

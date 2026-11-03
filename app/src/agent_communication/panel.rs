@@ -1841,11 +1841,7 @@ impl View for CollaborationPanel {
                 (0, if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) { "WSL setup" } else { "SSH setup" }, Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
             ] {
-                let variant = if index == 0 {
-                    ButtonVariant::Secondary
-                } else {
-                    ButtonVariant::Text
-                };
+                let variant = ButtonVariant::Secondary;
                 let button = builder
                     .button(variant, self.remote_buttons[index].clone())
                     .with_text_label(warpui::localization::text(label).into());
@@ -2015,7 +2011,7 @@ impl View for CollaborationPanel {
                         if let Some(action) = action {
                             buttons.push(
                                 builder
-                                    .button(ButtonVariant::Text, self.page_buttons[index].clone())
+                                    .button(ButtonVariant::Secondary, self.page_buttons[index].clone())
                                     .with_text_label(warpui::localization::text(label).into())
                                     .build()
                                     .on_click(move |ctx, _, _| {
@@ -2100,6 +2096,7 @@ impl View for CollaborationPanel {
             let mut buttons = Vec::new();
             for (index, label, action) in [
                 (1, "First page", Some(Action::FirstHistory)),
+                (3, "Copy", Some(Action::CopyHistory)),
                 (
                     2,
                     "Next page",
@@ -2143,7 +2140,7 @@ impl View for CollaborationPanel {
                         buttons.push(
                             builder
                                 .button(
-                                    ButtonVariant::Text,
+                                    ButtonVariant::Secondary,
                                     self.message_page_buttons[index].clone(),
                                 )
                                 .with_text_label(warpui::localization::text(label).into())
@@ -2246,7 +2243,7 @@ impl View for CollaborationPanel {
                     if let Some(action) = action {
                         buttons.push(
                             builder
-                                .button(ButtonVariant::Text, self.page_buttons[index].clone())
+                                .button(ButtonVariant::Secondary, self.page_buttons[index].clone())
                                 .with_text_label(warpui::localization::text(label).into())
                                 .build()
                                 .on_click(move |ctx, _, _| {
@@ -2780,6 +2777,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ctx,
                         )
                     });
+                })
+                .add_named_assertion("vertical toolbar belongs to its sidebar column", |app, window| {
+                    let sidebar = app.element_position_by_id_at_last_frame(window, "workspace_view:vertical_tabs_panel");
+                    let toolbar = app.element_position_by_id_at_last_frame(window, "workspace_view:tab_bar");
+                    warpui::async_assert!(sidebar.zip(toolbar).is_some_and(|(sidebar, toolbar)|
+                        toolbar.min_x() >= sidebar.min_x() - 1.
+                        && toolbar.max_x() <= sidebar.max_x() + 1.
+                        && toolbar.max_y() <= sidebar.min_y() + 1.))
                 })
                 .with_take_screenshot("custom-tab-icon-vertical.png"),
         )
