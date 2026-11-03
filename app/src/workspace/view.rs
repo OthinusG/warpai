@@ -529,7 +529,7 @@ use warpui::{
     },
     elements::{
         Align, Border, ChildAnchor, ChildView, Clipped, ConstrainedBox, Container, CornerRadius,
-        CrossAxisAlignment, Dismiss, Element, Empty, Expanded, Fill as ElementFill, Flex,
+        CrossAxisAlignment, Dismiss, DropShadow, Element, Empty, Expanded, Fill as ElementFill, Flex,
         Highlight, Hoverable, Icon as WarpUiIcon, MainAxisAlignment, MainAxisSize,
         OffsetPositioning, ParentAnchor, ParentElement, ParentOffsetBounds,
         PositionedElementAnchor, PositionedElementOffsetBounds, Radius, SavePosition, Shrinkable,
@@ -13757,7 +13757,11 @@ impl Workspace {
     /// Updates the titlebar height to match the scaled tab bar height.
     pub fn update_titlebar_height(&self, ctx: &mut ViewContext<Self>) {
         let zoom_factor = WindowSettings::as_ref(ctx).zoom_level.as_zoom_factor();
-        let height = if uses_vertical_tabs(ctx) { TAB_BAR_HEIGHT + 28. } else { TOTAL_TAB_BAR_HEIGHT };
+        let height = if uses_vertical_tabs(ctx) {
+            TAB_BAR_HEIGHT + 28.
+        } else {
+            TOTAL_TAB_BAR_HEIGHT
+        };
         let scaled_tab_bar_height = (height * zoom_factor) as f64;
 
         if let Some(platform_window) = ctx.windows().platform_window(ctx.window_id()) {
@@ -19702,7 +19706,9 @@ impl Workspace {
         let zoom_factor = WindowSettings::as_ref(ctx).zoom_level.as_zoom_factor();
         let traffic_light_data = traffic_light_data(ctx, self.window_id);
         if let Some(traffic_light_data) = traffic_light_data.as_ref() {
-            if should_reserve_traffic_light_space_in_tab_bar(traffic_light_data.side) && !uses_vertical_tabs(ctx) {
+            if should_reserve_traffic_light_space_in_tab_bar(traffic_light_data.side)
+                && !uses_vertical_tabs(ctx)
+            {
                 target.add_child(
                     ConstrainedBox::new(Empty::new().finish())
                         .with_width(traffic_light_data.width(zoom_factor))
@@ -19807,7 +19813,11 @@ impl Workspace {
                 app,
             ),
             OffsetPositioning::offset_from_parent(
-                if uses_vertical_tabs(app) { vec2f(-14., 14.) } else { Vector2F::zero() },
+                if uses_vertical_tabs(app) {
+                    vec2f(-14., 14.)
+                } else {
+                    Vector2F::zero()
+                },
                 ParentOffsetBounds::WindowByPosition,
                 ParentAnchor::TopRight,
                 ChildAnchor::TopRight,
@@ -21224,6 +21234,7 @@ impl Workspace {
         }
         row.finish()
     }
+
     fn render_panels(
         &self,
         app: &AppContext,
@@ -21235,7 +21246,11 @@ impl Workspace {
         }
         let mut panels_view = Flex::row();
         if self.current_workspace_state.is_theme_chooser_open {
-            panels_view.add_child(self.render_panel(app, self.render_theme_chooser(), &PanelPosition::Left));
+            panels_view.add_child(self.render_panel(
+                app,
+                self.render_theme_chooser(),
+                &PanelPosition::Left,
+            ));
         }
         // The workspace already paints the terminal background (APP-4328).
         panels_view.add_child(Shrinkable::new(1., terminal_view).finish());
@@ -21339,7 +21354,13 @@ impl Workspace {
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
         }
-        .map(|panel| if uses_vertical_tabs(app) { panel } else { Self::outline_application_panel(panel, app) })
+        .map(|panel| {
+            if uses_vertical_tabs(app) {
+                panel
+            } else {
+                Self::outline_application_panel(panel, app)
+            }
+        })
     }
 
     /// Renders the maximized code review panel if it is configured and maximized.

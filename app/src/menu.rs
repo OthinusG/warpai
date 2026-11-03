@@ -1183,7 +1183,9 @@ impl<A: Action + Clone> MenuItemFields<A> {
             .with_padding_bottom(vertical_padding)
             .with_padding_left(left_padding)
             .with_padding_right(horizontal_padding)
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)));
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                corner_radii::CONTROL,
+            )));
 
             let container_element = if let Some(background_color) = background_color {
                 container.with_background(background_color).finish()
