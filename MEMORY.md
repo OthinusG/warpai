@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -34,6 +34,8 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   protoc 36.2 + SHA-256; Chocolatey NuGet 503/504 blocked builds. See specs/RELEASE.md.
 
 ## Project, worktree and Agent ownership
+
+- Task handoff contract: specs/agent-communication-v2/HANDOFF.md; immutable pins grant no execution or source-task access.
 
 - Supervision dispatches anytime, retaining unresolved task/request IDs across
   waits/yields and retiring only handled outcomes. No batch/exclusive watch.

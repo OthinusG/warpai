@@ -27,6 +27,20 @@ impl<T> Default for HandoffSection<T> {
 pub struct HandoffDecision {
     pub decision: String,
     pub rationale: String,
+    #[serde(default)]
+    pub evidence_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffIssue {
+    pub issue: String,
+    #[serde(default)]
+    pub impact: Option<String>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub required_decision: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
@@ -35,7 +49,7 @@ pub struct HandoffSubmission {
     #[serde(default)]
     pub decisions: HandoffSection<HandoffDecision>,
     #[serde(default)]
-    pub unresolved_issues: HandoffSection<String>,
+    pub unresolved_issues: HandoffSection<HandoffIssue>,
     #[serde(default)]
     pub next_steps: HandoffSection<String>,
 }
@@ -52,19 +66,27 @@ impl HandoffSubmission {
         if let HandoffSection::Provided(items) = &self.decisions {
             ensure!(
                 items.len() <= 32
-                    && items
-                        .iter()
-                        .all(|item| valid(&item.decision) && valid(&item.rationale)),
+                    && items.iter().all(|item| valid(&item.decision)
+                        && valid(&item.rationale)
+                        && item.evidence_ids.len() <= 32),
                 crate::invalid_input("Invalid handoff decisions")
             );
         }
-        for section in [&self.unresolved_issues, &self.next_steps] {
-            if let HandoffSection::Provided(items) = section {
-                ensure!(
-                    items.len() <= 32 && items.iter().all(|item| valid(item)),
-                    crate::invalid_input("Invalid handoff explanations")
-                );
-            }
+        if let HandoffSection::Provided(items) = &self.unresolved_issues {
+            ensure!(
+                items.len() <= 32
+                    && items.iter().all(|item| valid(&item.issue)
+                        && [&item.impact, &item.state, &item.required_decision]
+                            .into_iter()
+                            .all(|value| value.as_ref().is_none_or(|value| valid(value)))),
+                crate::invalid_input("Invalid handoff issues")
+            );
+        }
+        if let HandoffSection::Provided(items) = &self.next_steps {
+            ensure!(
+                items.len() <= 32 && items.iter().all(|item| valid(item)),
+                crate::invalid_input("Invalid handoff next steps")
+            );
         }
         Ok(())
     }

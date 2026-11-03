@@ -33,7 +33,21 @@ impl Store {
                     .bind::<Text, _>(&snapshot.task_id).bind::<Text, _>(&snapshot.attempt_id)
                     .bind::<BigInt, _>(snapshot.source_event_sequence as i64)
                     .get_result::<ValueRow>(&mut *self.connection.borrow_mut())?;
-                serde_json::from_str::<Value>(&row.value)?
+                let event: Value = serde_json::from_str(&row.value)?;
+                let mut result = serde_json::Map::new();
+                for key in [
+                    "revision",
+                    "result",
+                    "evidence",
+                    "reason",
+                    "note",
+                    "waiting_reason",
+                ] {
+                    if let Some(value) = event.get(key) {
+                        result.insert(key.into(), value.clone());
+                    }
+                }
+                Value::Object(result)
             }
             HandoffPart::Evidence { id } => {
                 ensure!(
@@ -51,9 +65,9 @@ impl Store {
         let value = json!({"reference":reference,"task_id":snapshot.task_id,"task_revision":snapshot.task_revision,
             "attempt_id":snapshot.attempt_id,"part":part,"source":source});
         ensure!(
-            serde_json::to_vec(&value)?.len() <= 32 * 1024,
+            serde_json::to_vec(&value)?.len() <= 48 * 1024,
             capacity_exceeded(
-                "Handoff source part exceeds 32 KiB; inspect authorized source evidence directly"
+                "Handoff source part exceeds 48 KiB; inspect authorized source evidence directly"
             )
         );
         Ok(value)
@@ -193,6 +207,14 @@ impl Store {
     ) -> Result<ContextRef> {
         let agent_report = submission.cloned().unwrap_or_default();
         agent_report.validate()?;
+        let decision_evidence: Vec<String> = match &agent_report.decisions {
+            crate::handoff::HandoffSection::Provided(items) => items
+                .iter()
+                .flat_map(|decision| decision.evidence_ids.clone())
+                .collect(),
+            _ => vec![],
+        };
+        self.validate_evidence_ids(task, &decision_evidence)?;
         let event = diesel::sql_query("SELECT id AS value FROM events WHERE project=? AND sequence=? AND resource=? AND attempt=?")
             .bind::<Text, _>(&task.project).bind::<BigInt, _>(event_sequence as i64)
             .bind::<Text, _>(&task.id).bind::<Text, _>(&attempt.id)
@@ -219,6 +241,7 @@ impl Store {
                 .filter(|evidence| {
                     evidence.attempt_id.as_deref() == Some(&attempt.id)
                         || evidence_ids.contains(&evidence.id)
+                        || decision_evidence.contains(&evidence.id)
                 })
                 .map(|evidence| evidence.id.clone())
                 .collect(),

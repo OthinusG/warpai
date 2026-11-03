@@ -17,7 +17,8 @@ completion. The implementation guide remains the acceptance checklist.
 
 `ContextContent::Handoff { snapshot }` is reserved to the Broker. Public publish
 cannot create or update it. `HandoffSubmission` contains decisions (decision,
-rationale), unresolved issues and ordered next steps. Each section uses tagged
+rationale, evidence_ids), unresolved issues (issue, optional impact/state/required_decision)
+and ordered next steps. Decision evidence IDs must belong to the source task. Each section uses tagged
 `provided`, `not_provided` or `not_applicable`; provided empty lists are explicit.
 The encoded submission budget is 8 KiB including JSON escaping and UTF-8.
 Unknown fields are rejected. These statements are Agent reports, never commands.
@@ -43,7 +44,7 @@ when the resource matches the current task revision and attempt; historical
 versions remain accessible through paged task events and exact context_get.
 `context_get(reference, handoff_part?)` optionally reads `status`, `task`, `result` or
 `evidence {id}` from that exact brief's retained source. Each response is bounded
-to 32 KiB; evidence selection must be one of the snapshot's evidence IDs. This
+to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. This
 lets a target consume the full result without granting source task/history access.
 The status part exposes only current state/revision, whether this pin is still
 current and execution uncertainty, including for explicitly shared readers.

@@ -436,8 +436,9 @@ See [HANDOFF.md](HANDOFF.md) for the schema, scope, budgets and acceptance gates
 `task_submit`, `task_progress`, `task_fail` and `task_finish_cancel` accept optional
 `handoff: { decisions, unresolved_issues, next_steps }`. Sections are tagged
 `{status:"provided",items:[...]}`, `{status:"not_provided"}` or
-`{status:"not_applicable"}`. Decisions contain decision/rationale strings; other
-items are strings. Total encoded Agent explanations: 8 KiB. Missing fields remain
+`{status:"not_applicable"}`. Decisions contain decision/rationale strings and optional evidence_ids. Issues
+contain issue and optional impact/state/required_decision; omitted values mean
+not provided. Next-step items are ordered strings. Total encoded Agent explanations: 8 KiB. Missing fields remain
 missing. Submit/fail/finish_cancel atomically create a Broker-owned snapshot;
 progress does so only when handoff is supplied. Legacy submission remains valid.
 
@@ -446,7 +447,7 @@ TaskHistory contains immutable handoff_created references; ExecutionThreadGet an
 ProjectBootstrap expose compact pins. ContextGet reads the exact immutable brief;
 optional handoff_part selects `{kind:"status"}`, `{kind:"task"}`, `{kind:"result"}`
 or `{kind:"evidence",id}` without granting access to unrelated source records.
-Each source part is bounded to 32 KiB. Status is a current projection, not part of
+Each source part is bounded to 48 KiB (immutable content remains 32 KiB). Status is a current projection, not part of
 the immutable digest. Test evidence remains Agent-reported and review is separate.
 Public context_publish cannot create or overwrite the reserved handoff kind.
 
