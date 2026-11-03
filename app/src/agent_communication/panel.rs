@@ -1849,7 +1849,7 @@ impl View for CollaborationPanel {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, warpui::localization::text(&section.title).to_owned()));
             for (index, row) in section.rows.iter().enumerate() {
-                let record = detail(appearance, row.clone());
+                let record = detail(appearance, warpui::localization::text(row).to_owned());
                 column.add_child(if section.title == "History" {
                     self::section(appearance, record)
                 } else if section.title == "Agents" {
