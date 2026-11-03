@@ -1,7 +1,13 @@
 //! Desktop HTTP transport. macOS delegates routing and TLS to NSURLSession.
 use std::{fmt, time::Duration};
 
-use futures::{StreamExt, stream::BoxStream};
+use futures::StreamExt;
+#[cfg(not(target_family = "wasm"))]
+type EventStream =
+    futures::stream::BoxStream<'static, Result<reqwest_eventsource::Event, EventSourceError>>;
+#[cfg(target_family = "wasm")]
+type EventStream =
+    futures::stream::LocalBoxStream<'static, Result<reqwest_eventsource::Event, EventSourceError>>;
 use reqwest::{IntoUrl, Request, Response};
 use serde::Serialize;
 
@@ -175,22 +181,31 @@ impl ClientBuilder {
     }
     pub fn timeout(mut self, value: Duration) -> Self {
         self.timeout = Some(value);
-        self.wrapped = self.wrapped.timeout(value);
+        #[cfg(not(target_family = "wasm"))]
+        {
+            self.wrapped = self.wrapped.timeout(value);
+        }
         self
     }
     pub fn redirect(mut self, value: RedirectPolicy) -> Self {
         self.redirects = value;
-        self.wrapped = self.wrapped.redirect(match value {
-            RedirectPolicy::None => reqwest::redirect::Policy::none(),
-            RedirectPolicy::Follow => reqwest::redirect::Policy::limited(10),
-        });
+        #[cfg(not(target_family = "wasm"))]
+        {
+            self.wrapped = self.wrapped.redirect(match value {
+                RedirectPolicy::None => reqwest::redirect::Policy::none(),
+                RedirectPolicy::Follow => reqwest::redirect::Policy::limited(10),
+            });
+        }
         self
     }
     pub fn user_agent(mut self, value: &str) -> Self {
         if let Ok(value) = http::HeaderValue::from_str(value) {
             self.headers.insert(http::header::USER_AGENT, value);
         }
-        self.wrapped = self.wrapped.user_agent(value);
+        #[cfg(not(target_family = "wasm"))]
+        {
+            self.wrapped = self.wrapped.user_agent(value);
+        }
         self
     }
     pub fn default_headers(mut self, value: http::HeaderMap) -> Self {
@@ -200,13 +215,18 @@ impl ClientBuilder {
     }
     pub fn https_only(mut self, value: bool) -> Self {
         self.https_only = value;
-        self.wrapped = self.wrapped.https_only(value);
+        #[cfg(not(target_family = "wasm"))]
+        {
+            self.wrapped = self.wrapped.https_only(value);
+        }
         self
     }
+    #[cfg(not(target_family = "wasm"))]
     pub fn pool_idle_timeout(mut self, value: Duration) -> Self {
         self.wrapped = self.wrapped.pool_idle_timeout(value);
         self
     }
+    #[cfg(not(target_family = "wasm"))]
     pub fn connect_timeout(mut self, value: Duration) -> Self {
         self.wrapped = self.wrapped.connect_timeout(value);
         self
@@ -243,7 +263,10 @@ impl RequestBuilder {
         self
     }
     pub fn timeout(mut self, value: Duration) -> Self {
-        self.wrapped = self.wrapped.timeout(value);
+        #[cfg(not(target_family = "wasm"))]
+        {
+            self.wrapped = self.wrapped.timeout(value);
+        }
         self
     }
     pub fn header<K, V>(mut self, key: K, value: V) -> Self
@@ -272,11 +295,9 @@ impl RequestBuilder {
         let request = self.wrapped.build()?;
         self.client.execute(request).await
     }
-    pub fn eventsource(
-        self,
-    ) -> BoxStream<'static, Result<reqwest_eventsource::Event, EventSourceError>> {
+    pub fn eventsource(self) -> EventStream {
         use eventsource_stream::Eventsource;
-        async_stream::stream! {
+        let stream = async_stream::stream! {
             let response = match self.header("Accept", "text/event-stream").send().await {
                 Ok(response) => response,
                 Err(error) => { yield Err(EventSourceError::Transport(error)); return; }
@@ -297,7 +318,15 @@ impl RequestBuilder {
                 }
             }
             yield Err(reqwest_eventsource::Error::StreamEnded.into());
-        }.boxed()
+        };
+        #[cfg(target_family = "wasm")]
+        {
+            stream.boxed_local()
+        }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            stream.boxed()
+        }
     }
 }
 
@@ -311,6 +340,11 @@ pub enum EventSourceError {
 
 impl<'a> oauth2::AsyncHttpClient<'a> for Client {
     type Error = oauth2::HttpClientError<Error>;
+    #[cfg(target_family = "wasm")]
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<oauth2::HttpResponse, Self::Error>> + 'a>,
+    >;
+    #[cfg(not(target_family = "wasm"))]
     type Future = std::pin::Pin<
         Box<
             dyn std::future::Future<Output = Result<oauth2::HttpResponse, Self::Error>>

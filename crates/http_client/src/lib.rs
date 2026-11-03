@@ -382,6 +382,10 @@ impl<'a> RequestBuilder<'a> {
     /// Sends the request to the endpoint, which is assumed to be a streaming server-sent-events
     /// endpoint, and returns a corresponding `EventSource`.
     pub fn eventsource(self) -> EventSourceStream {
+        #[cfg(target_family = "wasm")]
+        { return self.wrapped.eventsource(); }
+        #[cfg(not(target_family = "wasm"))]
+        {
         let stream = self.wrapped.eventsource();
         let stream = stream! {
             let mut stream = stream;
@@ -392,6 +396,7 @@ impl<'a> RequestBuilder<'a> {
             }
         };
         stream.boxed()
+        }
     }
 
     pub fn basic_auth<U, P>(self, username: U, password: Option<P>) -> RequestBuilder<'a>
