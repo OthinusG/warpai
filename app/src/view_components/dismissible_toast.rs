@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -28,7 +29,7 @@ use crate::{appearance::Appearance, themes::theme::Fill};
 use super::action_button::ActionButton;
 
 const TOAST_WIDTH: f32 = 464.;
-const TOAST_CORNER_RADIUS: f32 = 4.;
+const TOAST_CORNER_RADIUS: f32 = corner_radii::SURFACE;
 const TEXT_MARGIN: f32 = 16.;
 const VERTICAL_PADDING: f32 = 8.;
 const HORIZONTAL_PADDING: f32 = 12.;

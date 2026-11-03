@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::AgentModeEntrypoint;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -103,7 +104,7 @@ const ENV_DROPDOWN_WIDTH: f32 = 190.;
 
 const CARD_ROW_SPACING: f32 = 8.;
 const CARD_CONTENT_PADDING: f32 = 12.;
-const CARD_BORDER_RADIUS: f32 = 4.;
+const CARD_BORDER_RADIUS: f32 = corner_radii::PANEL;
 const CARD_MARGIN_BOTTOM: f32 = 8.;
 
 const STATUS_ICON_SIZE: f32 = 12.;
@@ -1494,7 +1495,7 @@ impl AgentManagementView {
             .with_background(theme.surface_1())
             .with_border(Border::all(1.).with_border_fill(theme.surface_2()))
             .with_uniform_padding(12.)
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)))
             .finish()
     }
 
@@ -1589,7 +1590,9 @@ impl AgentManagementView {
                     Hoverable::new(card_state.action_buttons_hover_state.clone(), |_| {
                         Container::new(ChildView::new(&card_state.action_buttons_view).finish())
                             .with_background(theme.surface_3())
-                            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
+                            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                                corner_radii::PANEL,
+                            )))
                             .with_uniform_padding(4.)
                             .with_drop_shadow(DropShadow {
                                 color: ColorU::new(0, 0, 0, 77),
@@ -1994,7 +1997,9 @@ impl AgentManagementView {
                             .with_right(8.),
                     )
                     .with_border(Border::all(1.).with_border_fill(theme.outline()))
-                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                        corner_radii::CONTROL,
+                    )))
                     .finish(),
             )
             .with_height(30.)

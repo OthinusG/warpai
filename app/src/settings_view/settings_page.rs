@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::ui_components::blended_colors;
 use core::fmt::{self, Display};
 use itertools::Itertools as _;
@@ -503,7 +504,7 @@ pub fn render_full_pane_width_ai_button(
         .with_border(
             Border::new(1.).with_border_fill(internal_colors::neutral_4(appearance.theme())),
         )
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
         .with_horizontal_padding(16.)
         .with_vertical_padding(11.)
         .with_margin_bottom(12.)
@@ -1052,7 +1053,7 @@ pub(crate) fn render_settings_info_banner(
     )
     .with_background_color(appearance.theme().accent_overlay().into())
     .with_uniform_padding(12.)
-    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
     .finish()
 }
 
@@ -1205,7 +1206,7 @@ fn render_alternating_color_list_item<SettingsPageAction: Action + Clone>(
     )
     .with_background(background)
     .with_uniform_padding(ALTERNATING_LIST_ITEM_PADDING)
-    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
     // The bottom has a bit of extra padding b/c lines of text have more space above the text
     // than below. This visually balances that to make it lok vertically centered.
     .with_padding_bottom(ALTERNATING_LIST_ITEM_PADDING + 2.)

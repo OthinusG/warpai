@@ -23,6 +23,7 @@ mod toast_stack;
 pub mod util;
 pub mod view;
 
+use warp_core::ui::corner_radii;
 use crate::ai::blocklist::NEW_AGENT_PANE_LABEL;
 use crate::ai::skills::SkillManager;
 use crate::ai::AIRequestUsageModel;
@@ -67,7 +68,9 @@ pub use view::{
 };
 // Helper function to access panel header corner radius from other modules
 pub fn panel_header_corner_radius() -> warpui::elements::CornerRadius {
-    warpui::elements::CornerRadius::with_top(warpui::elements::Radius::Pixels(8.))
+    warpui::elements::CornerRadius::with_top(warpui::elements::Radius::Pixels(
+        corner_radii::SURFACE,
+    ))
 }
 
 /// Returns `true` when `WorkspaceAction::SendFeedback` will launch the guided

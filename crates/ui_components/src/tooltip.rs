@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use std::borrow::Cow;
 
 use warp_core::ui::{appearance::Appearance, theme::color::internal_colors};
@@ -77,7 +78,7 @@ impl Component for Tooltip {
             .with_vertical_padding(3.)
             .with_background(appearance.theme().tooltip_background())
             .with_border(Border::all(1.).with_border_fill(appearance.theme().surface_2()))
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
             .finish()
     }
 }

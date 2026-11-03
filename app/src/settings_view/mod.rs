@@ -6,6 +6,7 @@
 pub(crate) mod agent_communication;
 #[cfg(all(feature = "local_tty", not(feature = "remote_tty"), not(target_family = "wasm")))]
 pub(crate) mod agent_usage;
+use warp_core::ui::corner_radii;
 use self::telemetry::SettingsTelemetryEvent;
 use crate::pane_group::focus_state::PaneFocusHandle;
 use crate::server::telemetry::MCPServerCollectionPaneEntrypoint;
@@ -2332,7 +2333,7 @@ impl SettingsView {
             .finish(),
         )
             .with_uniform_margin(16.)
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
         .with_background(internal_colors::fg_overlay_1(appearance.theme()))
         .finish()
     }

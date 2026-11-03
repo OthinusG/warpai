@@ -145,6 +145,7 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
+- Chrome: 8/12/20px tokens; main panel outlines must look rounded. See specs/macos-rounded-containers.md.
   Keep-awake tracks activity; no cloud AI/telemetry.
 - Local Codex uses session MCP/--no-daemon, preserving CLI/args/cwd/PATH/packages.
   No proxy/impersonation/persistent config writes except explicit reserved legacy

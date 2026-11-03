@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::{
     appearance::Appearance,
     editor::{EditorOptions, EditorView, Event as EditorEvent, TextOptions},
@@ -118,7 +119,9 @@ impl View for ClickableTextInput {
                         .text_input(self.editor.clone())
                         .with_style(UiComponentStyles {
                             width: Some(200.),
-                            border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+                            border_radius: Some(CornerRadius::with_all(Radius::Pixels(
+                                corner_radii::CONTROL,
+                            ))),
                             border_width: Some(1.),
                             border_color: Some(current_theme.accent_button_color().into()),
                             background: Some(current_theme.surface_2().into_solid().into()),

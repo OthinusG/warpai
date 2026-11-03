@@ -1,4 +1,5 @@
 //! A fixed footer with a separate four-row viewport; the main panel never scrolls it away.
+use warp_core::ui::corner_radii;
 use super::*;
 use crate::agent_usage::{agent_icon, AgentUsage};
 use warpui::elements::{ConstrainedBox, CornerRadius, Percentage, Radius, Rect, Stack};
@@ -226,7 +227,7 @@ impl CollaborationPanel {
         .with_background(theme.surface_1())
         .with_padding(Padding::uniform(GAP_ROW))
         .with_border(Border::all(1.).with_border_fill(theme.outline()))
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(6.)))
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
         .finish()
     }
 }

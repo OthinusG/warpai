@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use pathfinder_color::ColorU;
 use warp_core::ui::theme::color::internal_colors;
 use warpui::{
@@ -11,7 +12,7 @@ use warpui::{
 
 use crate::{appearance::Appearance, themes::theme::Fill};
 
-const ALERT_CORNER_RADIUS: f32 = 4.;
+const ALERT_CORNER_RADIUS: f32 = corner_radii::PANEL;
 const ALERT_VERTICAL_PADDING: f32 = 8.;
 const ALERT_HORIZONTAL_PADDING: f32 = 12.;
 const ALERT_ICON_RIGHT_MARGIN: f32 = 8.;

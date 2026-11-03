@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::ui_components::blended_colors;
 use crate::{appearance::Appearance, ui_components::icons::Icon};
 use pathfinder_color::ColorU;
@@ -50,7 +51,7 @@ impl ItemHighlightState {
         match self {
             ItemHighlightState::None => None,
             ItemHighlightState::Selected | ItemHighlightState::Hovered => {
-                Some(CornerRadius::with_all(Radius::Pixels(4.)))
+                Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)))
             }
         }
     }

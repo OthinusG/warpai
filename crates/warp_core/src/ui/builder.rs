@@ -1,3 +1,4 @@
+use crate::ui::corner_radii;
 use std::borrow::Cow;
 use std::rc::Rc;
 
@@ -99,7 +100,7 @@ impl UiBuilder {
                 right: 15.,
             }),
             border_width: Some(1.),
-            border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+            border_radius: Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL))),
             background: background.map(|background| background.into()),
             border_color: Some(border.into()),
             font_color: Some(font_color.into_solid()),
@@ -127,7 +128,7 @@ impl UiBuilder {
                 right: 10.,
             }),
             border_width: Some(1.),
-            border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+            border_radius: Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL))),
             background: Some(self.warp_theme.background().into()),
             border_color: Some(self.warp_theme.foreground().with_opacity(20).into()),
             font_color: None,
@@ -1134,7 +1135,7 @@ impl UiBuilder {
         mouse_state: MouseStateHandle,
     ) -> Button {
         let default_styles = UiComponentStyles {
-            border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+            border_radius: Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL))),
             border_color: Some(self.warp_theme.surface_3().into()),
             border_width: Some(1.),
             padding: Some(Coords {

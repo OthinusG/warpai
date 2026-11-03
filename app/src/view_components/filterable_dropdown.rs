@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use super::dropdown::{
     DropdownAction, DropdownItem, MenuHeaderTextFormatter, DROPDOWN_PADDING, TOP_MENU_BAR_HEIGHT,
     TOP_MENU_BAR_MAX_WIDTH,
@@ -488,7 +489,7 @@ where
             .with_border(
                 Border::all(1.).with_border_fill(appearance.theme().foreground().with_opacity(20)),
             )
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)))
             .finish()
     }
 
@@ -530,7 +531,7 @@ where
                     Border::all(1.)
                         .with_border_fill(appearance.theme().foreground().with_opacity(20)),
                 )
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::SURFACE)))
                 .finish(),
         )
         .with_max_width(self.menu_width.unwrap_or(self.top_bar_max_width))

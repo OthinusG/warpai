@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::appearance::Appearance;
 use crate::editor::{
     EditorView, Event as EditorEvent, PropagateAndNoOpNavigationKeys, SingleLineEditorOptions,
@@ -36,7 +37,7 @@ const HORIZONTAL_ICON_SPACING: f32 = 4.;
 const ICON_CONTAINER_CORNER_RADIUS: f32 = 4.;
 pub const FIND_BAR_PADDING: f32 = 4.;
 const FIND_EDITOR_PADDING: f32 = 6.;
-pub const FIND_EDITOR_BORDER_RADIUS: f32 = 6.;
+pub const FIND_EDITOR_BORDER_RADIUS: f32 = corner_radii::CONTROL;
 pub(crate) const FIND_EDITOR_BORDER_WIDTH: f32 = 1.;
 const FIND_EDITOR_FONT_SIZE: f32 = 12.;
 
