@@ -147,8 +147,11 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
         if (firstLine == std::string::npos) return false;
         fieldsOut.erase(0, firstLine + 2);
         task->response(task->rust, (int)status, fieldsOut.c_str(), url.c_str());
-        DWORD read = 0;
-        while (WinHttpReadData(request, buffer, sizeof(buffer), &read)) {
+        DWORD read = 0, available = 0;
+        while (WinHttpQueryDataAvailable(request, &available)) {
+            if (!available) return true;
+            DWORD wanted = available < sizeof(buffer) ? available : sizeof(buffer);
+            if (!WinHttpReadData(request, buffer, wanted, &read)) return false;
             if (!read) return true;
             task->data(task->rust, buffer, read);
             if (!task->wait()) { SetLastError(ERROR_OPERATION_ABORTED); return false; }
@@ -174,6 +177,11 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
     const std::string &method, const std::string &headers,
     const std::vector<unsigned char> &body, const std::string &path) {
     if (!task->wait()) { task->finish(-1); return; }
+    static std::once_flag mainLoop;
+    std::call_once(mainLoop, [] {
+        // GSettings proxy changes need the GLib main context to keep dispatching.
+        std::thread([] { g_main_loop_run(g_main_loop_new(nullptr, false)); }).detach();
+    });
     SoupSession *session = soup_session_new_with_options(SOUP_SESSION_PROXY_RESOLVER,
         g_proxy_resolver_get_default(), SOUP_SESSION_ADD_FEATURE_BY_TYPE,
         SOUP_TYPE_CONTENT_DECODER, nullptr);
@@ -185,7 +193,7 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
         size_t end = headers.find("\r\n", offset), colon = headers.find(':', offset);
         if (end == std::string::npos) break;
         if (colon < end) {
-            std::string name = headers.substr(offset, colon - offset), value = headers.substr(colon + 1, end - colon - 1);
+            std::string name = headers.substr(offset, colon - offset), value = headers.substr(colon + 2, end - colon - 2);
             gchar *octets = g_convert(value.c_str(), -1, "ISO-8859-1", "UTF-8", nullptr, nullptr, nullptr);
             if (octets) soup_message_headers_append(message->request_headers, name.c_str(), octets);
             g_free(octets);

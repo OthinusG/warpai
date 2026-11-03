@@ -61,6 +61,28 @@ jobs:
             target
           key: system-network-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo test -p system_http --locked
+      - if: inputs.check_app && runner.os == 'macOS'
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
+      - if: inputs.check_app && runner.os == 'Linux'
+        run: sudo apt-get install -y protobuf-compiler libssl-dev libfreetype6-dev libfontconfig1-dev libexpat1-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev libxi-dev libxcursor-dev libasound2-dev libudev-dev
+      - if: inputs.check_app && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:RUNNER_TEMP 'protoc.zip'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'protoc'
+          Invoke-WebRequest 'https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protoc-36.2-win64.zip' -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'f0c128dc0d8492eceece83bb459a4c0e316764b929ffbf1aa416357fd644edd3') { throw 'Protobuf checksum mismatch' }
+          Expand-Archive $archive $installRoot
+          (Join-Path $installRoot 'bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - if: inputs.check_app
+        run: |
+          cargo check -p warpai --bin warpai --locked
+          cargo check -p warpai --bin warpai --features warp_platform --locked
+          cargo test -p warpai --lib agent_usage:: --locked
+          cargo test -p warpai --lib release_updates::tests --locked
   protocol:
     name: Protocol (${{ matrix.os }})
     if: ${{ !inputs.network_only && !inputs.native_windows_only }}

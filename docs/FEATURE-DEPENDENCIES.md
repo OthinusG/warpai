@@ -2,7 +2,7 @@
 
 This is the source of truth for dependency notes in the README, website and
 release onboarding. Record requirements for the environment executing the
-feature, not just the desktop host. Updated 2026-10-12.
+feature, not just the desktop host. Updated 2026-11-03.
 
 | Feature | Required environment/tools | Bundled by Warpai | Missing dependency / recovery |
 | --- | --- | --- | --- |
@@ -12,6 +12,7 @@ feature, not just the desktop host. Updated 2026-10-12.
 | SSH file browsing, remote collaboration and Review | Authenticated system OpenSSH, remote SSH/SFTP support, confirmed shell integration and compatible Companion under the same remote account | Companion includes its private Git runtime | Integrate the shell and install/update Companion. Remote infrastructure requires no separate Git, Python, Node, tmux or socat. |
 | Windows WSL workspace | WSL 2 distribution, confirmed integrated guest shell/account, WSL communication enabled and dedicated WSL Companion | Windows package includes the guest installation bundle and its private Git runtime | Account discovery needs shell integration but not Companion. File browsing/communication need a working guest Companion; installation/removal must remain available after failure. |
 | Remote/WSL CLI Agent | Vendor CLI, runtime and authentication inside the selected host/distribution/account | Companion communication, not vendor CLIs | Installing a vendor CLI only on Windows does not install it in WSL or SSH. |
+| Desktop HTTP | OS network configuration and trusted certificates; Linux libsoup 2.4 and glib-networking | Shared NSURLSession (macOS), WinHTTP (Windows), libsoup/GIO (Linux) transport | Native Linux packages declare runtime dependencies; AppImage hosts need glib-networking for desktop proxy/PAC integration. No application-specific proxy ports. |
 | Data usage | Supported provider authentication/API configuration or supported usage CLI | Provider-specific adapters | Report unknown/unavailable usage without submitting a paid model prompt. Antigravity CLI usage needs `agy` >= 1.1.11; other providers retain their own requirements. |
 
 Companion's private Git stays private: it does not change user PATH and does not

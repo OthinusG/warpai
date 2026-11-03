@@ -125,7 +125,7 @@ async fn headers_and_chunks_arrive_before_eof_and_drop_cancels_task() {
             .unwrap();
         let mut buffer = [0; 2048];
         let _ = socket.read(&mut buffer);
-        socket.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n").unwrap();
+        socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n").unwrap();
         let result = socket.read(&mut buffer);
         let _ = closed_tx.send(
             matches!(result, Ok(0))

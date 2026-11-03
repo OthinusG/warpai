@@ -8,7 +8,8 @@ Data usage incorrectly compares CFNetwork proxy type strings, discards the syste
 PAC answer, and connects directly. Update checks bypass that resolver entirely.
 All desktop-owned HTTP requests must use one transport. On macOS, NSURLSession
 must own proxy/PAC/direct routing and TLS; no proxy ports, PAC evaluation, or
-proxy-type translation belong in the application. Other platforms retain reqwest.
+proxy-type translation belong in the application. Windows uses WinHTTP automatic proxy mode. Linux uses libsoup 2.4 with the
+GIO system proxy resolver (compatible with the glibc 2.31 baseline).
 
 Preserve methods, sensitive request headers, response status/headers, streaming,
 per-request deadlines, cancellation, and redirect policies. Usage and release
@@ -20,11 +21,12 @@ Do not modify personal provider credentials, system settings or the installed ap
 
 1. Add a shared `system_http` transport below the existing `http_client`, avoiding
    its UI/core dependency cycle for asset loading.
-2. Use a shared ephemeral NSURLSession and delegate on macOS. Bridge response
+2. Use a shared ephemeral NSURLSession and delegate on macOS, WinHTTP on
+   Windows, and libsoup/GIO on Linux. Bridge response
    headers and streaming chunks to Rust; cancel native tasks when futures/bodies
    are dropped. Apply backpressure without blocking the delegate queue.
-3. Route usage, release checks, asset loading, the existing HTTP client and MCP
-   HTTP/OAuth through that transport. Remove the bespoke PAC resolver.
+3. Route usage, release checks, asset loading and the existing HTTP client/OAuth
+   through that transport. Remove the bespoke PAC resolver.
 4. Preserve the disabled cloud/telemetry surfaces and vendor-owned CLI networking.
 
 ## Verification and risks

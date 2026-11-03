@@ -9,8 +9,6 @@ typedef void (*CompleteCallback)(void *, long);
 @property ResponseCallback response;
 @property DataCallback data;
 @property CompleteCallback complete;
-@property BOOL redirects;
-@property NSUInteger redirectCount;
 @property dispatch_source_t timer;
 @property BOOL timedOut;
 @end
@@ -66,26 +64,8 @@ typedef void (*CompleteCallback)(void *, long);
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
     willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request
     completionHandler:(void (^)(NSURLRequest *))completionHandler {
-    WarpaiHTTPContext *ctx = [self context:task];
-    if (!ctx.redirects || ++ctx.redirectCount > 10 || ![request.URL.scheme isEqualToString:@"https"] && [task.originalRequest.URL.scheme isEqualToString:@"https"]) {
-        completionHandler(nil);
-        return;
-    }
-    BOOL sameOrigin = [task.currentRequest.URL.scheme isEqualToString:request.URL.scheme]
-        && [task.currentRequest.URL.host isEqualToString:request.URL.host]
-        && ((task.currentRequest.URL.port == nil && request.URL.port == nil)
-            || [task.currentRequest.URL.port isEqual:request.URL.port]);
-    // Arbitrary provider headers may also contain credentials. Reject cross-origin
-    // authenticated redirects instead of guessing which vendor header is sensitive.
-    if (!sameOrigin && task.originalRequest.allHTTPHeaderFields.count > 0) {
-        NSMutableURLRequest *safe = [request mutableCopy];
-        safe.allHTTPHeaderFields = @{};
-        [safe setValue:[task.originalRequest valueForHTTPHeaderField:@"User-Agent"] forHTTPHeaderField:@"User-Agent"];
-        [safe setValue:[task.originalRequest valueForHTTPHeaderField:@"Accept"] forHTTPHeaderField:@"Accept"];
-        completionHandler(safe);
-        return;
-    }
-    completionHandler(request);
+    // The shared Rust transport applies redirect and credential policies.
+    completionHandler(nil);
 }
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
     WarpaiHTTPContext *ctx;
@@ -130,7 +110,6 @@ void *warpai_http_start(const char *url, const char *method, const char *headers
         ctx.response = response;
         ctx.data = data;
         ctx.complete = complete;
-        ctx.redirects = redirects;
         if (timeout > 0) {
             ctx.timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0));
             __weak WarpaiHTTPContext *weakContext = ctx;
