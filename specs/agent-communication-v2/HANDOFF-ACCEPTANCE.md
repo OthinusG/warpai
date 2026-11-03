@@ -49,6 +49,9 @@ test compilation error. It is not evidence of a macOS visual pass.
   linting is used while the full test suite still compiles and executes tests.
 - Local Rust parsing/diff checks, strict interface locale coverage, Python fixture
   syntax and WSL packaging/installation checks passed. Rust builds run on GitHub.
+- New handoff modules pass rustfmt checks. Repository-wide cargo fmt --check
+  reports pre-existing formatting differences (starting in app/build.rs and
+  codex_launch.rs); unrelated files were not reformatted.
 
 ## Final delivery gates
 
@@ -67,12 +70,12 @@ Run 41588568446 passed both protocol jobs and desktop compilation, but failed:
 The same source passed three-platform remote/SSH and Linux x64/ARM64 packages.
 The corrected source must receive fresh protocol and desktop/WSL/UI checks.
 
-Final code source: `acf9941b02527ecd823bc31485799c857169e9cc`.
+Current implementation source: `b415199` (the correction above).
 Source-matched runs (results and artifact review pending):
 
-- [Protocol, desktop, WSL and native UI](https://github.com/OthinusG/warpai/actions/runs/41588568446).
-- [Three-platform SSH/Companion](https://github.com/OthinusG/warpai/actions/runs/41588572143).
-- [Linux x64/ARM64 artifact-only packages](https://github.com/OthinusG/warpai/actions/runs/41588575582).
+- [Protocol, desktop, WSL and native UI](https://github.com/OthinusG/warpai/actions/runs/41613146491).
+- [Three-platform SSH/Companion](https://github.com/OthinusG/warpai/actions/runs/41613152058).
+- [Linux x64/ARM64 artifact-only packages](https://github.com/OthinusG/warpai/actions/runs/41613158735).
 
 Pending gates:
 
@@ -82,7 +85,10 @@ Pending gates:
 - Disposable direct WSL checkpoint/submit/replay/exact-reference read.
 - Real SSH two-Agent continuation from a reviewed pin through explicit TaskStart.
 - Linux x64/ARM64 desktop packaging/smoke checks and Companion manifests.
-- Reviewable draft PR with exact source/run/artifact references.
+
+Reviewable [draft PR #11](https://github.com/OthinusG/warpai/pull/11) tracks these
+gates. The original worktree remains independent. Documentation-only receipt
+commits after the implementation source do not change the tested code.
 
 Synthetic owned Agent fixtures prove transport, state, authorization and rendering;
 they do not claim paid vendor/model authentication or model comprehension.
