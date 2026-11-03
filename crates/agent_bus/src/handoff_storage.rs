@@ -164,7 +164,7 @@ impl Store {
         self.save_context_meta(&key, &ids)?;
         self.save_context_meta(
             &format!("handoff/retain/message/{}", message.id),
-            &json!({"source_task":resource.summary.source_task,"message":message.id}),
+            &json!({"project":actor.project,"source_task":resource.summary.source_task,"message":message.id}),
         )
     }
 
@@ -679,6 +679,24 @@ mod tests {
                 .execute(&worker, "worker-run", &submit(&source, 1))
                 .unwrap(),
         );
+        let request: Operation = serde_json::from_value(json!({"op":"agent_send", "to":worker.id,
+            "body":"Return the source pin", "task_id":source, "expects_result":true,
+            "request_id":Uuid::new_v4().to_string()}))
+        .unwrap();
+        let message = store.execute(&issuer, "issuer-run", &request).unwrap();
+        store
+            .execute(
+                &worker,
+                "worker-run",
+                &Operation::AgentReply {
+                    handoff_ref: Some(pin.clone()),
+                    reply_to: message["id"].as_str().unwrap().into(),
+                    body: "Pinned result".into(),
+                    outcome: crate::ReplyOutcome::Succeeded,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
         store
             .execute(
                 &issuer,

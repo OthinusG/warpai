@@ -102,6 +102,11 @@ impl Store {
     ) -> Result<Value> {
         ensure!(!matches!(content, ContextContent::Handoff { .. }),
             scope_denied("Handoff resources are reserved to the Broker"));
+        if let Some(id) = resource_id {
+            let head: Option<ContextSummary> = self.context_meta(&format!("context/head/{id}"))?;
+            ensure!(!head.is_some_and(|head| head.kind == "handoff"),
+                scope_denied("Handoff resources are reserved to the Broker"));
+        }
         self.persist_context(actor, resource_id, expected_revision, title, content, source_revision)
     }
 
@@ -236,7 +241,7 @@ impl Store {
                 ensure!(targets.len() <= 1000, capacity_exceeded("Handoff share limit reached"));
                 self.save_context_meta(&key, &targets)?;
                 self.save_context_meta(&format!("handoff/retain/task/{task}/{}", reference.id),
-                    &json!({"source_task":resource.summary.source_task,"target_task":task}))?;
+                    &json!({"project":actor.project,"source_task":resource.summary.source_task,"target_task":task}))?;
             }
         }
         Ok(())
