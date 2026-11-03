@@ -62,7 +62,7 @@ impl HandoffSubmission {
                 "Handoff explanations exceed 8 KiB; shorten them and reference evidence"
             )
         );
-        let valid = |value: &str| !value.trim().is_empty() && !value.contains('\0');
+        let valid = |value: &str| crate::text(value).is_ok();
         if let HandoffSection::Provided(items) = &self.decisions {
             ensure!(
                 items.len() <= 32
@@ -132,6 +132,12 @@ mod tests {
             ..Default::default()
         };
         assert!(oversized.validate().is_err());
+        assert!(HandoffSubmission {
+            next_steps: HandoffSection::Provided(vec!["\u{1b}[2J".into()]),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
         assert!(serde_json::from_str::<HandoffSubmission>(r#"{"producer":"spoof"}"#).is_err());
     }
 

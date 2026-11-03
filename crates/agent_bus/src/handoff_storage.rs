@@ -250,12 +250,23 @@ impl Store {
         };
         let head: Option<ContextSummary> =
             self.context_meta(&format!("handoff/task/{}", task.id))?;
+        let title = format!(
+            "Handoff {} · {}",
+            task.id.chars().take(8).collect::<String>(),
+            task.description
+                .chars()
+                .filter(|character| !character.is_control())
+                .take(40)
+                .collect::<String>()
+        );
         let value = self.persist_context(
             actor,
             head.as_ref().map(|head| head.reference.id.as_str()),
             head.as_ref().map(|head| head.reference.revision),
-            "Task handoff",
-            &ContextContent::Handoff { snapshot },
+            &title,
+            &ContextContent::Handoff {
+                snapshot: Box::new(snapshot),
+            },
             None,
         )?;
         let mut summary: ContextSummary = serde_json::from_value(value)?;

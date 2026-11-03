@@ -24,7 +24,7 @@ pub struct RepositoryEntry {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ContextContent {
     Handoff {
-        snapshot: crate::handoff::HandoffSnapshot,
+        snapshot: Box<crate::handoff::HandoffSnapshot>,
     },
     RepositoryIndex {
         entries: Vec<RepositoryEntry>,
