@@ -211,3 +211,14 @@ async fn native_upload_staging_preserves_streamed_bytes() {
             .ends_with(b"payload")
     );
 }
+
+#[tokio::test]
+async fn native_content_decoding_preserves_json_responses() {
+    let client = client();
+    let (url, _) = server(b"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 22\r\nConnection: close\r\n\r\n\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xab\xae\x05\x00C\xbf\xa6\xa3\x02\x00\x00\x00");
+    let response = client.get(url).send().await.unwrap();
+    assert_eq!(
+        response.json::<serde_json::Value>().await.unwrap(),
+        serde_json::json!({})
+    );
+}

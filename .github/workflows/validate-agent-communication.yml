@@ -39,6 +39,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   system-network:
+    env:
+      CARGO_INCREMENTAL: "0"
     timeout-minutes: 180
     if: ${{ inputs.network_only }}
     strategy:
