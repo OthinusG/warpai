@@ -71,3 +71,31 @@ pending the exact-source GitHub run. No personal settings were read or changed.
 
 A native screenshot assertion verifies that the toolbar occupies its sidebar
 width and precedes the tab list, rather than spanning the entire window.
+
+## Test installer authorization (2026-11-04)
+
+The owner requested 15-minute validation probes and a macOS test installer after
+acceptance. Reuse `release-macos.yml` on this branch with `artifact_only=true`,
+`auto_publish=false`, and test package version `v1.8.1.1`. This version labels the
+artifact only; it creates no tag or release. The workflow's release-target marker
+makes the downstream Windows workflow skip packaging; Linux consequently skips.
+Required Companion jobs are part of the existing macOS packaging dependency.
+Verify exact source, DMG checksum/integrity, bundle version/identity/signature,
+canonical artwork and bundled MCP bridge before delivery. Do not install it into
+the owner's application/configuration directories.
+
+Current validation: https://github.com/OthinusG/warpai/actions/runs/41668572216
+at runtime source `816466321c97f981c63fad3424856cccd81961ca`.
+Both protocol suites and both desktop default/platform checks passed. Application
+regressions and source-matched native captures are still running; packaging has
+not been started.
+
+## CI correction plan: removed setting default
+
+macOS run 41668572216 failed the existing
+`owner_defaults_match_registered_typed_file_defaults` regression: the removed
+`appearance.vertical_tabs.hide_title_bar_search_bar` registration still had an
+entry in `crates/settings/src/owner-defaults.json`. Default/platform compilation
+and both protocol suites had passed. Remove only the obsolete bundled default;
+retain the schema consistency test and rerun the same cloud validation/captures.
+The test installer remains gated on acceptance.
