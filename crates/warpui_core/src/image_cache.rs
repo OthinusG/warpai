@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use core::fmt;
 use itertools::Itertools;
 use std::{
+    borrow::Cow,
     collections::HashMap,
     error,
     hash::{DefaultHasher, Hash, Hasher},
@@ -29,8 +30,29 @@ use resvg::{
 
 const MIN_REFRESH_DELAY_MS: u32 = 50;
 
+/// A normalized local icon plus whether it opted into theme tinting.
+pub struct SanitizedLocalIcon {
+    pub data: Vec<u8>,
+    pub tinted: bool,
+}
+
 /// Normalize a user icon without allowing SVG image links to read other files.
-pub fn sanitize_local_icon_svg(data: &[u8]) -> Result<Vec<u8>> {
+///
+/// An icon whose root `<svg>` declares `autocolor="true"` and paints geometry with
+/// `currentColor` is normalized to full red geometry so it can be drawn as a
+/// theme-colored mask. Icons without the opt-in keep their original colors.
+pub fn sanitize_local_icon_svg(data: &[u8]) -> Result<SanitizedLocalIcon> {
+    let source = std::str::from_utf8(data)?;
+    let requested = requests_theme_tint(source);
+    let tinted = requested && source.contains("currentColor");
+    if requested && !tinted {
+        log::warn!("Local icon requests autocolor but does not use currentColor; ignoring");
+    }
+    let data = if tinted {
+        Cow::Owned(source.replace("currentColor", "#FF0000").into_bytes())
+    } else {
+        Cow::Borrowed(data)
+    };
     let options = usvg::Options {
         fontdb: SVG_FONT_DB.clone(),
         image_href_resolver: usvg::ImageHrefResolver {
@@ -39,12 +61,27 @@ pub fn sanitize_local_icon_svg(data: &[u8]) -> Result<Vec<u8>> {
         },
         ..Default::default()
     };
-    let tree = usvg::Tree::from_data(data, &options)?;
+    let tree = usvg::Tree::from_data(data.as_ref(), &options)?;
     anyhow::ensure!(
         tree.size().width() <= 4096. && tree.size().height() <= 4096.,
         "Icon is too large"
     );
-    Ok(tree.to_string(&usvg::WriteOptions::default()).into_bytes())
+    Ok(SanitizedLocalIcon {
+        data: tree.to_string(&usvg::WriteOptions::default()).into_bytes(),
+        tinted,
+    })
+}
+
+fn requests_theme_tint(source: &str) -> bool {
+    usvg::roxmltree::Document::parse(source)
+        .ok()
+        .and_then(|document| {
+            document
+                .root_element()
+                .attribute("autocolor")
+                .map(|value| value.eq_ignore_ascii_case("true"))
+        })
+        .unwrap_or(false)
 }
 
 static SVG_FONT_DB: LazyLock<Arc<usvg::fontdb::Database>> = LazyLock::new(|| {

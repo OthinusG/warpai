@@ -105,7 +105,9 @@ Warpai 原生支持 **20+ 种主流 CLI Agent**，涵盖 Codex、Claude Code、G
 右键点击垂直侧栏中的窗格，可选择内置图标或 `~/.config/warpai/icon` 中的
 本地 SVG/PNG。各窗格独立保存选择；保存 tab config 时，图标直接写入对应的
 `[[panes]]` TOML 配置，再次打开时恢复。选择 **Reset pane icon（恢复窗格默认图标）**
-可清除。Agent 品牌与状态优先显示，其次为所选图标和 SSH 标识。
+可清除。Agent 品牌与状态优先显示，其次为所选图标和 SSH 标识。根元素声明
+`autocolor="true"` 且使用 `currentColor` 绘制的 SVG 图标会跟随主题前景色，
+自动适配深色与浅色主题。
 
 <a id="remote-workflow"></a>
 

@@ -11,6 +11,7 @@ pub use crate::image_cache::CacheOption;
 use instant::Instant;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use pathfinder_color::ColorU;
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::vector::{vec2f, Vector2F, Vector2I};
 use std::time::Duration;
@@ -51,6 +52,9 @@ pub struct Image {
     corner_radius: CornerRadius,
     top_aligned: bool,
     right_aligned: bool,
+    /// When set, the image is drawn as a monochrome icon: its red channel becomes
+    /// the opacity mask and this color replaces the RGB channels.
+    tint: Option<ColorU>,
 
     /// The "back up" element to render when an asset is not ready or encountered an error.
     /// This could be None in two situations: (1) the caller does not provide a before_load_element
@@ -91,6 +95,7 @@ impl Image {
             corner_radius: CornerRadius::default(),
             top_aligned: false,
             right_aligned: false,
+            tint: None,
             before_load_element: None,
             failed_to_load_element: None,
             load_timeout: None,
@@ -108,6 +113,15 @@ impl Image {
 
     pub fn with_opacity(mut self, opacity: f32) -> Self {
         self.opacity = opacity;
+        self
+    }
+
+    /// Draws the image as a monochrome icon using `color`.
+    ///
+    /// The texture's red channel is treated as the opacity mask, so the source must
+    /// be normalized to full red geometry (see `sanitize_local_icon_svg`).
+    pub fn with_tint(mut self, color: impl Into<ColorU>) -> Self {
+        self.tint = Some(color.into());
         self
     }
 
@@ -315,8 +329,12 @@ impl Image {
         ctx.scene
             .set_location_for_panic_logging(self.constructor_location);
 
-        ctx.scene
-            .draw_image(rect, image, self.opacity, self.corner_radius);
+        if let Some(tint) = self.tint {
+            ctx.scene.draw_icon(rect, image, self.opacity, tint);
+        } else {
+            ctx.scene
+                .draw_image(rect, image, self.opacity, self.corner_radius);
+        }
     }
 
     fn paint_animated_image(

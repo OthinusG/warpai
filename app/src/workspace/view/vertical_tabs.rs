@@ -1421,8 +1421,14 @@ fn render_detail_kind_badge_icon(
             {
                 WarpIcon::Oz
             } else if let Some(icon) = props.selected_icon.as_ref().filter(|icon| icon.is_available()) {
-                if let Some(source) = icon.local_source() {
-                    return crate::ui_components::icon_with_status::render_image_tab_icon(source.clone(), 16.);
+                if let Some((source, tinted)) = icon.local_icon() {
+                    let tint =
+                        tinted.then(|| ColorU::from(theme.main_text_color(theme.background())));
+                    return crate::ui_components::icon_with_status::render_image_tab_icon(
+                        source.clone(),
+                        16.,
+                        tint,
+                    );
                 }
                 icon.icon()
             } else if terminal_view.is_ssh_for_tab(app) {
@@ -3256,8 +3262,11 @@ fn resolve_icon_with_status_variant(
                     status: terminal_view.selected_conversation_status_for_display(app),
                     is_ambient,
                 }
-            } else if let Some(source) = selected_icon.and_then(PaneIcon::local_source) {
-                IconWithStatusVariant::Image { source: source.clone() }
+            } else if let Some((source, tinted)) = selected_icon.and_then(PaneIcon::local_icon) {
+                IconWithStatusVariant::Image {
+                    source: source.clone(),
+                    tint: tinted.then(|| ColorU::from(main_text)),
+                }
             } else if selected_icon.filter(|icon| icon.is_available()).is_none() && terminal_view.is_ssh_for_tab(app) {
                 IconWithStatusVariant::Ssh
             } else {
@@ -4662,7 +4671,14 @@ pub(super) fn render_summary_pane_kind_icon_circle(
         SummaryPaneKind::SshTerminal => return render_ssh_tab_icon(icon_size + padding * 2.),
         SummaryPaneKind::CustomTerminal(PaneIcon::Local(icon)) => {
             if let Some(source) = icon.source {
-                return crate::ui_components::icon_with_status::render_image_tab_icon(source, icon_size + padding * 2.);
+                let tint = icon
+                    .tinted
+                    .then(|| ColorU::from(theme.main_text_color(theme.background())));
+                return crate::ui_components::icon_with_status::render_image_tab_icon(
+                    source,
+                    icon_size + padding * 2.,
+                    tint,
+                );
             }
             (WarpIcon::Terminal.to_warpui_icon(theme.main_text_color(theme.background())).finish(), internal_colors::fg_overlay_2(theme).into())
         },

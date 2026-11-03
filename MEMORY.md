@@ -134,6 +134,9 @@ Updated 2026-10-31. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.
   Reuse bounded async ~/.config/warpai/icon discovery; Agent > selection > SSH > terminal.
   Contract: specs/custom-tab-icons.md. Published in 1.8.1; preserve v1.8.0.
+- Local SVG icons opt into theme tint with `autocolor="true"` + `currentColor`;
+  normalize to a red mask and paint with `main_text_color`. Single-color only;
+  PNG and non-opted icons keep original colors.
 - Keep WARP_* compatibility and ~/.config/warpai recovery sources/profiles/values.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve

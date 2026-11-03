@@ -710,3 +710,20 @@ fn test_respects_max_dimensions_for_cacheoption_bysize() {
     // Assert that, when we specify a max dimension of 512, the image is resized accordingly.
     assert_eq!(image.img.dimensions(), (512, 512));
 }
+
+#[test]
+fn local_icon_svg_autocolor_normalizes_current_color_to_a_red_mask() {
+    let themed = br#"<svg xmlns="http://www.w3.org/2000/svg" autocolor="true" width="8" height="8"><rect width="8" height="8" fill="currentColor"/></svg>"#;
+    let sanitized = sanitize_local_icon_svg(themed).unwrap();
+    assert!(sanitized.tinted);
+    let normalized = std::str::from_utf8(&sanitized.data).unwrap();
+    assert!(normalized.contains("#ff0000"));
+    assert!(!normalized.contains("currentColor"));
+
+    let plain = br#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="gray"/></svg>"#;
+    let sanitized = sanitize_local_icon_svg(plain).unwrap();
+    assert!(!sanitized.tinted);
+    assert!(std::str::from_utf8(&sanitized.data)
+        .unwrap()
+        .contains("#808080"));
+}

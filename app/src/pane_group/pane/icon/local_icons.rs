@@ -16,6 +16,9 @@ pub struct LocalPaneIcon {
     pub name: String,
     #[serde(skip)]
     pub source: Option<AssetSource>,
+    /// Whether the asset is a red-channel mask that follows the theme foreground color.
+    #[serde(skip)]
+    pub tinted: bool,
 }
 
 impl From<LocalPaneIcon> for String {
@@ -38,7 +41,11 @@ impl TryFrom<String> for LocalPaneIcon {
         {
             return Err("Local pane icons require an SVG/PNG basename");
         }
-        Ok(Self { name, source: None })
+        Ok(Self {
+            name,
+            source: None,
+            tinted: false,
+        })
     }
 }
 
@@ -88,7 +95,7 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
             if data.len() as u64 > MAX_ICON_BYTES {
                 return None;
             }
-            let data = if extension == "svg" {
+            let (data, tinted) = if extension == "svg" {
                 let source = std::str::from_utf8(&data)
                     .ok()?
                     .trim_start_matches('\u{feff}')
@@ -96,7 +103,9 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
                 if !source.starts_with('<') {
                     return None;
                 }
-                warpui::image_cache::sanitize_local_icon_svg(source.as_bytes()).ok()?
+                let sanitized =
+                    warpui::image_cache::sanitize_local_icon_svg(source.as_bytes()).ok()?;
+                (sanitized.data, sanitized.tinted)
             } else {
                 let reader = image::ImageReader::with_format(
                     std::io::Cursor::new(&data),
@@ -114,7 +123,7 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
                     .thumbnail(256, 256)
                     .write_to(&mut output, image::ImageFormat::Png)
                     .ok()?;
-                output.into_inner()
+                (output.into_inner(), false)
             };
             if data.len() > MAX_ICON_BYTES as usize || total + data.len() > MAX_TOTAL_BYTES {
                 return None;
@@ -134,6 +143,7 @@ pub(crate) fn discover(root: &Path) -> Vec<LocalPaneIcon> {
             Some(LocalPaneIcon {
                 name,
                 source: Some(source),
+                tinted,
             })
         })
         .take(128)
@@ -205,8 +215,43 @@ mod tests {
         let invalid = PaneIcon::Local(LocalPaneIcon {
             name: "../outside.svg".into(),
             source: None,
+            tinted: false,
         });
         assert!(!invalid.is_available());
+    }
+
+    #[test]
+    fn terminal_ssh_session_local_svg_autocolor_follows_theme() {
+        let temp = tempfile::tempdir().unwrap();
+        let themed = r#"<svg xmlns="http://www.w3.org/2000/svg" autocolor="true" width="24" height="24"><circle cx="12" cy="12" r="10" fill="currentColor"/></svg>"#;
+        let plain = r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="currentColor"/></svg>"#;
+        let fixed = r#"<svg xmlns="http://www.w3.org/2000/svg" autocolor="true" width="24" height="24"><circle cx="12" cy="12" r="10" fill="gray"/></svg>"#;
+        std::fs::write(temp.path().join("themed.svg"), themed).unwrap();
+        std::fs::write(temp.path().join("plain.svg"), plain).unwrap();
+        std::fs::write(temp.path().join("fixed.svg"), fixed).unwrap();
+
+        let icons = discover(temp.path());
+        assert_eq!(icons.len(), 3);
+        let find = |name: &str| icons.iter().find(|icon| icon.name == name).unwrap();
+        let normalized = |icon: &LocalPaneIcon| {
+            let Some(AssetSource::Async { fetch, .. }) = &icon.source else {
+                panic!("Expected validated in-memory image");
+            };
+            let bytes = futures::executor::block_on(fetch()).unwrap();
+            std::str::from_utf8(&bytes).unwrap().to_owned()
+        };
+
+        assert!(find("themed.svg").tinted);
+        assert!(!find("plain.svg").tinted);
+        assert!(
+            !find("fixed.svg").tinted,
+            "autocolor without currentColor keeps original colors"
+        );
+
+        let themed = normalized(find("themed.svg"));
+        assert!(themed.contains("#ff0000"));
+        assert!(!themed.contains("currentColor"));
+        assert!(normalized(find("plain.svg")).contains("#000000"));
     }
 
     #[test]

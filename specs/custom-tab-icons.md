@@ -167,3 +167,25 @@ composition and use no purple, shadows, external background or mockup.
   input before typing the capture draft. Screenshot QA also found the ninth
   picker icon extending beyond the right inset; split the picker into five/four
   30px cells within the native 186px menu. Re-run native capture after both fixes.
+
+## Theme-aware local SVG icons (2026-11-03)
+
+- Opt-in contract: a local SVG whose root `<svg>` declares `autocolor="true"` and
+  paints geometry with `currentColor` becomes a monochrome icon. The normalized
+  asset is full red geometry; at paint time the element uses the theme's
+  `main_text_color`, so the icon follows light/dark themes without a second file.
+- Absent or false `autocolor`, or `autocolor` without any `currentColor`, keeps the
+  original colors and existing rendering. PNG sources never tint. An `autocolor`
+  icon without `currentColor` logs a warning and renders as-is.
+- Detection and `currentColor` -> `#FF0000` substitution happen on the raw XML
+  before usvg parsing, because usvg resolves `currentColor` to a concrete color.
+  The tint flag is discovery state only (`#[serde(skip)]`); persistence still
+  stores just the basename and refreshes the flag with the file.
+- Tinting applies in vertical pane rows, the detail badge, the summary circle and
+  the local-icon menu preview. Agent branding and SSH precedence are unchanged.
+- Single-color semantics: declared `currentColor` means the whole icon is tinted;
+  gradients, fixed colors and multi-tone artwork are intentionally flattened.
+  Use separate files or omit the flag for brand-colored icons.
+- Verification: focused discovery/sanitizer tests cover opt-in, plain
+  `currentColor`, and `autocolor` without `currentColor`; native light/dark
+  captures remain part of the GitHub desktop validation flow.

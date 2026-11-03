@@ -111,6 +111,8 @@ SVG/PNG from `~/.config/warpai/icon`. Each pane keeps its own selection. Saving 
 tab config includes the icons in the corresponding `[[panes]]` TOML entries and
 restores them when reopened. Use **Reset pane icon** to clear a selection. Agent
 branding and status take priority, followed by the selected icon and SSH badge.
+SVG icons that declare `autocolor="true"` on the root element and paint with
+`currentColor` follow the theme foreground color in light and dark themes.
 
 <a id="remote-work-is-part-of-the-same-workflow"></a>
 

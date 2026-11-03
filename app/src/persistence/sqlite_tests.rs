@@ -214,6 +214,7 @@ fn terminal_ssh_session_pane_icon_persistence_restores_resets_and_ignores_unknow
                 crate::pane_group::pane::icon::local_icons::LocalPaneIcon {
                     name: "project.svg".into(),
                     source: None,
+                    tinted: false,
                 },
             )),
             None,

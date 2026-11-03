@@ -23,6 +23,12 @@ reduce or erase the rendered icon; they are not the visible toolbar palette.
 Keep brand colors only for assets rendered as ordinary images/SVGs. Inspect the
 actual consumer before choosing its fill/stroke colors.
 
+Local pane icons under `~/.config/warpai/icon` can follow the theme foreground
+color when the root `<svg>` declares `autocolor="true"` and the geometry uses
+`currentColor`. The loader rewrites `currentColor` to full red and the element
+draws it as a mask, matching the native icon convention. This is
+single-color-only: omit `autocolor` for brand or multi-tone artwork.
+
 ## Implementation and verification
 
 1. Record the reference, target entry and acceptance in the relevant UI spec.

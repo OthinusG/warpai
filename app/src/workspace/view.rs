@@ -7613,11 +7613,16 @@ impl Workspace {
                         if let Some(crate::pane_group::pane::icon::PaneIcon::Local(mut selected)) =
                             selected
                         {
-                            selected.source = me
+                            if let Some(refreshed) = me
                                 .local_tab_icons
                                 .iter()
                                 .find(|icon| icon.name == selected.name)
-                                .and_then(|icon| icon.source.clone());
+                            {
+                                selected.source = refreshed.source.clone();
+                                selected.tinted = refreshed.tinted;
+                            } else {
+                                selected.source = None;
+                            }
                             configuration.update(ctx, |configuration, ctx| {
                                 configuration.set_selected_icon(
                                     Some(crate::pane_group::pane::icon::PaneIcon::Local(selected)),
@@ -7669,6 +7674,7 @@ impl Workspace {
             .iter()
             .filter_map(|icon| {
                 let source = icon.source.clone()?;
+                let tinted = icon.tinted;
                 let selection = crate::pane_group::pane::icon::PaneIcon::Local(icon.clone());
                 let selected = self
                     .tabs
@@ -7685,6 +7691,9 @@ impl Workspace {
                 Some(
                     MenuItemFields::new_with_custom_label(
                         Arc::new(move |_, _, appearance, _| {
+                            let theme = appearance.theme();
+                            let tint = tinted
+                                .then(|| ColorU::from(theme.main_text_color(theme.background())));
                             Flex::row()
                                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                                 .with_spacing(8.)
@@ -7692,6 +7701,7 @@ impl Workspace {
                                     crate::ui_components::icon_with_status::render_image_tab_icon(
                                         source.clone(),
                                         20.,
+                                        tint,
                                     ),
                                 )
                                 .with_child(

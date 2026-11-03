@@ -23,11 +23,21 @@ pub(crate) fn render_ssh_tab_icon(size: f32) -> Box<dyn Element> {
             path: SSH_TAB_ICON_PATH,
         },
         size,
+        None,
     )
 }
 
-pub(crate) fn render_image_tab_icon(source: AssetSource, size: f32) -> Box<dyn Element> {
-    ConstrainedBox::new(Image::new(source, CacheOption::BySize).finish())
+pub(crate) fn render_image_tab_icon(
+    source: AssetSource,
+    size: f32,
+    tint: Option<ColorU>,
+) -> Box<dyn Element> {
+    let image = Image::new(source, CacheOption::BySize);
+    let image = match tint {
+        Some(tint) => image.with_tint(tint),
+        None => image,
+    };
+    ConstrainedBox::new(image.finish())
         .with_width(size)
         .with_height(size)
         .finish()
@@ -51,7 +61,10 @@ pub(crate) struct IconWithStatusSizing {
 pub(crate) enum IconWithStatusVariant {
     /// The SSH asset already contains its circular background.
     Ssh,
-    Image { source: AssetSource },
+    Image {
+        source: AssetSource,
+        tint: Option<ColorU>,
+    },
     /// A generic icon with a given color on an overlay background.
     Neutral {
         icon: WarpIcon,
@@ -84,8 +97,13 @@ pub(crate) fn render_icon_with_status(
         IconWithStatusVariant::Ssh => render_ssh_tab_icon(
             sizing.overall_size_override.unwrap_or(sizing.icon_size + sizing.padding * 2.),
         ),
-        IconWithStatusVariant::Image { source } => render_image_tab_icon(source,
-            sizing.overall_size_override.unwrap_or(sizing.icon_size + sizing.padding * 2.)),
+        IconWithStatusVariant::Image { source, tint } => render_image_tab_icon(
+            source,
+            sizing
+                .overall_size_override
+                .unwrap_or(sizing.icon_size + sizing.padding * 2.),
+            tint,
+        ),
         IconWithStatusVariant::Neutral { icon, icon_color } => {
             let inner = ConstrainedBox::new(icon.to_warpui_icon(icon_color).finish())
                 .with_width(sizing.icon_size)

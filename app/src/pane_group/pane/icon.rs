@@ -63,9 +63,10 @@ impl PaneIcon {
         !matches!(self, Self::Local(icon) if icon.source.is_none())
     }
 
-    pub(crate) fn local_source(&self) -> Option<&warpui::assets::asset_cache::AssetSource> {
+    /// The local asset plus whether it should follow the theme foreground color.
+    pub(crate) fn local_icon(&self) -> Option<(&warpui::assets::asset_cache::AssetSource, bool)> {
         match self {
-            Self::Local(icon) => icon.source.as_ref(),
+            Self::Local(icon) => icon.source.as_ref().map(|source| (source, icon.tinted)),
             _ => None,
         }
     }
