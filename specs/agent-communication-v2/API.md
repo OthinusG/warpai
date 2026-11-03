@@ -450,9 +450,11 @@ TaskHistory contains immutable handoff_created references; handoff_only=true
 returns a paginated version index through the same task authorization. The flag
 is omitted when false and requires handoff_briefs_v1 when true; ExecutionThreadGet and
 ProjectBootstrap expose compact pins. ContextGet reads the exact immutable brief;
-optional handoff_part selects `{kind:"status"}`, `{kind:"task"}`, `{kind:"result"}`
+optional handoff_part selects `{kind:"binding"}`, `{kind:"status"}`, `{kind:"task"}`, `{kind:"result"}`
 or `{kind:"evidence",id}` without granting access to unrelated source records.
-Each source part is bounded to 48 KiB (immutable content remains 32 KiB). Status is a current projection, not part of
+Each ordinary source part is bounded to 48 KiB (immutable content remains 32 KiB).
+Large attempt bindings are retained by reference and digest, with an explicit
+binding_omitted_for_size flag; their binding source part is bounded to 256 KiB. Status is a current projection, not part of
 the immutable digest. Test evidence remains Agent-reported and review is separate.
 Public context_publish cannot create or overwrite the reserved handoff kind.
 

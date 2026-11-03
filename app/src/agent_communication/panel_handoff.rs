@@ -22,6 +22,7 @@ pub(super) struct HandoffRead {
     status: serde_json::Value,
     result: serde_json::Value,
     source_task: serde_json::Value,
+    source_workspace: Option<String>,
 }
 
 pub(super) struct HandoffHistory {
@@ -356,6 +357,7 @@ impl CollaborationPanel {
                     (resource, status, result, source_task)
                 };
                 let resource: ContextResource = serde_json::from_value(resource)?;
+                let source_workspace = resource.summary.source_workspace;
                 let ContextContent::Handoff { snapshot } = resource.content else {
                     anyhow::bail!("Expected a handoff resource");
                 };
@@ -364,6 +366,7 @@ impl CollaborationPanel {
                     status: status["source"].clone(),
                     result: result["source"].clone(),
                     source_task: source_task["source"].clone(),
+                    source_workspace,
                 })
             },
             move |panel, result, ctx| {
@@ -545,6 +548,7 @@ impl CollaborationPanel {
                 .binding
                 .as_ref()
                 .map(|binding| binding.workspace.clone())
+                .or_else(|| read.source_workspace.clone())
                 .unwrap_or_else(|| {
                     warpui::localization::text("Source workspace not provided.").into()
                 }),

@@ -79,6 +79,31 @@ impl Store {
             return Err(invalid_input("Source parts require a handoff reference"));
         };
         let source = match part {
+            HandoffPart::Binding => {
+                let binding: Option<NativeThreadBinding> =
+                    self.context_meta(&format!("execution/binding/{}", snapshot.attempt_id))?;
+                ensure!(
+                    !snapshot.binding_omitted_for_size || binding.is_some(),
+                    invalid_state("Retained handoff binding is unavailable")
+                );
+                if let Some(binding) = &binding {
+                    ensure!(
+                        binding.attempt_id == snapshot.attempt_id
+                            && binding.agent == snapshot.producer
+                            && binding.revision == snapshot.task_revision,
+                        invalid_state("Handoff binding identity changed")
+                    );
+                    if let Some(expected) = &snapshot.binding_sha256 {
+                        use sha2::{Digest, Sha256};
+                        ensure!(
+                            *expected
+                                == format!("{:x}", Sha256::digest(serde_json::to_vec(binding)?)),
+                            invalid_state("Handoff binding digest changed")
+                        );
+                    }
+                }
+                json!({"binding":binding})
+            }
             HandoffPart::Status => {
                 json!(self.handoff_status(&actor.project, reference, &snapshot)?)
             }
@@ -151,10 +176,15 @@ impl Store {
         };
         let value = json!({"reference":reference,"task_id":snapshot.task_id,"task_revision":snapshot.task_revision,
             "attempt_id":snapshot.attempt_id,"part":part,"source":source});
+        let byte_limit = if matches!(part, HandoffPart::Binding) {
+            crate::MAX_FRAME / 4
+        } else {
+            48 * 1024
+        };
         ensure!(
-            serde_json::to_vec(&value)?.len() <= 48 * 1024,
+            serde_json::to_vec(&value)?.len() <= byte_limit,
             capacity_exceeded(
-                "Handoff source part exceeds 48 KiB; inspect authorized source evidence directly"
+                "Handoff source part exceeds its response budget; inspect the authorized source record directly"
             )
         );
         Ok(value)
@@ -307,6 +337,18 @@ impl Store {
             .get_result::<ValueRow>(&mut *self.connection.borrow_mut())?;
         let binding: Option<NativeThreadBinding> =
             self.context_meta(&format!("execution/binding/{}", attempt.id))?;
+        let binding_bytes = binding.as_ref().map(serde_json::to_vec).transpose()?;
+        let binding_omitted_for_size = binding_bytes
+            .as_ref()
+            .is_some_and(|bytes| bytes.len() > 8 * 1024);
+        let binding_sha256 = if binding_omitted_for_size {
+            use sha2::{Digest, Sha256};
+            binding_bytes
+                .as_ref()
+                .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
+        } else {
+            None
+        };
         let snapshot = HandoffSnapshot {
             schema_version: 1,
             task_id: task.id.clone(),
@@ -314,7 +356,13 @@ impl Store {
             execution_thread_id: task.id.clone(),
             attempt_id: attempt.id.clone(),
             producer: actor.id.clone(),
-            binding: binding.clone(),
+            binding: if binding_omitted_for_size {
+                None
+            } else {
+                binding.clone()
+            },
+            binding_omitted_for_size,
+            binding_sha256,
             request_id: request_id.into(),
             reason: reason.into(),
             source_event_id: event.value,
@@ -994,6 +1042,38 @@ mod tests {
         assert_eq!(source["source"]["task_revision"], 1);
         assert_eq!(source["source"]["same_attempt"], false);
         assert!(revision > 1);
+    }
+
+    #[test]
+    fn handoff_retains_large_native_bindings_without_rejecting_legacy_submission() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = store
+            .register("issuer", "custom", "/project", "issuer")
+            .unwrap();
+        let terminal = "x".repeat(40 * 1024);
+        let worker = store
+            .register(&terminal, "custom", "/project", "worker")
+            .unwrap();
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&task, 1))
+                .unwrap(),
+        );
+        let resource = store.context_get(&issuer, &pin).unwrap();
+        assert!(serde_json::to_vec(&resource.content).unwrap().len() <= 32 * 1024);
+        let ContextContent::Handoff { snapshot } = resource.content else {
+            panic!("Missing brief");
+        };
+        assert!(snapshot.binding.is_none());
+        assert!(snapshot.binding_omitted_for_size);
+        assert!(snapshot.binding_sha256.is_some());
+        let source = store
+            .handoff_source(&issuer, &pin, &crate::handoff::HandoffPart::Binding)
+            .unwrap();
+        assert_eq!(source["source"]["binding"]["terminal"], terminal);
+        assert_eq!(source["source"]["binding"]["run"], "worker-run");
     }
 
     #[test]

@@ -29,6 +29,13 @@ generation reason, source event sequence and ID, evidence IDs and Agent sections
 Task objective, result/reason and evidence remain in the source event/task instead
 of being copied. A bounded result preview is explicitly marked when shortened.
 No final commit or clean-workspace inference. Missing binding is explicit null.
+Bindings above 8 KiB stay in their original immutable attempt record; the brief
+sets binding_omitted_for_size and pins its encoded SHA-256 rather than duplicating
+it. context_get handoff_part binding reads that exact record and checks its digest.
+Its response budget is 256 KiB (one quarter of the existing IPC frame), leaving
+room for MCP JSON encoding; ordinary source parts retain their 48-KiB budget.
+This keeps large native metadata from invalidating an otherwise legal legacy
+submission. Omission is distinct from a binding that was never captured.
 Test evidence is Agent-reported; content verification and task acceptance are
 separate facts. Resources retain the 32-KiB content limit and 64-KiB wire bound.
 
@@ -45,7 +52,7 @@ versions remain accessible through paged task events and exact context_get.
 TaskHistory(handoff_only=true) filters creation events for the native version
 picker without loading bodies; the new flag is capability-gated and omitted
 when false for strict older services.
-`context_get(reference, handoff_part?)` optionally reads `status`, `task`, `result` or
+`context_get(reference, handoff_part?)` optionally reads `binding`, `status`, `task`, `result` or
 `evidence {id}` from that exact brief's retained source. Each response is bounded
 to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. Evidence parts preserve the original reporter/attempt/native binding when retained;
 missing provenance remains null. Evidence verification is a current projection,

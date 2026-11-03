@@ -102,6 +102,10 @@ pub struct HandoffSnapshot {
     pub attempt_id: String,
     pub producer: String,
     pub binding: Option<NativeThreadBinding>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub binding_omitted_for_size: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding_sha256: Option<String>,
     pub request_id: String,
     pub reason: String,
     pub source_event_id: String,
@@ -173,6 +177,7 @@ mod tests {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum HandoffPart {
+    Binding,
     Status,
     Task,
     Result,
