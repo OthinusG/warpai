@@ -89,9 +89,38 @@ throughout the app; their colors and dimensions must stay identical.
 
 ### Cloud receipts
 
-These receipts cover the first revision. The owner rejected its main-panel
-appearance; the foreground-outline follow-up requires its own cloud run and
-replacement screenshots before visual acceptance.
+#### Accepted implementation follow-up
+
+- Tested source: `d25608650116ff5949418b93169020ed6b8bb301`.
+- Run: https://github.com/OthinusG/warpai/actions/runs/41588569049 — success.
+- Both protocol jobs and macOS/Windows desktop jobs passed, including default
+  and platform checks, the Windows release-profile check, application regression
+  suites, native review builds and native capture assertions.
+- Each platform produced 1,008 native PNGs across the three interface languages.
+  Artifacts: macOS `13210813102`, Windows `13212043827`. Downloaded to
+  `/tmp/warpai-rounded-d256086/{macos,windows}`. Both diagnostics match the exact
+  tested source, exit 0 and contain no failed steps or assertions.
+- Inspected macOS and Windows main Explorer/terminal captures and macOS dark
+  collaboration and light/dark language menus. The main-window tab sidebar and
+  Explorer/collaboration outer outlines now visibly round their top and bottom
+  corners at 10px. Terminal contents retain rectangular, unmasked bounds.
+- User preview: unchanged native Simplified Chinese macOS
+  `live-ssh-file-explorer.png`, copied to
+  `/Users/wqin/Downloads/warpai-rounded-ui-d256086/warpai-main-macos-zh-Hans.png`
+  with a source/artifact provenance receipt. The earlier `736f918` preview is
+  retained separately for comparison and is superseded.
+- Passed focused follow-up source checks: foreground-only panel outlines,
+  unchanged 1px separator width, no added content insets/masks or resize logic,
+  Rust syntax and whitespace checks. Terminal, pane-group, theme and renderer
+  source remain untouched.
+- Arbitrary third-party themes and exhaustive terminal/TUI/graphics and splitter
+  gesture combinations remain outside these finite capture suites. The narrow
+  multi-pane Review fixture retains its original crowded layout.
+
+#### First revision (superseded visual result)
+
+The owner rejected this revision's straight main-panel boundaries. These
+receipts are retained as history; the follow-up above is the current result.
 
 - Tested source: `736f918325768198b8d5fd56c9a4a84a66e22153`.
 - Run: https://github.com/OthinusG/warpai/actions/runs/41580187623.
