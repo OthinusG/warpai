@@ -152,6 +152,7 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Vertical chrome: side toolbars live inside inset floating columns; no title
   search setting/config override. Closed columns retain reopening controls.
   Field correction contract: specs/macos-bugcheck-2026-11/TECH.md.
+  Warpui shadow spread is drawable blur padding; zero clips the outer shadow.
 - Explicit delegated tasks use warp_task_assign; warp_agent_send, including
   expects_result, creates messages only. Both persist in History; do not infer
   task authority from prose. Contract: specs/agent-communication-v2/API.md.

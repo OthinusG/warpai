@@ -125,3 +125,19 @@ leave the Rust target flags, allocator boundaries and macOS/Linux branches
 unchanged. Rerun Windows desktop/protocol/native acceptance. macOS UI sources
 remain identical to the fully captured 5edbad2f revision; packaging repeats the
 macOS compile/protocol gates on the final source.
+
+## Visual correction: drawable shadow padding
+
+The 5edbad2f archive contains 1,110 valid native PNGs (370 per language), with
+exit zero and no failed steps/assertions. Inspected the Chinese three-column
+Explorer/history, input/chips, tab rows, icon menu, light/dark language menus and
+Reconnect views. Native test windows deliberately hide macOS traffic lights;
+real hardware window controls remain part of owner test-package acceptance.
+
+Pixel checks exposed no shadow outside the column: spread_radius=0 gives the
+renderer no drawable area outside the surface. Existing rect.rs uses spread as
+quad padding, and rect_shader.wgsl integrates the blur over three sigma. Retain
+blur=12, alpha=28 and offset y=2; set drawable spread=36. Re-capture and verify a
+visible gradient in the margin against the same-frame flat background. No
+renderer or clipping changes are needed. Other inspected geometry, palette,
+typography, assets and menu highlights match the scoped visual contract.

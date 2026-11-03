@@ -21177,7 +21177,8 @@ impl Workspace {
                     color: ColorU::new(0, 0, 0, 28),
                     offset: vec2f(0., 2.),
                     blur_radius: 12.,
-                    spread_radius: 0.,
+                    // The renderer uses spread as drawable padding for the blur.
+                    spread_radius: 36.,
                 })
                 .with_uniform_padding(8.)
                 .with_uniform_margin(6.)
