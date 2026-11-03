@@ -218,6 +218,6 @@ impl HandoffInputStatus {
     pub fn requires_revalidation(&self) -> bool {
         self.status
             .as_ref()
-            .is_none_or(|status| !status.result_is_current)
+            .is_none_or(|status| !status.result_is_current || status.execution_uncertain)
     }
 }

@@ -532,6 +532,8 @@ impl CollaborationPanel {
             task.attempts
                 .iter()
                 .any(|attempt| attempt.finished_at.is_none() && attempt.certainty != "active")
+        } else if let Some(status) = pinned.and_then(|input| input.status.as_ref()) {
+            status.execution_uncertain
         } else {
             read.status["execution_uncertain"] == true
         };

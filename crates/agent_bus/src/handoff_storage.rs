@@ -1045,6 +1045,49 @@ mod tests {
     }
 
     #[test]
+    fn handoff_input_warns_after_disconnect_without_reassigning_or_repinning() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let reader = store
+            .register("reader", "custom", "/project", "reader")
+            .unwrap();
+        let source = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &source, 1);
+        let saved = store
+            .execute(
+                &worker,
+                "worker-run",
+                &Operation::TaskProgress {
+                    task_id: source.clone(),
+                    revision: 1,
+                    note: "Checkpoint".into(),
+                    handoff: Some(HandoffSubmission::default()),
+                    attempt_id: None,
+                    waiting_reason: None,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let pin = reference(&saved);
+        let target = assign(&store, &issuer, &reader, vec![pin.clone()]);
+        assert!(!store.task(&reader, &target).unwrap().handoff_inputs[0].requires_revalidation());
+        store.recover(&worker, "replacement-run").unwrap();
+        let target = store.task(&reader, &target).unwrap();
+        assert_eq!(target.state, "queued");
+        assert_eq!(target.context_refs, vec![pin.clone()]);
+        assert!(
+            target.handoff_inputs[0]
+                .status
+                .as_ref()
+                .unwrap()
+                .result_is_current
+        );
+        assert!(target.handoff_inputs[0].requires_revalidation());
+        assert!(store.context_get(&reader, &pin).is_ok());
+    }
+
+    #[test]
     fn handoff_retains_large_native_bindings_without_rejecting_legacy_submission() {
         let store = Store::open(":memory:").unwrap();
         let issuer = store
