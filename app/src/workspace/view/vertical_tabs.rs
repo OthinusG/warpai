@@ -1668,6 +1668,9 @@ fn render_vertical_tabs_panel(
     let inner = Hoverable::new(state.panel_right_click_mouse_state.clone(), |_| {
         Container::new(panel_with_popup)
             .with_background(internal_colors::fg_overlay_1(theme))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                warp_core::ui::corner_radii::SURFACE,
+            )))
             .finish()
     })
     .on_click(|ctx, _, _| {

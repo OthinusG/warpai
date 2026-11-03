@@ -14,8 +14,20 @@ Shared pixel radii in `warp_core::ui::corner_radii`:
 - Surface: 10 (standalone surfaces, dialogs, menus and popovers).
 
 Retain circular indicators, small keycaps, checkboxes and single-edge separators.
-Continuous workspace sidebars and file/editor areas keep their flat shared edges;
-do not wrap them in additional cards. Window chrome retains platform radii.
+Configurable application panels must have visibly rounded outer contours in
+the main window, including vertical tabs, collaboration/Explorer and Review.
+Retain their exact bounds and keep terminal panes free of decorative masks.
+Window chrome retains platform radii.
+
+Owner correction: the first main-window screenshot still showed straight panel
+boundaries. Shared control radii alone do not meet acceptance. Configurable
+panels bypassed the legacy rounded surface wrapper. Add a shared outer outline
+at the actual configurable-panel entry point, including maximized Review; round
+the existing vertical-tab background. Replace separator paint with the same
+one-pixel spacer so straight lines do not visually reconnect rounded contours.
+Use foreground borders with existing outline colors: no inset, no padding or
+margin changes, no content clipping, and no changes to splitter event handling.
+Re-run cloud verification and inspect the replacement main-window screenshot.
 
 ## Implementation tasks and scope
 
@@ -26,14 +38,17 @@ do not wrap them in additional cards. Window chrome retains platform radii.
 3. Match exposed top/bottom corners on adjoining menu/modal/review backgrounds.
    Reuse Container's antialiased paint path. It does not clip children; preserve
    existing padding and scrolling rather than introducing content masks.
-4. Audit all modified callers and existing overrides. Leave terminal/pane
+4. Outline configurable main-window panels in their existing bounds, retaining
+   separator widths and resize handles. Do not decorate terminal panes.
+5. Audit all modified callers and existing overrides. Leave terminal/pane
    rendering, splitters, tab layout, hit testing and theme definitions unchanged.
 
 ## Acceptance and verification
 
-- Diff contains only radii, imports and documentation; dimensions, spacing,
+- Diff contains radii, fixed-bounds panel outlines, imports and documentation; dimensions, spacing,
   backgrounds, border colors, opacity, actions and input handling are unchanged.
-- No renderer changes, new dependencies, masks, allocations or layers.
+- No renderer changes, new dependencies, content masks or offscreen passes.
+  Reuse the existing foreground-border paint layer on each outer app panel.
 - Match expanded/collapsed Review headers and bottom content corners.
 - Check formatting and application compilation (default and warp_platform).
 - Render the modified binary if the local native build environment permits it;
@@ -52,7 +67,7 @@ throughout the app; their colors and dimensions must stay identical.
 ## Verification results
 
 - Completed: shared tokens and consumers; no new framework or dependency.
-- Passed: source invariant check across all 35 modified existing Rust files.
+- Passed for the first revision: source invariant check across all 35 modified existing Rust files.
   After normalizing radius arguments/constants and the required imports/export,
   every file is identical to `main` at `e3fb784`. This verifies unchanged colors,
   opacity, spacing, sizes, labels, actions and event handling.
@@ -61,14 +76,10 @@ throughout the app; their colors and dimensions must stay identical.
 - Passed: rustfmt parser validation for 36 Rust files, using package editions
   (2021 for app/warp_core, 2024 for ui_components), without formatting unrelated
   existing code. `git diff --check` passed.
-- Blocked: `cargo check -p warpai --bin warpai --locked` and the same command
+- Local environment blocker: `cargo check -p warpai --bin warpai --locked` and the same command
   with `--features warp_platform`. Both stop in the existing `warpui` build script:
   `xcrun: error: unable to find utility "metal", not a developer tool or in PATH`.
-  Application type checking/linking and native tests have not completed.
-- Runtime acceptance pending: modified-binary screenshots, light/dark/custom
-  theme appearance, terminal resize/drag/scroll/TUI, Explorer/preview, Agent and
-  Review interactions. The installed app is an older binary and cannot validate
-  this patch. No claim of visual or runtime theme verification is made.
+  Cloud checks supersede this local build limitation; see receipts below.
 - Cloud validation: use `validate-agent-communication.yml` on this feature
   branch with `check_app=true` and `capture_ui=true`. This includes macOS and
   Windows default/platform builds, application regressions and isolated native
@@ -76,26 +87,55 @@ throughout the app; their colors and dimensions must stay identical.
   this maintainer workspace uses GitHub for Rust builds, as documented in
   `docs/DEVELOPMENT.md`.
 
+### Cloud receipts
+
+These receipts cover the first revision. The owner rejected its main-panel
+appearance; the foreground-outline follow-up requires its own cloud run and
+replacement screenshots before visual acceptance.
+
+- Tested source: `736f918325768198b8d5fd56c9a4a84a66e22153`.
+- Run: https://github.com/OthinusG/warpai/actions/runs/41580187623.
+- Passed macOS and Windows protocol suites, macOS default/platform checks and
+  application regression suite. Windows default/platform/release-profile checks
+  and application regression suite also passed; native Windows capture pending.
+- Passed macOS native application build and UI captures: 1,008 PNGs across
+  English, Simplified Chinese and Traditional Chinese. Artifact:
+  `Warpai-collaboration-native-captures-macOS` (ID `13207639793`). Its diagnostic
+  matches the tested source, exits 0, and has no failed steps/assertions/panics.
+- Downloaded screenshots to `/tmp/warpai-rounded-736f918/macos`. Selected the
+  Simplified Chinese `live-ssh-file-explorer.png` for the user; copied unchanged
+  to `/Users/wqin/Downloads/warpai-rounded-ui-736f918/warpai-main-macos-zh-Hans.png`
+  with `provenance.json`. No screenshot assets added to repository source.
+- Visually inspected the main Explorer/terminal layout, Agent/evidence layout,
+  dark collaboration, light/dark language menus and the warm Review fixture.
+  Controls and menu contours are rounded, flat workspace seams remain intact,
+  and light/dark menus retain contrast. The 1440px multi-pane Review fixture
+  squeezes terminal/preview columns and wraps text; geometry is unchanged by
+  this radius-only patch. Do not use that fixture as a polished main preview.
+- Not established by these captures: arbitrary third-party custom themes,
+  exhaustive terminal/TUI/graphics-protocol behavior, every resize/splitter
+  gesture, or a complete before/after pixel comparison.
+
 ### Static fidelity ledger
 
 | Aspect | Source evidence | Result / rendered evidence |
 | --- | --- | --- |
-| Geometry | Only radius arguments changed; Container layout untouched | Dimensions and spacing unchanged; native render blocked |
-| Palette | No changes to color expressions or theme definitions | Source compatibility preserved; theme screenshots pending |
-| Typography and assets | Source invariant comparison | Fonts, text and assets unchanged |
-| Surface seams | Matching menu top/footer and reference-card top radii; Review keeps top/bottom 8 | No new card wrappers or content masks; pixels pending |
-| Interaction | Event handling, splitters, hit testing and scroll code unchanged | Static audit passed; native interaction acceptance pending |
+| Geometry | Only radius arguments changed; Container layout untouched | Main Explorer and Agent captures inspected; crowded multi-pane fixture recorded above |
+| Palette | No changes to color expressions or theme definitions | Native light/dark menus and warm main view inspected; arbitrary custom themes untested |
+| Typography and assets | Source invariant comparison | Fonts, text and assets unchanged; native Chinese glyphs present |
+| Surface seams | Matching menu top/footer and reference-card top radii; Review keeps top/bottom 8 | Rounded menu/control contours inspected; no new wrappers or masks |
+| Interaction | Event handling, splitters, hit testing and scroll code unchanged | macOS native assertions passed; exhaustive gesture/TUI acceptance not claimed |
 
 ### Source inventory
 
-Paths below are relative to the repository root. All changes are radius values,
-token imports or module exports; existing 8px values retained via the panel token
-are included to avoid future divergence.
+Paths below are relative to the repository root. The first revision changed
+radius values, token imports and exports. The follow-up adds foreground outlines
+to actual configurable-panel shells and rounds the existing tab-sidebar fill.
 
 - `crates/warp_core/src/ui/`: new `corner_radii.rs`, `mod.rs`, `builder.rs`.
 - `crates/ui_components/src/`: `button.rs`, `dialog.rs`, `tooltip.rs`.
-- `app/src/workspace/`: `mod.rs`, `view.rs` (standalone panel shell and adjoining
-  worktree-menu chrome; continuous sidebars remain flat).
+- `app/src/workspace/`: `mod.rs`, `view.rs` (panel shells and adjoining
+  worktree-menu chrome), `view/vertical_tabs.rs` (existing sidebar background).
 - `app/src/`: `menu.rs`, `modal.rs`.
 - `app/src/ui_components/`: `dialog.rs`, `item_highlight.rs` (also used by
   Explorer rows).

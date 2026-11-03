@@ -21128,15 +21128,20 @@ impl Workspace {
         container.finish()
     }
 
-    fn render_panel_separator(app: &AppContext) -> Box<dyn Element> {
-        let appearance = Appearance::as_ref(app);
-        ConstrainedBox::new(
-            Rect::new()
-                .with_background_color(appearance.theme().outline().into_solid())
-                .finish(),
-        )
-        .with_width(1.0)
-        .finish()
+    fn render_panel_separator(_app: &AppContext) -> Box<dyn Element> {
+        ConstrainedBox::new(Empty::new().finish())
+            .with_width(1.0)
+            .finish()
+    }
+
+    fn outline_application_panel(contents: Box<dyn Element>, app: &AppContext) -> Box<dyn Element> {
+        // Foreground borders preserve content bounds and leave resize hit areas unchanged.
+        Container::new(contents)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::SURFACE)))
+            .with_foreground_border(
+                Border::all(1.).with_border_fill(Appearance::as_ref(app).theme().outline()),
+            )
+            .finish()
     }
 
     fn add_panel_with_separator(
@@ -21336,6 +21341,7 @@ impl Workspace {
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
         }
+        .map(|panel| Self::outline_application_panel(panel, app))
     }
 
     /// Renders the maximized code review panel if it is configured and maximized.
@@ -21351,7 +21357,10 @@ impl Workspace {
         if !HeaderToolbarItemKind::CodeReview.is_available(app) {
             return None;
         }
-        Some(Shrinkable::new(1.0, ChildView::new(&self.right_panel_view).finish()).finish())
+        Some(Self::outline_application_panel(
+            Shrinkable::new(1.0, ChildView::new(&self.right_panel_view).finish()).finish(),
+            app,
+        ))
     }
 
     /// Offset positioning for agent toasts.
