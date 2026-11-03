@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
-use std::{fmt, future};
+use std::fmt;
 
 #[cfg(not(target_family = "wasm"))]
 use async_compat::{Compat, CompatExt};
@@ -49,9 +49,7 @@ pub mod headers {
 /// list of `Name:Value` pairs, where each pair is split on the first colon.
 const EXTRA_HTTP_HEADERS_ENV_VAR: &str = "WARP_EXTRA_HTTP_HEADERS";
 
-/// A wrapper around a `reqwest::Client` to execute requests. Returns a custom `RequestBuilder` type
-/// that ensures any call to the underlying `reqwest::Client` are properly adapted so that they can
-/// run outside of a Tokio context.
+/// Shared system HTTP transport with application headers, hooks, and runtime adaptation.
 pub struct Client {
     wrapped: system_http::Client,
 
@@ -119,7 +117,6 @@ impl Default for Client {
 
 impl Client {
     pub fn new() -> Self {
-        #[cfg_attr(target_family = "wasm", expect(unused_mut))]
         let builder = system_http::Client::builder();
 
         Self::from_client_builder(builder).expect("should not fail to create client")

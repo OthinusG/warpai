@@ -7,6 +7,7 @@ import platform
 import subprocess
 import sys
 import threading
+import time
 
 
 def run(*args, **kwargs):
@@ -50,8 +51,12 @@ def main():
             run("reg", "add", key, "/v", "ProxyServer", "/t", "REG_SZ", "/d", f"127.0.0.1:{port}", "/f")
             run("reg", "add", key, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f")
         elif system == "Darwin":
-            config = f"d.init\nd.add HTTPEnable # 1\nd.add HTTPProxy 127.0.0.1\nd.add HTTPPort # {port}\nset State:/Network/Global/Proxies\n"
-            run("sudo", "scutil", input=config.encode())
+            route = run("route", "-n", "get", "default").stdout.decode()
+            device = next(line.split(":", 1)[1].strip() for line in route.splitlines() if "interface:" in line)
+            order = run("networksetup", "-listnetworkserviceorder").stdout.decode().splitlines()
+            service = next(order[i - 1].split(") ", 1)[1] for i, line in enumerate(order) if f"Device: {device})" in line)
+            run("sudo", "networksetup", "-setwebproxy", service, "127.0.0.1", str(port))
+            time.sleep(0.5)
         elif system == "Linux":
             env["XDG_CURRENT_DESKTOP"] = "GNOME"
             run("gsettings", "set", "org.gnome.system.proxy.http", "host", "127.0.0.1", env=env)
@@ -59,7 +64,8 @@ def main():
             run("gsettings", "set", "org.gnome.system.proxy", "mode", "manual", env=env)
         else:
             raise SystemExit("Unsupported acceptance OS")
-        result = run(probe, target, env=env, timeout=15)
+        result = subprocess.run([probe, target], env=env, timeout=15, capture_output=True)
+        assert result.returncode == 0, "Native fixture probe failed: " + result.stderr.decode(errors="replace")[-1000:]
         assert result.stdout.strip() == b"200", "Proxy fixture did not receive a successful native request"
         assert Proxy.observed == [target], "Native transport bypassed the configured OS proxy"
         print(f"Verified {system} native system proxy routing without shell proxy variables.")
@@ -68,7 +74,8 @@ def main():
             run("reg", "add", key, "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f")
             run("reg", "delete", key, "/v", "ProxyServer", "/f")
         elif system == "Darwin":
-            run("sudo", "scutil", input=b"remove State:/Network/Global/Proxies\n")
+            if "service" in locals():
+                run("sudo", "networksetup", "-setwebproxystate", service, "off")
         elif system == "Linux":
             run("gsettings", "set", "org.gnome.system.proxy", "mode", "none", env=env)
         proxy.shutdown()

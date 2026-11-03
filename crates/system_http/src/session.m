@@ -119,9 +119,9 @@ void *warpai_http_start(const char *url, const char *method, const char *headers
                 weakContext.timedOut = YES;
                 [weakTask cancel];
             });
-            dispatch_resume(ctx.timer);
         }
         @synchronized(owner.contexts) { owner.contexts[@(task.taskIdentifier)] = ctx; }
+        if (ctx.timer) dispatch_resume(ctx.timer);
         // Return suspended so Rust can install its cancellation guard first.
         return (__bridge_retained void *)task;
     }

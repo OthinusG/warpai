@@ -129,6 +129,7 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
             if (!upload) return false;
             length = (uint64_t)upload.tellg(); upload.seekg(0);
         }
+        // shortcut: synchronous WinHTTP upload length is DWORD; use chunked uploads before supporting files above 4 GiB.
         if (length > MAXDWORD) { SetLastError(ERROR_FILE_TOO_LARGE); return false; }
         if (!WinHttpSendRequest(request, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
             path.empty() && length ? (void *)body.data() : WINHTTP_NO_REQUEST_DATA,
