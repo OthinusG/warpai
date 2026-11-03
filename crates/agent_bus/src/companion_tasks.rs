@@ -241,7 +241,12 @@ mod tests {
             branch: Some("feature".into()), base: None, head: None, command: None,
             outcome: None, exit_code: None, summary: None, request_id: id(),
         }).unwrap()["evidence_id"].as_str().unwrap().to_owned();
-        call(&worker_binding.broker, &worker, Operation::TaskSubmit { task_id: task.clone(), revision: 1, result: "Feature ready".into(), evidence: "Owned fixture check passed".into(), evidence_ids: vec![evidence.clone()], attempt_id: None, expected_version: None, request_id: id() }).unwrap();
+        let submitted = call(&worker_binding.broker, &worker, Operation::TaskSubmit { handoff: None, task_id: task.clone(), revision: 1, result: "Feature ready".into(), evidence: "Owned fixture check passed".into(), evidence_ids: vec![evidence.clone()], attempt_id: None, expected_version: None, request_id: id() }).unwrap();
+
+        let pin = serde_json::from_value(submitted["handoff_ref"].clone()).unwrap();
+        let brief = call(&lead_binding.broker, &lead, Operation::ContextGet { reference:pin, handoff_part:None }).unwrap();
+        assert_eq!(brief["content"]["snapshot"]["task_id"], task);
+        assert_eq!(brief["content"]["snapshot"]["evidence_ids"][0], evidence);
         let panel = Command::Panel(PanelQuery { worktree:true, ..Default::default() });
         let first_panel = execute(&projects, &first, &fixture.main, &panel);
         let second_panel = execute(&projects, &second, &fixture.linked, &panel);

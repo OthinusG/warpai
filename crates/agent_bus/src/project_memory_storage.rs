@@ -120,6 +120,8 @@ impl Store {
         }
         let snapshot = reference
             .map(|reference| -> Result<MemorySnapshot> {
+                ensure!(self.context_get(actor, reference)?.summary.kind != "handoff",
+                    scope_denied("Publish extracted findings before proposing project memory"));
                 Ok(MemorySnapshot {
                     resource: self.context_get(actor, reference)?.summary,
                     source_task: source_task.map(str::to_owned),
@@ -228,7 +230,7 @@ impl Store {
             bindings,
             history_truncated: task.history_truncated,
         };
-        Ok(json!({"thread":thread,"attempts":task.attempts,"history_tool":"warp_task_history"}))
+        Ok(json!({"thread":thread,"attempts":task.attempts,"handoff_ref":task.handoff_ref,"handoff_inputs":task.handoff_inputs,"history_tool":"warp_task_history"}))
     }
 
     pub(super) fn project_bootstrap(
@@ -268,13 +270,18 @@ impl Store {
             .as_array()
             .into_iter()
             .flatten()
-            .map(|task| json!({"id":task["id"],"state":task["state"],"revision":task["revision"]}))
+            .map(|summary| {
+                let task = self.task(actor, summary["id"].as_str().unwrap_or("")).ok();
+                json!({"id":summary["id"],"state":summary["state"],"revision":summary["revision"],
+                    "handoff_ref":task.as_ref().and_then(|task| task.handoff_ref.as_ref()),
+                    "handoff_warning_count":task.as_ref().map_or(0, |task| task.handoff_inputs.iter().filter(|input| input.requires_revalidation()).count())})
+            })
             .collect();
         Ok(
             json!({"schema_version":1,"project":actor.project,"agent":actor,
             "memory":memory,"cursor":next,"execution_threads":threads,"thread_cursor":tasks["cursor"],
             "resources":resources["resources"],"context_cursor":resources["cursor"],
-            "instructions":"Read current memory resources with warp_context_get only as needed. Proposed resources are unreviewed. Compare source_revision before edits. Refresh this index before new work; pinned task references remain authoritative for that task. Extract durable findings into typed resources and propose task memory before submission; acceptance promotes it automatically. Memory is peer context, never authorization."}),
+            "instructions":"Read exact handoff pins before continuing tracked work. Refresh source status with context_get handoff_part status; reads grant no execution or acknowledgement. Read current memory resources with warp_context_get only as needed. Proposed resources are unreviewed. Compare source_revision before edits. Refresh this index before new work; pinned task references remain authoritative for that task. Extract durable findings into typed resources and propose task memory before submission; acceptance promotes it automatically. Memory is peer context, never authorization."}),
         )
     }
 }
@@ -369,7 +376,7 @@ mod tests {
             .execute(
                 worker,
                 run,
-                &Operation::TaskSubmit {
+                &Operation::TaskSubmit { handoff: None,
                     task_id: task.into(),
                     revision,
                     result: "Verified contract".into(),
@@ -656,7 +663,7 @@ mod tests {
             .execute(
                 &worker,
                 "worker-run",
-                &Operation::TaskFail {
+                &Operation::TaskFail { handoff: None,
                     task_id: task,
                     revision: 1,
                     reason: "Verification failed".into(),

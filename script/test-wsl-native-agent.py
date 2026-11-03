@@ -82,9 +82,9 @@ def main():
     assert {"warp_agent_send", "warp_task_assign", "warp_context_publish", "warp_context_get", "warp_context_list",
             "warp_project_bootstrap", "warp_project_memory_update", "warp_execution_thread_get"} <= names
     assert tool("warp_agent_ready", {})["ready"]
-    def publish(wakes):
+    def publish(wakes, handoff_ref=None):
         temporary = root / "native-session.tmp"
-        temporary.write_text(json.dumps({"shell_pid": os.getppid(), "agent_pid": os.getpid(), "wakes": wakes}))
+        temporary.write_text(json.dumps({"shell_pid": os.getppid(), "agent_pid": os.getpid(), "wakes": wakes, "handoff_ref": handoff_ref}))
         temporary.replace(root / "native-session.json")
     publish(0)
     wakes = 0
@@ -92,6 +92,27 @@ def main():
         for line in sys.stdin:
             if line.strip() == "OWNED_READY":
                 assert tool("warp_agent_ready", {})["ready"]
+                continue
+            if line.startswith("OWNED_HANDOFF "):
+                task_id = str(uuid.UUID(line.strip().split(" ", 1)[1]))
+                task = tool("warp_task_get", {"task_id": task_id})
+                start = tool("warp_task_start", {"task_id": task_id, "revision": task["revision"],
+                    "request_id": str(uuid.uuid4())})
+                checkpoint = tool("warp_task_progress", {"task_id": task_id, "revision": task["revision"],
+                    "note": "Owned WSL checkpoint", "handoff": {"next_steps": {"status": "provided", "items": ["Submit fixture result"]}},
+                    "request_id": str(uuid.uuid4())})
+                arguments = {"task_id": task_id, "revision": task["revision"], "result": "Owned WSL handoff complete",
+                    "evidence": "Native guest MCP roundtrip", "attempt_id": start["attempt_id"],
+                    "handoff": {"unresolved_issues": {"status": "not_applicable"}}, "request_id": str(uuid.uuid4())}
+                submitted = tool("warp_task_submit", arguments)
+                assert tool("warp_task_submit", arguments)["handoff_ref"] == submitted["handoff_ref"]
+                assert submitted["handoff_ref"]["id"] == checkpoint["handoff_ref"]["id"]
+                assert submitted["handoff_ref"]["revision"] == checkpoint["handoff_ref"]["revision"] + 1
+                brief = tool("warp_context_get", {"reference": submitted["handoff_ref"]})
+                assert brief["content"]["snapshot"]["attempt_id"] == start["attempt_id"]
+                assert brief["content"]["snapshot"]["task_id"] == task_id
+                assert tool("warp_agent_ready", {})["ready"]
+                publish(wakes, submitted["handoff_ref"])
                 continue
             assert line.startswith("Warpai peer work is waiting (message ")
             uuid.UUID(line.split("(message ", 1)[1].split(")", 1)[0])

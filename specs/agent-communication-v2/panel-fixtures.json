@@ -233,4 +233,96 @@
       }
     ]
   }
+,
+  {
+    "state": "handoff details",
+    "guidance": "Handoffs are Agent context, never execution authorization.",
+    "sections": [
+      {
+        "title": "Task handoff",
+        "rows": [
+          "Task 46 · revision 2 · attempt 3 · resource v4",
+          "Snapshot: submitted · current review: accepted",
+          "Agent-reported test outcome; review is separate.",
+          "The result preview is shortened; read the source event for the full result."
+        ]
+      },
+      {
+        "title": "Decisions",
+        "rows": [
+          "Reuse immutable context resources. Preserve the exact task revision, attempt and native run so a later task can inspect the original evidence without gaining authority over the source checkout."
+        ]
+      },
+      {
+        "title": "Unresolved issues",
+        "rows": [
+          "Not provided"
+        ]
+      },
+      {
+        "title": "Next steps",
+        "rows": [
+          "Refresh the source task and review, read the pinned brief, then start through the existing task operations."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "handoff loading",
+    "guidance": "Handoffs are Agent context, never execution authorization.",
+    "sections": [
+      {
+        "title": "Task handoff",
+        "rows": [
+          "Loading handoff…"
+        ]
+      }
+    ]
+  },
+  {
+    "state": "handoff unavailable",
+    "guidance": "Handoffs are Agent context, never execution authorization.",
+    "sections": [
+      {
+        "title": "Task handoff",
+        "rows": [
+          "No current handoff snapshot.",
+          "Handoff unavailable: access denied.",
+          "Handoff unavailable: update Companion.",
+          "Could not load handoff. Retry the read."
+        ]
+      }
+    ]
+  },
+  {
+    "state": "handoff history",
+    "guidance": "Handoffs are Agent context, never execution authorization.",
+    "sections": [
+      {
+        "title": "Task handoff",
+        "rows": [
+          "Historical handoff; refresh the source task to check its current review.",
+          "Task 46 · revision 1 · attempt 2 · resource v3"
+        ]
+      },
+      {
+        "title": "Decisions",
+        "rows": [
+          "Provided: no entries"
+        ]
+      },
+      {
+        "title": "Unresolved issues",
+        "rows": [
+          "Not applicable"
+        ]
+      },
+      {
+        "title": "Next steps",
+        "rows": [
+          "Not provided"
+        ]
+      }
+    ]
+  }
 ]

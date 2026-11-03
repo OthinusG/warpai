@@ -157,11 +157,11 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     )) }, 5).await.unwrap();
     assert_eq!(bootstrap["value"]["memory"][0]["current"]["resource"]["reference"], serde_json::to_value(&reference).unwrap());
     let fetched = client.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
-        warp_agent_bus::Operation::ContextGet { reference:reference.clone() }
+        warp_agent_bus::Operation::ContextGet { handoff_part: None, reference:reference.clone() }
     )) }, 5).await.unwrap();
     assert_eq!(fetched["value"]["content"]["summary"], "Reusable WSL findings");
     let mut foreign = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
-    let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { reference:reference.clone() }), 5).await.unwrap();
+    let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { handoff_part: None, reference:reference.clone() }), 5).await.unwrap();
     assert_eq!(denied["error"]["code"], "not_found");
     assert!(denied.get("value").is_none());
     let isolated = foreign.project_tasks(&TaskCommand::Panel(PanelQuery::default()), 6).await.unwrap();
@@ -169,7 +169,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     foreign.disconnect();
 
     let message = observer.project_tasks(&TaskCommand::Scoped { scope: scope.clone(), command: Box::new(TaskCommand::Operator(
-        warp_agent_bus::Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective:"Native fixture work".into(), context_refs:vec![reference] }), expects_result: true, to: agent_id, body: "Native fixture work".into(), subject: None,
+        warp_agent_bus::Operation::AgentSend { content: Some(warp_agent_bus::context::Instruction { objective:"Native fixture work".into(), context_refs:vec![reference] }), expects_result: true, to: agent_id.clone(), body: "Native fixture work".into(), subject: None,
             thread_id: None, reply_to: None, task_id: None, request_id: uuid::Uuid::new_v4().to_string() }
     )) }, 5).await.unwrap();
     assert!(message.get("error").is_none(), "{message}");
@@ -224,11 +224,43 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     }
     assert!(delivered, "Ordinary Linux Agent must consume and acknowledge peer work through MCP");
     assert!(answered, "WSL questions and idempotent answers must traverse the guest Store");
-    let thread = observer.project_tasks(&TaskCommand::Scoped { scope, command:Box::new(TaskCommand::Operator(
+    let thread = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
         warp_agent_bus::Operation::ThreadGet { thread_id:message["value"]["id"].as_str().unwrap().into(), cursor:None, limit:None }
     )) }, 120).await.unwrap();
     assert!(thread["value"]["messages"].as_array().unwrap().iter().any(|result|
         result["kind"] == "result_succeeded" && result["reply_to"] == message["value"]["id"]));
+    let mode = |worktree| TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Controller(ControllerOperation::WorktreeMode {
+        worktree, request_id:Uuid::new_v4().to_string(),
+    })) };
+    let switched = observer.project_tasks(&mode(false), 121).await.unwrap();
+    assert!(switched.get("error").is_none(), "{switched}");
+    let assigned = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::TaskAssign { to:agent_id.clone(), description:"Verify owned WSL handoff".into(),
+            acceptance:"Read the exact submitted snapshot".into(), context_refs:vec![], reviewer:None,
+            dependencies:vec![], start_deadline:None, execution_timeout_seconds:None, review_timeout_seconds:None,
+            request_id:Uuid::new_v4().to_string() }
+    )) }, 122).await.unwrap();
+    assert!(assigned.get("error").is_none(), "{assigned}");
+    let handoff_task = assigned["value"]["id"].as_str().unwrap();
+    native.stdin.as_mut().unwrap().write_all(format!("OWNED_HANDOFF {handoff_task}\n").as_bytes()).await.unwrap();
+    let mut handoff_ref = None;
+    for _ in 0..100 {
+        let (path, _) = files.download(&metadata_path).await.unwrap();
+        let value:serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        if value["handoff_ref"].is_object() {
+            handoff_ref = Some(serde_json::from_value(value["handoff_ref"].clone()).unwrap()); break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let handoff_ref = handoff_ref.expect("Native WSL task must create a pinned handoff");
+    let brief = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
+        warp_agent_bus::Operation::ContextGet { reference:handoff_ref, handoff_part:None }
+    )) }, 123).await.unwrap();
+    assert_eq!(brief["value"]["content"]["snapshot"]["task_id"], handoff_task);
+    assert_eq!(brief["value"]["content"]["snapshot"]["binding"]["run"], run);
+    assert_eq!(brief["value"]["content"]["snapshot"]["agent_report"]["unresolved_issues"]["status"], "not_applicable");
+    let switched = observer.project_tasks(&mode(true), 124).await.unwrap();
+    assert!(switched.get("error").is_none(), "{switched}");
     drop(native.stdin.take());
     tokio::time::timeout(std::time::Duration::from_secs(10), native.wait()).await.unwrap().unwrap();
     let mut cleared = false;

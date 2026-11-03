@@ -1,6 +1,7 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod setup;
 pub mod context;
+pub mod handoff;
 pub mod project_memory;
 pub mod wsl_setup;
 pub mod ssh_setup;
@@ -236,7 +237,11 @@ pub enum Operation {
         source_revision: Option<String>,
         request_id: String,
     },
-    ContextGet { reference: context::ContextRef },
+    ContextGet {
+        reference: context::ContextRef,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff_part: Option<handoff::HandoffPart>,
+    },
     ContextList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<u64>,
@@ -272,6 +277,8 @@ pub enum Operation {
         request_id: String,
     },
     AgentReply {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff_ref: Option<context::ContextRef>,
         reply_to: String,
         body: String,
         outcome: ReplyOutcome,
@@ -343,6 +350,8 @@ pub enum Operation {
     },
     TaskHistory {
         task_id: String,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        handoff_only: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -356,6 +365,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskSubmit {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         result: String,
@@ -402,6 +413,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskProgress {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         note: String,
@@ -421,6 +434,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskFinishCancel {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         reason: String,
@@ -431,6 +446,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskFail {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         reason: String,
@@ -800,6 +817,10 @@ pub struct Task {
     pub acceptance: String,
     #[serde(default)]
     pub context_refs: Vec<context::ContextRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff_ref: Option<context::ContextRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub handoff_inputs: Vec<handoff::HandoffInputStatus>,
     pub state: String,
     pub revision: u32,
     pub version: u64,

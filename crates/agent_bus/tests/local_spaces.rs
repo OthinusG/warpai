@@ -389,7 +389,7 @@ fn shared_ipc_preserves_private_work_and_original_evidence_checkout() {
         call(
             b,
             &worker,
-            Operation::TaskSubmit {
+            Operation::TaskSubmit { handoff: None,
                 task_id: task.clone(),
                 revision,
                 result: "Owned fixture edited".into(),

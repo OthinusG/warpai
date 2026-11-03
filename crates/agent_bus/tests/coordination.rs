@@ -84,7 +84,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 .unwrap();
             store.recover(&worker, "worker-run").unwrap();
             assert_eq!(store.task(&worker, &id).unwrap().attempts.len(), 1);
-            let submission = Operation::TaskSubmit {
+            let submission = Operation::TaskSubmit { handoff: None,
                 evidence_ids: vec![],
                 task_id: id.clone(),
                 revision: 1,
@@ -143,7 +143,7 @@ fn every_managed_type_delegates_reviews_and_recovers() {
                 .execute(
                     &worker,
                     "worker-run",
-                    &Operation::TaskSubmit {
+                    &Operation::TaskSubmit { handoff: None,
                         evidence_ids: vec![],
                         task_id: id.clone(),
                         revision: 2,
@@ -703,7 +703,7 @@ fn dormant_agents_wake_without_an_open_wait_call() {
     assert_eq!(readiness["ready"], false, "An executing task cannot announce readiness");
     thread::sleep(Duration::from_millis(850));
     assert!(server.broker.wakeups().is_empty());
-    worker.operation = Operation::TaskSubmit {
+    worker.operation = Operation::TaskSubmit { handoff: None,
         task_id: inbox["messages"][0]["task_id"].as_str().unwrap().to_owned(),
         revision: 1,
         result: "Inspected code".into(),
@@ -1291,7 +1291,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         let running = transport::call(&broker.endpoint, &issuer).unwrap();
         assert_eq!(running["state"], "running");
         assert_eq!(running["interrupted"], false);
-        worker.operation = Operation::TaskSubmit {
+        worker.operation = Operation::TaskSubmit { handoff: None,
             evidence_ids: vec![],
             task_id: task_id.clone(),
             revision: 1,
@@ -1348,7 +1348,7 @@ fn coordinator_tracks_every_worker_and_recovers_interrupted_discovered_identity(
         name: "recoverable".into(),
     };
     transport::call(&broker.endpoint, &replacement).unwrap();
-    replacement.operation = Operation::TaskSubmit {
+    replacement.operation = Operation::TaskSubmit { handoff: None,
         evidence_ids: vec![],
         task_id: id.clone(),
         revision: 1,
@@ -1553,7 +1553,7 @@ fn native_permission_and_disconnect_observations_survive_broker_restart() {
     let restored = transport::call(&reopened.broker.endpoint, &peer).unwrap();
     assert_eq!(restored["supervision"]["last_observed_at"], disconnected["supervision"]["last_observed_at"]);
     assert_eq!(restored["supervision"]["execution_uncertain"], true);
-    peer.operation = Operation::TaskHistory { task_id:id, cursor:None, limit:None };
+    peer.operation = Operation::TaskHistory { handoff_only: false, task_id:id, cursor:None, limit:None };
     let history = transport::call(&reopened.broker.endpoint, &peer).unwrap();
     assert!(history["events"].as_array().unwrap().iter().any(|event| event["kind"] == "task_observed"));
     assert!(!history.to_string().contains("unsent private draft"));

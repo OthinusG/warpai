@@ -429,3 +429,42 @@ full bootstrap in a uniquely created remote UTF-8 BOM script. Source and delete
 that remote file; never source a client path on the server. POSIX wrappers retain
 their existing route and report the remote shell PID. Remote host OS metadata
 owns path separators and executable suffix aliases, independently of client OS.
+
+## Task handoff briefs (Companion 5.6.0)
+
+See [HANDOFF.md](HANDOFF.md) for the schema, scope, budgets and acceptance gates.
+`task_submit`, `task_progress`, `task_fail` and `task_finish_cancel` accept optional
+`handoff: { decisions, unresolved_issues, next_steps }`. Sections are tagged
+`{status:"provided",items:[...]}`, `{status:"not_provided"}` or
+`{status:"not_applicable"}`. Decisions contain decision/rationale strings and optional evidence_ids. Issues
+contain issue and optional impact/state/required_decision; omitted values mean
+not provided. Next-step items are ordered strings. Total encoded Agent explanations: 8 KiB. Missing fields remain
+missing. Submit/fail/finish_cancel atomically create a Broker-owned snapshot;
+progress does so only when handoff is supplied. Legacy submission remains valid.
+
+TaskGet exposes optional current handoff_ref separately from input context_refs.
+Its handoff_inputs projection and bootstrap handoff_warning_count flag stale or
+unavailable pinned sources, including withdrawn review. Pins and downstream task
+states remain unchanged; consumers explicitly revalidate before continuing.
+TaskHistory contains immutable handoff_created references; handoff_only=true
+returns a paginated version index through the same task authorization. The flag
+is omitted when false and requires handoff_briefs_v1 when true; ExecutionThreadGet and
+ProjectBootstrap expose compact pins. ContextGet reads the exact immutable brief;
+optional handoff_part selects `{kind:"binding"}`, `{kind:"status"}`, `{kind:"task"}`, `{kind:"result"}`
+or `{kind:"evidence",id}` without granting access to unrelated source records.
+Each ordinary source part is bounded to 48 KiB (immutable content remains 32 KiB).
+Large attempt bindings are retained by reference and digest, with an explicit
+binding_omitted_for_size flag; their binding source part is bounded to 256 KiB. Status is a current projection, not part of
+the immutable digest. Test evidence remains Agent-reported and review is separate.
+Public context_publish cannot create or overwrite the reserved handoff kind.
+
+Fixed pins in explicit assignments/pool tasks or instructions grant only those
+versions to authorized recipients; other references are not recursively shared.
+AgentReply accepts optional handoff_ref only for its associated source task.
+Reads never start, accept, stop or acknowledge work. Reviewed memory promotion
+still requires explicitly published findings, not a restricted task brief.
+
+`handoff_briefs_v1` gates new remote request fields before transmission. New absent
+optional fields are omitted, preserving strict old-Companion parsing. Existing
+Agent Bus and SSH protocol majors remain 2 and 1. Updated packaging reports
+Companion 5.6.0; this does not publish or replace the released 5.5.0 artifacts.

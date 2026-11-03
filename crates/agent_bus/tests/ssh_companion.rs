@@ -266,7 +266,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     let bootstrap = ssh_fixture_operation(&mut two, &mut second,
         Operation::ProjectBootstrap { cursor:None, limit:None }).await;
     assert_eq!(bootstrap["memory_reference"], serde_json::to_value(&reference).unwrap());
-    let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { reference:reference.clone() }).await;
+    let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { handoff_part: None, reference:reference.clone() }).await;
     assert_eq!(retrieved["context_summary"], "Reusable SSH findings");
     let receiver = format!("fixture-{}", second.session_id);
     let instruction = ssh_fixture_operation(
@@ -308,7 +308,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         Operation::AgentAck { message_id:decision["id"].as_str().unwrap().into() }).await;
     let returned = ssh_fixture_operation(
         &mut two, &mut second,
-        Operation::AgentReply {
+        Operation::AgentReply { handoff_ref: None,
             reply_to: instruction["id"].as_str().unwrap().into(),
             body: "Remote work finished; fixture checks passed".into(),
             outcome: warp_agent_bus::ReplyOutcome::Succeeded,
@@ -358,7 +358,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     let submitted = ssh_fixture_operation(
         &mut two,
         &mut second,
-        Operation::TaskSubmit {
+        Operation::TaskSubmit { handoff: None,
             task_id: task.clone(),
             revision: 1,
             result: "Done".into(),
@@ -371,6 +371,13 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     )
     .await;
     assert_eq!(submitted["state"], "submitted");
+    let pin:warp_agent_bus::context::ContextRef = serde_json::from_value(submitted["handoff_ref"].clone()).unwrap();
+    let handoff = ssh_fixture_operation(&mut one, &mut first,
+        Operation::ContextGet { reference:pin.clone(), handoff_part:None }).await;
+    assert_eq!(handoff["handoff_snapshot"]["task_id"], task);
+    assert_eq!(handoff["handoff_snapshot"]["attempt_id"], started["attempt_id"]);
+    assert_eq!(handoff["handoff_snapshot"]["binding"]["terminal"], second.session_id);
+
     assert_eq!(
         ssh_fixture_operation(
             &mut one,
@@ -387,6 +394,32 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         .await["state"],
         "accepted"
     );
+    if !worktree_team {
+        let consumer = format!("fixture-{}", first.session_id);
+        let assigned = ssh_fixture_operation(&mut two, &mut second, Operation::TaskAssign {
+            to:consumer, description:"Continue from the reviewed handoff".into(), acceptance:"Preserve its exact source version".into(),
+            context_refs:vec![pin.clone()], reviewer:None, dependencies:vec![], start_deadline:None,
+            execution_timeout_seconds:None, review_timeout_seconds:None, request_id:Uuid::new_v4().to_string(),
+        }).await;
+        let next = assigned["id"].as_str().unwrap().to_owned();
+        assert_eq!(assigned["context_refs"][0], serde_json::to_value(&pin).unwrap());
+        let status = ssh_fixture_operation(&mut one, &mut first, Operation::ContextGet {
+            reference:pin.clone(), handoff_part:Some(warp_agent_bus::handoff::HandoffPart::Status),
+        }).await;
+        assert_eq!(status["handoff_source"]["state"], "accepted");
+        assert_eq!(ssh_fixture_operation(&mut one, &mut first, Operation::TaskGet { task_id:next.clone() }).await["state"], "queued");
+        ssh_fixture_operation(&mut one, &mut first, Operation::TaskStart { task_id:next.clone(), revision:1,
+            expected_version:None, request_id:Uuid::new_v4().to_string() }).await;
+        let continued = ssh_fixture_operation(&mut one, &mut first, Operation::TaskSubmit { handoff:None,
+            task_id:next.clone(), revision:1, result:"Continued through the existing task rules".into(),
+            evidence:"Owned SSH MCP handoff accepted".into(), expected_version:None, attempt_id:None,
+            evidence_ids:vec![], request_id:Uuid::new_v4().to_string(),
+        }).await;
+        assert_eq!(continued["state"], "submitted");
+        assert_ne!(continued["handoff_ref"]["id"], submitted["handoff_ref"]["id"]);
+        ssh_fixture_operation(&mut two, &mut second, Operation::TaskReview { task_id:next, revision:1,
+            accepted:true, feedback:"Continuation verified".into(), expected_version:None, request_id:Uuid::new_v4().to_string() }).await;
+    }
     let query = warp_agent_bus::companion::TaskCommand::Panel(
         warp_agent_bus::transport::PanelQuery { worktree:worktree_team, ..Default::default() },
     );

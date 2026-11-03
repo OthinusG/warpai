@@ -53,6 +53,7 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "structured_task_messages",
             "execution_threads",
             "project_memory",
+            "handoff_briefs_v1",
             "project_mcp",
             #[cfg(not(feature = "wsl_companion"))]
             "native_mcp_setup",

@@ -30,6 +30,8 @@ mod orchestration;
 mod contexts;
 #[path = "project_memory_storage.rs"]
 mod memories;
+#[path = "handoff_storage.rs"]
+mod handoffs;
 
 pub(crate) const SCHEMA_VERSION: &str = "9";
 /// The v1 loader ignores `user_version`; this payload makes the old deserializer fail instead of silently writing.
@@ -52,7 +54,7 @@ const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
 // Overrides preserve uncertainty across revisions; history cleanup cannot imply execution stopped.
 const CERTAIN_TASK: &str = "NOT EXISTS (SELECT 1 FROM attempts WHERE task_id = tasks.id AND (finished_at IS NULL OR certainty = 'unknown'))";
-const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent WHERE parent.task_id = tasks.id AND (EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.reply_to = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id)) OR EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.thread_id = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))))";
+const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM meta WHERE key >= 'handoff/retain/' || tasks.id || '/' AND key < 'handoff/retain/' || tasks.id || '0' AND json_extract(value,'$.source_task') = tasks.id AND (EXISTS (SELECT 1 FROM tasks AS target WHERE target.id=json_extract(value,'$.target_task')) OR EXISTS (SELECT 1 FROM messages AS target WHERE target.id=json_extract(value,'$.message') AND (target.task_id IS NULL OR target.task_id != tasks.id)))) AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent WHERE parent.task_id = tasks.id AND (EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.reply_to = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id)) OR EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.thread_id = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))))";
 const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.reply_to = messages.id) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.thread_id = messages.id)";
 
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
@@ -353,6 +355,8 @@ impl Store {
                     description: task.description.clone(),
                     acceptance: task.acceptance.clone(),
                     context_refs: vec![],
+                    handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: task.state.clone(),
                     revision: task.revision,
                     version: 1,
@@ -700,7 +704,7 @@ impl Store {
             use crate::context::{StructuredBody, TaskDetails};
             let task = self.operator_task(project, task_id)?;
             let mut references = task.context_refs.clone();
-            let instruction = match StructuredBody::decode(&message.body) {
+            let mut instruction = match StructuredBody::decode(&message.body) {
                 Some(StructuredBody::Instruction { instruction, .. }) => {
                     for reference in instruction.context_refs {
                         if !references.contains(&reference) { references.push(reference); }
@@ -710,6 +714,10 @@ impl Store {
                 Some(body) => body.display(),
                 None => message.body.clone(),
             };
+            if !matches!(message.kind.as_str(), "message" | "request" | "question" | "answer")
+                && !message.kind.starts_with("result_") {
+                if let Some(reference) = &task.handoff_ref { instruction.push_str(&format!("\nPinned handoff: {}", reference.uri())); }
+            }
             ensure!(references.len() <= 16, invalid_input("Too many combined context references"));
             message.body = StructuredBody::Task { schema_version:1, event:message.kind.clone(),
                 task_id:task.id.clone(), revision:message.revision.unwrap_or(task.revision),
@@ -1275,9 +1283,13 @@ impl Store {
 
     /// Project peers supervise all tasks; Worktree peers retain participant scope.
     pub fn task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        self.assemble(self.task_record(actor, id)?)
+    }
+
+    fn task_record(&self, actor: &Agent, id: &str) -> Result<Task> {
         self.authorize(actor)?;
         if !self.worktree_mode(&actor.project)? || self.is_worktree_coordinator(actor)? {
-            return self.operator_task(&actor.project, id);
+            return self.operator_task_record(&actor.project, id);
         }
         let task = self
             .task_row(
@@ -1285,11 +1297,15 @@ impl Store {
                 &[id, actor.project.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str()],
             )?
             .ok_or_else(|| scope_denied("Task not found"))?;
-        self.assemble(task)
+        Ok(task)
     }
 
     /// The trusted local UI reads and writes any task in its own project without an agent scope.
     pub(crate) fn operator_task(&self, project: &str, id: &str) -> Result<Task> {
+        self.assemble(self.operator_task_record(project, id)?)
+    }
+
+    fn operator_task_record(&self, project: &str, id: &str) -> Result<Task> {
         let task = diesel::sql_query(format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ?"))
             .bind::<Text, _>(id)
             .bind::<Text, _>(project)
@@ -1297,15 +1313,19 @@ impl Store {
             .optional()?
             .map(TaskRow::task)
             .ok_or_else(|| scope_denied("Task not found"))?;
-        self.assemble(task)
+        Ok(task)
     }
 
     /// Mutation visibility: agents stay scoped; the operator principal reaches every project task.
     fn actor_task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        self.assemble(self.actor_task_record(actor, id)?)
+    }
+
+    fn actor_task_record(&self, actor: &Agent, id: &str) -> Result<Task> {
         if actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? {
-            self.operator_task(&actor.project, id)
+            self.operator_task_record(&actor.project, id)
         } else {
-            self.task(actor, id)
+            self.task_record(actor, id)
         }
     }
 
@@ -1328,6 +1348,8 @@ impl Store {
             .map(AttemptRow::attempt)
             .collect();
         task.attempts.reverse();
+        task.handoff_ref = self.current_handoff(&task)?;
+        task.handoff_inputs = self.handoff_inputs(&task)?;
         task.feedback = diesel::sql_query("SELECT body FROM feedback WHERE task_id = ? ORDER BY id DESC LIMIT 8")
             .bind::<Text, _>(&task.id)
             .load::<FeedbackRow>(&mut *self.connection.borrow_mut())?
@@ -1576,11 +1598,15 @@ impl Store {
     }
 
     fn task_history(&self, actor: &Agent, task_id: &str, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
-        self.actor_task(actor, task_id)?;
+        self.task_history_filtered(actor, task_id, cursor, limit, false)
+    }
+
+    fn task_history_filtered(&self, actor: &Agent, task_id: &str, cursor: Option<u64>, limit: Option<u32>, handoff_only: bool) -> Result<Value> {
+        self.actor_task_record(actor, task_id)?;
         let limit = Self::page_limit(limit)?;
-        let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND resource = ? AND sequence > ? ORDER BY sequence LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND resource = ? AND sequence > ? AND (?=0 OR kind='handoff_created') ORDER BY sequence LIMIT ?")
             .bind::<Text, _>(&actor.project).bind::<Text, _>(task_id)
-            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<BigInt, _>(limit as i64 + 1)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<Integer, _>(i32::from(handoff_only)).bind::<BigInt, _>(limit as i64 + 1)
             .load::<EventRow>(&mut *self.connection.borrow_mut())?;
         let (events, cursor) = bounded_items(rows.into_iter().map(EventRow::event)
             .map(|event| (event.sequence, event)), limit)?;
@@ -1632,7 +1658,10 @@ impl Store {
         match operation {
             Operation::ExecutionThreadGet { task_id } => return self.execution_thread(actor, task_id),
             Operation::ProjectBootstrap { cursor, limit } => return self.project_bootstrap(actor, *cursor, *limit),
-            Operation::ContextGet { reference } => return Ok(json!(self.context_get(actor, reference)?)),
+            Operation::ContextGet { reference, handoff_part } => return match handoff_part {
+                Some(part) => self.handoff_source(actor, reference, part),
+                None => Ok(json!(self.context_get(actor, reference)?)),
+            },
             Operation::ContextList { cursor, limit } => return self.context_list(actor, *cursor, *limit),
             Operation::AgentList => {
                 let agents = self.agents(&actor.project)?.into_iter()
@@ -1679,7 +1708,9 @@ impl Store {
             }
             Operation::AgentQuestions { task_id, cursor, limit } =>
                 return self.questions(actor, task_id.as_deref(), *cursor, *limit),
-            Operation::TaskHistory { task_id, cursor, limit } => return self.task_history(actor, task_id, *cursor, *limit),
+            Operation::TaskHistory { task_id, cursor, limit, handoff_only } => return if *handoff_only {
+                self.task_history_filtered(actor, task_id, *cursor, *limit, true)
+            } else { self.task_history(actor, task_id, *cursor, *limit) },
             Operation::ThreadGet {
                 thread_id,
                 cursor,
@@ -1969,7 +2000,7 @@ impl Store {
                     json!({"question_id":question_id,"answer_message_id":result.id,"answer":answer,"run":run}))?;
                 Ok(json!(result))
             }
-            Operation::AgentReply { reply_to, body, outcome, .. } => {
+            Operation::AgentReply { reply_to, body, outcome, handoff_ref, .. } => {
                 self.budget_available()?;
                 text(body)?;
                 let parent = self.visible_message(actor, reply_to)?;
@@ -1986,6 +2017,14 @@ impl Store {
                 }
                 ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[reply_to])? == 0,
                     invalid_state("This instruction already has a final result"));
+                let mut result_body = body.clone();
+                if let Some(reference) = handoff_ref {
+                    let task_id = parent.task_id.as_deref().ok_or_else(|| invalid_input("Handoff replies require a tracked task"))?;
+                    self.actor_task(actor, task_id)?;
+                    let resource = self.context_get(actor, reference)?;
+                    ensure!(resource.summary.source_task.as_deref() == Some(task_id), invalid_input("Reply handoff belongs to another task"));
+                    result_body.push_str(&format!("\nPinned handoff: {}", reference.uri()));
+                }
                 let kind = match outcome {
                     crate::ReplyOutcome::Succeeded => "result_succeeded",
                     crate::ReplyOutcome::Failed => "result_failed",
@@ -1994,11 +2033,12 @@ impl Store {
                 // Original participation authorizes this return even after a Coordinator handoff.
                 let result = self.queue(&actor.project, Message {
                     id: String::new(), from: actor.id.clone(), to: parent.from,
-                    body: body.clone(), subject: Some("Processing result".into()),
+                    body: result_body, subject: Some("Processing result".into()),
                     thread_id: parent.thread_id.or_else(|| Some(parent.id.clone())),
                     reply_to: Some(parent.id.clone()), task_id: parent.task_id,
                     revision: parent.revision, kind: kind.into(), acknowledged: false, sequence: 0,
                 })?;
+                if let Some(reference) = handoff_ref { self.share_handoff_message(actor, reference, &result)?; }
                 if !matches!(outcome, crate::ReplyOutcome::Blocked) {
                     diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE id=?")
                         .bind::<Text, _>(&parent.id).execute(&mut *self.connection.borrow_mut())?;
@@ -2067,7 +2107,11 @@ impl Store {
                     acknowledged: false,
                     sequence: 0,
                 };
-                Ok(json!(self.queue(&actor.project, message)?))
+                let queued = self.queue(&actor.project, message)?;
+                if let Some(content) = content {
+                    for reference in &content.context_refs { self.share_handoff_message(actor, reference, &queued)?; }
+                }
+                Ok(json!(queued))
             }
             Operation::AgentAck { message_id } => {
                 let message = self.visible_message(actor, message_id)?;
@@ -2148,6 +2192,8 @@ impl Store {
                     description: description.clone(),
                     acceptance: acceptance.clone(),
                     context_refs: context_refs.clone(),
+                    handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -2292,6 +2338,8 @@ impl Store {
                 Ok(value)
             }
             Operation::TaskSubmit {
+                handoff,
+                request_id,
                 task_id,
                 revision,
                 result,
@@ -2354,7 +2402,7 @@ impl Store {
                 task.review_deadline = review_deadline;
                 task.version += 1;
                 self.update_task_state(&task)?;
-                self.record(
+                let source_sequence = self.record(
                     &task.project,
                     "task_submitted",
                     &actor.id,
@@ -2362,6 +2410,7 @@ impl Store {
                     Some(&attempt.id),
                     json!({"revision": task.revision, "result": result, "evidence": evidence, "evidence_ids": evidence_ids}),
                 )?;
+                self.save_handoff(actor, &task, &attempt, request_id, "submitted", source_sequence, result, evidence_ids, handoff.as_ref())?;
                 self.queue(
                     &task.project,
                     task_message(
@@ -2517,6 +2566,8 @@ impl Store {
                     description: description.clone(),
                     acceptance: acceptance.clone(),
                     context_refs: context_refs.clone(),
+                    handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -2625,6 +2676,8 @@ impl Store {
                 Ok(json!(self.assemble(task)?))
             }
             Operation::TaskProgress {
+                handoff,
+                request_id,
                 task_id,
                 revision,
                 note,
@@ -2670,7 +2723,7 @@ impl Store {
                         stale_attempt("Execution attempt was replaced", task.version)
                     );
                 }
-                self.record(
+                let source_sequence = self.record(
                     &task.project,
                     "task_progress",
                     &actor.id,
@@ -2678,6 +2731,9 @@ impl Store {
                     Some(&attempt.id),
                     json!({"revision": task.revision, "note": note, "waiting_reason": waiting_reason}),
                 )?;
+                if handoff.is_some() {
+                self.save_handoff(actor, &task, &attempt, request_id, "checkpoint", source_sequence, note, &[], handoff.as_ref())?;
+                }
                 if let Some(reason) = waiting_reason {
                     self.queue(&task.project, task_message(&actor.id, &task.issuer, "blocked",
                         format!("Task needs your input: {reason}\n{note}"), &task.id, task.revision))?;
@@ -2707,6 +2763,8 @@ impl Store {
                 Ok(json!(self.cancel_task(actor, task, reason)?))
             }
             Operation::TaskFinishCancel {
+                handoff,
+                request_id,
                 task_id,
                 revision,
                 reason,
@@ -2762,7 +2820,7 @@ impl Store {
                             .bind::<BigInt, _>(now() as i64)
                             .bind::<Text, _>(&attempt.id)
                             .execute(&mut *self.connection.borrow_mut())?;
-                        self.record(
+                        let source_sequence = self.record(
                             &task.project,
                             "attempt_stopped",
                             &actor.id,
@@ -2770,12 +2828,15 @@ impl Store {
                             Some(&attempt.id),
                             json!({"revision": task.revision, "reason": reason}),
                         )?;
+                        self.save_handoff(actor, &task, attempt, request_id, "cancelled", source_sequence, reason, &[], handoff.as_ref())?;
                     }
                     None => return Err(stale_attempt("Only the owning execution run can confirm stop", task.version)),
                 }
                 Ok(json!(self.mark_cancelled(task, actor, reason, false)?))
             }
             Operation::TaskFail {
+                handoff,
+                request_id,
                 task_id,
                 revision,
                 reason,
@@ -2829,7 +2890,7 @@ impl Store {
                 task.review_deadline = None;
                 task.version += 1;
                 self.update_task_state(&task)?;
-                self.record(
+                let source_sequence = self.record(
                     &task.project,
                     "task_failed",
                     &actor.id,
@@ -2837,6 +2898,7 @@ impl Store {
                     Some(&attempt.id),
                     json!({"revision": task.revision, "reason": reason, "evidence_ids": evidence_ids}),
                 )?;
+                self.save_handoff(actor, &task, &attempt, request_id, "failed", source_sequence, reason, evidence_ids, handoff.as_ref())?;
                 if task.issuer != actor.id {
                     self.queue(
                         &task.project,
@@ -4271,7 +4333,8 @@ impl Store {
             &format!("SELECT COUNT(*) AS count FROM messages WHERE project = ? AND {PURGEABLE_MESSAGE}"),
             &[project],
         )?;
-        Ok(json!({"tasks": tasks, "messages": messages, "sequence": self.history_sequence(project)?}))
+        let protected = self.count("SELECT COUNT(*) AS count FROM tasks WHERE project=? AND archived=1 AND EXISTS (SELECT 1 FROM meta WHERE key >= 'handoff/retain/' || tasks.id || '/' AND key < 'handoff/retain/' || tasks.id || '0' AND json_extract(value,'$.source_task')=tasks.id AND (EXISTS (SELECT 1 FROM tasks AS target WHERE target.id=json_extract(value,'$.target_task')) OR EXISTS (SELECT 1 FROM messages AS target WHERE target.id=json_extract(value,'$.message') AND (target.task_id IS NULL OR target.task_id != tasks.id))))", &[project])?;
+        Ok(json!({"tasks": tasks, "messages": messages, "handoff_protected_tasks":protected, "sequence": self.history_sequence(project)?}))
     }
 
     /// Only archived, unreferenced work and read messages; active or uncertain records are never deleted.
@@ -4305,6 +4368,7 @@ impl Store {
         };
         let mut purged_tasks = Vec::new();
         for task in rows.into_iter().map(TaskRow::task) {
+            self.purge_task_handoff(&task.id)?;
             for statement in [
                 "DELETE FROM messages WHERE task_id = ?",
                 "DELETE FROM task_dependencies WHERE task_id = ?",
@@ -4333,6 +4397,8 @@ impl Store {
             )?;
             purged_tasks.push(task.id);
         }
+        diesel::sql_query("DELETE FROM meta WHERE key >= 'handoff/retain/' AND key < 'handoff/retain0' AND json_extract(value,'$.project')=? AND NOT EXISTS (SELECT 1 FROM tasks WHERE id=json_extract(value,'$.target_task')) AND NOT EXISTS (SELECT 1 FROM messages WHERE id=json_extract(value,'$.message'))")
+            .bind::<Text, _>(project).execute(&mut *self.connection.borrow_mut())?;
         self.record(
             project,
             "history_purged",
@@ -4381,6 +4447,13 @@ impl Store {
         {
             let sequence = event.sequence;
             records.push((sequence, "event", serde_json::to_value(event)?));
+        }
+        let briefs = diesel::sql_query("SELECT value FROM meta WHERE key >= 'context/version/' AND key < 'context/version0' AND json_extract(value,'$.project')=? AND json_extract(value,'$.kind')='handoff' AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
+            .bind::<Text, _>(project).bind::<BigInt, _>(after).bind::<BigInt, _>(fetch)
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        for row in briefs {
+            let resource: crate::context::ContextResource = serde_json::from_str(&row.value)?;
+            records.push((resource.summary.created_seq, "handoff", json!(resource)));
         }
         records.sort_by_key(|(sequence, kind, _)| (*sequence, *kind));
         let (records, cursor) = bounded_items(records.into_iter()
@@ -4953,6 +5026,8 @@ impl TaskRow {
             description: self.description,
             acceptance: self.acceptance,
             context_refs: vec![],
+            handoff_ref: None,
+            handoff_inputs: vec![],
             state: self.state,
             revision: self.revision as u32,
             version: self.version as u64,
@@ -5416,7 +5491,7 @@ mod tests {
         let ack = Operation::AgentAck { message_id: message.clone() };
         assert!(store.execute(&worker, "worker-run", &ack).is_err());
         assert!(store.execute(&lead, "lead-run", &ack).is_err());
-        let blocked = Operation::AgentReply {
+        let blocked = Operation::AgentReply { handoff_ref: None,
             reply_to: message.clone(), body: "Need an interface decision".into(),
             outcome: crate::ReplyOutcome::Blocked, request_id: Uuid::new_v4().to_string(),
         };
@@ -5424,13 +5499,13 @@ mod tests {
         assert_eq!(store.execute(&worker, "worker-run", &blocked).unwrap()["kind"], "result_blocked");
         assert_eq!(store.pending(&worker).unwrap().len(), 1);
         let child = store.execute(&worker, "worker-run", &request(&helper)).unwrap();
-        let child_reply = Operation::AgentReply {
+        let child_reply = Operation::AgentReply { handoff_ref: None,
             reply_to: child["id"].as_str().unwrap().into(), body: "Child checks passed".into(),
             outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
         };
         let nested = store.execute(&helper, "helper-run", &child_reply).unwrap();
         assert_eq!(nested["to"], worker.id);
-        let reply = Operation::AgentReply {
+        let reply = Operation::AgentReply { handoff_ref: None,
             reply_to: message.clone(), body: "Changed the file; checks passed".into(),
             outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
         };
@@ -5440,7 +5515,7 @@ mod tests {
         assert_eq!(result["thread_id"], message);
         assert_eq!(result, store.execute(&worker, "worker-run", &reply).unwrap());
         assert!(!store.pending(&worker).unwrap().iter().any(|m| m.id == message));
-        let duplicate = Operation::AgentReply { reply_to: message, body: "Duplicate".into(),
+        let duplicate = Operation::AgentReply { handoff_ref: None, reply_to: message, body: "Duplicate".into(),
             outcome: crate::ReplyOutcome::Failed, request_id: Uuid::new_v4().to_string() };
         assert!(store.execute(&worker, "worker-run", &duplicate).is_err());
         let pending = store.pending(&lead).unwrap();
@@ -5451,7 +5526,7 @@ mod tests {
             store.execute(&lead, "lead-run", &Operation::AgentAck { message_id: received.id }).unwrap();
         }
         assert!(store.pending(&lead).unwrap().is_empty());
-        assert!(store.execute(&lead, "lead-run", &Operation::AgentReply {
+        assert!(store.execute(&lead, "lead-run", &Operation::AgentReply { handoff_ref: None,
             reply_to: result["id"].as_str().unwrap().into(), body: "No reply loops".into(),
             outcome: crate::ReplyOutcome::Succeeded, request_id: Uuid::new_v4().to_string(),
         }).is_err());
@@ -5468,7 +5543,7 @@ mod tests {
             for name in ["first", "second"] {
                 let worker = actor(&store, name);
                 let message = store.execute(&lead, "lead-run", &send(&lead, &worker.id, "Work", &Uuid::new_v4().to_string())).unwrap();
-                store.execute(&worker, "worker-run", &Operation::AgentReply {
+                store.execute(&worker, "worker-run", &Operation::AgentReply { handoff_ref: None,
                     reply_to: message["id"].as_str().unwrap().into(), body: name.into(),
                     outcome: crate::ReplyOutcome::Failed, request_id: Uuid::new_v4().to_string(),
                 }).unwrap();
@@ -5505,7 +5580,7 @@ mod tests {
     }
 
     fn submit(task_id: &str, revision: u32, attempt_id: Option<&str>, request_id: &str) -> Operation {
-        Operation::TaskSubmit {
+        Operation::TaskSubmit { handoff: None,
             task_id: task_id.into(),
             revision,
             result: "done".into(),
@@ -5609,10 +5684,10 @@ mod tests {
         let parent = instruction["id"].as_str().unwrap();
         let question = store.execute(&worker, "worker-run", &Operation::AgentAsk { task_id:None, reply_to:Some(parent.into()),
             question:"Which contract?".into(), request_id:Uuid::new_v4().to_string() }).unwrap();
-        let success = Operation::AgentReply { reply_to:parent.into(), body:"Done".into(), outcome:crate::ReplyOutcome::Succeeded,
+        let success = Operation::AgentReply { handoff_ref: None, reply_to:parent.into(), body:"Done".into(), outcome:crate::ReplyOutcome::Succeeded,
             request_id:Uuid::new_v4().to_string() };
         assert_eq!(code(&store.execute(&worker, "worker-run", &success).unwrap_err()), "invalid_state");
-        let failure = Operation::AgentReply { reply_to:parent.into(), body:"Execution failed before the decision arrived".into(),
+        let failure = Operation::AgentReply { handoff_ref: None, reply_to:parent.into(), body:"Execution failed before the decision arrived".into(),
             outcome:crate::ReplyOutcome::Failed, request_id:Uuid::new_v4().to_string() };
         let result = store.execute(&worker, "worker-run", &failure).unwrap();
         assert_eq!(result["to"], issuer.id);
@@ -5871,13 +5946,13 @@ mod tests {
             let attempt_id = Some(task.attempts[0].id.clone());
             let request_id = Uuid::new_v4().to_string();
             let operation = match outcome {
-                "submitted" => Operation::TaskSubmit { task_id: task_id.into(), revision: 1,
+                "submitted" => Operation::TaskSubmit { handoff: None, task_id: task_id.into(), revision: 1,
                     result: "Original work completed".into(), evidence: "Original checks passed".into(),
                     attempt_id, expected_version: Some(task.version), evidence_ids: vec![], request_id },
-                "failed" => Operation::TaskFail { task_id: task_id.into(), revision: 1,
+                "failed" => Operation::TaskFail { handoff: None, task_id: task_id.into(), revision: 1,
                     reason: "Original work failed".into(), attempt_id,
                     expected_version: Some(task.version), evidence_ids: vec![], request_id },
-                _ => Operation::TaskFinishCancel { task_id: task_id.into(), revision: 1,
+                _ => Operation::TaskFinishCancel { handoff: None, task_id: task_id.into(), revision: 1,
                     reason: "Original execution stopped".into(), attempt_id,
                     expected_version: Some(task.version), request_id },
             };
@@ -7060,7 +7135,7 @@ mod tests {
             .execute(
                 &worker,
                 "run-worker",
-                &Operation::TaskFinishCancel {
+                &Operation::TaskFinishCancel { handoff: None,
                     task_id: task_id.clone(),
                     revision: 2,
                     reason: "stopped after timeout".into(),
@@ -7577,7 +7652,7 @@ mod tests {
             .execute(
                 &worker,
                 "run-worker",
-                &Operation::TaskSubmit {
+                &Operation::TaskSubmit { handoff: None,
                     task_id: task_id.clone(),
                     revision: 1,
                     result: "done".into(),
@@ -7594,7 +7669,7 @@ mod tests {
             .execute(
                 &worker,
                 "run-worker",
-                &Operation::TaskSubmit {
+                &Operation::TaskSubmit { handoff: None,
                     task_id: task_id.clone(),
                     revision: 1,
                     result: "done".into(),
@@ -8159,7 +8234,7 @@ mod tests {
             .execute(
                 &worker,
                 "run-worker",
-                &Operation::TaskFinishCancel {
+                &Operation::TaskFinishCancel { handoff: None,
                     task_id: third_id.clone(),
                     revision: 1,
                     reason: "stopped".into(),

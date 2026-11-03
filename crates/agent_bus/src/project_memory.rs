@@ -19,7 +19,7 @@ pub struct MemoryEntry {
     pub updated_seq: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NativeThreadBinding {
     pub attempt_id: String,
     pub revision: u32,

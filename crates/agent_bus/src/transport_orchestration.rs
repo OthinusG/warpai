@@ -833,7 +833,7 @@ mod tests {
         assert_eq!(panel["coordinator_online"], true);
         assert_eq!(call(broker, &worker, Operation::TaskGet { task_id:task["id"].as_str().unwrap().into() }).unwrap()["assignee"], worker_agent["id"]);
         select(&other, &other_agent, &fixture.unjoined);
-        call(broker, &worker, Operation::TaskSubmit { task_id:task["id"].as_str().unwrap().into(),
+        call(broker, &worker, Operation::TaskSubmit { handoff: None, task_id:task["id"].as_str().unwrap().into(),
             revision:1, result:"Ready".into(), evidence:"Checked".into(), evidence_ids:vec![],
             attempt_id:None, expected_version:None, request_id:id() }).unwrap();
         let updates = call(broker, &other, Operation::AgentInbox { cursor:None, limit:None }).unwrap();
@@ -1261,7 +1261,7 @@ mod tests {
         call(
             broker,
             &worker,
-            Operation::TaskSubmit {
+            Operation::TaskSubmit { handoff: None,
                 task_id: task.clone(),
                 revision: 1,
                 result: "Ready".into(),
