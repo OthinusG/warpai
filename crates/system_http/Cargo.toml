@@ -11,6 +11,7 @@ async-compat.workspace = true
 async-stream.workspace = true
 bytes.workspace = true
 futures.workspace = true
+futures-timer = "3"
 http.workspace = true
 oauth2.workspace = true
 reqwest.workspace = true

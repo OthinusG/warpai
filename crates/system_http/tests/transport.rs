@@ -170,3 +170,44 @@ async fn errors_do_not_include_request_credentials_or_query() {
     let text = error.to_string();
     assert!(!text.contains("sensitive") && !text.contains("synthetic"));
 }
+
+#[tokio::test]
+async fn deadline_also_bounds_a_stalled_streaming_upload() {
+    let client = client();
+    let body = reqwest::Body::wrap_stream(futures::stream::pending::<
+        Result<bytes::Bytes, std::io::Error>,
+    >());
+    let request = client
+        .post("http://127.0.0.1:1/")
+        .body(body)
+        .timeout(Duration::from_millis(50));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(1), request.send())
+            .await
+            .unwrap()
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn native_upload_staging_preserves_streamed_bytes() {
+    let client = client();
+    let (url, requests) =
+        server(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+    let stream = futures::stream::iter([Ok::<_, std::io::Error>(bytes::Bytes::from_static(
+        b"payload",
+    ))]);
+    let response = client
+        .post(url)
+        .body(reqwest::Body::wrap_stream(stream))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    assert!(
+        requests
+            .recv_timeout(Duration::from_secs(4))
+            .unwrap()
+            .ends_with(b"payload")
+    );
+}

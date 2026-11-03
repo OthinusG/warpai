@@ -61,6 +61,16 @@ jobs:
             target
           key: system-network-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo test -p system_http --locked
+      - if: inputs.check_app && runner.os != 'Linux'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: native-network-app-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os == 'macOS' && 'macos' || 'windows' }}-native-v1-
       - if: inputs.check_app && runner.os == 'macOS'
         run: |
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer

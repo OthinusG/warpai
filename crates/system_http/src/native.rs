@@ -99,6 +99,10 @@ extern "C" fn response(raw: *mut c_void, status: i32, headers: *const c_char, ur
 }
 extern "C" fn data(raw: *mut c_void, bytes: *const u8, length: usize) {
     let ctx = unsafe { &*raw.cast::<Context>() };
+    if length > 1024 * 1024 {
+        let _ = ctx.body.unbounded_send(Err(Error::InvalidResponse));
+        return;
+    }
     let bytes = if length == 0 {
         Bytes::new()
     } else {
@@ -130,29 +134,52 @@ pub(super) async fn execute(
         fields.push_str("\r\n");
     }
     let headers = CString::new(fields).map_err(|_| Error::InvalidResponse)?;
-    let timeout = request
-        .timeout()
-        .or(default_timeout.as_ref())
-        .map_or(0.0, Duration::as_secs_f64);
+    let started = std::time::Instant::now();
+    let timeout = request.timeout().or(default_timeout.as_ref()).copied();
     let body = request.body_mut().take();
-    let mut upload = None;
-    let mut buffered = Vec::new();
-    if let Some(mut body) = body {
-        if let Some(bytes) = body.as_bytes() {
-            buffered.extend_from_slice(bytes);
-        } else {
-            // Preserve streaming uploads without buffering whole files in RAM.
-            let mut file = tempfile::NamedTempFile::new().map_err(|_| Error::Upload)?;
-            while let Some(frame) = body.frame().await {
-                let frame = frame?;
-                if let Ok(bytes) = frame.into_data() {
-                    file.write_all(&bytes).map_err(|_| Error::Upload)?;
+    let stage = async move {
+        let mut upload = None;
+        let mut buffered = Vec::new();
+        if let Some(mut body) = body {
+            if let Some(bytes) = body.as_bytes() {
+                buffered.extend_from_slice(bytes);
+            } else {
+                // Preserve streaming uploads without buffering whole files in RAM.
+                let mut file = tempfile::NamedTempFile::new().map_err(|_| Error::Upload)?;
+                while let Some(frame) = body.frame().await {
+                    let frame = frame?;
+                    if let Ok(bytes) = frame.into_data() {
+                        file.write_all(&bytes).map_err(|_| Error::Upload)?;
+                    }
                 }
+                file.flush().map_err(|_| Error::Upload)?;
+                upload = Some(file);
             }
-            file.flush().map_err(|_| Error::Upload)?;
-            upload = Some(file);
         }
-    }
+        Ok::<_, Error>((upload, buffered))
+    };
+    let (upload, buffered) = if let Some(timeout) = timeout {
+        match futures::future::select(
+            Box::pin(stage),
+            Box::pin(futures_timer::Delay::new(timeout)),
+        )
+        .await
+        {
+            futures::future::Either::Left((result, _)) => result?,
+            futures::future::Either::Right(_) => return Err(Error::Native(-1001)),
+        }
+    } else {
+        stage.await?
+    };
+    let timeout = timeout
+        .map(|timeout| {
+            timeout
+                .checked_sub(started.elapsed())
+                .filter(|remaining| !remaining.is_zero())
+                .ok_or(Error::Native(-1001))
+        })
+        .transpose()?
+        .map_or(0.0, |duration| duration.as_secs_f64());
     let path = upload
         .as_ref()
         .map(|file| {
@@ -194,7 +221,13 @@ pub(super) async fn execute(
     let (status, mut headers, url) = head_rx.await.map_err(|_| Error::Native(-1))??;
     // URLSession decodes content encodings. Do not advertise the wire encoding/length
     // on its decoded byte stream (including SSE and compressed release metadata).
-    if headers.contains_key(http::header::CONTENT_ENCODING) {
+    let decoded = headers
+        .get(http::header::CONTENT_ENCODING)
+        .is_some_and(|encoding| {
+            cfg!(any(target_os = "macos", target_os = "linux"))
+                || matches!(encoding.as_bytes(), b"gzip" | b"deflate")
+        });
+    if decoded {
         headers.remove(http::header::CONTENT_ENCODING);
         headers.remove(http::header::CONTENT_LENGTH);
     }

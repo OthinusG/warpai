@@ -11957,6 +11957,7 @@ dependencies = [
  "cc",
  "eventsource-stream",
  "futures",
+ "futures-timer",
  "http 1.1.0",
  "http-body-util",
  "oauth2",

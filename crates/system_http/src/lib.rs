@@ -98,7 +98,17 @@ impl Client {
         }
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
         {
+            let timeout = request.timeout().copied().or(self.timeout);
+            let started = std::time::Instant::now();
             for attempt in 0..=10 {
+                if let Some(timeout) = timeout {
+                    *request.timeout_mut() = Some(
+                        timeout
+                            .checked_sub(started.elapsed())
+                            .filter(|remaining| !remaining.is_zero())
+                            .ok_or(Error::Native(-1001))?,
+                    );
+                }
                 if self.https_only && request.url().scheme() != "https" {
                     return Err(Error::InvalidResponse);
                 }

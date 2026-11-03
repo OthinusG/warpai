@@ -115,6 +115,10 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
     auto operation = [&] {
         if (!request) return false;
         DWORD disabled = WINHTTP_DISABLE_REDIRECTS | WINHTTP_DISABLE_COOKIES;
+        DWORD decompress = WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE;
+        if (!WinHttpSetOption(request, WINHTTP_OPTION_DECOMPRESSION, &decompress, sizeof(decompress))) return false;
+        DWORD logon = WINHTTP_AUTOLOGON_SECURITY_LEVEL_HIGH;
+        if (!WinHttpSetOption(request, WINHTTP_OPTION_AUTOLOGON_POLICY, &logon, sizeof(logon))) return false;
         if (!WinHttpSetOption(request, WINHTTP_OPTION_DISABLE_FEATURE, &disabled, sizeof(disabled))) return false;
         auto fields = wide(headers);
         if (!fields.empty() && !WinHttpAddRequestHeaders(request, fields.c_str(), (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD)) return false;
@@ -222,7 +226,7 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
         }
         g_object_unref(stream);
     }
-    int64_t code = error ? error->code : (task->canceled ? -1 : 0);
+    int64_t code = error ? -(10000LL + error->code) : (task->canceled ? -1 : 0);
     if (error) g_error_free(error);
     if (upload) g_mapped_file_unref(upload);
     g_object_unref(message);
