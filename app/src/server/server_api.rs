@@ -195,6 +195,15 @@ impl From<reqwest::Error> for AIApiError {
     }
 }
 
+impl From<http_client::Error> for AIApiError {
+    fn from(error: http_client::Error) -> Self {
+        match error {
+            http_client::Error::Http(error) => Self::from_transport_error(error),
+            error => Self::Other(error.into()),
+        }
+    }
+}
+
 impl From<serde_json::Error> for AIApiError {
     fn from(err: serde_json::Error) -> Self {
         AIApiError::Deserialization(err.into())
@@ -258,7 +267,11 @@ impl AIApiError {
 
     /// Format a stream error into a human-readable error message. This will read the response
     /// body if there is one.
-    async fn from_stream_error(stream_type: &'static str, err: reqwest_eventsource::Error) -> Self {
+    async fn from_stream_error(stream_type: &'static str, err: http_client::EventSourceError) -> Self {
+        let err = match err {
+            http_client::EventSourceError::Transport(error) => return error.into(),
+            http_client::EventSourceError::EventSource(error) => error,
+        };
         match err {
             reqwest_eventsource::Error::InvalidStatusCode(
                 http::StatusCode::TOO_MANY_REQUESTS,

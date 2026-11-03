@@ -426,13 +426,9 @@ pub(crate) async fn fetch(
     if token.is_empty() {
         return Err("Sign in or connect an account in Settings");
     }
-    let mut builder = reqwest::Client::builder()
+    let client = system_http::Client::builder()
         .timeout(Duration::from_secs(10))
-        .redirect(reqwest::redirect::Policy::none());
-    if let Some(proxy) = super::system_proxy::custom_proxy() {
-        builder = builder.proxy(proxy);
-    }
-    let client = builder
+        .redirect(system_http::RedirectPolicy::None)
         .build()
         .map_err(|_| "Could not start usage query")?;
     let project;
@@ -480,11 +476,11 @@ pub(crate) async fn fetch(
 }
 
 fn usage_request(
-    client: &reqwest::Client,
+    client: &system_http::Client,
     provider: Provider,
     token: &str,
     context: &str,
-) -> Result<reqwest::RequestBuilder, &'static str> {
+) -> Result<system_http::RequestBuilder, &'static str> {
     let mut secret = token
         .parse::<reqwest::header::HeaderValue>()
         .map_err(|_| "Invalid credential format")?;
@@ -722,7 +718,7 @@ mod tests {
     #[test]
     fn native_requests_match_provider_transport_contracts() {
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-        let client = reqwest::Client::new();
+        let client = system_http::Client::new();
         let cases = [
             (
                 Provider::Codex,

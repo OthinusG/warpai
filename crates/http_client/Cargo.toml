@@ -20,6 +20,7 @@ log.workspace = true
 oauth2.workspace = true
 prost.workspace = true
 reqwest.workspace = true
+system_http.workspace = true
 reqwest-eventsource.workspace = true
 serde.workspace = true
 serde_json.workspace = true
