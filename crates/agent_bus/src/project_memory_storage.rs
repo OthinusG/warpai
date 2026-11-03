@@ -230,7 +230,7 @@ impl Store {
             bindings,
             history_truncated: task.history_truncated,
         };
-        Ok(json!({"thread":thread,"attempts":task.attempts,"handoff_ref":task.handoff_ref,"history_tool":"warp_task_history"}))
+        Ok(json!({"thread":thread,"attempts":task.attempts,"handoff_ref":task.handoff_ref,"handoff_inputs":task.handoff_inputs,"history_tool":"warp_task_history"}))
     }
 
     pub(super) fn project_bootstrap(
@@ -270,7 +270,12 @@ impl Store {
             .as_array()
             .into_iter()
             .flatten()
-            .map(|task| json!({"id":task["id"],"state":task["state"],"revision":task["revision"],"handoff_ref":self.task(actor, task["id"].as_str().unwrap_or("")).ok().and_then(|task| task.handoff_ref)}))
+            .map(|summary| {
+                let task = self.task(actor, summary["id"].as_str().unwrap_or("")).ok();
+                json!({"id":summary["id"],"state":summary["state"],"revision":summary["revision"],
+                    "handoff_ref":task.as_ref().and_then(|task| task.handoff_ref.as_ref()),
+                    "handoff_warning_count":task.as_ref().map_or(0, |task| task.handoff_inputs.iter().filter(|input| input.requires_revalidation()).count())})
+            })
             .collect();
         Ok(
             json!({"schema_version":1,"project":actor.project,"agent":actor,

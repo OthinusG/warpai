@@ -49,18 +49,7 @@ impl Store {
             scope_denied("Context belongs to another project")
         );
         ensure!(self.context_visible(actor, &resource.summary)?, scope_denied("Context revision is unavailable"));
-        ensure!(
-            resource.summary.reference == *reference,
-            invalid_state("Context reference digest changed")
-        );
-        let digest = format!(
-            "{:x}",
-            Sha256::digest(serde_json::to_vec(&resource.content)?)
-        );
-        ensure!(
-            digest == reference.sha256,
-            invalid_state("Context snapshot failed integrity verification")
-        );
+        resource.verify(reference)?;
         Ok(resource)
     }
 

@@ -5,6 +5,68 @@ use crate::handoff::{HandoffSnapshot, HandoffSubmission};
 use crate::project_memory::NativeThreadBinding;
 
 impl Store {
+    fn handoff_status(
+        &self,
+        project: &str,
+        reference: &ContextRef,
+        snapshot: &HandoffSnapshot,
+    ) -> Result<crate::handoff::HandoffStatus> {
+        let task = self.operator_task_record(project, &snapshot.task_id)?;
+        let head: Option<ContextSummary> =
+            self.context_meta(&format!("handoff/task/{}", snapshot.task_id))?;
+        let latest = diesel::sql_query(
+            "SELECT id AS value FROM attempts WHERE task_id=? ORDER BY rowid DESC LIMIT 1",
+        )
+        .bind::<Text, _>(&snapshot.task_id)
+        .get_result::<ValueRow>(&mut *self.connection.borrow_mut())
+        .optional()?;
+        Ok(crate::handoff::HandoffStatus {
+            state:task.state, task_revision:task.revision,
+            result_is_current:task.revision == snapshot.task_revision && head.is_some_and(|head| head.reference == *reference)
+                && latest.is_some_and(|attempt| attempt.value == snapshot.attempt_id),
+            execution_uncertain:self.count("SELECT COUNT(*) AS count FROM attempts WHERE task_id=? AND (certainty='unknown' OR (finished_at IS NULL AND certainty!='active'))", &[&snapshot.task_id])? > 0,
+        })
+    }
+
+    pub(super) fn handoff_inputs(
+        &self,
+        task: &Task,
+    ) -> Result<Vec<crate::handoff::HandoffInputStatus>> {
+        let mut inputs = Vec::new();
+        // Inspect only direct pins; source status never assembles another task or expands its inputs.
+        for reference in &task.context_refs {
+            let resource: Option<ContextResource> = self.context_meta(&format!(
+                "context/version/{}/{}",
+                reference.id, reference.revision
+            ))?;
+            let Some(resource) = resource else {
+                continue;
+            };
+            if resource.summary.kind != "handoff" {
+                continue;
+            }
+            let valid =
+                resource.summary.project == task.project && resource.verify(reference).is_ok();
+            let mut input = crate::handoff::HandoffInputStatus {
+                reference: reference.clone(),
+                source_task: None,
+                source_task_revision: None,
+                status: None,
+            };
+            if valid {
+                if let ContextContent::Handoff { snapshot } = resource.content {
+                    input.source_task = Some(snapshot.task_id.clone());
+                    input.source_task_revision = Some(snapshot.task_revision);
+                    input.status = self
+                        .handoff_status(&task.project, reference, &snapshot)
+                        .ok();
+                }
+            }
+            inputs.push(input);
+        }
+        Ok(inputs)
+    }
+
     pub(super) fn handoff_source(
         &self,
         actor: &Agent,
@@ -18,10 +80,7 @@ impl Store {
         };
         let source = match part {
             HandoffPart::Status => {
-                let task = self.operator_task(&actor.project, &snapshot.task_id)?;
-                json!({"state":task.state,"task_revision":task.revision,
-                    "result_is_current":task.handoff_ref.as_ref() == Some(reference),
-                    "execution_uncertain":task.attempts.iter().any(|attempt| attempt.finished_at.is_none() && attempt.certainty != "active")})
+                json!(self.handoff_status(&actor.project, reference, &snapshot)?)
             }
             HandoffPart::Task => {
                 let task = self.operator_task(&actor.project, &snapshot.task_id)?;
@@ -137,7 +196,8 @@ impl Store {
         let Some(source) = &summary.source_task else {
             return Ok(summary.kind != "handoff");
         };
-        if self.actor_task(actor, source).is_ok() {
+        let visible = |id: &str| self.actor_task_record(actor, id).is_ok();
+        if visible(source) {
             return Ok(true);
         }
         let targets: Vec<String> = self
@@ -147,7 +207,7 @@ impl Store {
             ))?
             .unwrap_or_default();
         for target in targets {
-            if self.actor_task(actor, &target).is_ok() {
+            if visible(&target) {
                 return Ok(true);
             }
         }
@@ -433,6 +493,15 @@ mod tests {
         let second = reference(&submitted);
         assert_eq!(pin.id, second.id);
         assert_eq!(second.revision, 2);
+        let history = store
+            .task_history_filtered(&issuer, &task, None, Some(1), true)
+            .unwrap();
+        assert_eq!(history["events"][0]["kind"], "handoff_created");
+        assert_eq!(history["events"][0]["payload"]["reference"], json!(pin));
+        let next = store
+            .task_history_filtered(&issuer, &task, history["cursor"].as_u64(), Some(1), true)
+            .unwrap();
+        assert_eq!(next["events"][0]["payload"]["reference"], json!(second));
         assert_eq!(
             store
                 .handoff_source(&worker, &pin, &crate::handoff::HandoffPart::Status)
@@ -534,6 +603,9 @@ mod tests {
             )
             .is_err());
         assert!(store.task_history(&peer, &source, None, None).is_err());
+        assert!(store
+            .task_history_filtered(&peer, &source, None, None, true)
+            .is_err());
         assert_eq!(
             store.task(&peer, &target).unwrap().context_refs,
             vec![pin.clone()]
@@ -545,6 +617,33 @@ mod tests {
         newer.revision += 1;
         assert!(store.context_get(&peer, &newer).is_err());
         assert!(store.context_get(&worker, &pin).is_ok());
+        store.set_worktree_mode("/project", false).unwrap();
+        store
+            .execute(
+                &issuer,
+                "issuer-run",
+                &Operation::TaskReview {
+                    task_id: source.clone(),
+                    revision: 1,
+                    accepted: false,
+                    feedback: "Revalidate the delivery".into(),
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        store.set_worktree_mode("/project", true).unwrap();
+        let target = store.task(&peer, &target).unwrap();
+        assert_eq!(target.state, "queued");
+        assert_eq!(target.context_refs, vec![pin.clone()]);
+        assert!(target.handoff_inputs[0].requires_revalidation());
+        assert_eq!(
+            store.project_bootstrap(&peer, None, None).unwrap()["execution_threads"][0]
+                ["handoff_warning_count"],
+            1
+        );
+        assert!(store.context_get(&peer, &pin).is_ok());
+        assert!(store.task(&peer, &source).is_err());
     }
 
     #[test]

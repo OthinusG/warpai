@@ -156,6 +156,12 @@ mod tests {
             .unwrap()
             .get("handoff_part")
             .is_none());
+        let history: crate::Operation =
+            serde_json::from_str(r#"{"op":"task_history","task_id":"fixture"}"#).unwrap();
+        assert!(serde_json::to_value(history)
+            .unwrap()
+            .get("handoff_only")
+            .is_none());
         assert!(serde_json::from_str::<HandoffSubmission>(
             r#"{"next_steps":{"status":"not_provided","items":["hidden"]}}"#
         )
@@ -173,7 +179,7 @@ pub enum HandoffPart {
     Evidence { id: String },
 }
 
-/// Evidence provenance and current verification are separate from the immutable brief.
+/// Verification is retained metadata, never a new file check or test execution.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct HandoffEvidence {
     pub evidence: crate::Evidence,
@@ -185,4 +191,28 @@ pub struct HandoffEvidence {
     pub verification_is_current: bool,
     pub test_outcome_source: String,
     pub review_is_separate: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct HandoffStatus {
+    pub state: String,
+    pub task_revision: u32,
+    pub result_is_current: bool,
+    pub execution_uncertain: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct HandoffInputStatus {
+    pub reference: ContextRef,
+    pub source_task: Option<String>,
+    pub source_task_revision: Option<u32>,
+    pub status: Option<HandoffStatus>,
+}
+
+impl HandoffInputStatus {
+    pub fn requires_revalidation(&self) -> bool {
+        self.status
+            .as_ref()
+            .is_none_or(|status| !status.result_is_current)
+    }
 }

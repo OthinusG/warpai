@@ -350,6 +350,8 @@ pub enum Operation {
     },
     TaskHistory {
         task_id: String,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        handoff_only: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -817,6 +819,8 @@ pub struct Task {
     pub context_refs: Vec<context::ContextRef>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub handoff_ref: Option<context::ContextRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub handoff_inputs: Vec<handoff::HandoffInputStatus>,
     pub state: String,
     pub revision: u32,
     pub version: u64,

@@ -443,7 +443,12 @@ missing. Submit/fail/finish_cancel atomically create a Broker-owned snapshot;
 progress does so only when handoff is supplied. Legacy submission remains valid.
 
 TaskGet exposes optional current handoff_ref separately from input context_refs.
-TaskHistory contains immutable handoff_created references; ExecutionThreadGet and
+Its handoff_inputs projection and bootstrap handoff_warning_count flag stale or
+unavailable pinned sources, including withdrawn review. Pins and downstream task
+states remain unchanged; consumers explicitly revalidate before continuing.
+TaskHistory contains immutable handoff_created references; handoff_only=true
+returns a paginated version index through the same task authorization. The flag
+is omitted when false and requires handoff_briefs_v1 when true; ExecutionThreadGet and
 ProjectBootstrap expose compact pins. ContextGet reads the exact immutable brief;
 optional handoff_part selects `{kind:"status"}`, `{kind:"task"}`, `{kind:"result"}`
 or `{kind:"evidence",id}` without granting access to unrelated source records.

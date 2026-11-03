@@ -6,6 +6,8 @@ use crate::view_components::dropdown::{Dropdown, DropdownItem};
 mod controls;
 #[path = "panel_usage.rs"]
 mod usage;
+#[path = "panel_handoff.rs"]
+mod handoff;
 use serde::Deserialize;
 use std::{
     borrow::Cow,
@@ -221,6 +223,8 @@ struct HistoryPage {
 #[derive(Default, Deserialize)]
 struct Snapshot {
     #[serde(default)]
+    handoff_briefs_v1: bool,
+    #[serde(default)]
     resources: Vec<warp_agent_bus::context::ContextSummary>,
     #[serde(default)]
     context_cursor: Option<u64>,
@@ -323,6 +327,9 @@ pub(crate) struct CollaborationPanel {
     preview: bool,
     visible: bool,
     snapshot: Option<Snapshot>,
+    handoff: Option<handoff::HandoffView>,
+    handoff_history: Option<handoff::HandoffHistory>,
+    handoff_buttons: std::cell::RefCell<HashMap<String, MouseStateHandle>>,
     query: PanelQuery,
     events: Vec<Event>,
     context: Option<(String, Option<String>)>,
@@ -375,6 +382,9 @@ pub(crate) enum Action {
     Scroll(f32),
     Exit,
     SelectTask(String),
+    LoadHandoff(warp_agent_bus::context::ContextRef),
+    LoadHandoffEvidence(String),
+    LoadHandoffHistory(Option<u64>),
     Back,
     NextTasks,
     FirstTasks,
@@ -433,6 +443,9 @@ impl CollaborationPanel {
             preview,
             visible: false,
             snapshot: None,
+            handoff: None,
+            handoff_history: None,
+            handoff_buttons: Default::default(),
             query: Default::default(),
             events: Vec::new(),
             context: None,
@@ -646,6 +659,9 @@ impl CollaborationPanel {
         let enabled = self.communication_enabled(ctx);
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
+            self.handoff = None;
+            self.handoff_history = None;
+            self.handoff_buttons.borrow_mut().clear();
             self.coordinator_dropdown.update(ctx, |dropdown, ctx| dropdown.close(ctx));
             self.generation += 1;
             self.mode_pending = false;
@@ -1042,6 +1058,7 @@ impl CollaborationPanel {
         }
         if let Some(task) = &snapshot.task {
             fixture.state = "task detail".into();
+            fixture.sections.extend(self.handoff_sections(task));
             fixture.sections.extend([
                 Section {
                     title: {
@@ -1655,8 +1672,19 @@ impl TypedActionView for CollaborationPanel {
                     }
                     return;
                 }
-                Action::SelectTask(id) => self.query.selected_task = Some(id.clone()),
+                Action::LoadHandoff(reference) => { self.load_handoff(reference, ctx); return; }
+                Action::LoadHandoffEvidence(id) => { self.load_handoff_evidence(id, ctx); return; }
+                Action::LoadHandoffHistory(cursor) => { self.load_handoff_history(*cursor, ctx); return; }
+                Action::SelectTask(id) => {
+                    self.handoff = None;
+                    self.handoff_history = None;
+                    self.handoff_buttons.borrow_mut().clear();
+                    self.query.selected_task = Some(id.clone());
+                },
                 Action::Back => {
+                    self.handoff = None;
+                    self.handoff_history = None;
+                    self.handoff_buttons.borrow_mut().clear();
                     self.query.history = false;
                     self.query.history_after = None;
                     self.query.selected_task = None;
@@ -1849,7 +1877,7 @@ impl View for CollaborationPanel {
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, warpui::localization::text(&section.title).to_owned()));
             for (index, row) in section.rows.iter().enumerate() {
-                let record = detail(appearance, warpui::localization::text(row).to_owned());
+                let record = detail(appearance, if self.preview { warpui::localization::text(row).to_owned() } else { row.clone() });
                 column.add_child(if section.title == "History" {
                     self::section(appearance, record)
                 } else if section.title == "Agents" {
@@ -2005,6 +2033,9 @@ impl View for CollaborationPanel {
                     header.add_child(navigation.finish());
                 }
             }
+        }
+        if !self.preview && !self.query.history && !self.show_messages && self.form.is_none() && self.query.selected_task.is_some() {
+            body.add_child(self.render_handoff_controls(app));
         }
         for section in &fixture.sections {
             if !self.preview && self.query.history && section.title != "History" {
@@ -2433,6 +2464,26 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         revision: 1,
         expected_version: None,
         request_id: uuid::Uuid::new_v4().to_string(),
+    };
+    transport::call(&broker.endpoint, &request)?;
+    request.operation = Operation::EvidenceAdd {
+        task_id:task["id"].as_str().unwrap().into(), kind:"test".into(), attempt_id:None,
+        path:None, hash:None, commit:None, repository:None, branch:None, base:None, head:None,
+        command:Some("native-checkpoint-fixture".into()), outcome:Some("not_run".into()), exit_code:None,
+        summary:Some("Agent-reported checkpoint evidence".into()), request_id:uuid::Uuid::new_v4().to_string(),
+    };
+    let evidence = transport::call(&broker.endpoint, &request)?;
+    request.operation = Operation::TaskProgress {
+        task_id:task["id"].as_str().unwrap().into(), revision:1, note:"Owned native handoff checkpoint".into(),
+        attempt_id:None, waiting_reason:None, expected_version:None, request_id:uuid::Uuid::new_v4().to_string(),
+        handoff:Some(warp_agent_bus::handoff::HandoffSubmission {
+            decisions:warp_agent_bus::handoff::HandoffSection::Provided(vec![warp_agent_bus::handoff::HandoffDecision {
+                decision:"Reuse immutable context resources".into(), rationale:"Preserve the exact attempt and native run".into(),
+                evidence_ids:vec![evidence["evidence_id"].as_str().unwrap().into()],
+            }]),
+            unresolved_issues:Default::default(),
+            next_steps:warp_agent_bus::handoff::HandoffSection::Provided(vec!["Reconcile the interrupted execution before continuing".into()]),
+        }),
     };
     transport::call(&broker.endpoint, &request)?;
     request.operation = Operation::FileReserve {
@@ -3350,6 +3401,79 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }
         }
     }
+    let mut handoff_settle_started = None::<Instant>;
+    driver = driver
+        .with_step(TestStep::new("leave a pending handoff read").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let reference = panel.snapshot.as_ref().unwrap().task.as_ref().unwrap().handoff_ref.clone().unwrap();
+                panel.handle_action(&Action::LoadHandoff(reference), ctx);
+                panel.handle_action(&Action::Back, ctx);
+            });
+        }).add_named_assertion("late handoff cannot restore a closed task", move |app, window| {
+            let started = handoff_settle_started.get_or_insert_with(Instant::now);
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(started.elapsed() >= Duration::from_millis(500)
+                && panel.read(app, |panel, _| panel.query.selected_task.is_none() && panel.handoff.is_none())
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }))
+        .with_step(TestStep::new("return to the handoff task").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let task = panel.snapshot.as_ref().unwrap().tasks[0].id.clone();
+                panel.handle_action(&Action::SelectTask(task), ctx);
+            });
+        }).add_named_assertion("handoff task is current", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().and_then(|snapshot| snapshot.task.as_ref())
+                .is_some_and(|task| panel.query.selected_task.as_ref() == Some(&task.id) && task.handoff_ref.is_some())))
+        }))
+        .with_step(TestStep::new("read native handoff history").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action(&Action::LoadHandoffHistory(None), ctx));
+        }).add_named_assertion("history index is loaded", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.handoff_history.as_ref()
+                .is_some_and(|history| history.ready_with_versions())))
+        }))
+        .with_step(TestStep::new("load the exact native handoff").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let reference = panel.snapshot.as_ref().unwrap().task.as_ref().unwrap().handoff_ref.clone().unwrap();
+                panel.handle_action(&Action::LoadHandoff(reference), ctx);
+            });
+        }).add_named_assertion("checkpoint result and original draft are retained", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().and_then(|snapshot| snapshot.task.as_ref())
+                .is_some_and(|task| panel.handoff.as_ref().is_some_and(|view| Some(&view.reference) == task.handoff_ref.as_ref()
+                    && view.result.as_ref().is_some_and(|result| result.is_ok()))
+                    && panel.handoff_sections(task).iter().flat_map(|section| &section.rows)
+                        .any(|row| row == "Owned native handoff checkpoint")))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }).with_take_screenshot("live-handoff-details.png"))
+        .with_step(TestStep::new("read original checkpoint evidence").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let id = panel.snapshot.as_ref().unwrap().task.as_ref().unwrap().evidence_records[0].id.clone();
+                panel.handle_action(&Action::LoadHandoffEvidence(id), ctx);
+            });
+        }).add_named_assertion("evidence stays an Agent report", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.handoff.as_ref().and_then(|view| view.evidence.as_ref())
+                .is_some_and(|(_, evidence)| evidence.as_ref().is_some_and(|value| value.as_ref().is_ok_and(|source|
+                    source.evidence.command.as_deref() == Some("native-checkpoint-fixture")
+                    && source.evidence.outcome.as_deref() == Some("not_run") && !source.evidence.verified))))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }))
+        .with_step(TestStep::new("inspect native handoff evidence").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| panel.handle_action(&Action::Scroll(480.), ctx));
+        }).with_take_screenshot("live-handoff-evidence.png"))
+        .with_step(TestStep::new("restore detail scroll").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| { panel.scroll = Default::default(); ctx.notify(); });
+        }));
+    filenames.extend(["live-handoff-details.png", "live-handoff-evidence.png"].map(str::to_owned));
     driver = driver
         .with_step(
             TestStep::new("focus live detail").with_action(|app, window, data| {

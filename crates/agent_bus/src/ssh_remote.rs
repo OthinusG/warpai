@@ -239,6 +239,7 @@ pub struct HostClient {
                     | Operation::TaskFinishCancel { handoff, .. }) => handoff.is_some(),
                 TaskCommand::Operator(Operation::AgentReply { handoff_ref, .. }) => handoff_ref.is_some(),
                 TaskCommand::Operator(Operation::ContextGet { handoff_part, .. }) => handoff_part.is_some(),
+                TaskCommand::Operator(Operation::TaskHistory { handoff_only, .. }) => *handoff_only,
                 TaskCommand::Operator(Operation::ContextPublish { content:crate::context::ContextContent::Handoff { .. }, .. }) => true,
                 _ => false,
             }
@@ -780,6 +781,10 @@ mod tests {
             "op":"task_progress", "task_id":"fixture", "revision":1,"note":"Checkpoint", "request_id":"fixture"
         })).unwrap();
         assert!(!requires_handoff(&TaskCommand::Operator(operation.clone())));
+        assert!(requires_handoff(&TaskCommand::Operator(Operation::TaskHistory {
+            task_id:"fixture".into(), handoff_only:true, cursor:None, limit:None,
+        })));
+
         if let Operation::TaskProgress { handoff, .. } = &mut operation { *handoff = Some(HandoffSubmission::default()); }
         assert!(requires_handoff(&TaskCommand::Scoped { scope:"fixture".into(), command:Box::new(TaskCommand::Operator(operation)) }));
         let reference = crate::context::ContextRef { id:"fixture".into(), revision:1, sha256:"fixture".into() };

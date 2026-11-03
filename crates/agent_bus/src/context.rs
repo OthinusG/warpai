@@ -157,6 +157,17 @@ pub struct ContextResource {
     pub content: ContextContent,
 }
 
+impl ContextResource {
+    pub(crate) fn verify(&self, reference: &ContextRef) -> Result<()> {
+        use sha2::{Digest, Sha256};
+        ensure!(self.summary.reference == *reference,
+            crate::invalid_state("Context reference digest changed"));
+        ensure!(format!("{:x}", Sha256::digest(serde_json::to_vec(&self.content)?)) == reference.sha256,
+            crate::invalid_state("Context snapshot failed integrity verification"));
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Instruction {

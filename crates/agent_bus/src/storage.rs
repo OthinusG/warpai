@@ -356,6 +356,7 @@ impl Store {
                     acceptance: task.acceptance.clone(),
                     context_refs: vec![],
                     handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: task.state.clone(),
                     revision: task.revision,
                     version: 1,
@@ -1281,9 +1282,13 @@ impl Store {
 
     /// Project peers supervise all tasks; Worktree peers retain participant scope.
     pub fn task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        self.assemble(self.task_record(actor, id)?)
+    }
+
+    fn task_record(&self, actor: &Agent, id: &str) -> Result<Task> {
         self.authorize(actor)?;
         if !self.worktree_mode(&actor.project)? || self.is_worktree_coordinator(actor)? {
-            return self.operator_task(&actor.project, id);
+            return self.operator_task_record(&actor.project, id);
         }
         let task = self
             .task_row(
@@ -1291,11 +1296,15 @@ impl Store {
                 &[id, actor.project.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str(), actor.id.as_str()],
             )?
             .ok_or_else(|| scope_denied("Task not found"))?;
-        self.assemble(task)
+        Ok(task)
     }
 
     /// The trusted local UI reads and writes any task in its own project without an agent scope.
     pub(crate) fn operator_task(&self, project: &str, id: &str) -> Result<Task> {
+        self.assemble(self.operator_task_record(project, id)?)
+    }
+
+    fn operator_task_record(&self, project: &str, id: &str) -> Result<Task> {
         let task = diesel::sql_query(format!("SELECT {TASK_COLUMNS} FROM tasks WHERE id = ? AND project = ?"))
             .bind::<Text, _>(id)
             .bind::<Text, _>(project)
@@ -1303,15 +1312,19 @@ impl Store {
             .optional()?
             .map(TaskRow::task)
             .ok_or_else(|| scope_denied("Task not found"))?;
-        self.assemble(task)
+        Ok(task)
     }
 
     /// Mutation visibility: agents stay scoped; the operator principal reaches every project task.
     fn actor_task(&self, actor: &Agent, id: &str) -> Result<Task> {
+        self.assemble(self.actor_task_record(actor, id)?)
+    }
+
+    fn actor_task_record(&self, actor: &Agent, id: &str) -> Result<Task> {
         if actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)? {
-            self.operator_task(&actor.project, id)
+            self.operator_task_record(&actor.project, id)
         } else {
-            self.task(actor, id)
+            self.task_record(actor, id)
         }
     }
 
@@ -1335,6 +1348,7 @@ impl Store {
             .collect();
         task.attempts.reverse();
         task.handoff_ref = self.current_handoff(&task)?;
+        task.handoff_inputs = self.handoff_inputs(&task)?;
         task.feedback = diesel::sql_query("SELECT body FROM feedback WHERE task_id = ? ORDER BY id DESC LIMIT 8")
             .bind::<Text, _>(&task.id)
             .load::<FeedbackRow>(&mut *self.connection.borrow_mut())?
@@ -1583,11 +1597,15 @@ impl Store {
     }
 
     fn task_history(&self, actor: &Agent, task_id: &str, cursor: Option<u64>, limit: Option<u32>) -> Result<Value> {
-        self.actor_task(actor, task_id)?;
+        self.task_history_filtered(actor, task_id, cursor, limit, false)
+    }
+
+    fn task_history_filtered(&self, actor: &Agent, task_id: &str, cursor: Option<u64>, limit: Option<u32>, handoff_only: bool) -> Result<Value> {
+        self.actor_task_record(actor, task_id)?;
         let limit = Self::page_limit(limit)?;
-        let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND resource = ? AND sequence > ? ORDER BY sequence LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND resource = ? AND sequence > ? AND (?=0 OR kind='handoff_created') ORDER BY sequence LIMIT ?")
             .bind::<Text, _>(&actor.project).bind::<Text, _>(task_id)
-            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<BigInt, _>(limit as i64 + 1)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64).bind::<Integer, _>(i32::from(handoff_only)).bind::<BigInt, _>(limit as i64 + 1)
             .load::<EventRow>(&mut *self.connection.borrow_mut())?;
         let (events, cursor) = bounded_items(rows.into_iter().map(EventRow::event)
             .map(|event| (event.sequence, event)), limit)?;
@@ -1689,7 +1707,9 @@ impl Store {
             }
             Operation::AgentQuestions { task_id, cursor, limit } =>
                 return self.questions(actor, task_id.as_deref(), *cursor, *limit),
-            Operation::TaskHistory { task_id, cursor, limit } => return self.task_history(actor, task_id, *cursor, *limit),
+            Operation::TaskHistory { task_id, cursor, limit, handoff_only } => return if *handoff_only {
+                self.task_history_filtered(actor, task_id, *cursor, *limit, true)
+            } else { self.task_history(actor, task_id, *cursor, *limit) },
             Operation::ThreadGet {
                 thread_id,
                 cursor,
@@ -2172,6 +2192,7 @@ impl Store {
                     acceptance: acceptance.clone(),
                     context_refs: context_refs.clone(),
                     handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -2545,6 +2566,7 @@ impl Store {
                     acceptance: acceptance.clone(),
                     context_refs: context_refs.clone(),
                     handoff_ref: None,
+                    handoff_inputs: vec![],
                     state: "queued".into(),
                     revision: 1,
                     version: 1,
@@ -5004,6 +5026,7 @@ impl TaskRow {
             acceptance: self.acceptance,
             context_refs: vec![],
             handoff_ref: None,
+            handoff_inputs: vec![],
             state: self.state,
             revision: self.revision as u32,
             version: self.version as u64,

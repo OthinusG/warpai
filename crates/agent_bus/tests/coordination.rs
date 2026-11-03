@@ -1553,7 +1553,7 @@ fn native_permission_and_disconnect_observations_survive_broker_restart() {
     let restored = transport::call(&reopened.broker.endpoint, &peer).unwrap();
     assert_eq!(restored["supervision"]["last_observed_at"], disconnected["supervision"]["last_observed_at"]);
     assert_eq!(restored["supervision"]["execution_uncertain"], true);
-    peer.operation = Operation::TaskHistory { task_id:id, cursor:None, limit:None };
+    peer.operation = Operation::TaskHistory { handoff_only: false, task_id:id, cursor:None, limit:None };
     let history = transport::call(&reopened.broker.endpoint, &peer).unwrap();
     assert!(history["events"].as_array().unwrap().iter().any(|event| event["kind"] == "task_observed"));
     assert!(!history.to_string().contains("unsent private draft"));

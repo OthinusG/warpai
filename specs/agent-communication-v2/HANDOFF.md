@@ -42,6 +42,9 @@ One stable resource ID per task, append-only revisions across all attempts.
 Input context_refs never change. Task detail exposes current `handoff_ref` only
 when the resource matches the current task revision and attempt; historical
 versions remain accessible through paged task events and exact context_get.
+TaskHistory(handoff_only=true) filters creation events for the native version
+picker without loading bodies; the new flag is capability-gated and omitted
+when false for strict older services.
 `context_get(reference, handoff_part?)` optionally reads `status`, `task`, `result` or
 `evidence {id}` from that exact brief's retained source. Each response is bounded
 to 48 KiB; evidence selection must be one of the snapshot's evidence IDs. Evidence parts preserve the original reporter/attempt/native binding when retained;
@@ -52,6 +55,12 @@ The status part exposes only current state/revision, whether this pin is still
 current and execution uncertainty, including for explicitly shared readers.
 Omit handoff_part to retain the existing immutable resource response. These reads
 never follow a resource head, expand other context pins or execute source data.
+TaskGet/ExecutionThreadGet include compact handoff_inputs status for direct pinned
+briefs. Bootstrap includes handoff_warning_count per assigned task. These
+read-time projections flag changed/withdrawn/unavailable sources without
+recursively expanding their inputs, altering pins, queuing new execution or
+changing downstream task state. This also reaches TaskProgress responses and the
+native task detail; a full inbox cannot hide the warning.
 Execution thread/bootstrap expose compact references only. Review never mutates
 a brief or grants execution; retry/reassignment preserve original source bindings.
 Consumers refresh bootstrap/task, read the exact pin, check current source review

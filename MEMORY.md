@@ -8,7 +8,7 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
-- Capture baseline: `fixtures * 8 + 232` PNGs/language, including two icon frames;
+- Capture baseline: `fixtures * 8 + 234` PNGs/language, including two icon frames;
   update both workflows. macOS 14 GB runner: incremental off, clean warpai before relink.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Peer wake cancellation fixtures end on captured paste; scheduling all agents
