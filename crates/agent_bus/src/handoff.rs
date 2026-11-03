@@ -99,7 +99,7 @@ mod tests {
         let missing: HandoffSubmission = serde_json::from_str("{}").unwrap();
         assert!(matches!(missing.next_steps, HandoffSection::NotProvided));
         for section in [
-            HandoffSection::Provided(vec![]),
+            HandoffSection::<String>::Provided(vec![]),
             HandoffSection::NotApplicable,
         ] {
             let value = serde_json::to_value(section).unwrap();
@@ -112,4 +112,14 @@ mod tests {
         assert!(oversized.validate().is_err());
         assert!(serde_json::from_str::<HandoffSubmission>(r#"{"producer":"spoof"}"#).is_err());
     }
+}
+
+/// Read only the bounded source records explicitly covered by an authorized brief.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HandoffPart {
+    Status,
+    Task,
+    Result,
+    Evidence { id: String },
 }

@@ -5,6 +5,60 @@ use crate::handoff::{HandoffSnapshot, HandoffSubmission};
 use crate::project_memory::NativeThreadBinding;
 
 impl Store {
+    pub(super) fn handoff_source(
+        &self,
+        actor: &Agent,
+        reference: &ContextRef,
+        part: &crate::handoff::HandoffPart,
+    ) -> Result<Value> {
+        use crate::handoff::HandoffPart;
+        let resource = self.context_get(actor, reference)?;
+        let ContextContent::Handoff { snapshot } = resource.content else {
+            return Err(invalid_input("Source parts require a handoff reference"));
+        };
+        let source = match part {
+            HandoffPart::Status => {
+                let task = self.operator_task(&actor.project, &snapshot.task_id)?;
+                json!({"state":task.state,"task_revision":task.revision,
+                    "result_is_current":task.revision == snapshot.task_revision && task.attempts.last().is_some_and(|attempt| attempt.id == snapshot.attempt_id),
+                    "execution_uncertain":task.attempts.iter().any(|attempt| attempt.finished_at.is_none() && attempt.certainty != "active")})
+            }
+            HandoffPart::Task => {
+                let task = self.operator_task(&actor.project, &snapshot.task_id)?;
+                json!({"objective":task.description,"acceptance":task.acceptance})
+            }
+            HandoffPart::Result => {
+                let row = diesel::sql_query("SELECT payload AS value FROM events WHERE id=? AND project=? AND resource=? AND attempt=? AND sequence=?")
+                    .bind::<Text, _>(&snapshot.source_event_id).bind::<Text, _>(&actor.project)
+                    .bind::<Text, _>(&snapshot.task_id).bind::<Text, _>(&snapshot.attempt_id)
+                    .bind::<BigInt, _>(snapshot.source_event_sequence as i64)
+                    .get_result::<ValueRow>(&mut *self.connection.borrow_mut())?;
+                serde_json::from_str::<Value>(&row.value)?
+            }
+            HandoffPart::Evidence { id } => {
+                ensure!(
+                    snapshot.evidence_ids.contains(id),
+                    scope_denied("Evidence is outside this handoff")
+                );
+                let evidence = self
+                    .task_evidence(&snapshot.task_id)?
+                    .into_iter()
+                    .find(|evidence| &evidence.id == id)
+                    .ok_or_else(|| invalid_state("Handoff evidence is unavailable"))?;
+                json!({"same_attempt":evidence.attempt_id.as_deref() == Some(&snapshot.attempt_id),"evidence":evidence,"test_outcome_source":"agent_reported","review_is_separate":true})
+            }
+        };
+        let value = json!({"reference":reference,"task_id":snapshot.task_id,"task_revision":snapshot.task_revision,
+            "attempt_id":snapshot.attempt_id,"part":part,"source":source});
+        ensure!(
+            serde_json::to_vec(&value)?.len() <= 32 * 1024,
+            capacity_exceeded(
+                "Handoff source part exceeds 32 KiB; inspect authorized source evidence directly"
+            )
+        );
+        Ok(value)
+    }
+
     pub(super) fn purge_task_handoff(&self, task: &str) -> Result<()> {
         let head: Option<ContextSummary> = self.context_meta(&format!("handoff/task/{task}"))?;
         if let Some(head) = head {
@@ -384,6 +438,24 @@ mod tests {
         let target = assign(&store, &operator, &peer, vec![pin.clone()]);
         assert!(store.task(&peer, &source).is_err());
         assert!(store.context_get(&peer, &pin).is_ok());
+        let result = store
+            .handoff_source(&peer, &pin, &crate::handoff::HandoffPart::Result)
+            .unwrap();
+        assert_eq!(result["source"]["result"], "Contract checked");
+        let status = store
+            .handoff_source(&peer, &pin, &crate::handoff::HandoffPart::Status)
+            .unwrap();
+        assert_eq!(status["source"]["state"], "submitted");
+        assert!(store
+            .handoff_source(
+                &peer,
+                &pin,
+                &crate::handoff::HandoffPart::Evidence {
+                    id: Uuid::new_v4().to_string()
+                }
+            )
+            .is_err());
+        assert!(store.task_history(&peer, &source, None, None).is_err());
         assert_eq!(
             store.task(&peer, &target).unwrap().context_refs,
             vec![pin.clone()]
@@ -404,10 +476,17 @@ mod tests {
         let task = assign(&store, &issuer, &worker, vec![]);
         start(&store, &worker, &task, 1);
         let operation = submit(&task, 1);
-        for failure in ["context/version/", "context/head/", "handoff/task/"] {
+        for (table, condition) in [
+            ("meta", "NEW.key LIKE 'context/version/%'"),
+            ("meta", "NEW.key LIKE 'context/head/%'"),
+            ("meta", "NEW.key LIKE 'handoff/task/%'"),
+            ("events", "NEW.kind='handoff_created'"),
+            ("messages", "NEW.kind='review'"),
+            ("requests", "1"),
+        ] {
             let before = store.history_sequence("/project").unwrap();
             store.connection.borrow_mut().batch_execute(&format!(
-                "CREATE TEMP TRIGGER fail_handoff BEFORE INSERT ON meta WHEN NEW.key LIKE '{failure}%' BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;"
+                "CREATE TEMP TRIGGER fail_handoff BEFORE INSERT ON {table} WHEN {condition} BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;"
             )).unwrap();
             assert!(store.execute(&worker, "worker-run", &operation).is_err());
             assert_eq!(store.task(&worker, &task).unwrap().state, "running");

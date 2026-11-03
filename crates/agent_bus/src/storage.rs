@@ -1640,7 +1640,10 @@ impl Store {
         match operation {
             Operation::ExecutionThreadGet { task_id } => return self.execution_thread(actor, task_id),
             Operation::ProjectBootstrap { cursor, limit } => return self.project_bootstrap(actor, *cursor, *limit),
-            Operation::ContextGet { reference } => return Ok(json!(self.context_get(actor, reference)?)),
+            Operation::ContextGet { reference, handoff_part } => return match handoff_part {
+                Some(part) => self.handoff_source(actor, reference, part),
+                None => Ok(json!(self.context_get(actor, reference)?)),
+            },
             Operation::ContextList { cursor, limit } => return self.context_list(actor, *cursor, *limit),
             Operation::AgentList => {
                 let agents = self.agents(&actor.project)?.into_iter()

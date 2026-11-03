@@ -128,7 +128,7 @@ fn managed_agent_child() {
 fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({"reference":result["reference"], "memory_reference":result["memory"][0]["current"]["resource"]["reference"],
         "thread_id":result["thread"]["id"], "binding_terminal":result["thread"]["bindings"][0]["terminal"],
-        "context_summary":result["content"]["summary"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
+        "context_summary":result["content"]["summary"], "handoff_ref":result["handoff_ref"], "handoff_snapshot":result["content"]["snapshot"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
         "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],
         "messages":result["messages"].as_array().map(|messages| messages.iter()
             .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),
@@ -653,6 +653,13 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
     )
     .await;
     assert_eq!(submitted["state"], "submitted");
+    let pin = serde_json::from_value(submitted["handoff_ref"].clone()).unwrap();
+    let handoff = fixture_operation(&mut attachment, &mut agents[0],
+        Operation::ContextGet { reference:pin, handoff_part:None }).await;
+    assert_eq!(handoff["handoff_snapshot"]["task_id"], task);
+    assert_eq!(handoff["handoff_snapshot"]["attempt_id"], started["attempt_id"]);
+    assert_eq!(handoff["handoff_snapshot"]["reason"], "submitted");
+
     let reviewed = fixture_operation(
         &mut attachment,
         &mut agents[0],

@@ -266,7 +266,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     let bootstrap = ssh_fixture_operation(&mut two, &mut second,
         Operation::ProjectBootstrap { cursor:None, limit:None }).await;
     assert_eq!(bootstrap["memory_reference"], serde_json::to_value(&reference).unwrap());
-    let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { reference:reference.clone() }).await;
+    let retrieved = ssh_fixture_operation(&mut two, &mut second, Operation::ContextGet { handoff_part: None, reference:reference.clone() }).await;
     assert_eq!(retrieved["context_summary"], "Reusable SSH findings");
     let receiver = format!("fixture-{}", second.session_id);
     let instruction = ssh_fixture_operation(
@@ -371,6 +371,13 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     )
     .await;
     assert_eq!(submitted["state"], "submitted");
+    let pin = serde_json::from_value(submitted["handoff_ref"].clone()).unwrap();
+    let handoff = ssh_fixture_operation(&mut one, &mut first,
+        Operation::ContextGet { reference:pin, handoff_part:None }).await;
+    assert_eq!(handoff["handoff_snapshot"]["task_id"], task);
+    assert_eq!(handoff["handoff_snapshot"]["attempt_id"], started["attempt_id"]);
+    assert_eq!(handoff["handoff_snapshot"]["binding"]["terminal"], second.session_id);
+
     assert_eq!(
         ssh_fixture_operation(
             &mut one,

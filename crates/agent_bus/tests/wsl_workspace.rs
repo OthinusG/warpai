@@ -157,11 +157,11 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     )) }, 5).await.unwrap();
     assert_eq!(bootstrap["value"]["memory"][0]["current"]["resource"]["reference"], serde_json::to_value(&reference).unwrap());
     let fetched = client.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
-        warp_agent_bus::Operation::ContextGet { reference:reference.clone() }
+        warp_agent_bus::Operation::ContextGet { handoff_part: None, reference:reference.clone() }
     )) }, 5).await.unwrap();
     assert_eq!(fetched["value"]["content"]["summary"], "Reusable WSL findings");
     let mut foreign = HostClient::connect_wsl(&other_profile, &distribution, "warpai-other").await.unwrap();
-    let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { reference:reference.clone() }), 5).await.unwrap();
+    let denied = foreign.project_tasks(&TaskCommand::Operator(warp_agent_bus::Operation::ContextGet { handoff_part: None, reference:reference.clone() }), 5).await.unwrap();
     assert_eq!(denied["error"]["code"], "not_found");
     assert!(denied.get("value").is_none());
     let isolated = foreign.project_tasks(&TaskCommand::Panel(PanelQuery::default()), 6).await.unwrap();

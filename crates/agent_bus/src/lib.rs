@@ -237,7 +237,11 @@ pub enum Operation {
         source_revision: Option<String>,
         request_id: String,
     },
-    ContextGet { reference: context::ContextRef },
+    ContextGet {
+        reference: context::ContextRef,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff_part: Option<handoff::HandoffPart>,
+    },
     ContextList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<u64>,

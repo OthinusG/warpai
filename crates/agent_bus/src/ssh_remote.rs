@@ -535,6 +535,7 @@ impl HostClient {
                     | Operation::TaskProgress { handoff, .. } | Operation::TaskFail { handoff, .. }
                     | Operation::TaskFinishCancel { handoff, .. }) => handoff.is_some(),
                 TaskCommand::Operator(Operation::AgentReply { handoff_ref, .. }) => handoff_ref.is_some(),
+                TaskCommand::Operator(Operation::ContextGet { handoff_part, .. }) => handoff_part.is_some(),
                 _ => false,
             }
         }

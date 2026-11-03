@@ -41,6 +41,14 @@ One stable resource ID per task, append-only revisions across all attempts.
 Input context_refs never change. Task detail exposes current `handoff_ref` only
 when the resource matches the current task revision and attempt; historical
 versions remain accessible through paged task events and exact context_get.
+`context_get(reference, handoff_part?)` optionally reads `status`, `task`, `result` or
+`evidence {id}` from that exact brief's retained source. Each response is bounded
+to 32 KiB; evidence selection must be one of the snapshot's evidence IDs. This
+lets a target consume the full result without granting source task/history access.
+The status part exposes only current state/revision, whether this pin is still
+current and execution uncertainty, including for explicitly shared readers.
+Omit handoff_part to retain the existing immutable resource response. These reads
+never follow a resource head, expand other context pins or execute source data.
 Execution thread/bootstrap expose compact references only. Review never mutates
 a brief or grants execution; retry/reassignment preserve original source bindings.
 Consumers refresh bootstrap/task, read the exact pin, check current source review
