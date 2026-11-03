@@ -12,7 +12,7 @@ use http::HeaderValue;
 use http::header::HeaderName;
 pub use http::{HeaderMap, StatusCode, header::AUTHORIZATION};
 use reqwest::IntoUrl;
-use reqwest_eventsource::RequestBuilderExt;
+pub use system_http::{Error, EventSourceError};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use warp_core::{
@@ -53,7 +53,7 @@ const EXTRA_HTTP_HEADERS_ENV_VAR: &str = "WARP_EXTRA_HTTP_HEADERS";
 /// that ensures any call to the underlying `reqwest::Client` are properly adapted so that they can
 /// run outside of a Tokio context.
 pub struct Client {
-    wrapped: reqwest::Client,
+    wrapped: system_http::Client,
 
     /// A callback that is executed before every request is sent with a cloned
     /// version of the outbound request.  If for some reason the request cannot be
@@ -81,12 +81,12 @@ cfg_if::cfg_if! {
         // single-threaded (and we don't leverage WebWorkers for async execution in WoW).
         pub type EventSourceStream = futures::stream::LocalBoxStream<
             'static,
-            Result<reqwest_eventsource::Event, reqwest_eventsource::Error>,
+            Result<reqwest_eventsource::Event, EventSourceError>,
         >;
     } else {
         pub type EventSourceStream = futures::stream::BoxStream<
             'static,
-            Result<reqwest_eventsource::Event, reqwest_eventsource::Error>,
+            Result<reqwest_eventsource::Event, EventSourceError>,
         >;
     }
 }
@@ -95,7 +95,7 @@ cfg_if::cfg_if! {
 /// call to the underyling `reqwest::RequestBuilder` are properly adapted to run outside of a Tokio
 /// context via a call to `compat`.
 pub struct RequestBuilder<'a> {
-    wrapped: reqwest::RequestBuilder,
+    wrapped: system_http::RequestBuilder,
     client: &'a Client,
 
     // The JSON payload of the request, if any, serialized to a pretty-printed String.
@@ -120,38 +120,18 @@ impl Default for Client {
 impl Client {
     pub fn new() -> Self {
         #[cfg_attr(target_family = "wasm", expect(unused_mut))]
-        let mut builder = reqwest::Client::builder();
-
-        // Set some HTTP/2-related settings that aren't available on wasm.
-        #[cfg(not(target_family = "wasm"))]
-        {
-            builder = builder
-                .http2_keep_alive_interval(Duration::from_secs(60))
-                // If a pong is not received within 15s, consider the connection dead.
-                .http2_keep_alive_timeout(Duration::from_secs(15))
-                // Send these even when there aren't active streams, to ensure that we detect
-                // dead connections before we attempt to use them.
-                .http2_keep_alive_while_idle(true);
-        }
+        let builder = system_http::Client::builder();
 
         Self::from_client_builder(builder).expect("should not fail to create client")
     }
 
     #[cfg(feature = "test-util")]
     pub fn new_for_test() -> Self {
-        let client_builder = reqwest::ClientBuilder::new()
-            // Don't load any SSL/TLS certificates, as doing so can be slow and we should
-            // never be making real requests in tests.
-            .tls_built_in_native_certs(false)
-            .tls_built_in_root_certs(false)
-            .tls_built_in_webpki_certs(false)
-            // Disable proxy usage in tests, as loading system proxy configuration can be
-            // slow.
-            .no_proxy();
+        let client_builder = system_http::ClientBuilder::new();
         Self::from_client_builder(client_builder).expect("should not fail to create client")
     }
 
-    pub fn from_client_builder(client_builder: reqwest::ClientBuilder) -> reqwest::Result<Self> {
+    pub fn from_client_builder(client_builder: system_http::ClientBuilder) -> reqwest::Result<Self> {
         client_builder.build().map(|client| Self {
             wrapped: client,
             before_request_sent: None,
@@ -169,7 +149,7 @@ impl Client {
 
     fn builder(
         &self,
-        wrapped: reqwest::RequestBuilder,
+        wrapped: system_http::RequestBuilder,
         include_warp_headers: bool,
     ) -> RequestBuilder<'_> {
         let mut builder = RequestBuilder {
@@ -321,7 +301,7 @@ impl Client {
         builder
     }
 
-    pub async fn execute(&self, request: Request) -> reqwest::Result<Response> {
+    pub async fn execute(&self, request: Request) -> Result<Response, Error> {
         let Request {
             wrapped: request,
             serialized_payload,
@@ -364,7 +344,7 @@ impl<'a> RequestBuilder<'a> {
         (self.client, request)
     }
 
-    pub async fn send(self) -> reqwest::Result<Response> {
+    pub async fn send(self) -> Result<Response, Error> {
         let (client, request) = self.build_split();
         client.execute(request?).await
     }
@@ -405,66 +385,16 @@ impl<'a> RequestBuilder<'a> {
     /// Sends the request to the endpoint, which is assumed to be a streaming server-sent-events
     /// endpoint, and returns a corresponding `EventSource`.
     pub fn eventsource(self) -> EventSourceStream {
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "wasm")] {
-                let mut stream = self
-                    .wrapped
-                    .eventsource()
-                    .expect("Request type for SSE endpoint must be cloneable.");
-
-                let stream = stream! {
-                    while let Some(event) = stream.next().await {
-                        match event {
-                            Ok(event) => {
-                                yield Ok(event);
-                            }
-                            Err(err) => {
-                                yield Err(err);
-
-                                // Close the stream if an error occurs.
-                                stream.close();
-                            }
-                        }
-                    }
-                };
-            } else {
-                let mut stream = self
-                    .wrapped
-                    .eventsource()
-                    .expect("Request type for SSE endpoint must be cloneable.");
-
-                let stream = stream! {
-                    // Wrap the stream with async-compat since reqwest requires Tokio.
-                    while let Some(event) = stream.next().compat().await {
-                        match event {
-                            Ok(event) => {
-                                yield Ok(event);
-                            }
-                            Err(err) => {
-                                yield Err(err);
-
-                                // Close the stream if an error occurs.
-                                stream.close();
-                            }
-                        }
-                    }
-                };
+        let stream = self.wrapped.eventsource();
+        let stream = stream! {
+            let mut stream = stream;
+            while let Some(event) = stream.next().compat().await {
+                let failed = event.is_err();
+                yield event;
+                if failed { break; }
             }
-        }
-        let stream = stream.take_while(|event| {
-            if let Err(reqwest_eventsource::Error::StreamEnded) = event {
-                return future::ready(false);
-            }
-            future::ready(true)
-        });
-
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "wasm")] {
-                stream.boxed_local()
-            } else {
-                stream.boxed()
-            }
-        }
+        };
+        stream.boxed()
     }
 
     pub fn basic_auth<U, P>(self, username: U, password: Option<P>) -> RequestBuilder<'a>
@@ -629,7 +559,7 @@ impl Response {
 /// Adapter to use our HTTP client wrapper with [`oauth2`]. This is modeled on the [`reqwest`]
 /// implementation of [`oauth2::AsyncHttpClient`].
 impl<'c> oauth2::AsyncHttpClient<'c> for Client {
-    type Error = oauth2::HttpClientError<reqwest::Error>;
+    type Error = oauth2::HttpClientError<Error>;
 
     #[cfg(target_arch = "wasm32")]
     type Future = Pin<Box<dyn Future<Output = Result<oauth2::HttpResponse, Self::Error>> + 'c>>;
@@ -640,10 +570,7 @@ impl<'c> oauth2::AsyncHttpClient<'c> for Client {
     fn call(&'c self, request: oauth2::HttpRequest) -> Self::Future {
         Box::pin(async move {
             let include_warp_headers = Self::include_warp_http_headers(request.uri().to_string());
-            let builder = reqwest::RequestBuilder::from_parts(
-                self.wrapped.clone(),
-                request.try_into().map_err(Box::new)?,
-            );
+            let builder = self.wrapped.from_parts(request.try_into().map_err(|e: reqwest::Error| Box::new(Error::from(e)))?);
 
             let response = self
                 .builder(builder, include_warp_headers)
@@ -662,7 +589,7 @@ impl<'c> oauth2::AsyncHttpClient<'c> for Client {
                 builder = builder.header(name, value);
             }
 
-            let response_body = response.bytes().await.map_err(Box::new)?.to_vec();
+            let response_body = response.bytes().await.map_err(|e| Box::new(Error::from(e)))?.to_vec();
             builder
                 .body(response_body)
                 .map_err(oauth2::HttpClientError::Http)

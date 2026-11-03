@@ -91,9 +91,9 @@ fn newer_release(release: Release, current: &str) -> anyhow::Result<Option<Strin
 }
 
 async fn fetch_update(current: &str) -> anyhow::Result<Option<(String, Option<String>)>> {
-    let client = reqwest::Client::builder()
+    let client = system_http::Client::builder()
         .timeout(Duration::from_secs(10))
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(system_http::RedirectPolicy::None)
         .user_agent("Warpai-update-check")
         .build()?;
     let mut response = client

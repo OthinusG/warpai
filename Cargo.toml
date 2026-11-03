@@ -37,6 +37,7 @@ computer_use = { path = "crates/computer_use" }
 field_mask = { path = "crates/field_mask" }
 fuzzy_match = { path = "crates/fuzzy_match" }
 http_client = { path = "crates/http_client" }
+system_http = { path = "crates/system_http" }
 http_server = { path = "crates/http_server" }
 input_classifier = { path = "crates/input_classifier" }
 ipc = { path = "crates/ipc" }

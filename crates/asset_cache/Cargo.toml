@@ -15,5 +15,6 @@ cfg-if.workspace = true
 futures.workspace = true
 log.workspace = true
 reqwest.workspace = true
+system_http.workspace = true
 url.workspace = true
 warpui_core.workspace = true

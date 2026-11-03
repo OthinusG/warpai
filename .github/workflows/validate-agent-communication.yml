@@ -2,6 +2,10 @@ name: Validate Warpai communication
 on:
   workflow_dispatch:
     inputs:
+      network_only:
+        description: 'Run only native system HTTP transport tests on all desktop platforms'
+        type: boolean
+        default: false
       protocol_only:
         description: 'Run both OS protocol suites; desktop checks require check_app or capture_ui'
         type: boolean
@@ -34,9 +38,32 @@ concurrency:
   group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}-${{ inputs.native_windows_only }}
   cancel-in-progress: true
 jobs:
+  system-network:
+    if: ${{ inputs.network_only }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - run: rustup toolchain install 1.92.0 --profile minimal
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libsoup2.4-dev glib-networking
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: system-network-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - run: cargo test -p system_http --locked
   protocol:
     name: Protocol (${{ matrix.os }})
-    if: ${{ !inputs.native_windows_only }}
+    if: ${{ !inputs.network_only && !inputs.native_windows_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +106,7 @@ jobs:
       - name: Verify representative history and indexed query budget
         run: cargo test -p warp-agent-bus --lib representative_history_pages_within_budget_and_preserves_live_work --locked -- --ignored --nocapture
   windows:
-    if: ${{ inputs.native_windows_only || !inputs.protocol_only || inputs.capture_ui || inputs.check_app || inputs.wsl_acceptance }}
+    if: ${{ !inputs.network_only && (inputs.native_windows_only || !inputs.protocol_only || inputs.capture_ui || inputs.check_app || inputs.wsl_acceptance) }}
     runs-on: windows-latest
     env:
       GIT_RELEASE_TAG: v1.6.5
@@ -318,7 +345,7 @@ jobs:
             target
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
   macos:
-    if: ${{ !inputs.native_windows_only && !inputs.windows_only && (!inputs.protocol_only || inputs.capture_ui || inputs.check_app) }}
+    if: ${{ !inputs.network_only && !inputs.native_windows_only && !inputs.windows_only && (!inputs.protocol_only || inputs.capture_ui || inputs.check_app) }}
     runs-on: macos-15
     env:
       GIT_RELEASE_TAG: v1.6.5

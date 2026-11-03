@@ -1,6 +1,5 @@
 //! Opt-in, desktop-local provider usage; credentials never enter persisted metadata.
 pub(crate) mod providers;
-mod system_proxy;
 use async_compat::CompatExt as _;
 use providers::{Provider, Reading};
 use serde::{Deserialize, Serialize};

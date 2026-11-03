@@ -70,7 +70,7 @@ impl TelemetryApi {
                     // We use our own http client directly instead of the Rudderstack SDK's because using
                     // our own client gives us the ability to have universal hooks for pre/post
                     // request/response logic.
-                    reqwest::Client::builder()
+                    system_http::Client::builder()
                         // Don't allow insecure connections; they will be rejected by
                         // the server with a 403 Forbidden.
                         .https_only(true)
