@@ -52,6 +52,21 @@ test compilation error. It is not evidence of a macOS visual pass.
 
 ## Final delivery gates
 
+### CI correction plan
+
+Run 41588568446 passed both protocol jobs and desktop compilation, but failed:
+
+- macOS native search: automatic handoff decoration changed an ordinary peer
+  instruction. Restrict automatic URI decoration to system task notifications;
+  assert both preserved peer text and decorated review notifications in a
+  focused regression test, then rerun native captures.
+- Windows direct WSL: the new fixture mode change omitted its selected scope.
+  Wrap both mode changes in the existing Scoped command and retain error
+  details in assertions; rerun the real disposable WSL test.
+
+The same source passed three-platform remote/SSH and Linux x64/ARM64 packages.
+The corrected source must receive fresh protocol and desktop/WSL/UI checks.
+
 Final code source: `acf9941b02527ecd823bc31485799c857169e9cc`.
 Source-matched runs (results and artifact review pending):
 

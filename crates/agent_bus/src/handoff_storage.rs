@@ -605,6 +605,52 @@ mod tests {
     }
 
     #[test]
+    fn handoff_notifications_preserve_peer_instruction_text() {
+        use crate::context::StructuredBody;
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&task, 1))
+                .unwrap(),
+        );
+        let review = store
+            .pending(&issuer)
+            .unwrap()
+            .into_iter()
+            .find(|message| message.kind == "review")
+            .unwrap();
+        let Some(StructuredBody::Task {
+            details,
+            context_refs,
+            ..
+        }) = StructuredBody::decode(&review.body)
+        else {
+            panic!("Missing task notification");
+        };
+        assert!(details
+            .instruction
+            .contains(&format!("Pinned handoff: {}", pin.uri())));
+        assert!(context_refs.is_empty());
+        for expects_result in [false, true] {
+            let operation: Operation =
+                serde_json::from_value(json!({"op":"agent_send", "to":worker.id,
+                "task_id":task, "body":"Original peer text _%", "expects_result":expects_result,
+                "request_id":Uuid::new_v4().to_string()}))
+                .unwrap();
+            let message = store.execute(&issuer, "issuer-run", &operation).unwrap();
+            let Some(StructuredBody::Task { details, .. }) =
+                StructuredBody::decode(message["body"].as_str().unwrap())
+            else {
+                panic!("Missing peer instruction");
+            };
+            assert_eq!(details.instruction, "Original peer text _%");
+        }
+    }
+
+    #[test]
     fn handoff_reads_inherit_task_scope_and_explicit_shares_do_not_grant_source_access() {
         let store = Store::open(":memory:").unwrap();
         let (issuer, worker) = actors(&store);

@@ -229,10 +229,11 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     )) }, 120).await.unwrap();
     assert!(thread["value"]["messages"].as_array().unwrap().iter().any(|result|
         result["kind"] == "result_succeeded" && result["reply_to"] == message["value"]["id"]));
-    let mode = |worktree| TaskCommand::Controller(ControllerOperation::WorktreeMode {
+    let mode = |worktree| TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Controller(ControllerOperation::WorktreeMode {
         worktree, request_id:Uuid::new_v4().to_string(),
-    });
-    assert!(observer.project_tasks(&mode(false), 121).await.unwrap().get("error").is_none());
+    })) };
+    let switched = observer.project_tasks(&mode(false), 121).await.unwrap();
+    assert!(switched.get("error").is_none(), "{switched}");
     let assigned = observer.project_tasks(&TaskCommand::Scoped { scope:scope.clone(), command:Box::new(TaskCommand::Operator(
         warp_agent_bus::Operation::TaskAssign { to:agent_id.clone(), description:"Verify owned WSL handoff".into(),
             acceptance:"Read the exact submitted snapshot".into(), context_refs:vec![], reviewer:None,
@@ -258,7 +259,8 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert_eq!(brief["value"]["content"]["snapshot"]["task_id"], handoff_task);
     assert_eq!(brief["value"]["content"]["snapshot"]["binding"]["run"], run);
     assert_eq!(brief["value"]["content"]["snapshot"]["agent_report"]["unresolved_issues"]["status"], "not_applicable");
-    assert!(observer.project_tasks(&mode(true), 124).await.unwrap().get("error").is_none());
+    let switched = observer.project_tasks(&mode(true), 124).await.unwrap();
+    assert!(switched.get("error").is_none(), "{switched}");
     drop(native.stdin.take());
     tokio::time::timeout(std::time::Duration::from_secs(10), native.wait()).await.unwrap().unwrap();
     let mut cleared = false;

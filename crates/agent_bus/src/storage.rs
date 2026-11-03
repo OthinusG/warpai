@@ -714,7 +714,8 @@ impl Store {
                 Some(body) => body.display(),
                 None => message.body.clone(),
             };
-            if !message.kind.starts_with("result_") {
+            if !matches!(message.kind.as_str(), "message" | "request" | "question" | "answer")
+                && !message.kind.starts_with("result_") {
                 if let Some(reference) = &task.handoff_ref { instruction.push_str(&format!("\nPinned handoff: {}", reference.uri())); }
             }
             ensure!(references.len() <= 16, invalid_input("Too many combined context references"));
