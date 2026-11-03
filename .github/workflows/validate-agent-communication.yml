@@ -76,6 +76,8 @@ jobs:
         run: HOMEBREW_NO_AUTO_UPDATE=1 brew install protobuf
       - name: Test protocol, persistence, native sockets, and MCP
         run: cargo test -p warp-agent-bus --locked
+      - name: Lint shared Agent Bus changes
+        run: cargo clippy -p warp-agent-bus --all-targets --locked
       - name: Verify representative history and indexed query budget
         run: cargo test -p warp-agent-bus --lib representative_history_pages_within_budget_and_preserves_live_work --locked -- --ignored --nocapture
   windows:

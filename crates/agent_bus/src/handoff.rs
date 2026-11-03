@@ -1,0 +1,115 @@
+//! Bounded Agent explanations and Broker-owned immutable task provenance.
+use crate::{context::ContextRef, project_memory::NativeThreadBinding};
+use anyhow::{ensure, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(
+    tag = "status",
+    content = "items",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum HandoffSection<T> {
+    Provided(Vec<T>),
+    NotProvided,
+    NotApplicable,
+}
+
+impl<T> Default for HandoffSection<T> {
+    fn default() -> Self {
+        Self::NotProvided
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffDecision {
+    pub decision: String,
+    pub rationale: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffSubmission {
+    #[serde(default)]
+    pub decisions: HandoffSection<HandoffDecision>,
+    #[serde(default)]
+    pub unresolved_issues: HandoffSection<String>,
+    #[serde(default)]
+    pub next_steps: HandoffSection<String>,
+}
+
+impl HandoffSubmission {
+    pub(crate) fn validate(&self) -> Result<()> {
+        ensure!(
+            serde_json::to_vec(self)?.len() <= 8 * 1024,
+            crate::capacity_exceeded(
+                "Handoff explanations exceed 8 KiB; shorten them and reference evidence"
+            )
+        );
+        let valid = |value: &str| !value.trim().is_empty() && !value.contains('\0');
+        if let HandoffSection::Provided(items) = &self.decisions {
+            ensure!(
+                items.len() <= 32
+                    && items
+                        .iter()
+                        .all(|item| valid(&item.decision) && valid(&item.rationale)),
+                crate::invalid_input("Invalid handoff decisions")
+            );
+        }
+        for section in [&self.unresolved_issues, &self.next_steps] {
+            if let HandoffSection::Provided(items) = section {
+                ensure!(
+                    items.len() <= 32 && items.iter().all(|item| valid(item)),
+                    crate::invalid_input("Invalid handoff explanations")
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HandoffSnapshot {
+    pub schema_version: u32,
+    pub task_id: String,
+    pub task_revision: u32,
+    pub execution_thread_id: String,
+    pub attempt_id: String,
+    pub producer: String,
+    pub binding: Option<NativeThreadBinding>,
+    pub request_id: String,
+    pub reason: String,
+    pub source_event_id: String,
+    pub source_event_sequence: u64,
+    pub result_preview: String,
+    pub preview_truncated: bool,
+    pub evidence_ids: Vec<String>,
+    pub input_context_refs: Vec<ContextRef>,
+    pub agent_report: HandoffSubmission,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sections_preserve_missing_empty_and_not_applicable_and_bound_utf8() {
+        let missing: HandoffSubmission = serde_json::from_str("{}").unwrap();
+        assert!(matches!(missing.next_steps, HandoffSection::NotProvided));
+        for section in [
+            HandoffSection::Provided(vec![]),
+            HandoffSection::NotApplicable,
+        ] {
+            let value = serde_json::to_value(section).unwrap();
+            assert_ne!(value["status"], "not_provided");
+        }
+        let oversized = HandoffSubmission {
+            next_steps: HandoffSection::Provided(vec!["中".repeat(3000)]),
+            ..Default::default()
+        };
+        assert!(oversized.validate().is_err());
+        assert!(serde_json::from_str::<HandoffSubmission>(r#"{"producer":"spoof"}"#).is_err());
+    }
+}

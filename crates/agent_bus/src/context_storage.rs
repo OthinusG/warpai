@@ -48,6 +48,7 @@ impl Store {
             resource.summary.project == actor.project,
             scope_denied("Context belongs to another project")
         );
+        ensure!(self.context_visible(actor, &resource.summary)?, scope_denied("Context revision is unavailable"));
         ensure!(
             resource.summary.reference == *reference,
             invalid_state("Context reference digest changed")
@@ -71,23 +72,23 @@ impl Store {
     ) -> Result<Value> {
         self.authorize(actor)?;
         let limit = Self::page_limit(limit)?;
-        // Scan only indexed summaries, excluding payload versions and non-JSON metadata.
-        let rows = diesel::sql_query("SELECT value FROM meta WHERE key >= 'context/head/' AND key < 'context/head0' AND json_extract(value,'$.project')=? AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT ?")
+        // Filter before exposing titles, payloads or counts; bound each scan as well as its page.
+        let rows = diesel::sql_query("SELECT value FROM meta WHERE key >= 'context/head/' AND key < 'context/head0' AND json_extract(value,'$.project')=? AND json_extract(value,'$.created_seq')>? ORDER BY json_extract(value,'$.created_seq') LIMIT 256")
             .bind::<Text, _>(&actor.project).bind::<BigInt, _>(cursor.unwrap_or(0).min(i64::MAX as u64) as i64)
-            .bind::<BigInt, _>(limit as i64 + 1).load::<ValueRow>(&mut *self.connection.borrow_mut())?;
-        let summaries = rows
-            .into_iter()
-            .map(|row| serde_json::from_str::<ContextSummary>(&row.value))
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        let available = summaries.len();
-        let (summaries, cursor) = bounded_items(
-            summaries
-                .into_iter()
-                .map(|summary| (summary.created_seq, summary)),
-            limit,
-        )?;
-        let cursor = (summaries.len() < available).then_some(cursor).flatten();
-        Ok(json!({"resources":summaries,"cursor":cursor}))
+            .load::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        let scanned = rows.len();
+        let mut resources = Vec::new();
+        let mut more = scanned == 256;
+        let mut after = cursor;
+        for row in rows {
+            let summary: ContextSummary = serde_json::from_str(&row.value)?;
+            if self.context_visible(actor, &summary)? {
+                if resources.len() == limit as usize { more = true; break; }
+                resources.push(summary.clone());
+            }
+            after = Some(summary.created_seq);
+        }
+        Ok(json!({"resources":resources,"cursor":if more { after } else { None }}))
     }
 
     pub(super) fn publish_context(
@@ -98,6 +99,15 @@ impl Store {
         title: &str,
         content: &ContextContent,
         source_revision: Option<&str>,
+    ) -> Result<Value> {
+        ensure!(!matches!(content, ContextContent::Handoff { .. }),
+            scope_denied("Handoff resources are reserved to the Broker"));
+        self.persist_context(actor, resource_id, expected_revision, title, content, source_revision)
+    }
+
+    pub(super) fn persist_context(
+        &self, actor: &Agent, resource_id: Option<&str>, expected_revision: Option<u32>,
+        title: &str, content: &ContextContent, source_revision: Option<&str>,
     ) -> Result<Value> {
         self.budget_available()?;
         content.validate()?;
@@ -161,6 +171,10 @@ impl Store {
             author: actor.id.clone(),
             source_revision: source_revision.map(str::to_owned),
             source_workspace: self.physical_root(actor).ok(),
+            source_task: match content {
+                ContextContent::Handoff { snapshot } => Some(snapshot.task_id.clone()),
+                _ => None,
+            },
             created_seq: self.next_sequence(&actor.project)?,
         };
         let resource = ContextResource {
@@ -212,7 +226,20 @@ impl Store {
         references: &[ContextRef],
     ) -> Result<()> {
         self.validate_context_refs(actor, references)?;
-        self.save_context_meta(&format!("context/task/{task}"), &references)
+        self.save_context_meta(&format!("context/task/{task}"), &references)?;
+        for reference in references {
+            let resource = self.context_get(actor, reference)?;
+            if resource.summary.kind == "handoff" {
+                let key = format!("handoff/shared/{}/{}", reference.id, reference.revision);
+                let mut targets: Vec<String> = self.context_meta(&key)?.unwrap_or_default();
+                if !targets.iter().any(|id| id == task) { targets.push(task.into()); }
+                ensure!(targets.len() <= 1000, capacity_exceeded("Handoff share limit reached"));
+                self.save_context_meta(&key, &targets)?;
+                self.save_context_meta(&format!("handoff/retain/task/{task}/{}", reference.id),
+                    &json!({"source_task":resource.summary.source_task,"target_task":task}))?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -418,7 +445,7 @@ mod tests {
             .execute(
                 &worker,
                 "worker-run",
-                &Operation::TaskFail {
+                &Operation::TaskFail { handoff: None,
                     task_id: task_id.clone(),
                     revision: 1,
                     reason: "Fixture stopped".into(),

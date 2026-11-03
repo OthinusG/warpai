@@ -120,6 +120,8 @@ impl Store {
         }
         let snapshot = reference
             .map(|reference| -> Result<MemorySnapshot> {
+                ensure!(self.context_get(actor, reference)?.summary.kind != "handoff",
+                    scope_denied("Publish extracted findings before proposing project memory"));
                 Ok(MemorySnapshot {
                     resource: self.context_get(actor, reference)?.summary,
                     source_task: source_task.map(str::to_owned),
@@ -228,7 +230,7 @@ impl Store {
             bindings,
             history_truncated: task.history_truncated,
         };
-        Ok(json!({"thread":thread,"attempts":task.attempts,"history_tool":"warp_task_history"}))
+        Ok(json!({"thread":thread,"attempts":task.attempts,"handoff_ref":task.handoff_ref,"history_tool":"warp_task_history"}))
     }
 
     pub(super) fn project_bootstrap(
@@ -268,7 +270,7 @@ impl Store {
             .as_array()
             .into_iter()
             .flatten()
-            .map(|task| json!({"id":task["id"],"state":task["state"],"revision":task["revision"]}))
+            .map(|task| json!({"id":task["id"],"state":task["state"],"revision":task["revision"],"handoff_ref":self.task(actor, task["id"].as_str().unwrap_or("")).ok().and_then(|task| task.handoff_ref)}))
             .collect();
         Ok(
             json!({"schema_version":1,"project":actor.project,"agent":actor,
@@ -369,7 +371,7 @@ mod tests {
             .execute(
                 worker,
                 run,
-                &Operation::TaskSubmit {
+                &Operation::TaskSubmit { handoff: None,
                     task_id: task.into(),
                     revision,
                     result: "Verified contract".into(),
@@ -656,7 +658,7 @@ mod tests {
             .execute(
                 &worker,
                 "worker-run",
-                &Operation::TaskFail {
+                &Operation::TaskFail { handoff: None,
                     task_id: task,
                     revision: 1,
                     reason: "Verification failed".into(),

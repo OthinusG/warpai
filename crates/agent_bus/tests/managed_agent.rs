@@ -640,7 +640,7 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
     let submitted = fixture_operation(
         &mut attachment,
         &mut agents[1],
-        Operation::TaskSubmit {
+        Operation::TaskSubmit { handoff: None,
             task_id: task.clone(),
             revision: 1,
             result: "Done".into(),

@@ -527,6 +527,20 @@ impl HostClient {
             || !self.capabilities.iter().any(|c| c == "structured_task_messages")) {
             return Err(ConnectionError::FeatureUnavailable);
         }
+        fn requires_handoff(command: &crate::companion::TaskCommand) -> bool {
+            use crate::{companion::TaskCommand, Operation};
+            match command {
+                TaskCommand::Scoped { command, .. } => requires_handoff(command),
+                TaskCommand::Operator(Operation::TaskSubmit { handoff, .. }
+                    | Operation::TaskProgress { handoff, .. } | Operation::TaskFail { handoff, .. }
+                    | Operation::TaskFinishCancel { handoff, .. }) => handoff.is_some(),
+                TaskCommand::Operator(Operation::AgentReply { handoff_ref, .. }) => handoff_ref.is_some(),
+                _ => false,
+            }
+        }
+        if requires_handoff(command) && !self.capabilities.iter().any(|c| c == "handoff_briefs_v1") {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         fn required_project_feature(command: &crate::companion::TaskCommand) -> Option<&'static str> {
             use crate::{companion::TaskCommand, Operation};
             match command {

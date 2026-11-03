@@ -23,6 +23,9 @@ pub struct RepositoryEntry {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ContextContent {
+    Handoff {
+        snapshot: crate::handoff::HandoffSnapshot,
+    },
     RepositoryIndex {
         entries: Vec<RepositoryEntry>,
     },
@@ -46,6 +49,7 @@ pub enum ContextContent {
 impl ContextContent {
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::Handoff { .. } => "handoff",
             Self::RepositoryIndex { .. } => "repository_index",
             Self::Analysis { .. } => "analysis",
             Self::CodeSnippet { .. } => "code_snippet",
@@ -75,6 +79,10 @@ impl ContextContent {
             Ok(())
         };
         match self {
+            Self::Handoff { snapshot } => {
+                ensure!(snapshot.schema_version == 1, crate::invalid_input("Unsupported handoff schema"));
+                snapshot.agent_report.validate()?;
+            }
             Self::RepositoryIndex { entries } => {
                 ensure!(
                     !entries.is_empty() && entries.len() <= 1024,
@@ -137,6 +145,8 @@ pub struct ContextSummary {
     pub source_revision: Option<String>,
     #[serde(default)]
     pub source_workspace: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_task: Option<String>,
     pub created_seq: u64,
 }
 
@@ -177,6 +187,8 @@ pub enum StructuredBody {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TaskDetails {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff_ref: Option<ContextRef>,
     pub instruction: String,
     pub state: String,
     pub result: Option<String>,

@@ -438,7 +438,7 @@ pub(crate) mod tests {
         call(
             broker,
             &worker,
-            Operation::TaskSubmit {
+            Operation::TaskSubmit { handoff: None,
                 task_id: task.clone(),
                 revision: 1,
                 result: "Owned fixture verified".into(),

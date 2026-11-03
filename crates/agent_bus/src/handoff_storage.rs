@@ -1,0 +1,433 @@
+//! Handoff writes run inside the original task mutation transaction.
+use super::*;
+use crate::context::{ContextContent, ContextRef, ContextResource, ContextSummary};
+use crate::handoff::{HandoffSnapshot, HandoffSubmission};
+use crate::project_memory::NativeThreadBinding;
+
+impl Store {
+    pub(super) fn purge_task_handoff(&self, task: &str) -> Result<()> {
+        let head: Option<ContextSummary> = self.context_meta(&format!("handoff/task/{task}"))?;
+        if let Some(head) = head {
+            let prefix = format!("context/version/{}/", head.reference.id);
+            diesel::sql_query("DELETE FROM meta WHERE key >= ? AND key < ?")
+                .bind::<Text, _>(&prefix)
+                .bind::<Text, _>(format!("context/version/{}0", head.reference.id))
+                .execute(&mut *self.connection.borrow_mut())?;
+            for key in [
+                format!("context/head/{}", head.reference.id),
+                format!("handoff/task/{task}"),
+            ] {
+                diesel::sql_query("DELETE FROM meta WHERE key=?")
+                    .bind::<Text, _>(key)
+                    .execute(&mut *self.connection.borrow_mut())?;
+            }
+            for prefix in [
+                format!("handoff/shared/{}/", head.reference.id),
+                format!("handoff/messages/{}/", head.reference.id),
+            ] {
+                diesel::sql_query("DELETE FROM meta WHERE key >= ? AND key < ?")
+                    .bind::<Text, _>(&prefix)
+                    .bind::<Text, _>(format!("{}0", prefix.trim_end_matches('/')))
+                    .execute(&mut *self.connection.borrow_mut())?;
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn context_visible(&self, actor: &Agent, summary: &ContextSummary) -> Result<bool> {
+        if summary.project != actor.project {
+            return Ok(false);
+        }
+        let Some(source) = &summary.source_task else {
+            return Ok(summary.kind != "handoff");
+        };
+        if self.actor_task(actor, source).is_ok() {
+            return Ok(true);
+        }
+        let targets: Vec<String> = self
+            .context_meta(&format!(
+                "handoff/shared/{}/{}",
+                summary.reference.id, summary.reference.revision
+            ))?
+            .unwrap_or_default();
+        for target in targets {
+            if self.actor_task(actor, &target).is_ok() {
+                return Ok(true);
+            }
+        }
+        let messages: Vec<String> = self
+            .context_meta(&format!(
+                "handoff/messages/{}/{}",
+                summary.reference.id, summary.reference.revision
+            ))?
+            .unwrap_or_default();
+        for id in messages {
+            if self
+                .visible_message(actor, &id)
+                .is_ok_and(|message| message.to == actor.id)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub(super) fn share_handoff_message(
+        &self,
+        actor: &Agent,
+        reference: &ContextRef,
+        message: &Message,
+    ) -> Result<()> {
+        let resource = self.context_get(actor, reference)?;
+        if resource.summary.kind != "handoff" {
+            return Ok(());
+        }
+        let key = format!("handoff/messages/{}/{}", reference.id, reference.revision);
+        let mut ids: Vec<String> = self.context_meta(&key)?.unwrap_or_default();
+        if !ids.contains(&message.id) {
+            ids.push(message.id.clone());
+        }
+        ensure!(
+            ids.len() <= 1000,
+            capacity_exceeded("Handoff share limit reached")
+        );
+        self.save_context_meta(&key, &ids)?;
+        self.save_context_meta(
+            &format!("handoff/retain/message/{}", message.id),
+            &json!({"source_task":resource.summary.source_task,"message":message.id}),
+        )
+    }
+
+    pub(super) fn current_handoff(&self, task: &Task) -> Result<Option<ContextRef>> {
+        let head: Option<ContextSummary> =
+            self.context_meta(&format!("handoff/task/{}", task.id))?;
+        let Some(head) = head else {
+            return Ok(None);
+        };
+        let resource: ContextResource = self
+            .context_meta(&format!(
+                "context/version/{}/{}",
+                head.reference.id, head.reference.revision
+            ))?
+            .ok_or_else(|| invalid_state("Handoff snapshot is missing"))?;
+        if let ContextContent::Handoff { snapshot } = resource.content {
+            if snapshot.task_revision == task.revision
+                && task
+                    .attempts
+                    .last()
+                    .is_some_and(|attempt| attempt.id == snapshot.attempt_id)
+            {
+                return Ok(Some(head.reference));
+            }
+        }
+        Ok(None)
+    }
+
+    pub(super) fn save_handoff(
+        &self,
+        actor: &Agent,
+        task: &Task,
+        attempt: &Attempt,
+        request_id: &str,
+        reason: &str,
+        event_sequence: u64,
+        preview: &str,
+        evidence_ids: &[String],
+        submission: Option<&HandoffSubmission>,
+    ) -> Result<ContextRef> {
+        let agent_report = submission.cloned().unwrap_or_default();
+        agent_report.validate()?;
+        let event = diesel::sql_query("SELECT id AS value FROM events WHERE project=? AND sequence=? AND resource=? AND attempt=?")
+            .bind::<Text, _>(&task.project).bind::<BigInt, _>(event_sequence as i64)
+            .bind::<Text, _>(&task.id).bind::<Text, _>(&attempt.id)
+            .get_result::<ValueRow>(&mut *self.connection.borrow_mut())?;
+        let binding: Option<NativeThreadBinding> =
+            self.context_meta(&format!("execution/binding/{}", attempt.id))?;
+        let snapshot = HandoffSnapshot {
+            schema_version: 1,
+            task_id: task.id.clone(),
+            task_revision: task.revision,
+            execution_thread_id: task.id.clone(),
+            attempt_id: attempt.id.clone(),
+            producer: actor.id.clone(),
+            binding: binding.clone(),
+            request_id: request_id.into(),
+            reason: reason.into(),
+            source_event_id: event.value,
+            source_event_sequence: event_sequence,
+            result_preview: preview.chars().take(512).collect(),
+            preview_truncated: preview.chars().count() > 512,
+            evidence_ids: evidence_ids.to_vec(),
+            input_context_refs: task.context_refs.clone(),
+            agent_report,
+        };
+        let head: Option<ContextSummary> =
+            self.context_meta(&format!("handoff/task/{}", task.id))?;
+        let value = self.persist_context(
+            actor,
+            head.as_ref().map(|head| head.reference.id.as_str()),
+            head.as_ref().map(|head| head.reference.revision),
+            "Task handoff",
+            &ContextContent::Handoff { snapshot },
+            None,
+        )?;
+        let mut summary: ContextSummary = serde_json::from_value(value)?;
+        // Provenance follows TaskStart, never the producer's current cwd.
+        summary.source_workspace = binding.map(|binding| binding.workspace);
+        let key = format!(
+            "context/version/{}/{}",
+            summary.reference.id, summary.reference.revision
+        );
+        let mut resource: ContextResource = self
+            .context_meta(&key)?
+            .ok_or_else(|| invalid_state("Handoff publication failed"))?;
+        resource.summary = summary.clone();
+        self.save_context_meta(&key, &resource)?;
+        self.save_context_meta(&format!("context/head/{}", summary.reference.id), &summary)?;
+        self.save_context_meta(&format!("handoff/task/{}", task.id), &summary)?;
+        self.record(&task.project, "handoff_created", &actor.id, Some(&task.id), Some(&attempt.id),
+            json!({"reference":summary.reference,"revision":task.revision,"reason":reason,"source_event_sequence":event_sequence}))?;
+        Ok(summary.reference)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::handoff::HandoffSection;
+
+    fn assign(store: &Store, issuer: &Agent, worker: &Agent, refs: Vec<ContextRef>) -> String {
+        store
+            .execute(
+                issuer,
+                "issuer-run",
+                &Operation::TaskAssign {
+                    to: worker.id.clone(),
+                    description: "Check the contract".into(),
+                    acceptance: "Report evidence".into(),
+                    context_refs: refs,
+                    reviewer: None,
+                    dependencies: vec![],
+                    start_deadline: None,
+                    execution_timeout_seconds: None,
+                    review_timeout_seconds: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap()["id"]
+            .as_str()
+            .unwrap()
+            .into()
+    }
+    fn start(store: &Store, worker: &Agent, task: &str, revision: u32) {
+        store
+            .execute(
+                worker,
+                "worker-run",
+                &Operation::TaskStart {
+                    task_id: task.into(),
+                    revision,
+                    expected_version: None,
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+    }
+    fn submit(task: &str, revision: u32) -> Operation {
+        Operation::TaskSubmit {
+            handoff: None,
+            task_id: task.into(),
+            revision,
+            result: "Contract checked".into(),
+            evidence: "Agent-reported test passed".into(),
+            evidence_ids: vec![],
+            attempt_id: None,
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        }
+    }
+    fn reference(value: &Value) -> ContextRef {
+        serde_json::from_value(value["handoff_ref"].clone()).unwrap()
+    }
+    fn actors(store: &Store) -> (Agent, Agent) {
+        (
+            store
+                .register("issuer", "codex", "/project", "issuer")
+                .unwrap(),
+            store
+                .register("worker", "custom", "/project", "worker")
+                .unwrap(),
+        )
+    }
+
+    #[test]
+    fn handoff_is_immutable_idempotent_bound_to_attempt_and_durable() {
+        let dir = tempfile::tempdir().unwrap();
+        let database = dir.path().join("bus.sqlite");
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        let (issuer, worker) = actors(&store);
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let progress = Operation::TaskProgress {
+            handoff: None,
+            task_id: task.clone(),
+            revision: 1,
+            note: "Working".into(),
+            waiting_reason: None,
+            attempt_id: None,
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        };
+        assert!(store
+            .execute(&worker, "worker-run", &progress)
+            .unwrap()
+            .get("handoff_ref")
+            .is_none());
+        let mut checkpoint = progress.clone();
+        if let Operation::TaskProgress {
+            handoff,
+            request_id,
+            ..
+        } = &mut checkpoint
+        {
+            *handoff = Some(HandoffSubmission {
+                next_steps: HandoffSection::Provided(vec!["Review evidence".into()]),
+                ..Default::default()
+            });
+            *request_id = Uuid::new_v4().to_string();
+        }
+        let first = store.execute(&worker, "worker-run", &checkpoint).unwrap();
+        let pin = reference(&first);
+        assert_eq!(first["state"], "running");
+        assert_eq!(
+            store.execute(&worker, "worker-run", &checkpoint).unwrap(),
+            first
+        );
+        let operation = submit(&task, 1);
+        assert!(store.execute(&worker, "stale-run", &operation).is_err());
+        let submitted = store.execute(&worker, "worker-run", &operation).unwrap();
+        let second = reference(&submitted);
+        assert_eq!(pin.id, second.id);
+        assert_eq!(second.revision, 2);
+        assert_eq!(
+            store.execute(&worker, "worker-run", &operation).unwrap(),
+            submitted
+        );
+        let mut conflict = operation.clone();
+        if let Operation::TaskSubmit { result, .. } = &mut conflict {
+            *result = "Changed".into();
+        }
+        assert!(store.execute(&worker, "worker-run", &conflict).is_err());
+        let old = store.context_get(&worker, &pin).unwrap();
+        let ContextContent::Handoff { snapshot } = &old.content else {
+            panic!("Missing brief");
+        };
+        assert_eq!(snapshot.binding.as_ref().unwrap().run, "worker-run");
+        assert_eq!(snapshot.reason, "checkpoint");
+        assert_eq!(snapshot.producer, worker.id);
+        let forged = Operation::ContextPublish {
+            resource_id: Some(pin.id.clone()),
+            expected_revision: Some(2),
+            title: "Forged".into(),
+            content: old.content,
+            source_revision: None,
+            request_id: Uuid::new_v4().to_string(),
+        };
+        assert!(store.execute(&worker, "worker-run", &forged).is_err());
+        let review = Operation::TaskReview {
+            task_id: task.clone(),
+            revision: 1,
+            accepted: false,
+            feedback: "Need another check".into(),
+            expected_version: None,
+            request_id: Uuid::new_v4().to_string(),
+        };
+        store.execute(&issuer, "issuer-run", &review).unwrap();
+        assert!(store.task(&issuer, &task).unwrap().handoff_ref.is_none());
+        assert!(store.context_get(&issuer, &second).is_ok());
+        start(&store, &worker, &task, 2);
+        assert!(store
+            .execute(&worker, "worker-run", &submit(&task, 1))
+            .is_err());
+        assert!(store.task(&worker, &task).unwrap().handoff_ref.is_none());
+        drop(store);
+        let store = Store::open(database.to_str().unwrap()).unwrap();
+        assert!(store.context_get(&issuer, &pin).is_ok());
+        assert!(store.context_get(&issuer, &second).is_ok());
+    }
+
+    #[test]
+    fn handoff_reads_inherit_task_scope_and_explicit_shares_do_not_grant_source_access() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let peer = store
+            .register("peer", "custom", "/project", "peer")
+            .unwrap();
+        let foreign = store
+            .register("foreign", "custom", "/foreign", "foreign")
+            .unwrap();
+        let source = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &source, 1);
+        let pin = reference(
+            &store
+                .execute(&worker, "worker-run", &submit(&source, 1))
+                .unwrap(),
+        );
+        store.set_worktree_mode("/project", true).unwrap();
+        assert!(store.context_get(&peer, &pin).is_err());
+        assert!(store.context_get(&foreign, &pin).is_err());
+        assert!(store.context_list(&peer, None, None).unwrap()["resources"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+        let operator = Store::operator("/project");
+        let target = assign(&store, &operator, &peer, vec![pin.clone()]);
+        assert!(store.task(&peer, &source).is_err());
+        assert!(store.context_get(&peer, &pin).is_ok());
+        assert_eq!(
+            store.task(&peer, &target).unwrap().context_refs,
+            vec![pin.clone()]
+        );
+        let mut tampered = pin.clone();
+        tampered.sha256 = "0".repeat(64);
+        assert!(store.context_get(&peer, &tampered).is_err());
+        let mut newer = pin.clone();
+        newer.revision += 1;
+        assert!(store.context_get(&peer, &newer).is_err());
+        assert!(store.context_get(&worker, &pin).is_ok());
+    }
+
+    #[test]
+    fn handoff_transaction_rolls_back_resource_state_events_notifications_and_receipt() {
+        let store = Store::open(":memory:").unwrap();
+        let (issuer, worker) = actors(&store);
+        let task = assign(&store, &issuer, &worker, vec![]);
+        start(&store, &worker, &task, 1);
+        let operation = submit(&task, 1);
+        for failure in ["context/version/", "context/head/", "handoff/task/"] {
+            let before = store.history_sequence("/project").unwrap();
+            store.connection.borrow_mut().batch_execute(&format!(
+                "CREATE TEMP TRIGGER fail_handoff BEFORE INSERT ON meta WHEN NEW.key LIKE '{failure}%' BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;"
+            )).unwrap();
+            assert!(store.execute(&worker, "worker-run", &operation).is_err());
+            assert_eq!(store.task(&worker, &task).unwrap().state, "running");
+            assert_eq!(store.history_sequence("/project").unwrap(), before);
+            assert!(store.task(&worker, &task).unwrap().handoff_ref.is_none());
+            assert!(
+                store.context_list(&worker, None, None).unwrap()["resources"]
+                    .as_array()
+                    .unwrap()
+                    .is_empty()
+            );
+            store
+                .connection
+                .borrow_mut()
+                .batch_execute("DROP TRIGGER fail_handoff")
+                .unwrap();
+        }
+        assert_eq!(
+            store.execute(&worker, "worker-run", &operation).unwrap()["state"],
+            "submitted"
+        );
+    }
+}

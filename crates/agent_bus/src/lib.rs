@@ -1,6 +1,7 @@
 //! Local coordination for third-party CLI agents; no model or cloud client lives here.
 pub mod setup;
 pub mod context;
+pub mod handoff;
 pub mod project_memory;
 pub mod wsl_setup;
 pub mod ssh_setup;
@@ -272,6 +273,8 @@ pub enum Operation {
         request_id: String,
     },
     AgentReply {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff_ref: Option<context::ContextRef>,
         reply_to: String,
         body: String,
         outcome: ReplyOutcome,
@@ -356,6 +359,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskSubmit {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         result: String,
@@ -402,6 +407,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskProgress {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         note: String,
@@ -421,6 +428,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskFinishCancel {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         reason: String,
@@ -431,6 +440,8 @@ pub enum Operation {
         request_id: String,
     },
     TaskFail {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<handoff::HandoffSubmission>,
         task_id: String,
         revision: u32,
         reason: String,
@@ -800,6 +811,8 @@ pub struct Task {
     pub acceptance: String,
     #[serde(default)]
     pub context_refs: Vec<context::ContextRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff_ref: Option<context::ContextRef>,
     pub state: String,
     pub revision: u32,
     pub version: u64,

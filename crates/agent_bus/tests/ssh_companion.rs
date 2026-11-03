@@ -308,7 +308,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
         Operation::AgentAck { message_id:decision["id"].as_str().unwrap().into() }).await;
     let returned = ssh_fixture_operation(
         &mut two, &mut second,
-        Operation::AgentReply {
+        Operation::AgentReply { handoff_ref: None,
             reply_to: instruction["id"].as_str().unwrap().into(),
             body: "Remote work finished; fixture checks passed".into(),
             outcome: warp_agent_bus::ReplyOutcome::Succeeded,
@@ -358,7 +358,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
     let submitted = ssh_fixture_operation(
         &mut two,
         &mut second,
-        Operation::TaskSubmit {
+        Operation::TaskSubmit { handoff: None,
             task_id: task.clone(),
             revision: 1,
             result: "Done".into(),

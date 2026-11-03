@@ -125,6 +125,7 @@ impl Companion {
                         "structured_task_messages".into(),
                         "execution_threads".into(),
                         "project_memory".into(),
+                        "handoff_briefs_v1".into(),
                         "project_mcp".into(),
                         #[cfg(not(feature = "wsl_companion"))]
                         "native_mcp_setup".into(),
