@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use std::cell::OnceCell;
 use std::sync::Arc;
 use std::{fmt, vec};
@@ -2600,9 +2601,9 @@ impl<A: Action + Clone> SubMenu<A> {
             .enumerate()
             .for_each(|(depth, submenu)| {
                 let corner_radius = if flatten_bottom_corners && depth == 0 {
-                    CornerRadius::with_top(Radius::Pixels(5.))
+                    CornerRadius::with_top(Radius::Pixels(corner_radii::SURFACE))
                 } else {
-                    CornerRadius::with_all(Radius::Pixels(5.))
+                    CornerRadius::with_all(Radius::Pixels(corner_radii::SURFACE))
                 };
 
                 // At depth 0, place pinned header/footer inside the styled container

@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use super::dropdown::DropdownAction;
 use crate::{
     appearance::Appearance,
@@ -149,7 +150,7 @@ impl<A: Action + Clone> CompactDropdown<A> {
             .set_clicked_styles(None)
             .with_style(UiComponentStyles {
                 padding: Some(Coords::uniform(4.)),
-                border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+                border_radius: Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL))),
                 ..Default::default()
             })
             .with_hovered_styles(UiComponentStyles {

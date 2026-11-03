@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use crate::code::editor::comments::{EditorCommentsModel, PendingCommentEvent};
 use crate::code::editor::line::EditorLineLocation;
 use crate::code_review::comments::{CommentId, CommentOrigin};
@@ -434,7 +435,7 @@ impl View for CommentEditor {
             .with_max_width(DEFAULT_COMMENT_MAX_WIDTH)
             .finish(),
         )
-        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
+        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
         .with_background_color(background)
         .with_border(Border::all(1.).with_border_fill(border_color))
         .finish()

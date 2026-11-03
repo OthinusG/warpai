@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use std::time::Duration;
 
 use pathfinder_color::ColorU;
@@ -27,7 +28,7 @@ use crate::workspace::{Workspace, WorkspaceAction};
 
 const AGENT_TOAST_WIDTH: f32 = 260.;
 const AGENT_TOAST_PADDING: f32 = 12.;
-const AGENT_TOAST_CORNER_RADIUS: f32 = 4.;
+const AGENT_TOAST_CORNER_RADIUS: f32 = corner_radii::SURFACE;
 const CLOSE_BUTTON_SIZE: f32 = 20.;
 
 /// Data for an individual agent toast

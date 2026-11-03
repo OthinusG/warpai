@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use std::{borrow::Cow, sync::Arc};
 
 use warp_core::ui::{Icon, appearance::Appearance, theme::color::internal_colors};
@@ -14,7 +15,7 @@ use warpui::{
 
 use crate::{Component, Options as _, Renderable, button};
 
-const CORNER_RADIUS: Radius = Radius::Pixels(8.);
+const CORNER_RADIUS: Radius = Radius::Pixels(corner_radii::SURFACE);
 const BORDER_WIDTH: f32 = 1.;
 
 /// Base unit of dialog padding. The dialog component applies this to the header, but consumers are responsible

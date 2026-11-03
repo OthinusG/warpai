@@ -31,6 +31,7 @@ mod vertical_tabs;
 #[cfg(target_family = "wasm")]
 mod wasm_view;
 
+use warp_core::ui::corner_radii;
 use std::cell::RefCell;
 
 use crate::workspace::cross_window_tab_drag::{
@@ -697,9 +698,10 @@ pub const DEFAULT_USER_DISPLAY_NAME: &str = "User";
 
 lazy_static! {
     static ref OPENING_WARP_DRIVE_ON_START_UP: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-    static ref PANEL_CORNER_RADIUS: CornerRadius = CornerRadius::with_all(Radius::Pixels(8.));
+    static ref PANEL_CORNER_RADIUS: CornerRadius =
+        CornerRadius::with_all(Radius::Pixels(corner_radii::SURFACE));
     static ref PANEL_HEADER_CORNER_RADIUS: CornerRadius =
-        CornerRadius::with_top(Radius::Pixels(8.));
+        CornerRadius::with_top(Radius::Pixels(corner_radii::SURFACE));
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -10194,7 +10196,9 @@ impl Workspace {
                         .with_padding_top(NEW_SESSION_SIDECAR_SEARCH_BOX_VERTICAL_PADDING)
                         .with_padding_bottom(NEW_SESSION_SIDECAR_SEARCH_BOX_VERTICAL_PADDING)
                         .with_border(Border::all(1.).with_border_fill(theme.surface_3()))
-                        .with_corner_radius(CornerRadius::with_top(Radius::Pixels(4.)))
+                        .with_corner_radius(CornerRadius::with_top(Radius::Pixels(
+                            corner_radii::SURFACE,
+                        )))
                         .finish(),
                 )
                 .with_height(NEW_SESSION_SIDECAR_SEARCH_BOX_HEIGHT)
@@ -10291,7 +10295,9 @@ impl Workspace {
                         .with_padding_bottom(NEW_SESSION_SIDECAR_FOOTER_VERTICAL_PADDING)
                         .with_background(bg)
                         .with_border(Border::top(1.).with_border_fill(border_fill))
-                        .with_corner_radius(CornerRadius::with_bottom(Radius::Pixels(5.)))
+                        .with_corner_radius(CornerRadius::with_bottom(Radius::Pixels(
+                            corner_radii::SURFACE,
+                        )))
                         .finish(),
                     )
                     .with_width(NEW_SESSION_SIDECAR_WIDTH)

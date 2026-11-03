@@ -1,6 +1,7 @@
 #![cfg_attr(target_family = "wasm", allow(dead_code, unused_imports))]
 // Adding this file level gate as some of the code around editability is not used in WASM yet.
 
+use warp_core::ui::corner_radii;
 use crate::appearance::Appearance;
 use crate::editor::{
     EditorView, Event as EditorEvent, InteractionState, PropagateAndNoOpNavigationKeys,
@@ -42,7 +43,7 @@ const HORIZONTAL_ICON_SPACING: f32 = 4.;
 const ICON_CONTAINER_CORNER_RADIUS: f32 = 4.;
 pub const FIND_BAR_PADDING: f32 = 4.;
 const FIND_EDITOR_PADDING: f32 = 6.;
-pub const FIND_EDITOR_BORDER_RADIUS: f32 = 6.;
+pub const FIND_EDITOR_BORDER_RADIUS: f32 = corner_radii::CONTROL;
 const FIND_EDITOR_BORDER_WIDTH: f32 = 1.;
 const FIND_EDITOR_FONT_SIZE: f32 = 12.;
 const FIND_EDITOR_ROW_SPACING: f32 = 4.;

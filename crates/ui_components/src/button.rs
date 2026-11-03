@@ -1,6 +1,7 @@
 mod params;
 pub mod themes;
 
+use warp_core::ui::corner_radii;
 use warp_core::ui::{
     appearance::Appearance,
     color::{ContrastingColor as _, contrast::MinimumAllowedContrast},
@@ -109,7 +110,7 @@ impl crate::Component for Button {
             }
 
             let mut button = Container::new(row.finish())
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)));
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)));
             if let Some(background) = background {
                 button = button.with_background(background);
             }

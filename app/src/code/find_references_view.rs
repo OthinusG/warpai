@@ -3,6 +3,7 @@
 //! This module provides a hover card that shows all references to a symbol
 //! as a flat list with file info, line numbers, and syntax-highlighted code snippets.
 
+use warp_core::ui::corner_radii;
 use std::{collections::HashMap, path::PathBuf};
 
 use lsp::ReferenceLocation;
@@ -461,7 +462,7 @@ impl View for FindReferencesView {
         ConstrainedBox::new(
             Container::new(card_content)
                 .with_background_color(internal_colors::neutral_1(theme))
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::SURFACE)))
                 .with_border(Border::all(1.).with_border_fill(internal_colors::neutral_4(theme)))
                 .finish(),
         )
@@ -527,7 +528,7 @@ fn render_header(
         .finish();
 
         let container = Container::new(close_icon)
-            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)))
             .with_uniform_padding(2.);
 
         if state.is_hovered() {
@@ -554,7 +555,7 @@ fn render_header(
     .with_horizontal_padding(12.)
     .with_vertical_padding(8.)
     .with_background(theme.background())
-    .with_corner_radius(CornerRadius::with_top(Radius::Pixels(8.)))
+    .with_corner_radius(CornerRadius::with_top(Radius::Pixels(corner_radii::SURFACE)))
     .finish()
 }
 

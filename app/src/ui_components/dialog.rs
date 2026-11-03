@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use super::blended_colors;
 use crate::appearance::Appearance;
 use warpui::elements::{
@@ -35,7 +36,9 @@ pub fn dialog_styles(appearance: &Appearance) -> UiComponentStyles {
         font_weight: Some(warpui::fonts::Weight::Bold),
         background: Some(background.into()),
         border_color: Some(theme.surface_3().into()),
-        border_radius: Some(CornerRadius::with_all(warpui::elements::Radius::Pixels(8.))),
+        border_radius: Some(CornerRadius::with_all(warpui::elements::Radius::Pixels(
+            corner_radii::SURFACE,
+        ))),
         border_width: Some(1.),
         ..Default::default()
     }

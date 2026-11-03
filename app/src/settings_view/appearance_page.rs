@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use super::directory_color_add_picker::{DirectoryColorAddPicker, DirectoryColorAddPickerEvent};
 use super::settings_page::{
     AdditionalInfo, Category, LocalOnlyIconState, MatchData, PageType, SettingsWidget,
@@ -2605,7 +2606,7 @@ impl ThemeSelectWidget {
                         .finish(),
                 )
                 .with_border(Border::all(border_width).with_border_fill(border_color))
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(5.)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
                 .with_padding_left(10. - border_width)
                 .with_padding_top(5. - border_width)
                 .with_padding_bottom(5. - border_width);
@@ -3366,7 +3367,7 @@ impl SettingsWidget for PromptWidget {
 
             Container::new(body)
                 .with_background(background)
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(8.)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(corner_radii::PANEL)))
                 .with_border(Border::all(border_width).with_border_fill(border_color))
                 .with_horizontal_padding(24. - border_width)
                 .with_vertical_padding(12. - border_width)
@@ -4887,7 +4888,9 @@ impl SettingsWidget for DirectoryTabColorsWidget {
                     .with_horizontal_padding(16.)
                     .with_vertical_padding(8.)
                     .with_background(theme.surface_1())
-                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+                    .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                        corner_radii::CONTROL,
+                    )))
                     .finish(),
             );
         }

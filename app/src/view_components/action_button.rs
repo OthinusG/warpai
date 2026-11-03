@@ -1,3 +1,4 @@
+use warp_core::ui::corner_radii;
 use pathfinder_color::ColorU;
 use pathfinder_geometry::vector::{vec2f, Vector2F};
 use std::{borrow::Cow, sync::Arc};
@@ -832,9 +833,13 @@ impl View for ActionButton {
             }
 
             let corner_radius = match self.adjoined_side {
-                Some(AdjoinedSide::Left) => CornerRadius::with_right(Radius::Pixels(4.)),
-                Some(AdjoinedSide::Right) => CornerRadius::with_left(Radius::Pixels(4.)),
-                None => CornerRadius::with_all(Radius::Pixels(4.)),
+                Some(AdjoinedSide::Left) => CornerRadius::with_right(Radius::Pixels(
+                    corner_radii::CONTROL,
+                )),
+                Some(AdjoinedSide::Right) => CornerRadius::with_left(Radius::Pixels(
+                    corner_radii::CONTROL,
+                )),
+                None => CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL)),
             };
 
             let border = if let Some(adjoined_side_border) = theme.adjoined_side_border(appearance)

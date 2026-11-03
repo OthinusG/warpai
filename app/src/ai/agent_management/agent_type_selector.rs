@@ -3,6 +3,7 @@
 //! This modal is displayed when users click "New agent" to choose between
 //! cloud and local agent modes.
 
+use warp_core::ui::corner_radii;
 use crate::appearance::Appearance;
 use crate::ui_components::icons::Icon;
 use pathfinder_color::ColorU;
@@ -22,7 +23,7 @@ use warpui::{AppContext, Entity, SingletonEntity, TypedActionView, View, ViewCon
 
 // Modal dimensions based on Figma design.
 const MODAL_WIDTH: f32 = 440.;
-const DIALOG_CORNER_RADIUS: f32 = 8.;
+const DIALOG_CORNER_RADIUS: f32 = corner_radii::SURFACE;
 
 const HEADER_PADDING_TOP: f32 = 24.;
 const HEADER_PADDING_BOTTOM: f32 = 12.;
@@ -151,7 +152,7 @@ impl AgentTypeSelector {
             .with_style(UiComponentStyles {
                 font_size: Some(OPTION_DESC_FONT_SIZE),
                 font_color: Some(theme.nonactive_ui_text_color().into_solid()),
-                border_radius: Some(CornerRadius::with_all(Radius::Pixels(4.))),
+                border_radius: Some(CornerRadius::with_all(Radius::Pixels(corner_radii::CONTROL))),
                 padding: Some(Coords {
                     top: 0.,
                     bottom: 0.,
