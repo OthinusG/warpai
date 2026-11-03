@@ -641,12 +641,10 @@ mod tests {
                 "request_id":Uuid::new_v4().to_string()}))
                 .unwrap();
             let message = store.execute(&issuer, "issuer-run", &operation).unwrap();
-            let Some(StructuredBody::Task { details, .. }) =
-                StructuredBody::decode(message["body"].as_str().unwrap())
-            else {
-                panic!("Missing peer instruction");
-            };
-            assert_eq!(details.instruction, "Original peer text _%");
+            assert_eq!(
+                message["body"]["details"]["instruction"],
+                "Original peer text _%"
+            );
         }
     }
 
