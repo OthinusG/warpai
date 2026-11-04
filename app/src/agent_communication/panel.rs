@@ -2650,13 +2650,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
 
-    fn history_command_finished(app: &mut warpui::App, window: warpui::WindowId, expected: &str) -> bool {
+    fn history_command_finished(app: &mut warpui::App, window: warpui::WindowId, expected: &str, expected_exit_code: i32) -> bool {
         app.views_of_type::<crate::terminal::TerminalView>(window)
             .and_then(|views| views.first().cloned())
             .is_some_and(|view| view.read(app, |terminal, ctx| {
                 !terminal.has_pending_command_or_awaiting_completion(ctx)
                     && terminal.model.lock().block_list().blocks().iter().any(|block|
-                        block.is_done() && block.exit_code().value() == 1 && block.command_to_string().trim() == expected)
+                        block.is_done() && block.exit_code().value() == expected_exit_code && block.command_to_string().trim() == expected)
             }))
     }
     let language_code = std::env::var("WARPAI_CAPTURE_LANGUAGE").unwrap_or_else(|_| "en".into());
@@ -2814,7 +2814,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .set_timeout(std::time::Duration::from_secs(45))
                 .add_named_assertion("single native history command completed", |app, window| {
-                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-single"))
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-single", 1))
                 })
                 .add_named_assertion("vertical toolbar belongs to its sidebar column", |app, window| {
                     let bounds = app.read(|ctx| {
@@ -2837,7 +2837,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .set_timeout(std::time::Duration::from_secs(45))
                 .add_named_assertion("middle native history command completed", |app, window| {
-                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-middle"))
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-middle", 1))
                 }),
         )
         .with_step(
@@ -2848,7 +2848,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 })
                 .set_timeout(std::time::Duration::from_secs(45))
                 .add_named_assertion("last native history command completed", |app, window| {
-                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-last"))
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-last", 1))
                 }),
         )
         .with_step(
@@ -2880,8 +2880,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {
-                let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
-                terminal.update(app, |terminal, ctx| terminal.handle_action(&crate::terminal::view::TerminalAction::ClearBuffer, ctx));
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {
@@ -2913,6 +2911,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         },
                     )
                 });
+            }),
+        )
+        .with_step(
+            TestStep::new("restore clean shell status after history capture")
+                .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git --no-optional-locks diff --quiet", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("owned capture repository remains clean", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git --no-optional-locks diff --quiet", 0))
+                }),
+        )
+        .with_step(
+            TestStep::new("clear native history capture").with_action(|app, window, _| {
+                let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                terminal.update(app, |terminal, ctx| terminal.handle_action(&crate::terminal::view::TerminalAction::ClearBuffer, ctx));
             }),
         )
         .with_step(
