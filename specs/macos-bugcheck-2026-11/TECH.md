@@ -257,3 +257,16 @@ packaging checks. Poll every 15 minutes, repair failures and retry. Verify the
 downloaded DMG checksum/integrity, read-only bundle version/identity/signature,
 canonical artwork and bundled bridge. Deliver the artifact without installing
 it or changing personal configuration, tags or public releases.
+
+Installer receipt: https://github.com/OthinusG/warpai/actions/runs/41813550989
+passed on `91f9e60b8c7dd2f2b3a0ca42207915a17db15425`; subsequent commits only
+record packaging instructions/evidence. All three Companion jobs and macOS
+packaging passed; publishing was skipped. Artifact `macos-test-installer`
+contains `Warpai-1.8.1.2-macos-arm64.dmg` and its checksum list (7-day retention).
+Delivered both files to the owner's Downloads directory. Downloaded SHA-256:
+`e5d6e6e1324fb11126563df610b7b244ffb852e5e7ddad25f2aa5b8975e7fae7`.
+Local read-only verification passed DMG integrity, both bundle versions,
+`dev.warpai.Warpai`, strict deep ad-hoc signature, ARM64 desktop/bridge binaries
+and canonical icon equality. Detached the inspection volume; did not launch,
+install or modify personal configuration. MEMORY.md was not changed for this
+packaging-only follow-up.
