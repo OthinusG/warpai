@@ -44,6 +44,23 @@ const GAP_TIGHT: f32 = 8.;
 const GAP_ROW: f32 = 8.;
 const GAP_SECTION: f32 = 8.;
 
+fn task_state_label(state: &str, archived: bool) -> String {
+    let state = warpui::localization::text(state);
+    if archived {
+        format!("{} · {}", state, warpui::localization::text("Archived"))
+    } else {
+        state.to_owned()
+    }
+}
+
+#[test]
+fn collaboration_archived_label_preserves_task_outcome() {
+    for state in ["accepted", "failed", "cancelled", "expired"] {
+        assert_eq!(task_state_label(state, false), warpui::localization::text(state));
+        assert_eq!(task_state_label(state, true), format!("{} · {}", warpui::localization::text(state), warpui::localization::text("Archived")));
+    }
+}
+
 // Text roles: semibold function headings;
 // 12px secondary text carries status and guidance.
 fn heading_icon(text: &str, language: warpui::localization::Language) -> Option<crate::ui_components::icons::Icon> {
@@ -948,7 +965,7 @@ impl CollaborationPanel {
                         let data = &record["data"];
                         match record["type"].as_str()? {
                             "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or(warpui::localization::text("Task")),
-                                warpui::localization::text(if data["archived"].as_bool() == Some(true) { "Archived" } else { data["state"].as_str().unwrap_or("unknown") }))),
+                                task_state_label(data["state"].as_str().unwrap_or("unknown"), data["archived"].as_bool().unwrap_or(false)))),
                             "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
                                 snapshot.participant_label(data["to"].as_str().unwrap_or("")), warp_agent_bus::context::display_wire_body(&data["body"]))),
                             _ => None,
@@ -1062,7 +1079,7 @@ impl CollaborationPanel {
             fixture.sections.extend([
                 Section {
                     title: {
-                        let __warpai_locale_argument_0 = &(warpui::localization::text(if task.archived { "Archived" } else { &task.state }));
+                        let __warpai_locale_argument_0 = &task_state_label(&task.state, task.archived);
                         warpui::localization::format_text(
                             "Task · {}",
                             &[("0", format!("{__warpai_locale_argument_0}").as_str())],
