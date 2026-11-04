@@ -21214,9 +21214,9 @@ impl Workspace {
             }
             center.add_child(
                 Container::new(controls.finish())
-                    .with_padding_top(14.)
+                    .with_padding_top(6.)
                     .with_padding_bottom(8.)
-                    .with_horizontal_padding(14.)
+                    .with_horizontal_padding(18.)
                     .finish(),
             );
         }
