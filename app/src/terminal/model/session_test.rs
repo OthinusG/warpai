@@ -206,3 +206,22 @@ fn powershell_read_command_embeds_escaped_path_without_args() {
         OsString::from(r"[System.IO.File]::ReadAllText('C:\o''brien\history.txt')")
     );
 }
+
+
+#[test]
+fn terminal_ssh_session_command_overrides_follow_shell_case_rules() {
+    use crate::terminal::shell::ShellType;
+    for shell in [ShellType::Bash, ShellType::Zsh, ShellType::PowerShell] {
+        let info = SessionInfo::new_for_test()
+            .with_shell_type(shell)
+            .with_aliases(HashMap::from([("CoDeX".into(), "wrapper".into())]))
+            .with_abbreviations(HashMap::from([("QoderCN".into(), "wrapper".into())]))
+            .with_function_names(["HeRmEs".into()].into_iter().collect());
+        let session = Session::new(info, Arc::new(TestCommandExecutor::default()));
+        for command in ["CoDeX", "QoderCN", "HeRmEs"] {
+            assert!(session.has_command_override(command));
+            assert_eq!(session.has_command_override(&command.to_ascii_uppercase()), shell == ShellType::PowerShell);
+        }
+        assert!(!session.has_command_override("gemini"));
+    }
+}

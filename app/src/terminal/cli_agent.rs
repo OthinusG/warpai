@@ -470,7 +470,11 @@ impl CLIAgent {
         // Resolve the full command through aliases. If the first word matches an
         // alias, replace it with the alias value to produce the resolved command.
         let resolved_command: Cow<'_, str> = aliases
-            .and_then(|a| a.get(first_word.as_str()))
+            .and_then(|aliases| aliases.get(first_word.as_str()).or_else(|| {
+                if matches!(escape_char, Some(EscapeChar::Backtick)) {
+                    aliases.iter().find(|(name, _)| name.eq_ignore_ascii_case(&first_word)).map(|(_, value)| value)
+                } else { None }
+            }))
             .map(|alias_value| {
                 let rest = trimmed
                     .find(first_word.as_str())

@@ -106,9 +106,7 @@ impl TerminalView {
         };
         // A Windows host probe cannot establish the Linux CLI/IPC contract of a WSL guest.
         if session.is_wsl()
-            || session.alias_value(&words[0]).is_some()
-            || session.abbreviation_value(&words[0]).is_some()
-            || session.function_names().any(|name| name == words[0])
+            || session.has_command_override(&words[0])
         {
             return false;
         }
@@ -169,8 +167,7 @@ impl TerminalView {
         if !settings.preferences.enabled || settings.busy || self.has_pending_ssh_command() { return false; }
         let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
         if self.active_block_session_id() != Some(event.session_id)
-            || session.alias_value(&words[0]).is_some() || session.abbreviation_value(&words[0]).is_some()
-            || session.function_names().any(|name| name == words[0]) { return false; }
+            || session.has_command_override(&words[0]) { return false; }
         let Some(directory) = self.pwd() else { return false; };
         let Some(target) = super::ssh_settings::Target::from_session(&session, &directory, ctx) else { return false; };
         let Some(shell) = self.active_session_shell_type(ctx) else { return false; };
@@ -234,9 +231,7 @@ impl TerminalView {
             return false;
         };
         if self.active_block_session_id() != Some(event.session_id)
-            || session.alias_value(&words[0]).is_some()
-            || session.abbreviation_value(&words[0]).is_some()
-            || session.function_names().any(|name| name == words[0])
+            || session.has_command_override(&words[0])
         {
             return false;
         }

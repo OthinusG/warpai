@@ -186,3 +186,9 @@ the tooltip remained behind its larger rounded corner. Omit that redundant hint
 only for vertical tabs. Retain horizontal tooltip behavior, sidecar geometry and
 shadows. The native icon checkpoint now sends a real hover to the saved parent
 row, exercising both the tooltip and sidecar trigger.
+
+
+CLI launch guards share the session's alias/abbreviation/function override
+check. PowerShell lookup ignores ASCII case; POSIX lookup remains exact. Agent
+alias resolution follows the same shell rule. Regressions cover all three
+namespaces and preserve case-sensitive arguments and model names.

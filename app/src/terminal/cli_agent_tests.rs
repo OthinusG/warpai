@@ -284,6 +284,9 @@ fn collaboration_detect_known_agents_case_insensitive() {
                 let mixed = command.chars().enumerate().map(|(i, c)| if i % 2 == 0 { c.to_ascii_uppercase() } else { c }).collect::<String>();
                 assert_eq!(CLIAgent::detect(&mixed, None, None, ctx), Some(expected));
             }
+            let map = aliases(&[("CoDeX", "claude --model KeepCase")]);
+            assert_eq!(CLIAgent::detect("CODEX", Some(EscapeChar::Backtick), Some(&map), ctx), Some(CLIAgent::Claude));
+            assert_eq!(CLIAgent::detect("CODEX", Some(EscapeChar::Backslash), Some(&map), ctx), Some(CLIAgent::Codex));
         });
     });
 }
