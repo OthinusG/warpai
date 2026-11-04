@@ -224,3 +224,25 @@ for the later SSH scenarios; rerun both native capture jobs on corrected source.
 History edges use the existing non-hidden block queries. Input pinned to the top
 reverses physical block order, so swap the logical endpoints before computing
 outer corners. Preserve the existing input-placement setting and scrolling.
+
+## November 4 final verification
+
+Runtime source `3b97abd7d939c2e0c27cc1b14da2c1e63b0aa648` passed
+https://github.com/OthinusG/warpai/actions/runs/41800961052.
+Both protocol suites, default/platform application checks, application regressions
+and native capture jobs succeeded on macOS and Windows. Probes ran at 15-minute
+intervals; the final run resolved the prior Windows Reset Grid fixture panic
+without changing its production invariant.
+
+Downloaded and verified 1,110 PNGs per platform (370 per language). Both diagnostics
+report exit zero, no failed assertions and no panic; all three macOS SSH masters
+remained alive. Reviewed final single/multiple history, icon sidecar and navigation
+captures: exterior corners are rounded, internal joins remain square, the redundant
+tooltip artifact is absent, and Back uses the Secondary button. Numeric geometry
+confirms a genuinely clipped top edge is not rounded, while subpixel aligned
+boundaries are rounded. No personal configuration or release was changed.
+
+Native macOS traffic lights are excluded from GPU capture. Their titlebar geometry
+was reviewed in source; physical traffic-light placement still needs hardware
+confirmation. Older remote Companions need the additive TaskDelete operation to
+support targeted deletion; no broad-purge fallback is used.
