@@ -32,6 +32,8 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   See SSH-POWERSHELL-AUDIT.md; preserve SSH evidence and drafts.
 - Artifact-only macOS must not publish Windows. Windows CI/release pins official
   protoc 36.2 + SHA-256; Chocolatey NuGet 503/504 blocked builds. See specs/RELEASE.md.
+- `warpdotdev` mirrors `warpdotdev/warp` `master` fast-forward only; it is reference,
+  never merged into `main`. Daily sync: `.github/workflows/sync-warpdotdev.yml` (03:17 UTC).
 
 ## Project, worktree and Agent ownership
 

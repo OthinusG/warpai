@@ -1,0 +1,54 @@
+name: Sync warpdotdev mirror
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-warpdotdev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GIT_LFS_SKIP_SMUDGE: "1"
+    steps:
+      - name: Checkout mirror branch
+        uses: actions/checkout@v4
+        with:
+          ref: warpdotdev
+          fetch-depth: 0
+
+      - name: Fetch upstream master
+        run: |
+          git remote add upstream https://github.com/warpdotdev/warp.git
+          git fetch --no-tags upstream master
+
+      - name: Fast-forward warpdotdev
+        id: sync
+        run: |
+          upstream_sha=$(git rev-parse FETCH_HEAD)
+          head_sha=$(git rev-parse HEAD)
+          if [ "$upstream_sha" = "$head_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date at $head_sha"
+            exit 0
+          fi
+          if ! git merge --ff-only "$upstream_sha"; then
+            echo "::error::warpdotdev diverged from warpdotdev/warp master; fast-forward refused"
+            exit 1
+          fi
+          # The mirror must carry LFS objects so the push passes the server-side LFS check.
+          git lfs fetch upstream "$upstream_sha"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Updated $head_sha -> $upstream_sha"
+
+      - name: Push mirror
+        if: steps.sync.outputs.changed == 'true'
+        run: git push origin HEAD:refs/heads/warpdotdev
