@@ -10008,8 +10008,11 @@ impl Workspace {
                 self.hide_move_to_group_sidecar(ctx);
                 return;
             }
+            let padding = (local_icons && uses_vertical_tabs(ctx)).then_some(corner_radii::SURFACE);
             self.move_to_group_sidecar_menu
                 .update(ctx, |menu, view_ctx| {
+                    // Scrollable child layers must stay clear of the menu's outer arcs.
+                    menu.set_content_padding_overrides(padding, padding);
                     menu.set_items(items, view_ctx);
                 });
             self.show_move_to_group_sidecar = true;
@@ -13758,7 +13761,7 @@ impl Workspace {
     pub fn update_titlebar_height(&self, ctx: &mut ViewContext<Self>) {
         let zoom_factor = WindowSettings::as_ref(ctx).zoom_level.as_zoom_factor();
         let height = if uses_vertical_tabs(ctx) {
-            TAB_BAR_HEIGHT + 28.
+            TAB_BAR_HEIGHT + 12.
         } else {
             TOTAL_TAB_BAR_HEIGHT
         };
@@ -19814,7 +19817,7 @@ impl Workspace {
             ),
             OffsetPositioning::offset_from_parent(
                 if uses_vertical_tabs(app) {
-                    vec2f(-14., 14.)
+                    vec2f(-18., 6.)
                 } else {
                     Vector2F::zero()
                 },
@@ -21180,7 +21183,9 @@ impl Workspace {
                     // The renderer uses spread as drawable padding for the blur.
                     spread_radius: 36.,
                 })
-                .with_uniform_padding(8.)
+                .with_horizontal_padding(12.)
+                .with_padding_top(0.)
+                .with_padding_bottom(8.)
                 .with_uniform_margin(6.)
                 .finish(),
         )
@@ -21218,7 +21223,7 @@ impl Workspace {
                     .finish(),
             );
         }
-        center.add_child(Shrinkable::new(1., terminal).finish());
+        center.add_child(Shrinkable::new(1., Container::new(terminal).with_padding_top(6.).finish()).finish());
         let mut row = Flex::row();
         if let Some(left) = left {
             row.add_child(left);

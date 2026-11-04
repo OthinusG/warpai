@@ -1,4 +1,6 @@
 {
+  "Archived": ["已归档", "已封存"],
+  "Delete this completed task and its evidence permanently. Referenced tasks and unread messages are protected.": ["永久删除此已结束的任务及其证据。被引用的任务和未读消息受到保护。", "永久刪除此已結束的工作及其證據。被引用的工作及未讀訊息受到保護。"],
   "Evidence": ["证据", "證據"],
   "Result": ["结果", "結果"],
   "Saved handoff is unavailable.": ["已保存的交接内容不可用。", "已儲存的交接內容無法使用。"],

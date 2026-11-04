@@ -1,5 +1,26 @@
 # macOS field corrections
 
+## November 4 hardware follow-up
+
+Visual authority: owner-marked `Desktop/bugcheck/{1,2,3,4,5,6}` screenshots
+and the November 4 request. Work directly on the current branch.
+
+- Vertical only: remove the icon sidecar corner artifact; round only the outer
+  history group corners whose actual boundaries are visible; move window controls
+  and both toolbar groups upward with horizontal clearance for the window arc;
+  align the terminal top with the inset side columns. Preserve horizontal chrome.
+- Both layouts: use Secondary Back everywhere, visibly distinguish archived tasks
+  and offer Delete with the same native controls. Archive retains history and is
+  idempotent. Delete targets one versioned terminal task, reuses archive/certainty
+  and purge reference guards, and preserves audit events and request receipts.
+- Detect every registered agent executable without ASCII case sensitivity,
+  preserving arguments, paths, custom aliases, print/protocol exclusions and
+  launch authorization. Exercise uppercase and mixed case aliases.
+
+Validation: focused protocol/application regressions and exact-source macOS and
+Windows native captures on GitHub; inspect the resulting screenshots. Poll CI
+every 15 minutes, repair failures and repeat. No release or personal config edits.
+
 ## Product contract
 
 Source: owner screenshots in `/Users/wqin/Desktop/bugcheck/{1,2,3,5}` and

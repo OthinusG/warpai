@@ -3784,6 +3784,12 @@ impl Element for BlockListElement {
 
         let mut cli_subagent_views_to_paint = vec![];
         let agent_view_state = model.block_list().agent_view_state();
+        let mut history_edges = (None, None);
+        let history_indices = block_list.blocks().iter().enumerate()
+            .filter(|(_, block)| !block.is_hidden() && block.height(agent_view_state) > Lines::zero())
+            .map(|(index, _)| BlockIndex::from(index));
+        let first_history = history_indices.clone().next();
+        let last_history = history_indices.clone().next_back();
 
         let items = self
             .visible_items
@@ -3840,6 +3846,8 @@ impl Element for BlockListElement {
                         block.height(agent_view_state).as_f64() as f32 * cell_size.y();
 
                     let block_bottom_y = grid_origin.y() + block_pixel_height;
+                    if Some(*block_index) == first_history { history_edges.0 = Some(grid_origin.y()); }
+                    if Some(*block_index) == last_history { history_edges.1 = Some(block_bottom_y); }
                     let selection_bottom_y = snackbar_header
                         .and_then(|header| header.header_rect())
                         .map_or(block_bottom_y, |r| r.max_y().max(block_bottom_y));
@@ -4415,6 +4423,9 @@ impl Element for BlockListElement {
             }
         }
 
+        if crate::tab::uses_vertical_tabs(app) {
+            paint_history_corners(element_bounds, history_edges, self.warp_theme.background(), ctx);
+        }
         ctx.scene.stop_layer();
         self.child_max_z_index = Some(ctx.scene.max_active_z_index());
     }
@@ -4848,4 +4859,40 @@ where
     }
 
     button.finish()
+}
+
+
+// Mask only the true history boundary; viewport clipping must never create a new corner.
+fn paint_history_corners(bounds: RectF, edges: (Option<f32>, Option<f32>), background: Fill, ctx: &mut PaintContext) {
+    let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.);
+    for (edge, bottom) in [(edges.0, false), (edges.1, true)] {
+        let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else { continue; };
+        for right in [false, true] {
+            let x = if right { bounds.max_x() - radius } else { bounds.min_x() };
+            let top = if bottom { y - radius } else { y };
+            let center = vec2f(if right { x } else { x + radius }, if bottom { top } else { top + radius });
+            ctx.scene.start_layer(ClipBounds::BoundedByActiveLayerAnd(RectF::new(vec2f(x, top), vec2f(radius, radius))));
+            ctx.scene.set_active_layer_click_through();
+            // A circular border paints the exterior of the inner quarter circle, preserving all block fills.
+            ctx.scene.draw_rect_without_hit_recording(RectF::new(center - vec2f(2. * radius, 2. * radius), vec2f(4. * radius, 4. * radius)))
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(2. * radius)))
+                .with_border(Border::all(radius).with_border_fill(background));
+            ctx.scene.stop_layer();
+        }
+    }
+}
+
+fn history_edge_is_visible(bounds: RectF, y: f32, bottom: bool, radius: f32) -> bool {
+    if bottom { y <= bounds.max_y() && y - radius >= bounds.min_y() }
+    else { y >= bounds.min_y() && y + radius <= bounds.max_y() }
+}
+
+#[test]
+fn history_corners_require_actual_visible_boundaries() {
+    let bounds = RectF::new(vec2f(10., 20.), vec2f(300., 200.));
+    assert!(history_edge_is_visible(bounds, 20., false, 12.));
+    assert!(history_edge_is_visible(bounds, 220., true, 12.));
+    assert!(!history_edge_is_visible(bounds, 19., false, 12.));
+    assert!(!history_edge_is_visible(bounds, 221., true, 12.));
+    assert!(!history_edge_is_visible(bounds, 21., true, 12.));
 }

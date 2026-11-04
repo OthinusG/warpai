@@ -948,7 +948,7 @@ impl CollaborationPanel {
                         let data = &record["data"];
                         match record["type"].as_str()? {
                             "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or(warpui::localization::text("Task")),
-                                warpui::localization::text(data["state"].as_str().unwrap_or("unknown")))),
+                                warpui::localization::text(if data["archived"].as_bool() == Some(true) { "Archived" } else { data["state"].as_str().unwrap_or("unknown") }))),
                             "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
                                 snapshot.participant_label(data["to"].as_str().unwrap_or("")), warp_agent_bus::context::display_wire_body(&data["body"]))),
                             _ => None,
@@ -1062,7 +1062,7 @@ impl CollaborationPanel {
             fixture.sections.extend([
                 Section {
                     title: {
-                        let __warpai_locale_argument_0 = &(warpui::localization::text(&task.state));
+                        let __warpai_locale_argument_0 = &(warpui::localization::text(if task.archived { "Archived" } else { &task.state }));
                         warpui::localization::format_text(
                             "Task · {}",
                             &[("0", format!("{__warpai_locale_argument_0}").as_str())],
@@ -1921,7 +1921,7 @@ impl View for CollaborationPanel {
                     if !hide_navigation {
                         navigation.add_child(
                             builder
-                                .button(if self.query.history { ButtonVariant::Secondary } else { ButtonVariant::Text }, self.page_buttons[0].clone())
+                                .button(ButtonVariant::Secondary, self.page_buttons[0].clone())
                                 .with_text_label(warpui::localization::text("Back").into())
                                 .build()
                                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
@@ -2810,6 +2810,20 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     });
                 })
                 .with_take_screenshot("custom-tab-icon-picker.png"),
+        )
+        .with_step(
+            TestStep::new("open local icon submenu")
+                .with_action(|app, window, _| {
+                    let menus = app.views_of_type::<crate::menu::Menu<WorkspaceAction>>(window).unwrap();
+                    for menu in menus {
+                        menu.update(app, |menu, ctx| {
+                            if menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if fields.label() == warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL))) {
+                                menu.set_selected_by_name(warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL), ctx);
+                            }
+                        });
+                    }
+                })
+                .with_take_screenshot("custom-tab-local-icon-submenu.png"),
         )
         .with_step(
             TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {

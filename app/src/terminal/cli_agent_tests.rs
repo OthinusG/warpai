@@ -279,6 +279,9 @@ fn test_detect_known_agents() {
                     Some(expected),
                     "failed to detect {command}",
                 );
+                assert_eq!(CLIAgent::detect(&command.to_ascii_uppercase(), None, None, ctx), Some(expected));
+                let mixed = command.chars().enumerate().map(|(i, c)| if i % 2 == 0 { c.to_ascii_uppercase() } else { c }).collect::<String>();
+                assert_eq!(CLIAgent::detect(&mixed, None, None, ctx), Some(expected));
             }
         });
     });
@@ -742,6 +745,9 @@ fn peer_prompt_delivery_excludes_batch_and_protocol_launches() {
                 *command != "vibe-acp"
             );
             assert!(!agent.accepts_peer_prompt(&format!("{command} --print")));
+            let upper = command.to_ascii_uppercase();
+            assert_eq!(agent.starts_at_empty_prompt(&upper, &options), *command != "vibe-acp");
+            assert!(!agent.accepts_peer_prompt(&format!("{upper} --print")));
         }
     }
     for (agent, command) in [

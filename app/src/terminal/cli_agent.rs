@@ -191,7 +191,7 @@ impl CLIAgent {
         let Some(program) = words.first() else {
             return false;
         };
-        self.command_prefixes().contains(&program.as_str())
+        self.command_prefixes().iter().any(|prefix| prefix.eq_ignore_ascii_case(program))
             && self.accepts_peer_prompt(command)
             && if *self == Self::Codex {
                 warp_agent_bus::session::codex_starts_at_empty_prompt(&words[1..], options)
@@ -208,7 +208,7 @@ impl CLIAgent {
         let Some(program) = words.first() else {
             return false;
         };
-        if program == "vibe-acp" {
+        if program.eq_ignore_ascii_case("vibe-acp") {
             return false;
         }
         let args = words.iter().skip(1).take_while(|arg| *arg != "--");
@@ -480,7 +480,7 @@ impl CLIAgent {
             })
             .unwrap_or(Cow::Borrowed(trimmed));
 
-        let resolved_first_word = Self::extract_first_command(&resolved_command, escape_char)?;
+        let resolved_first_word = Self::extract_first_command(&resolved_command, escape_char)?.to_ascii_lowercase();
 
         // Check if resolved command matches any known CLI agent.
         // Also matches `aifx agent run claude` as Claude for Uber employees.
@@ -509,7 +509,7 @@ impl CLIAgent {
         }
 
         let words: Vec<_> = resolved_command.split_whitespace().collect();
-        let Some(command_index) = words.iter().position(|word| *word == "dsh") else {
+        let Some(command_index) = words.iter().position(|word| word.eq_ignore_ascii_case("dsh")) else {
             return false;
         };
         let arguments = &words[command_index + 1..];

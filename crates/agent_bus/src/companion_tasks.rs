@@ -831,6 +831,7 @@ impl Projects {
                         | ControllerOperation::EvidenceVerify { .. }
                         | ControllerOperation::TaskForceCancel { .. }
                         | ControllerOperation::TaskArchive { .. }
+                        | ControllerOperation::TaskDelete { .. }
                         | ControllerOperation::ArchiveAged { .. }
                         | ControllerOperation::HistoryExport { .. }
                         | ControllerOperation::PurgePreview
