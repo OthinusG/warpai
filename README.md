@@ -100,6 +100,23 @@ Warpai supports **20+ named CLI Agent types**, including Codex, Claude Code, Gem
 
 Enable **Settings > Features > Agent communication** to select participating agents. Communication is powered by the bundled `warpai-local-com` MCP server, exposing **38+ native tools** for task assignment, status reporting, peer review, context sharing, and non-blocking file reservations.
 
+### Task handoff briefs
+
+Tracked tasks preserve handoff briefs so another Agent can continue from a
+specific result or checkpoint. Submitting saves a baseline brief; failure and
+confirmed cancellation preserve partial work or a stopping point. An explicit
+progress checkpoint can include decisions, unresolved issues and ordered next
+steps. Omitted sections are marked as not provided, rather than inferred from
+terminal output.
+
+Open a task in **Agent collaboration**, browse its handoff versions and load the
+selected brief on demand. Each reference pins an immutable version; current
+source status, review and execution uncertainty must be checked separately.
+Attach that reference to the next task, or explicitly share the exact version
+with a recipient. A brief does not grant source-task, filesystem or execution
+access. The receiving Agent still follows normal task-start and recovery rules.
+See the [Agent guide](docs/AGENTS.md#task-handoff-briefs) for the full workflow.
+
 ### Multi-provider quota monitoring
 
 The collaboration panel's **Data usage** footer displays connected provider accounts. Configure accounts and thresholds in **Settings > Features > Data usage**. The footer independently scrolls up to four accounts, keeping provider badges, quota progress bars, and token balances visible while you coordinate active tasks. Usage requests support macOS automatic proxy configuration (PAC).

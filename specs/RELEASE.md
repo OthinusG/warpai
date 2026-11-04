@@ -1,5 +1,43 @@
 # Warpai releases
 
+## 1.8.6 / Companion 6.0.0 delivery contract
+
+Owner accepted the macOS 1.8.1.2 branch test package and authorized the 1.8.6
+release on 2026-11-04. Shared Companion code changed since v1.8.1: task handoff
+generation/pinned reads/authorization and guarded task archive/delete. Advance
+Companion from the unpublished 5.6.0 development version to 6.0.0, including WSL
+packaging expectations. Keep SSH protocol major 1 and Agent Bus major 2; the
+supported desktop/Companion pairing changes without inventing a wire version.
+
+Use prominent heading-sized bold English/Chinese compatibility notices in release
+notes, README, installation guides and website: Companion versions across the
+1.8.6 boundary are not interchangeable; overwrite-install Companion 6.0.0 for
+Warpai 1.8.6. Install under the same SSH account, retain settings/data, reconnect;
+update local WSL through its existing settings installer. Do not claim rollback
+or database downgrade support.
+
+Document handoff as an ordinary collaboration feature in both languages: lifecycle
+generation, optional structured sections, exact version references, source status
+and review, bounded lazy reads, scoped sharing/permissions and normal task-start
+authority. Integrate into source guides, README and bilingual website feature/MCP
+pages. Change history belongs in release notes only.
+
+Tasks: update version and fixtures; cloud-verify protocol/installation/application
+and native UI; fast-forward accepted source into main; create immutable v1.8.6;
+reuse existing macOS/Windows/Linux release workflows. Retain every native package,
+source/version/runtime/checksum gate. Build a draft and attach/verify all 13
+installers and checksum/provenance inventories before publishing. Monitor at the
+owner's 15-minute cadence; repair failures and retry without moving the tag.
+After public assets resolve, synchronize current download links and bilingual
+documentation, verify production website rendering/links/deployment, then update
+Homebrew with the independently downloaded public DMG SHA-256.
+
+Existing acceptance: complete desktop/protocol/native UI run 41800961052 and
+macOS release-package run 41813550989 passed; owner reported no observed bug.
+The new Companion version still requires source-matched cloud verification.
+Preserve the owner's unrelated MEMORY cleanup and archive, prior immutable tags,
+public assets, personal installations and configuration.
+
 ## 1.8.1 delivery contract
 
 Owner authorization on 2026-10-30 resumes release work as 1.8.1 after macOS
