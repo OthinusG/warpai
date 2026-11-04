@@ -3913,6 +3913,15 @@ impl Store {
             ControllerOperation::TaskArchive { task_id, .. } => {
                 self.task_archive(project, actor, task_id)
             }
+            ControllerOperation::TaskDelete { task_id, expected_version, .. } => {
+                let task = self.operator_task(project, task_id)?;
+                ensure!(task.version == *expected_version, version_conflict("Task changed since deletion was confirmed", task.version));
+                self.task_archive(project, actor, task_id)?;
+                ensure!(self.count(&format!("SELECT COUNT(*) AS count FROM tasks WHERE id = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK}"), &[task_id])? == 1,
+                    invalid_state("Referenced tasks and unread messages must remain in history"));
+                self.purge_task_record(project, actor, &task)?;
+                Ok(json!({"deleted_task": task_id}))
+            }
             ControllerOperation::ArchiveAged { older_than_days, .. } => {
                 self.archive_aged(project, actor, *older_than_days)
             }
@@ -4256,6 +4265,7 @@ impl Store {
             self.count(&format!("SELECT COUNT(*) AS count FROM tasks WHERE id = ? AND {CERTAIN_TASK}"), &[task.id.as_str()])? == 1,
             execution_unknown("Unfinished or uncertain attempts must remain in active history")
         );
+        if task.archived { return Ok(json!(self.assemble(task)?)); }
         task.archived = true;
         task.version += 1;
         self.update_task_state(&task)?;
@@ -4368,33 +4378,7 @@ impl Store {
         };
         let mut purged_tasks = Vec::new();
         for task in rows.into_iter().map(TaskRow::task) {
-            self.purge_task_handoff(&task.id)?;
-            for statement in [
-                "DELETE FROM messages WHERE task_id = ?",
-                "DELETE FROM task_dependencies WHERE task_id = ?",
-                "DELETE FROM task_eligibles WHERE task_id = ?",
-                "DELETE FROM attempts WHERE task_id = ?",
-                "DELETE FROM feedback WHERE task_id = ?",
-                "DELETE FROM evidence WHERE task_id = ?",
-            ] {
-                diesel::sql_query(statement)
-                    .bind::<Text, _>(&task.id)
-                    .execute(&mut *self.connection.borrow_mut())?;
-            }
-            diesel::sql_query("DELETE FROM meta WHERE key = ?")
-                .bind::<Text, _>(format!("context/task/{}", task.id))
-                .execute(&mut *self.connection.borrow_mut())?;
-            diesel::sql_query("DELETE FROM tasks WHERE id = ?")
-                .bind::<Text, _>(&task.id)
-                .execute(&mut *self.connection.borrow_mut())?;
-            self.record(
-                project,
-                "task_purged",
-                &actor.id,
-                Some(&task.id),
-                None,
-                json!({"revision": task.revision, "state": task.state}),
-            )?;
+            self.purge_task_record(project, actor, &task)?;
             purged_tasks.push(task.id);
         }
         diesel::sql_query("DELETE FROM meta WHERE key >= 'handoff/retain/' AND key < 'handoff/retain0' AND json_extract(value,'$.project')=? AND NOT EXISTS (SELECT 1 FROM tasks WHERE id=json_extract(value,'$.target_task')) AND NOT EXISTS (SELECT 1 FROM messages WHERE id=json_extract(value,'$.message'))")
@@ -4409,6 +4393,37 @@ impl Store {
         )?;
         Ok(json!({"purged_tasks": purged_tasks, "purged_messages": purged_messages}))
     }
+    fn purge_task_record(&self, project: &str, actor: &Agent, task: &Task) -> Result<()> {
+        self.purge_task_handoff(&task.id)?;
+        for statement in [
+            "DELETE FROM messages WHERE task_id = ?",
+            "DELETE FROM task_dependencies WHERE task_id = ?",
+            "DELETE FROM task_eligibles WHERE task_id = ?",
+            "DELETE FROM attempts WHERE task_id = ?",
+            "DELETE FROM feedback WHERE task_id = ?",
+            "DELETE FROM evidence WHERE task_id = ?",
+        ] {
+            diesel::sql_query(statement)
+                .bind::<Text, _>(&task.id)
+                .execute(&mut *self.connection.borrow_mut())?;
+        }
+        diesel::sql_query("DELETE FROM meta WHERE key = ?")
+            .bind::<Text, _>(format!("context/task/{}", task.id))
+            .execute(&mut *self.connection.borrow_mut())?;
+        diesel::sql_query("DELETE FROM tasks WHERE id = ?")
+            .bind::<Text, _>(&task.id)
+            .execute(&mut *self.connection.borrow_mut())?;
+        self.record(
+            project,
+            "task_purged",
+            &actor.id,
+            Some(&task.id),
+            None,
+            json!({"revision": task.revision, "state": task.state}),
+        )?;
+        Ok(())
+    }
+
     /// One merged ordered stream: tasks, messages and events share the per-project sequence counter.
     fn history_export(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
@@ -7989,6 +8004,37 @@ mod tests {
         let thread = store.thread_get(&alice, root_id, None, None).unwrap();
         assert_eq!(thread["messages"].as_array().unwrap().len(), 1);
         assert_eq!(thread["messages"][0]["body"]["details"]["instruction"], "original task context");
+    }
+
+    #[test]
+    fn task_delete_is_targeted_versioned_guarded_and_replayable() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        actor(&store, "worker");
+        let request = || Uuid::new_v4().to_string();
+        let task = store.execute(&issuer, "run", &assign(&issuer, "worker", None, &request())).unwrap();
+        let id = task["id"].as_str().unwrap();
+        let delete = |version| ControllerOperation::TaskDelete { task_id: id.into(), expected_version: version, request_id: request() };
+        assert_eq!(code(&store.execute_controller("/project", &delete(task["version"].as_u64().unwrap())).unwrap_err()), "invalid_state");
+        assert!(store.execute_controller("/other", &delete(1)).is_err());
+        let cancelled = store.execute(&issuer, "run", &Operation::TaskCancel { task_id: id.into(), reason: "Finished".into(), expected_version: None, request_id: request() }).unwrap();
+        let version = cancelled["version"].as_u64().unwrap();
+        assert_eq!(code(&store.execute_controller("/project", &delete(version - 1)).unwrap_err()), "version_conflict");
+        assert_eq!(code(&store.execute_controller("/project", &delete(version)).unwrap_err()), "invalid_state");
+        assert!(!store.operator_task("/project", id).unwrap().archived, "Rejected deletion must roll back archival");
+        diesel::sql_query("UPDATE messages SET acknowledged=1 WHERE task_id=?")
+            .bind::<Text, _>(id).execute(&mut *store.connection.borrow_mut()).unwrap();
+        let archive = || ControllerOperation::TaskArchive { task_id: id.into(), request_id: request() };
+        let archived = store.execute_controller("/project", &archive()).unwrap();
+        assert_eq!(store.execute_controller("/project", &archive()).unwrap()["version"], archived["version"], "Repeated archive is a no-op");
+        let other = store.execute(&issuer, "run", &assign(&issuer, "worker", None, &request())).unwrap();
+        let operation = delete(archived["version"].as_u64().unwrap());
+        let result = store.execute_controller("/project", &operation).unwrap();
+        assert_eq!(result["deleted_task"], id);
+        assert_eq!(store.execute_controller("/project", &operation).unwrap(), result);
+        assert!(store.operator_task("/project", id).is_err());
+        assert!(store.operator_task("/project", other["id"].as_str().unwrap()).is_ok());
+        assert!(export_all(&store).iter().any(|record| record["data"]["kind"] == "task_purged"));
     }
 
     #[test]

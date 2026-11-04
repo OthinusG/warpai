@@ -529,7 +529,7 @@ use warpui::{
     },
     elements::{
         Align, Border, ChildAnchor, ChildView, Clipped, ConstrainedBox, Container, CornerRadius,
-        CrossAxisAlignment, Dismiss, Element, Empty, Expanded, Fill as ElementFill, Flex,
+        CrossAxisAlignment, Dismiss, DropShadow, Element, Empty, Expanded, Fill as ElementFill, Flex,
         Highlight, Hoverable, Icon as WarpUiIcon, MainAxisAlignment, MainAxisSize,
         OffsetPositioning, ParentAnchor, ParentElement, ParentOffsetBounds,
         PositionedElementAnchor, PositionedElementOffsetBounds, Radius, SavePosition, Shrinkable,
@@ -565,8 +565,6 @@ pub const PANEL_HEADER_HEIGHT: f32 = TAB_BAR_HEIGHT;
 const TAB_BAR_HOVER_HEIGHT: f32 = 12.;
 const TAB_BAR_PADDING_LEFT: f32 = 4.;
 const TAB_BAR_PADDING_RIGHT: f32 = 8.;
-const TITLE_BAR_SEARCH_BAR_MAX_WIDTH: f32 = 320.;
-const TITLE_BAR_SEARCH_BAR_SLOT_PADDING: f32 = 8.;
 
 // The total height taken up by the tab bar, including its bottom border.
 pub const TOTAL_TAB_BAR_HEIGHT: f32 = TAB_BAR_HEIGHT + TAB_BAR_BORDER_HEIGHT;
@@ -3647,6 +3645,7 @@ impl Workspace {
                     self.close_vertical_tabs_settings_popup();
                 }
                 self.sync_panel_positions_from_config(ctx);
+                self.update_titlebar_height(ctx);
                 self.sync_window_button_visibility(ctx);
                 ctx.notify();
             }
@@ -3688,8 +3687,7 @@ impl Workspace {
                 ..
             }
             | TabSettingsChangedEvent::VerticalTabsShowPrLink { .. }
-            | TabSettingsChangedEvent::VerticalTabsShowDiffStats { .. }
-            | TabSettingsChangedEvent::HideTitleBarSearchBarInVerticalTabs { .. } => {
+            | TabSettingsChangedEvent::VerticalTabsShowDiffStats { .. } => {
                 ctx.notify();
             }
             TabSettingsChangedEvent::VerticalTabsShowDetailsOnHover { .. } => {
@@ -13661,6 +13659,10 @@ impl Workspace {
 
     /// How to render the tab bar.
     fn tab_bar_mode(&self, app: &AppContext) -> ShowTabBar {
+        if uses_vertical_tabs(app) {
+            return ShowTabBar::Stacked;
+        }
+
         // Drag-preview windows always show the tab bar inline; the user
         // is literally holding the tab they detached, so it must remain
         // visible regardless of the user's hover/fullscreen settings.
@@ -13755,7 +13757,12 @@ impl Workspace {
     /// Updates the titlebar height to match the scaled tab bar height.
     pub fn update_titlebar_height(&self, ctx: &mut ViewContext<Self>) {
         let zoom_factor = WindowSettings::as_ref(ctx).zoom_level.as_zoom_factor();
-        let scaled_tab_bar_height = (TOTAL_TAB_BAR_HEIGHT * zoom_factor) as f64;
+        let height = if uses_vertical_tabs(ctx) {
+            TAB_BAR_HEIGHT + 12.
+        } else {
+            TOTAL_TAB_BAR_HEIGHT
+        };
+        let scaled_tab_bar_height = (height * zoom_factor) as f64;
 
         if let Some(platform_window) = ctx.windows().platform_window(ctx.window_id()) {
             platform_window
@@ -19177,69 +19184,6 @@ impl Workspace {
         Shrinkable::new(1.0, inner).finish()
     }
 
-    fn render_title_bar_search_bar(&self, appearance: &Appearance) -> Box<dyn Element> {
-        let theme = appearance.theme();
-        let text_color = theme.sub_text_color(theme.background());
-
-        Hoverable::new(
-            self.mouse_states.title_bar_search_bar.clone(),
-            |mouse_state| {
-                let row = Flex::row()
-                    .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                    .with_spacing(10.)
-                    .with_child(
-                        ConstrainedBox::new(
-                            icons::Icon::Search.to_warpui_icon(text_color).finish(),
-                        )
-                        .with_width(16.)
-                        .with_height(16.)
-                        .finish(),
-                    )
-                    .with_child(
-                        Shrinkable::new(
-                            1.,
-                            Text::new_inline(
-                                warpui::localization::text("Search sessions, agents, files..."),
-                                appearance.ui_font_family(),
-                                14.,
-                            )
-                            .with_color(text_color.into())
-                            .with_clip(ClipConfig::ellipsis())
-                            .finish(),
-                        )
-                        .finish(),
-                    )
-                    .finish();
-
-                ConstrainedBox::new(
-                    Container::new(row)
-                        .with_background(if mouse_state.is_hovered() {
-                            internal_colors::fg_overlay_2(theme)
-                        } else {
-                            internal_colors::fg_overlay_1(theme)
-                        })
-                        .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
-                        .with_padding_left(16.)
-                        .with_padding_right(16.)
-                        .with_padding_top(4.)
-                        .with_padding_bottom(4.)
-                        .finish(),
-                )
-                .with_width(TITLE_BAR_SEARCH_BAR_MAX_WIDTH)
-                .finish()
-            },
-        )
-        .with_cursor(Cursor::PointingHand)
-        .on_click(|ctx, _, _| {
-            ctx.dispatch_typed_action(WorkspaceAction::OpenPalette {
-                mode: PaletteMode::Command,
-                source: PaletteSource::TitleBarSearchBar,
-                query: None,
-            });
-        })
-        .finish()
-    }
-
     fn render_tab_bar_contents(
         &self,
         hover_fixed_width: Option<f32>,
@@ -19364,65 +19308,7 @@ impl Workspace {
             }
         }
 
-        if vertical_tabs_active {
-            let mut right_controls = Flex::row()
-                .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                .with_main_axis_size(MainAxisSize::Min);
-
-            self.add_configurable_right_side_tab_bar_controls(
-                &mut right_controls,
-                &config,
-                is_web_anonymous_user,
-                appearance,
-                ctx,
-            );
-
-            let left_padding = self.compute_tab_bar_left_padding(ctx);
-
-            // The title bar search bar can be hidden via a user setting; when hidden,
-            // an empty flexible slot keeps the right-side controls aligned to the right.
-            let hide_search_bar =
-                *TabSettings::as_ref(ctx).hide_title_bar_search_bar_in_vertical_tabs;
-            let search_bar_slot = if hide_search_bar {
-                Expanded::new(1., Empty::new().finish()).finish()
-            } else {
-                Shrinkable::new(
-                    1.,
-                    Clipped::new(
-                        Container::new(
-                            Align::new(self.render_title_bar_search_bar(appearance)).finish(),
-                        )
-                        .with_padding_left(TITLE_BAR_SEARCH_BAR_SLOT_PADDING)
-                        .with_padding_right(TITLE_BAR_SEARCH_BAR_SLOT_PADDING)
-                        .finish(),
-                    )
-                    .finish(),
-                )
-                .finish()
-            };
-
-            let tab_bar = Flex::row()
-                .with_main_axis_size(MainAxisSize::Max)
-                .with_cross_axis_alignment(CrossAxisAlignment::Center)
-                .with_child(tab_bar.finish())
-                .with_child(search_bar_slot)
-                .with_child(right_controls.finish())
-                .finish();
-
-            return EventHandler::new(
-                Container::new(tab_bar)
-                    .with_padding_left(left_padding)
-                    .with_padding_right(TAB_BAR_PADDING_RIGHT)
-                    .finish(),
-            )
-            .on_right_mouse_down(|ctx, _, position| {
-                ctx.dispatch_typed_action(WorkspaceAction::ShowHeaderToolbarContextMenu {
-                    position,
-                });
-                DispatchEventResult::StopPropagation
-            })
-            .finish();
-        } else {
+        {
             // Copy from our saved tab_bar_state to ensure all tabs get rendered with the same state
             let active_tab_index = if FeatureFlag::AgentManagementView.is_enabled()
                 && self.current_workspace_state.is_agent_management_view_open
@@ -19820,7 +19706,9 @@ impl Workspace {
         let zoom_factor = WindowSettings::as_ref(ctx).zoom_level.as_zoom_factor();
         let traffic_light_data = traffic_light_data(ctx, self.window_id);
         if let Some(traffic_light_data) = traffic_light_data.as_ref() {
-            if should_reserve_traffic_light_space_in_tab_bar(traffic_light_data.side) {
+            if should_reserve_traffic_light_space_in_tab_bar(traffic_light_data.side)
+                && !uses_vertical_tabs(ctx)
+            {
                 target.add_child(
                     ConstrainedBox::new(Empty::new().finish())
                         .with_width(traffic_light_data.width(zoom_factor))
@@ -19925,7 +19813,11 @@ impl Workspace {
                 app,
             ),
             OffsetPositioning::offset_from_parent(
-                Vector2F::zero(),
+                if uses_vertical_tabs(app) {
+                    vec2f(-18., 6.)
+                } else {
+                    Vector2F::zero()
+                },
                 ParentOffsetBounds::WindowByPosition,
                 ParentAnchor::TopRight,
                 ChildAnchor::TopRight,
@@ -21170,88 +21062,214 @@ impl Workspace {
         }
     }
 
+    fn column_toolbar_height(&self, side: PanelPosition, app: &AppContext) -> f32 {
+        if side == PanelPosition::Right
+            && traffic_light_data(app, self.window_id)
+                .is_some_and(|data| data.side == TrafficLightSide::Right)
+        {
+            TAB_BAR_HEIGHT * 2.
+        } else {
+            TAB_BAR_HEIGHT
+        }
+    }
+
+    fn render_column_toolbar(&self, side: PanelPosition, app: &AppContext) -> Box<dyn Element> {
+        let appearance = Appearance::as_ref(app);
+        let config = &TabSettings::as_ref(app).header_toolbar_chip_selection;
+        let mut row = Flex::row()
+            .with_main_axis_size(MainAxisSize::Max)
+            .with_main_axis_alignment(if side == PanelPosition::Right {
+                MainAxisAlignment::End
+            } else {
+                MainAxisAlignment::Start
+            })
+            .with_cross_axis_alignment(CrossAxisAlignment::Center);
+        if side == PanelPosition::Left {
+            for item in config.left_items() {
+                if let Some(button) = self.render_header_toolbar_button(&item, appearance, app) {
+                    row.add_child(button);
+                }
+            }
+        } else {
+            self.add_configurable_right_side_tab_bar_controls(
+                &mut row,
+                config,
+                self.auth_state
+                    .is_user_web_anonymous_user()
+                    .unwrap_or_default(),
+                appearance,
+                app,
+            );
+        }
+        let row = Container::new(row.finish())
+            .with_padding_left(if side == PanelPosition::Left {
+                self.compute_tab_bar_left_padding(app)
+            } else {
+                8.
+            })
+            .with_padding_right(8.)
+            .finish();
+        let height = self.column_toolbar_height(side, app);
+        let toolbar = Container::new(row)
+            .with_padding_top(height - TAB_BAR_HEIGHT)
+            .finish();
+        let toolbar = EventHandler::new(ConstrainedBox::new(toolbar).with_height(height).finish())
+        .on_right_mouse_down(|ctx, _, position| {
+            ctx.dispatch_typed_action(WorkspaceAction::ShowHeaderToolbarContextMenu { position });
+            DispatchEventResult::StopPropagation
+        })
+        .finish();
+        if side == PanelPosition::Left {
+            SavePosition::new(toolbar, TAB_BAR_POSITION_ID).finish()
+        } else {
+            toolbar
+        }
+    }
+
+    fn render_vertical_column(
+        &self,
+        side: PanelPosition,
+        app: &AppContext,
+    ) -> Option<Box<dyn Element>> {
+        let config = &TabSettings::as_ref(app).header_toolbar_chip_selection;
+        let pane_group = self.active_tab_pane_group().as_ref(app);
+        let items = if side == PanelPosition::Left {
+            config.left_items()
+        } else {
+            config.right_items()
+        };
+        let mut panels = Flex::row();
+        let mut has_panels = false;
+        for item in items {
+            let Some(panel) = self.render_config_panel(&item, pane_group, config, app) else {
+                continue;
+            };
+            has_panels = true;
+            panels.add_child(panel);
+        }
+        if !has_panels {
+            return None;
+        }
+        // Resizable bodies determine the column width before the toolbar can fill it.
+        let column = Stack::new()
+            .with_child(
+                Container::new(panels.finish())
+                    .with_padding_top(self.column_toolbar_height(side, app))
+                    .finish(),
+            )
+            .with_positioned_child(
+                self.render_column_toolbar(side, app),
+                OffsetPositioning::offset_from_parent(
+                    Vector2F::zero(),
+                    ParentOffsetBounds::ParentBySize,
+                    ParentAnchor::TopLeft,
+                    ChildAnchor::TopLeft,
+                ),
+            )
+            .finish();
+        Some(
+            Container::new(column)
+                .with_background(Appearance::as_ref(app).theme().surface_1())
+                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                    corner_radii::SURFACE,
+                )))
+                .with_drop_shadow(DropShadow {
+                    color: ColorU::new(0, 0, 0, 40),
+                    offset: Vector2F::zero(),
+                    blur_radius: 12.,
+                    // The renderer uses spread as drawable padding for the blur.
+                    spread_radius: 36.,
+                })
+                .with_horizontal_padding(if side == PanelPosition::Left { 6. } else { 12. })
+                .with_padding_top(0.)
+                .with_padding_bottom(8.)
+                .with_uniform_margin(6.)
+                .finish(),
+        )
+    }
+
+    fn render_vertical_columns(
+        &self,
+        app: &AppContext,
+        terminal: Box<dyn Element>,
+    ) -> Box<dyn Element> {
+        let left = self.render_vertical_column(PanelPosition::Left, app);
+        let right = self.render_vertical_column(PanelPosition::Right, app);
+        let mut center = Flex::column().with_main_axis_size(MainAxisSize::Max);
+        // Closed columns leave their controls in the center so every panel can be reopened.
+        if left.is_none() || right.is_none() {
+            let mut controls = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
+            if left.is_none() {
+                controls.add_child(
+                    Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Left, app))
+                        .finish(),
+                );
+            }
+            controls.add_child(Expanded::new(1., Empty::new().finish()).finish());
+            if right.is_none() {
+                controls.add_child(
+                    Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Right, app))
+                        .finish(),
+                );
+            }
+            center.add_child(
+                Container::new(controls.finish())
+                    .with_padding_top(6.)
+                    .with_padding_bottom(8.)
+                    .with_horizontal_padding(18.)
+                    .finish(),
+            );
+        }
+        center.add_child(Shrinkable::new(1., Container::new(terminal).with_padding_top(6.).finish()).finish());
+        let mut row = Flex::row();
+        if let Some(left) = left {
+            row.add_child(left);
+        }
+        if self.current_workspace_state.is_theme_chooser_open {
+            row.add_child(self.render_panel(
+                app,
+                self.render_theme_chooser(),
+                &PanelPosition::Left,
+            ));
+        }
+        row.add_child(Shrinkable::new(1., center.finish()).finish());
+        if let Some(right) = right {
+            row.add_child(right);
+        }
+        let pane_group = self.active_tab_pane_group().as_ref(app);
+        let config = &TabSettings::as_ref(app).header_toolbar_chip_selection;
+        if let Some(review) = self.render_config_panel_maximized(pane_group, config, app) {
+            row.add_child(review);
+        }
+        if self.current_workspace_state.is_resource_center_open {
+            row.add_child(self.render_panel(
+                app,
+                self.render_resource_center(),
+                &PanelPosition::Right,
+            ));
+        }
+        row.finish()
+    }
+
     fn render_panels(
         &self,
         app: &AppContext,
         terminal_view: Box<dyn Element>,
         hide_vertical_tabs: bool,
     ) -> Box<dyn Element> {
-        let mut panels_view = Flex::row();
-        let mut prev_panel_added = false;
-
-        // Config-driven vertical-tabs-era panels (left side).
-        // Hidden for simplified WASM views (notebooks, shared sessions, etc.)
-        // where these panels are unnecessary.
-        let vertical_tabs_active = !hide_vertical_tabs
-            && FeatureFlag::VerticalTabs.is_enabled()
-            && *TabSettings::as_ref(app).use_vertical_tabs;
-
-        // In vertical tabs mode, config-driven panels are rendered here.
-        // In horizontal tabs mode, they're rendered inside render_banner_and_active_tab.
-        if vertical_tabs_active {
-            let config = TabSettings::as_ref(app)
-                .header_toolbar_chip_selection
-                .clone();
-            let pane_group = self.active_tab_pane_group().as_ref(app);
-
-            for item in config.left_items() {
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
+        if !hide_vertical_tabs && uses_vertical_tabs(app) {
+            return self.render_vertical_columns(app, terminal_view);
         }
-
-        // Theme chooser (workspace-level, not configurable).
-        // Uses wrap_in_panel_surface which adds margin for its own visual separation,
-        // so we add a separator before it only if a config panel is to its left, then
-        // reset the flag so no separator is added between the theme chooser and the terminal.
+        let mut panels_view = Flex::row();
         if self.current_workspace_state.is_theme_chooser_open {
-            if prev_panel_added {
-                panels_view.add_child(Self::render_panel_separator(app));
-            }
             panels_view.add_child(self.render_panel(
                 app,
                 self.render_theme_chooser(),
                 &PanelPosition::Left,
             ));
-            prev_panel_added = false;
         }
-
-        if prev_panel_added {
-            panels_view.add_child(Self::render_panel_separator(app));
-        }
-        // The outer workspace container in `render` already paints the terminal
-        // background fill, so don't paint it again here (see APP-4328).
-        panels_view = panels_view.with_child(Shrinkable::new(1.0, terminal_view).finish());
-        prev_panel_added = true;
-
-        if vertical_tabs_active {
-            let config = TabSettings::as_ref(app)
-                .header_toolbar_chip_selection
-                .clone();
-            let pane_group = self.active_tab_pane_group().as_ref(app);
-
-            for item in config.right_items() {
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel(&item, pane_group, &config, app),
-                    app,
-                );
-            }
-
-            if pane_group.right_panel_open && pane_group.is_right_panel_maximized {
-                Self::add_panel_with_separator(
-                    &mut panels_view,
-                    &mut prev_panel_added,
-                    self.render_config_panel_maximized(pane_group, &config, app),
-                    app,
-                );
-            }
-        }
+        // The workspace already paints the terminal background (APP-4328).
+        panels_view.add_child(Shrinkable::new(1., terminal_view).finish());
 
         #[cfg(target_family = "wasm")]
         if !warpui::platform::wasm::is_mobile_device()
@@ -21352,7 +21370,13 @@ impl Workspace {
             HeaderToolbarItemKind::AgentManagement
             | HeaderToolbarItemKind::NotificationsMailbox => None,
         }
-        .map(|panel| Self::outline_application_panel(panel, app))
+        .map(|panel| {
+            if uses_vertical_tabs(app) {
+                panel
+            } else {
+                Self::outline_application_panel(panel, app)
+            }
+        })
     }
 
     /// Renders the maximized code review panel if it is configured and maximized.
@@ -24541,7 +24565,7 @@ impl View for Workspace {
                 .finish()
         } else {
             let mut outer_column = Flex::column();
-            if tab_bar_mode == ShowTabBar::Stacked {
+            if tab_bar_mode == ShowTabBar::Stacked && !uses_vertical_tabs(app) {
                 outer_column.add_child(self.render_tab_bar(self.tab_fixed_width, appearance, app));
             }
             let content = self.render_banner_and_active_tab(app, appearance);

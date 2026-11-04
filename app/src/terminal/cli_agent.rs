@@ -191,7 +191,7 @@ impl CLIAgent {
         let Some(program) = words.first() else {
             return false;
         };
-        self.command_prefixes().contains(&program.as_str())
+        self.command_prefixes().iter().any(|prefix| prefix.eq_ignore_ascii_case(program))
             && self.accepts_peer_prompt(command)
             && if *self == Self::Codex {
                 warp_agent_bus::session::codex_starts_at_empty_prompt(&words[1..], options)
@@ -208,7 +208,7 @@ impl CLIAgent {
         let Some(program) = words.first() else {
             return false;
         };
-        if program == "vibe-acp" {
+        if program.eq_ignore_ascii_case("vibe-acp") {
             return false;
         }
         let args = words.iter().skip(1).take_while(|arg| *arg != "--");
@@ -470,7 +470,11 @@ impl CLIAgent {
         // Resolve the full command through aliases. If the first word matches an
         // alias, replace it with the alias value to produce the resolved command.
         let resolved_command: Cow<'_, str> = aliases
-            .and_then(|a| a.get(first_word.as_str()))
+            .and_then(|aliases| aliases.get(first_word.as_str()).or_else(|| {
+                if matches!(escape_char, Some(EscapeChar::Backtick)) {
+                    aliases.iter().find(|(name, _)| name.eq_ignore_ascii_case(&first_word)).map(|(_, value)| value)
+                } else { None }
+            }))
             .map(|alias_value| {
                 let rest = trimmed
                     .find(first_word.as_str())
@@ -480,7 +484,7 @@ impl CLIAgent {
             })
             .unwrap_or(Cow::Borrowed(trimmed));
 
-        let resolved_first_word = Self::extract_first_command(&resolved_command, escape_char)?;
+        let resolved_first_word = Self::extract_first_command(&resolved_command, escape_char)?.to_ascii_lowercase();
 
         // Check if resolved command matches any known CLI agent.
         // Also matches `aifx agent run claude` as Claude for Uber employees.
@@ -509,7 +513,7 @@ impl CLIAgent {
         }
 
         let words: Vec<_> = resolved_command.split_whitespace().collect();
-        let Some(command_index) = words.iter().position(|word| *word == "dsh") else {
+        let Some(command_index) = words.iter().position(|word| word.eq_ignore_ascii_case("dsh")) else {
             return false;
         };
         let arguments = &words[command_index + 1..];

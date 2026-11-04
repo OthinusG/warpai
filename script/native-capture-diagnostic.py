@@ -43,6 +43,8 @@ def main() -> None:
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
+        "history_corners": [dict(zip(["top", "bottom", "min", "max", "radius", "top_visible", "bottom_visible"], [float(value) for value in values[:5]] + [value == "true" for value in values[5:]])) for values in dict.fromkeys(re.findall(r"^Native history corners: top=(-?\d{1,8}\.\d{5}), bottom=(-?\d{1,8}\.\d{5}), min=(-?\d{1,8}\.\d{5}), max=(-?\d{1,8}\.\d{5}), radius=(\d{1,5}\.\d{5}), top_visible=(true|false), bottom_visible=(true|false)$", log, re.MULTILINE))][:64],
+        "ssh_master_alive": [value == "True" for value in re.findall(r"^Owned SSH master alive after capture: (True|False)$", log, re.MULTILINE)],
         "fixture_stages": re.findall(r"^Owned SSH fixture stage: (prepare|connect|sftp|direct-tests|jump-tests|installed-tests|capture)\r?$", log, re.MULTILINE),
         "fixture_exceptions": sorted(set(re.findall(r"^(?:subprocess\.)?(TimeoutExpired|CalledProcessError|UnicodeDecodeError|UnicodeEncodeError|FileNotFoundError|PermissionError|RuntimeError|AssertionError):", log, re.MULTILINE))),
         "fixture_trace_lines": [int(line) for line in re.findall(r'File "[^"\n]*[\\/]verify-ssh-file-tools\.py", line (\d{1,4}),', log)],

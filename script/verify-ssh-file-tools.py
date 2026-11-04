@@ -37,6 +37,21 @@ def checked_run(command, *, timeout, **kwargs):
         raise subprocess.CalledProcessError(returncode, command)
 
 
+def wait_for_master(master, config, socket):
+    deadline = time.monotonic() + 10
+    while master.poll() is None and time.monotonic() < deadline:
+        if socket.exists():
+            ready = subprocess.run(
+                ["ssh", "-F", str(config), "-S", str(socket), "-O", "check", "warpai-test"],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=2,
+            )
+            if ready.returncode == 0:
+                return
+        time.sleep(0.025)
+    raise RuntimeError("Owned SSH master unavailable")
+
+
 def main():
     print("Owned SSH fixture stage: prepare", flush=True)
     parser = argparse.ArgumentParser(__doc__)
@@ -149,17 +164,14 @@ def main():
                                     socket_directory.mkdir(mode=0o700, exist_ok=True)
                                     socket = socket_directory / ("warpai-test-" + uuid.uuid4().hex)
                                     master = subprocess.Popen(["ssh", "-F", str(config), "-M", "-S", str(socket), "-N", "-oBatchMode=yes", "-oStrictHostKeyChecking=yes", "warpai-test"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                                    deadline = time.monotonic() + 10
-                                    while not socket.exists():
-                                        if master.poll() is not None or time.monotonic() >= deadline:
-                                            raise RuntimeError("Owned SSH master unavailable")
-                                        time.sleep(0.025)
+                                    wait_for_master(master, config, socket)
                                     assert master.poll() is None, "Owned SSH master exited before capture"
                                     # Match the native shell hook instead of hiding home expansion behind an absolute fixture.
                                     env["WARP_TEST_SSH_SOCKET"] = "~/.ssh/" + socket.name
                                 checked_run([str(executable)], cwd=executable.parent, env=env, timeout=450)
                             finally:
                                 if master is not None:
+                                    print(f"Owned SSH master alive after capture: {master.poll() is None}", flush=True)
                                     master.terminate()
                                     master.wait(timeout=10)
                 print("Owned native SSH/SFTP file acceptance passed")

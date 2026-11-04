@@ -1117,6 +1117,18 @@ impl Session {
         self.info.aliases.get(name).map(Deref::deref)
     }
 
+    /// Native CLI adaptation must respect the shell's alias and function lookup rules.
+    pub(crate) fn has_command_override(&self, command: &str) -> bool {
+        let matches = |name: &str| match self.shell_family() {
+            ShellFamily::PowerShell => name.eq_ignore_ascii_case(command),
+            ShellFamily::Posix => name == command,
+        };
+        self.alias_names()
+            .chain(self.abbreviations().keys().map(|name| name.as_str()))
+            .chain(self.function_names())
+            .any(matches)
+    }
+
     pub fn abbreviations(&self) -> &HashMap<SmolStr, String> {
         &self.info.abbreviations
     }

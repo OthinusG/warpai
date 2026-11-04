@@ -748,9 +748,12 @@ impl TabData {
         // Five 30px cells fit within the native 186px menu and its 28px insets.
         let mut rows: Vec<_> = items.chunks(5)
             .map(|items| MenuItem::ItemsRow { items: items.to_vec() }).collect();
-        rows.push(MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
-            .with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
-            .into_item());
+        let local_icons = MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL));
+        // The path tooltip occupies the sidecar's anchor and peeks through its rounded corner.
+        let local_icons = if uses_vertical_tabs(ctx) { local_icons } else {
+            local_icons.with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
+        };
+        rows.push(local_icons.into_item());
         rows
     }
 
@@ -1952,6 +1955,9 @@ impl<'a> TabComponent<'a> {
         }
 
         let mut tab = Container::new(stack)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
+                warp_core::ui::corner_radii::CONTROL,
+            )))
             .with_vertical_padding(2.)
             .with_background(background_color);
         if FeatureFlag::NewTabStyling.is_enabled() {
@@ -1963,9 +1969,7 @@ impl<'a> TabComponent<'a> {
                     .with_border_fill(border_fill),
             );
         } else {
-            tab = tab
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.0)))
-                .with_border(Border::all(1.).with_border_fill(border_fill));
+            tab = tab.with_border(Border::all(1.).with_border_fill(border_fill));
         }
 
         // If the tab is being dragged, add an opaque background behind it

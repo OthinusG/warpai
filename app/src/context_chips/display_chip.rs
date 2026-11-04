@@ -177,7 +177,7 @@ const DROP_SHADOW_COLOR: ColorU = ColorU {
 const CHIP_MARGIN_RIGHT: f32 = 8.;
 const UDI_CHIP_MAX_NUM_CHARACTERS: usize = 40;
 
-const CHIP_CORNER_RADIUS: f32 = 4.0;
+const CHIP_CORNER_RADIUS: f32 = warp_core::ui::corner_radii::CONTROL;
 pub(crate) const CHIP_BORDER_WIDTH: f32 = 1.0;
 /// Inner rounded corners are 1px smaller than the outer border radius
 const CHIP_INNER_CORNER_RADIUS: f32 = CHIP_CORNER_RADIUS - CHIP_BORDER_WIDTH;

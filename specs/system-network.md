@@ -60,3 +60,8 @@ download or install packages itself.
   credential isolation. An additional fixture changes **only disposable hosted
   runner** proxy settings, clears shell proxy variables, and requires an
   otherwise-unresolvable target to arrive at the local proxy.
+
+- Windows native desktop linking requires the same static C++ runtime as locked
+  esaxx-rs (MT). system_http sets static_crt(true) on Windows; this does not change
+  HTTP behavior, Rust target flags, or macOS/Linux build branches. The mismatch
+  was exposed by native review linking in validation run 41680297211.

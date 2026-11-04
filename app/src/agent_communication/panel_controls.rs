@@ -28,6 +28,7 @@ pub(crate) enum Kind {
     ReassignOverride,
     ForceCancel,
     Archive,
+    Delete,
     ArchiveAged,
     Purge,
     RenewReservation,
@@ -55,6 +56,7 @@ impl Kind {
             Self::ReassignOverride => "Reassign with override",
             Self::ForceCancel => "Override cancellation",
             Self::Archive => "Archive",
+            Self::Delete => "Delete",
             Self::ArchiveAged => "Archive older completed work",
             Self::Purge => "Purge reviewed history",
             Self::RenewReservation => "Renew reservation",
@@ -91,7 +93,7 @@ impl Kind {
             Self::ReassignOverride => &["New recipient agent name", "Reason", "Type ALLOW OVERLAP"],
             Self::ForceCancel | Self::RetryOverride => &["Reason", "Type ALLOW OVERLAP"],
             Self::Accept | Self::Revise => &["Review feedback"],
-            Self::Archive => &[],
+            Self::Archive | Self::Delete => &[],
             Self::JoinWorktree | Self::LeaveWorktree => &[],
             Self::ArchiveAged => &["Completed work older than days (1–3650)"],
             Self::Purge => &["Type DELETE HISTORY"],
@@ -381,6 +383,11 @@ fn command(
         }),
         Kind::Archive => Command::Controller(ControllerOperation::TaskArchive {
             task_id,
+            request_id,
+        }),
+        Kind::Delete => Command::Controller(ControllerOperation::TaskDelete {
+            task_id,
+            expected_version: task.version,
             request_id,
         }),
         Kind::Send
@@ -998,6 +1005,12 @@ impl CollaborationPanel {
             if panel.form.as_ref().is_none_or(|form| form.request_id != request_id) { return; }
             match result {
                 Ok(_) => {
+                    if panel.form.as_ref().is_some_and(|form| matches!(form.kind, Kind::Archive | Kind::Delete)) {
+                        panel.query.selected_task = None;
+                        panel.query.include_archived = false;
+                        panel.query.history = false;
+                        panel.query.task_after = None;
+                    }
                     panel.form = None;
                     panel.generation += 1;
                     panel.query.wait = false;
@@ -1111,6 +1124,9 @@ impl CollaborationPanel {
                         warpui::localization::format_text("Delete up to {} archived tasks and {} acknowledged messages from original preview sequence {}. This is irreversible. History changes require a new preview and intent.", &[("0", format!("{__warpai_locale_argument_0}").as_str()), ("1", format!("{__warpai_locale_argument_1}").as_str()), ("2", format!("{__warpai_locale_argument_2}").as_str())])
                     }).with_soft_wrap().build().finish());
                 }
+            }
+            if form.kind == Kind::Delete {
+                body.add_child(note(appearance, warpui::localization::text("Delete this completed task and its evidence permanently. Referenced tasks and unread messages are protected.")));
             }
             if form.kind == Kind::Archive {
                 body.add_child(note(
@@ -1241,6 +1257,7 @@ impl CollaborationPanel {
                 .and_then(|snapshot| snapshot.task.as_ref())
                 .filter(|task| self.query.selected_task.as_ref() == Some(&task.id))
             {
+                if task.archived { kinds.clear(); }
                 match task.state.as_str() {
                     "queued" | "blocked" => kinds.extend([Kind::Cancel, Kind::Reassign]),
                     "running" | "cancel_requested" => {
@@ -1257,6 +1274,8 @@ impl CollaborationPanel {
                     "accepted" => kinds.push(Kind::Archive),
                     _ => {}
                 }
+                if task.archived { kinds.retain(|kind| !matches!(kind, Kind::Archive | Kind::Retry | Kind::RetryOverride | Kind::Reassign | Kind::ReassignOverride)); }
+                if matches!(task.state.as_str(), "accepted" | "failed" | "expired" | "cancelled") { kinds.push(Kind::Delete); }
             }
             if self.worktree_mode {
                 kinds.retain(|kind| !matches!(kind, Kind::Cancel | Kind::ForceCancel | Kind::Reassign | Kind::ReassignOverride | Kind::Retry | Kind::RetryOverride));

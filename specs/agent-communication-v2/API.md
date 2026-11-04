@@ -1,5 +1,16 @@
 # SSH Agent Communication API
 
+## Task dispatch and panel projection (2026-11-03)
+
+Use `warp_task_assign` when delegating execution or when the user explicitly
+requests a task. Assignment atomically persists the task and queues its native
+notification. The Tasks projection reads these persisted task records.
+`warp_agent_send` sends messages only: `expects_result=true` creates a result
+request, not a task; a task-shaped body does not change the operation. Both
+messages and tasks enter the ordered History stream. Do not infer task intent
+from prose or silently convert/replay historical messages. This contract is
+shared by local, SSH and direct WSL transport; no wire/schema change is needed.
+
 ## Result delivery (2026-10-12)
 
 Local, SSH and native WSL share the Operation contract. `agent_send` optionally
@@ -468,3 +479,17 @@ still requires explicitly published findings, not a restricted task brief.
 optional fields are omitted, preserving strict old-Companion parsing. Existing
 Agent Bus and SSH protocol majors remain 2 and 1. Updated packaging reports
 Companion 5.6.0; this does not publish or replace the released 5.5.0 artifacts.
+
+
+## Native task deletion (November 4 field correction)
+
+Controller `task_delete` requires `task_id`, `expected_version` and UUID
+`request_id`. The human reviews the existing task-bound confirmation form.
+Within the existing receipt transaction, resolve the task in the selected project,
+check its version, apply terminal/certainty/dependent archive guards, and apply the
+same reference/unread-message retention predicate as History purge. Delete only
+that task with its retained child rows using the shared purge implementation.
+Any rejection rolls back archival. Keep audit events and the original replay
+receipt; retries return that receipt even after the task is gone. Old Companions
+may reject the new operation and must never fall back to a broad history purge.
+Repeated Archive of an already archived task leaves its version unchanged.

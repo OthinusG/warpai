@@ -671,6 +671,11 @@ pub enum ControllerOperation {
         task_id: String,
         request_id: String,
     },
+    TaskDelete {
+        task_id: String,
+        expected_version: u64,
+        request_id: String,
+    },
     ArchiveAged {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         older_than_days: Option<u64>,
@@ -749,6 +754,7 @@ impl ControllerOperation {
             | Self::EvidenceVerify { request_id, .. }
             | Self::TaskForceCancel { request_id, .. }
             | Self::TaskArchive { request_id, .. }
+            | Self::TaskDelete { request_id, .. }
             | Self::ArchiveAged { request_id, .. }
             | Self::HistoryPurge { request_id, .. }
             | Self::ReservationUpdate { request_id, .. }

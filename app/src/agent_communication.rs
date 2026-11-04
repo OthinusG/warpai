@@ -145,9 +145,7 @@ impl AgentCommunication {
                                     .and_then(|words| words.first().cloned())
                                     .is_some_and(|program| view.active_block_session_id()
                                         .and_then(|session| view.sessions_model().as_ref(ctx).get(session))
-                                        .is_some_and(|shell| shell.alias_value(&program).is_none()
-                                            && shell.abbreviation_value(&program).is_none()
-                                            && !shell.function_names().any(|name| name == program.as_str())));
+                                        .is_some_and(|shell| !shell.has_command_override(&program)));
                                 let launch_options = model.preferences.selected.values()
                                     .find(|entry| entry.active && entry.program == program)
                                     .map(|entry| &entry.launch_options);

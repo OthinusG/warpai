@@ -151,6 +151,17 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
+- Vertical chrome: side toolbars live inside inset floating columns; no title
+  search setting/config override. Closed columns retain reopening controls.
+  Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px. Column shadows use matching centered halos.
+  History Archive is idempotent and visibly labeled; task Delete is versioned,
+  scoped and retains existing certainty/reference/unread-message guards.
+  Agent executable detection ignores ASCII case; argv stays verbatim. Shell override lookup
+  follows shell semantics: PowerShell ignores ASCII case; POSIX shells retain it.
+  Warpui shadow spread is drawable blur padding; zero clips the outer shadow.
+- Explicit delegated tasks use warp_task_assign; warp_agent_send, including
+  expects_result, creates messages only. Both persist in History; do not infer
+  task authority from prose. Contract: specs/agent-communication-v2/API.md.
 - Chrome: 8/12/20px tokens; main panel outlines must look rounded. See specs/macos-rounded-containers.md.
   Keep-awake tracks activity; no cloud AI/telemetry.
 - Local Codex uses session MCP/--no-daemon, preserving CLI/args/cwd/PATH/packages.

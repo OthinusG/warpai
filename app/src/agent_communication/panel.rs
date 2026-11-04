@@ -44,6 +44,26 @@ const GAP_TIGHT: f32 = 8.;
 const GAP_ROW: f32 = 8.;
 const GAP_SECTION: f32 = 8.;
 
+fn task_state_label(state: &str, archived: bool, language: warpui::localization::Language) -> String {
+    let state = warpui::localization::text_in(language, state);
+    if archived {
+        format!("{} · {}", state, warpui::localization::text_in(language, "Archived"))
+    } else {
+        state.to_owned()
+    }
+}
+
+#[test]
+fn collaboration_archived_label_preserves_task_outcome() {
+    use warpui::localization::{text_in, Language};
+    for language in [Language::English, Language::SimplifiedChinese, Language::TraditionalChinese] {
+        for state in ["accepted", "failed", "cancelled", "expired"] {
+            assert_eq!(task_state_label(state, false, language), text_in(language, state));
+            assert_eq!(task_state_label(state, true, language), format!("{} · {}", text_in(language, state), text_in(language, "Archived")));
+        }
+    }
+}
+
 // Text roles: semibold function headings;
 // 12px secondary text carries status and guidance.
 fn heading_icon(text: &str, language: warpui::localization::Language) -> Option<crate::ui_components::icons::Icon> {
@@ -948,7 +968,7 @@ impl CollaborationPanel {
                         let data = &record["data"];
                         match record["type"].as_str()? {
                             "task" => Some(format!("{} · {}", data["description"].as_str().unwrap_or(warpui::localization::text("Task")),
-                                warpui::localization::text(data["state"].as_str().unwrap_or("unknown")))),
+                                task_state_label(data["state"].as_str().unwrap_or("unknown"), data["archived"].as_bool().unwrap_or(false), warpui::localization::language()))),
                             "message" => Some(format!("{} → {}\n{}", snapshot.participant_label(data["from"].as_str().unwrap_or("")),
                                 snapshot.participant_label(data["to"].as_str().unwrap_or("")), warp_agent_bus::context::display_wire_body(&data["body"]))),
                             _ => None,
@@ -1062,7 +1082,7 @@ impl CollaborationPanel {
             fixture.sections.extend([
                 Section {
                     title: {
-                        let __warpai_locale_argument_0 = &(warpui::localization::text(&task.state));
+                        let __warpai_locale_argument_0 = &task_state_label(&task.state, task.archived, warpui::localization::language());
                         warpui::localization::format_text(
                             "Task · {}",
                             &[("0", format!("{__warpai_locale_argument_0}").as_str())],
@@ -1841,11 +1861,7 @@ impl View for CollaborationPanel {
                 (0, if self.remote_connection.as_ref().is_some_and(SshConnection::is_wsl) { "WSL setup" } else { "SSH setup" }, Action::RemoteSetup),
                 (1, "Reconnect", Action::ReconnectSsh),
             ] {
-                let variant = if index == 0 {
-                    ButtonVariant::Secondary
-                } else {
-                    ButtonVariant::Text
-                };
+                let variant = ButtonVariant::Secondary;
                 let button = builder
                     .button(variant, self.remote_buttons[index].clone())
                     .with_text_label(warpui::localization::text(label).into());
@@ -1925,7 +1941,7 @@ impl View for CollaborationPanel {
                     if !hide_navigation {
                         navigation.add_child(
                             builder
-                                .button(if self.query.history { ButtonVariant::Secondary } else { ButtonVariant::Text }, self.page_buttons[0].clone())
+                                .button(ButtonVariant::Secondary, self.page_buttons[0].clone())
                                 .with_text_label(warpui::localization::text("Back").into())
                                 .build()
                                 .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::Back))
@@ -2015,7 +2031,7 @@ impl View for CollaborationPanel {
                         if let Some(action) = action {
                             buttons.push(
                                 builder
-                                    .button(ButtonVariant::Text, self.page_buttons[index].clone())
+                                    .button(ButtonVariant::Secondary, self.page_buttons[index].clone())
                                     .with_text_label(warpui::localization::text(label).into())
                                     .build()
                                     .on_click(move |ctx, _, _| {
@@ -2100,6 +2116,7 @@ impl View for CollaborationPanel {
             let mut buttons = Vec::new();
             for (index, label, action) in [
                 (1, "First page", Some(Action::FirstHistory)),
+                (3, "Copy", Some(Action::CopyHistory)),
                 (
                     2,
                     "Next page",
@@ -2143,7 +2160,7 @@ impl View for CollaborationPanel {
                         buttons.push(
                             builder
                                 .button(
-                                    ButtonVariant::Text,
+                                    ButtonVariant::Secondary,
                                     self.message_page_buttons[index].clone(),
                                 )
                                 .with_text_label(warpui::localization::text(label).into())
@@ -2246,7 +2263,7 @@ impl View for CollaborationPanel {
                     if let Some(action) = action {
                         buttons.push(
                             builder
-                                .button(ButtonVariant::Text, self.page_buttons[index].clone())
+                                .button(ButtonVariant::Secondary, self.page_buttons[index].clone())
                                 .with_text_label(warpui::localization::text(label).into())
                                 .build()
                                 .on_click(move |ctx, _, _| {
@@ -2632,6 +2649,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     };
     use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
+
+    fn history_command_finished(app: &mut warpui::App, window: warpui::WindowId, expected: &str, expected_exit_code: i32) -> bool {
+        app.views_of_type::<crate::terminal::TerminalView>(window)
+            .and_then(|views| views.first().cloned())
+            .is_some_and(|view| view.read(app, |terminal, ctx| {
+                !terminal.has_pending_command_or_awaiting_completion(ctx)
+                    && terminal.model.lock().block_list().blocks().iter().any(|block|
+                        block.is_done() && block.exit_code().value() == expected_exit_code && block.command_to_string().trim() == expected)
+            }))
+    }
     let language_code = std::env::var("WARPAI_CAPTURE_LANGUAGE").unwrap_or_else(|_| "en".into());
     let capture_language: warpui::localization::Language =
         serde_json::from_value(serde_json::Value::String(language_code.clone()))?;
@@ -2757,6 +2784,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("custom tab icon in vertical layout")
                 .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| {
+                        terminal.execute_command_or_set_pending("git config --local --get warpai.capture-single", ctx);
+                    });
                     app.update(|ctx| {
                         crate::workspace::tab_settings::TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                             settings.use_vertical_tabs.set_value(true, ctx).unwrap();
@@ -2781,7 +2812,44 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         )
                     });
                 })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("single native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-single", 1))
+                })
+                .add_named_assertion("vertical toolbar belongs to its sidebar column", |app, window| {
+                    let bounds = app.read(|ctx| {
+                        let sidebar = ctx.element_position_by_id_at_last_frame(window, "workspace_view:vertical_tabs_panel");
+                        let toolbar = ctx.element_position_by_id_at_last_frame(window, "workspace_view:tab_bar");
+                        sidebar.zip(toolbar)
+                    });
+                    warpui::async_assert!(bounds.is_some_and(|(sidebar, toolbar)|
+                        toolbar.min_x() >= sidebar.min_x() - 1.
+                        && toolbar.max_x() <= sidebar.max_x() + 1.
+                        && toolbar.max_y() <= sidebar.min_y() + 1.))
+                })
                 .with_take_screenshot("custom-tab-icon-vertical.png"),
+        )
+        .with_step(
+            TestStep::new("complete middle native history command")
+                .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git config --local --get warpai.capture-middle", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("middle native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-middle", 1))
+                }),
+        )
+        .with_step(
+            TestStep::new("complete last native history command")
+                .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git config --local --get warpai.capture-last", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("last native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-last", 1))
+                }),
         )
         .with_step(
             TestStep::new("custom tab icon picker")
@@ -2800,6 +2868,13 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ctx,
                         )
                     });
+                }),
+        )
+        .with_step(
+            TestStep::new("open local icon submenu")
+                .with_hover_on_saved_position_fn(|_, _| warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL).to_owned())
+                .add_named_assertion("local icon sidecar is visible after native hover", |app, window| {
+                    warpui::async_assert!(app.read(|ctx| ctx.element_position_by_id_at_last_frame(window, "move_to_group_sidecar").is_some()))
                 })
                 .with_take_screenshot("custom-tab-icon-picker.png"),
         )
@@ -2836,6 +2911,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         },
                     )
                 });
+            }),
+        )
+        .with_step(
+            TestStep::new("restore clean shell status after history capture")
+                .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git --no-optional-locks diff --quiet", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("owned capture repository remains clean", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git --no-optional-locks diff --quiet", 0))
+                }),
+        )
+        .with_step(
+            TestStep::new("clear native history capture").with_action(|app, window, _| {
+                let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                terminal.update(app, |terminal, ctx| terminal.handle_action(&crate::terminal::view::TerminalAction::ClearBuffer, ctx));
             }),
         )
         .with_step(

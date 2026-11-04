@@ -38,8 +38,8 @@ fn adapted_command(
     } else {
         &prefix[1..]
     };
-    let tail = command.trim_start().strip_prefix("codex").unwrap();
-    format!("codex {}{tail}", session_prefix_for_shell(prefix, shell))
+    let (program, tail) = command.trim_start().split_at(5);
+    format!("{program} {}{tail}", session_prefix_for_shell(prefix, shell))
 }
 
 impl TerminalView {
@@ -59,16 +59,13 @@ impl TerminalView {
         self.codex_mcp_launch_generation = self.codex_mcp_launch_generation.wrapping_add(1);
         let generation = self.codex_mcp_launch_generation;
         let trimmed = event.command.trim_start();
-        let Some(_) = trimmed
-            .strip_prefix("codex")
-            .filter(|tail| tail.is_empty() || tail.starts_with(char::is_whitespace))
-        else {
+        if !trimmed.split_whitespace().next().is_some_and(|program| program.eq_ignore_ascii_case("codex")) {
             return false;
-        };
+        }
         let Some(words) = shlex::split(trimmed) else {
             return false;
         };
-        if words.first().map(String::as_str) != Some("codex") {
+        if !words.first().is_some_and(|program| program.eq_ignore_ascii_case("codex")) {
             return false;
         }
         #[cfg(windows)]
@@ -109,9 +106,7 @@ impl TerminalView {
         };
         // A Windows host probe cannot establish the Linux CLI/IPC contract of a WSL guest.
         if session.is_wsl()
-            || session.alias_value("codex").is_some()
-            || session.abbreviation_value("codex").is_some()
-            || session.function_names().any(|name| name == "codex")
+            || session.has_command_override(&words[0])
         {
             return false;
         }
@@ -172,8 +167,7 @@ impl TerminalView {
         if !settings.preferences.enabled || settings.busy || self.has_pending_ssh_command() { return false; }
         let Some(session) = self.sessions_model().as_ref(ctx).get(event.session_id) else { return false; };
         if self.active_block_session_id() != Some(event.session_id)
-            || session.alias_value("codex").is_some() || session.abbreviation_value("codex").is_some()
-            || session.function_names().any(|name| name == "codex") { return false; }
+            || session.has_command_override(&words[0]) { return false; }
         let Some(directory) = self.pwd() else { return false; };
         let Some(target) = super::ssh_settings::Target::from_session(&session, &directory, ctx) else { return false; };
         let Some(shell) = self.active_session_shell_type(ctx) else { return false; };
@@ -237,9 +231,7 @@ impl TerminalView {
             return false;
         };
         if self.active_block_session_id() != Some(event.session_id)
-            || session.alias_value("codex").is_some()
-            || session.abbreviation_value("codex").is_some()
-            || session.function_names().any(|name| name == "codex")
+            || session.has_command_override(&words[0])
         {
             return false;
         }
@@ -344,6 +336,16 @@ mod tests {
                 }
                 assert!(adapted.ends_with(command.strip_prefix("codex").unwrap()));
             }
+        }
+    }
+
+    #[test]
+    fn mixed_case_codex_preserves_executable_and_arguments() {
+        let options = warp_agent_bus::launch::LaunchOptions::from_help("codex", "  --no-daemon  Embedded");
+        for command in ["CODEX --model TestModel", "CoDeX -- 'Keep CASE'"] {
+            let adapted = adapted_command(command, &["--no-daemon".into()], ShellType::Zsh, &options);
+            assert!(adapted.starts_with(&command[..5]));
+            assert!(adapted.ends_with(&command[5..]));
         }
     }
 

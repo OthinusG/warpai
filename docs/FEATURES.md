@@ -241,6 +241,17 @@
 
 ---
 
+#### 任务交接简报（handoff）
+
+受跟踪任务提交时保存不可变交接简报，失败与确认取消保留部分成果或停止点。
+显式进度检查点可记录决策、未解决问题和有序后续步骤。任务详情支持版本浏览与按需加载，
+后续任务可通过 `context_refs` 固定引用，也可显式向消息接收者共享指定版本。
+当前源状态与评审独立读取；固定引用不会自动跟随最新版本，不授予源任务、文件系统或
+执行权限。活跃引用保护源记录的保留，正常启动与恢复规则仍适用。
+详见 [中文使用流程](AGENTS.zh-CN.md#任务交接简报handoff) 与
+[English guide](AGENTS.md#task-handoff-briefs)。普通本地终端无需安装或更新 Companion；
+SSH 和本地 WSL 使用配套 Companion 6.0.0。
+
 ### Tier 2: 一体化工程工作台特性 (Integrated Engineering Workbench)
 *为开发者提供免跳出的一体化微型 IDE 体验，减少在终端、VS Code、Finder 之间的频繁切换。*
 
