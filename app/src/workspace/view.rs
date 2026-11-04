@@ -10008,11 +10008,8 @@ impl Workspace {
                 self.hide_move_to_group_sidecar(ctx);
                 return;
             }
-            let padding = (local_icons && uses_vertical_tabs(ctx)).then_some(corner_radii::SURFACE);
             self.move_to_group_sidecar_menu
                 .update(ctx, |menu, view_ctx| {
-                    // Scrollable child layers must stay clear of the menu's outer arcs.
-                    menu.set_content_padding_overrides(padding, padding);
                     menu.set_items(items, view_ctx);
                 });
             self.show_move_to_group_sidecar = true;

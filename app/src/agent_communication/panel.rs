@@ -2826,15 +2826,9 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("open local icon submenu")
-                .with_action(|app, window, _| {
-                    let menus = app.views_of_type::<crate::menu::Menu<WorkspaceAction>>(window).unwrap();
-                    for menu in menus {
-                        menu.update(app, |menu, ctx| {
-                            if menu.items().iter().any(|item| matches!(item, crate::menu::MenuItem::Item(fields) if fields.label() == warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL))) {
-                                menu.set_selected_by_name(warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL), ctx);
-                            }
-                        });
-                    }
+                .with_hover_on_saved_position_fn(|_, _| warpui::localization::text(crate::tab::LOCAL_TAB_ICONS_LABEL).to_owned())
+                .add_named_assertion("local icon sidecar is visible after native hover", |app, window| {
+                    warpui::async_assert!(app.read(|ctx| ctx.element_position_by_id_at_last_frame(window, "move_to_group_sidecar").is_some()))
                 })
                 .with_take_screenshot("custom-tab-icon-picker.png"),
         )

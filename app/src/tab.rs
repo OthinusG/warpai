@@ -748,9 +748,12 @@ impl TabData {
         // Five 30px cells fit within the native 186px menu and its 28px insets.
         let mut rows: Vec<_> = items.chunks(5)
             .map(|items| MenuItem::ItemsRow { items: items.to_vec() }).collect();
-        rows.push(MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL))
-            .with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
-            .into_item());
+        let local_icons = MenuItemFields::new_submenu(warpui::localization::text(LOCAL_TAB_ICONS_LABEL));
+        // The path tooltip occupies the sidecar's anchor and peeks through its rounded corner.
+        let local_icons = if uses_vertical_tabs(ctx) { local_icons } else {
+            local_icons.with_tooltip(local_icons::directory().map(|path| path.display().to_string()).unwrap_or_default())
+        };
+        rows.push(local_icons.into_item());
         rows
     }
 

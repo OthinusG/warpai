@@ -4869,7 +4869,8 @@ fn paint_history_corners(
     background: Fill,
     ctx: &mut PaintContext,
 ) {
-    let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.);
+    let group_height = edges.0.zip(edges.1).map_or(bounds.height(), |(top, bottom)| bottom - top);
+    let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.).min(group_height / 2.);
     for (edge, bottom) in [(edges.0, false), (edges.1, true)] {
         let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else {
             continue;

@@ -176,3 +176,13 @@ typography, assets and menu highlights match the scoped visual contract.
   the displayed commands; the existing ClearBuffer action removes the fixtures.
 - Local Rust parsing, diff checks and strict translation coverage passed.
   Compilation, native rendering and functional acceptance remain pending CI.
+
+
+### Icon corner root cause
+
+`TabData::icon_option_menu_items` put a Right path tooltip on the Local icons
+submenu parent. Hover rendered that tooltip at the same anchor as the sidecar;
+the tooltip remained behind its larger rounded corner. Omit that redundant hint
+only for vertical tabs. Retain horizontal tooltip behavior, sidecar geometry and
+shadows. The native icon checkpoint now sends a real hover to the saved parent
+row, exercising both the tooltip and sidecar trigger.
