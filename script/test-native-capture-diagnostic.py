@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     (root / "capture").mkdir()
     (root / "capture/checkpoint-assertion.txt").write_text("owned remote tree populated")
-    (root / "capture/checkpoint-tree.txt").write_text("Native SSH tree: active=true, current=false, selected=true, attached=false, error=false, roots=0, entries=0\nunrelated runtime payload")
+    (root / "capture/checkpoint-tree.txt").write_text("Native SSH tree: active=true, current=false, selected=true, attached=false, error=false, roots=0, entries=0\nOwned SSH master alive after capture: False\nunrelated runtime payload")
     (root / "capture/checkpoint-panic.txt").write_text("app/src/agent_communication/panel.rs:4485:1\nunrelated runtime payload")
     (root / "capture/checkpoint-singleton.txt").write_text("Native missing singleton: warpai::terminal::cli_agent_sessions::CLIAgentSessionsModel\nNative missing singleton: settings::Preferences\nNative missing singleton: settings::Setting<warpai::settings::Language>\nNative missing singleton: runtime payload\nNative missing singleton: settings::Preferences/token")
     with (root / "capture/checkpoint-singleton.txt").open("a") as checkpoint:
@@ -45,6 +45,7 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run([sys.executable, str(Path(__file__).with_name("native-capture-diagnostic.py")), "--log", str(root / "log"), "--output", str(root / "diagnostic.json"), "--exit-code", "1"], check=True, stdout=subprocess.DEVNULL)
     diagnostic = json.loads((root / "diagnostic.json").read_text())
     assert diagnostic["failed_assertions"] == ["owned remote tree populated"]
+    assert diagnostic["ssh_master_alive"] == [False]
     assert diagnostic["fixture_stages"] == ["direct-tests"]
     assert diagnostic["fixture_trace_lines"] == [99]
     assert diagnostic["fixture_exceptions"] == ["TimeoutExpired"]

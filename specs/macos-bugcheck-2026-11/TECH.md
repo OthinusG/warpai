@@ -192,3 +192,20 @@ CLI launch guards share the session's alias/abbreviation/function override
 check. PowerShell lookup ignores ASCII case; POSIX lookup remains exact. Agent
 alias resolution follows the same shell rule. Regressions cover all three
 namespaces and preserve case-sensitive arguments and model names.
+
+### CI repair plan: capture 41761210562
+
+Both protocol suites and macOS default/platform/application regressions passed.
+Native captures completed English and Simplified Chinese (370 PNGs each), then
+Traditional Chinese stopped at `owned remote tree populated` (213 PNGs). The
+redacted diagnostic includes `SshAuthenticationUnavailable`; source changes do
+not modify SSH transport. Do not weaken authentication, reconnect policy or the
+Explorer assertion. Establish fixture multiplex readiness with OpenSSH's own
+check command, retain bounded status-only diagnostics, and rerun on final source.
+
+Visual inspection independently found that the multi-block outer corners were
+not painted although the single-block corners were. Strict float comparisons
+can classify an accumulated subpixel boundary as offscreen. Add regression
+coverage for near-equal bounds, tolerate only layout rounding and clamp the mask
+origin to its viewport. Real clipped boundaries must remain square. Re-run native
+captures and inspect pixels before accepting this diagnosis.

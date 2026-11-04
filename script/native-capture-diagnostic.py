@@ -43,6 +43,7 @@ def main() -> None:
     diagnostic = {
         "source": os.environ.get("GITHUB_SHA", "local"),
         "exit_code": args.exit_code,
+        "ssh_master_alive": [value == "True" for value in re.findall(r"^Owned SSH master alive after capture: (True|False)$", log, re.MULTILINE)],
         "fixture_stages": re.findall(r"^Owned SSH fixture stage: (prepare|connect|sftp|direct-tests|jump-tests|installed-tests|capture)\r?$", log, re.MULTILINE),
         "fixture_exceptions": sorted(set(re.findall(r"^(?:subprocess\.)?(TimeoutExpired|CalledProcessError|UnicodeDecodeError|UnicodeEncodeError|FileNotFoundError|PermissionError|RuntimeError|AssertionError):", log, re.MULTILINE))),
         "fixture_trace_lines": [int(line) for line in re.findall(r'File "[^"\n]*[\\/]verify-ssh-file-tools\.py", line (\d{1,4}),', log)],
