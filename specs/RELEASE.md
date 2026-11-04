@@ -27,8 +27,11 @@ Tasks: update version and fixtures; cloud-verify protocol/installation/applicati
 and native UI; fast-forward accepted source into main; create immutable v1.8.6.1;
 reuse existing macOS/Windows/Linux release workflows. Retain every native package,
 source/version/runtime/checksum gate. Build a draft and attach/verify all 13
-installers and checksum/provenance inventories before publishing. Monitor at the
-owner's 15-minute cadence; repair failures and retry without moving the tag.
+installers and checksum/provenance inventories before publishing. Once the macOS
+draft exists, run Linux independently alongside the automatic Windows build;
+cancel the redundant automatic Linux follow-up before duplicate packaging.
+Keep automatic publication disabled. Monitor at the owner's 15-minute cadence;
+repair failures and retry without moving the tag.
 After public assets resolve, synchronize current download links and bilingual
 documentation, verify production website rendering/links/deployment, then update
 Homebrew with the independently downloaded public DMG SHA-256.
