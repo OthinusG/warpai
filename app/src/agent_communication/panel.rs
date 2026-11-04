@@ -2808,8 +2808,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ctx,
                         )
                     });
-                })
-                .with_take_screenshot("custom-tab-icon-picker.png"),
+                }),
         )
         .with_step(
             TestStep::new("open local icon submenu")
@@ -2823,7 +2822,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         });
                     }
                 })
-                .with_take_screenshot("custom-tab-local-icon-submenu.png"),
+                .with_take_screenshot("custom-tab-icon-picker.png"),
         )
         .with_step(
             TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {

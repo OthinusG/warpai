@@ -246,7 +246,7 @@ fn test_build_selection_substring_prompt_format() {
 }
 
 #[test]
-fn test_detect_known_agents() {
+fn collaboration_detect_known_agents_case_insensitive() {
     App::test((), |mut app| async move {
         app.update(|ctx| {
             for (command, expected) in [

@@ -4888,7 +4888,7 @@ fn history_edge_is_visible(bounds: RectF, y: f32, bottom: bool, radius: f32) -> 
 }
 
 #[test]
-fn history_corners_require_actual_visible_boundaries() {
+fn collaboration_history_corners_require_actual_visible_boundaries() {
     let bounds = RectF::new(vec2f(10., 20.), vec2f(300., 200.));
     assert!(history_edge_is_visible(bounds, 20., false, 12.));
     assert!(history_edge_is_visible(bounds, 220., true, 12.));

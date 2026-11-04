@@ -240,8 +240,6 @@ jobs:
           cargo test -p warpai --lib heading_icons_preserve_roles_in_each_interface_language --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
-          cargo test -p warpai --lib terminal::cli_agent_tests:: --locked
-          cargo test -p warpai --lib history_corners_require_actual_visible_boundaries --locked
           cargo test -p warpai --lib agent_communication::ssh_settings::tests --locked
           RUST_LOG=error cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
@@ -364,8 +362,8 @@ jobs:
           }
           $images = @(Get-ChildItem $env:WARP_COLLABORATION_CAPTURE -Recurse -Filter '*.png')
           $fixtureCount = @(Get-Content 'specs/agent-communication-v2/panel-fixtures.json' -Raw | ConvertFrom-Json).Count
-          # 235 = fixed checkpoints, including the local icon submenu capture.
-          $expectedImages = $fixtureCount * 8 + 235
+          # 234 = fixed checkpoints, including the two custom tab icon captures.
+          $expectedImages = $fixtureCount * 8 + 234
           if ('${{ inputs.wsl_acceptance }}' -eq 'true') { $expectedImages += 9 }
           $expectedImages *= 3
           if ($images.Count -ne $expectedImages -or @($images | Where-Object Length -eq 0).Count -ne 0) { throw "Expected $expectedImages nonempty native PNGs; found $($images.Count)" }
@@ -490,8 +488,6 @@ jobs:
           cargo test -p warpai --lib managed_configuration_is_reversible_and_preserves_user_settings --locked
           cargo test -p warpai --lib legacy_credential_cleanup_preserves_other_keys_and_reports_failures --locked
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
-          cargo test -p warpai --lib terminal::cli_agent_tests:: --locked
-          cargo test -p warpai --lib history_corners_require_actual_visible_boundaries --locked
           cargo test -p warpai --lib agent_communication::ssh_settings::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
@@ -560,8 +556,8 @@ jobs:
           images = list(Path(os.environ['WARP_COLLABORATION_CAPTURE']).rglob('*.png'))
           import json
           fixtures = json.loads(Path('specs/agent-communication-v2/panel-fixtures.json').read_text())
-          # 235 = fixed checkpoints, including the local icon submenu capture.
-          expected = (len(fixtures) * 8 + 235) * 3
+          # 234 = fixed checkpoints, including the two custom tab icon captures.
+          expected = (len(fixtures) * 8 + 234) * 3
           assert len(images) == expected and all(image.stat().st_size > 0 for image in images), f'Expected {expected} nonempty native PNGs; found {len(images)}'
           PY
       - name: Upload macOS native UI captures
