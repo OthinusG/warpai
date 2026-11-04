@@ -2649,6 +2649,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     };
     use ::settings::Setting as _;
     use warpui::integration::{Builder, TestStep, ARTIFACTS_DIR_ENV_VAR};
+
+    fn history_command_finished(app: &mut warpui::App, window: warpui::WindowId, expected: &str) -> bool {
+        app.views_of_type::<crate::terminal::TerminalView>(window)
+            .and_then(|views| views.first().cloned())
+            .is_some_and(|view| view.read(app, |terminal, ctx| {
+                !terminal.has_pending_command_or_awaiting_completion(ctx)
+                    && terminal.model.lock().block_list().blocks().iter().any(|block|
+                        block.is_done() && block.exit_code().value() == 1 && block.command_to_string().trim() == expected)
+            }))
+    }
     let language_code = std::env::var("WARPAI_CAPTURE_LANGUAGE").unwrap_or_else(|_| "en".into());
     let capture_language: warpui::localization::Language =
         serde_json::from_value(serde_json::Value::String(language_code.clone()))?;
@@ -2776,9 +2786,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_action(|app, window, _| {
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
                     terminal.update(app, |terminal, ctx| {
-                        terminal.model.lock().block_list_mut().create_restored_command_block(
-                            "printf 'single history block'", "Single history block\r\n", None, 1, None, None);
-                        ctx.notify();
+                        terminal.execute_command_or_set_pending("git config --local --get warpai.capture-single", ctx);
                     });
                     app.update(|ctx| {
                         crate::workspace::tab_settings::TabSettings::handle(ctx).update(ctx, |settings, ctx| {
@@ -2804,6 +2812,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         )
                     });
                 })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("single native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-single"))
+                })
                 .add_named_assertion("vertical toolbar belongs to its sidebar column", |app, window| {
                     let bounds = app.read(|ctx| {
                         let sidebar = ctx.element_position_by_id_at_last_frame(window, "workspace_view:vertical_tabs_panel");
@@ -2818,16 +2830,30 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .with_take_screenshot("custom-tab-icon-vertical.png"),
         )
         .with_step(
-            TestStep::new("custom tab icon picker")
+            TestStep::new("complete middle native history command")
                 .with_action(|app, window, _| {
                     let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
-                    terminal.update(app, |terminal, ctx| {
-                        let mut model = terminal.model.lock();
-                        for label in ["Middle history block", "Last history block"] {
-                            model.block_list_mut().create_restored_command_block(label, &format!("{label}\r\n"), None, 1, None, None);
-                        }
-                        ctx.notify();
-                    });
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git config --local --get warpai.capture-middle", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("middle native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-middle"))
+                }),
+        )
+        .with_step(
+            TestStep::new("complete last native history command")
+                .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| terminal.execute_command_or_set_pending("git config --local --get warpai.capture-last", ctx));
+                })
+                .set_timeout(std::time::Duration::from_secs(45))
+                .add_named_assertion("last native history command completed", |app, window| {
+                    warpui::async_assert!(history_command_finished(app, window, "git config --local --get warpai.capture-last"))
+                }),
+        )
+        .with_step(
+            TestStep::new("custom tab icon picker")
+                .with_action(|app, window, _| {
                     let root = app.root_view::<RootView>(window).unwrap();
                     let workspace =
                         root.read(app, |root, _| root.workspace_view().unwrap().clone());

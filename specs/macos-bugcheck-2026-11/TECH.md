@@ -171,9 +171,10 @@ typography, assets and menu highlights match the scoped visual contract.
 - Existing OAuth permissions reject workflow-file changes. Reused the unmodified
   workflow: new application checks use its `collaboration_` group and the native
   submenu replaces the existing icon-picker checkpoint, preserving image counts.
-- The vertical icon checkpoints now also exercise one failed history block and
-  multiple failed blocks with representative fixed content. They do not execute
-  the displayed commands; the existing ClearBuffer action removes the fixtures.
+- The vertical icon checkpoints exercise one failed history block and multiple
+  failed blocks through native PTY commands that read fixed, absent keys from the
+  owned fixture repository's local Git config. They write no project/config data;
+  the existing ClearBuffer action removes their visible history afterward.
 - Local Rust parsing, diff checks and strict translation coverage passed.
   Compilation, native rendering and functional acceptance remain pending CI.
 
@@ -209,3 +210,12 @@ can classify an accumulated subpixel boundary as offscreen. Add regression
 coverage for near-equal bounds, tolerate only layout rounding and clamp the mask
 origin to its viewport. Real clipped boundaries must remain square. Re-run native
 captures and inspect pixels before accepting this diagnosis.
+
+Windows native compilation and all application regressions also passed, but its
+capture stopped at the Reset Grid assertion in `grid/ansi_handler.rs`. Directly
+inserting restored history into the live fixture PTY creates a new active grid
+without its shell's reset handshake. Keep that production assertion. Replace
+only the synthetic insertion with three harmless native Git read commands,
+submitted separately through the existing pending-command API and awaited via
+their completed failure blocks. Preserve capture names/counts and the live shell
+for the later SSH scenarios; rerun both native capture jobs on corrected source.
