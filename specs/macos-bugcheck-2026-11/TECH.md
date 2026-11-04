@@ -280,3 +280,13 @@ to the owner-selected 6px; keep the right at 12px and preserve all vertical geom
 radii, shadows, theme and control styles. Reuse the native screenshot fixtures
 and verify the source-matched left column at the same display scale, then merge
 into main and proceed with 1.8.6.1. Supersedes publication of 1.8.6.
+
+## Light left-column shadow follow-up
+
+Owner reference: Desktop/截屏2026-11-04 20.52.56.png. The light left column's
+halo is too faint at its left/top edges. Use the existing theme color-scheme
+inference to strengthen only the light left-column shadow and center it with
+zero offset, producing a symmetric soft halo. Retain blur/drawable spread,
+the 6px horizontal inset, all geometry, dark left-column styling and the right
+column. Verify a source-matched native light capture before resuming release.
+Do not modify shared theme controls, Container clipping or renderers.

@@ -151,7 +151,7 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
 - Vertical chrome: side toolbars live inside inset floating columns; no title
   search setting/config override. Closed columns retain reopening controls.
-  Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px.
+  Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px. Light left shadow is centered.
   History Archive is idempotent and visibly labeled; task Delete is versioned,
   scoped and retains existing certainty/reference/unread-message guards.
   Agent executable detection ignores ASCII case; argv stays verbatim. Shell override lookup

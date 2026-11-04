@@ -21167,15 +21167,18 @@ impl Workspace {
                 ),
             )
             .finish();
+        let theme = Appearance::as_ref(app).theme();
+        let centered_light_shadow = side == PanelPosition::Left
+            && theme.inferred_color_scheme() == warp_core::ui::theme::ColorScheme::DarkOnLight;
         Some(
             Container::new(column)
-                .with_background(Appearance::as_ref(app).theme().surface_1())
+                .with_background(theme.surface_1())
                 .with_corner_radius(CornerRadius::with_all(Radius::Pixels(
                     corner_radii::SURFACE,
                 )))
                 .with_drop_shadow(DropShadow {
-                    color: ColorU::new(0, 0, 0, 28),
-                    offset: vec2f(0., 2.),
+                    color: ColorU::new(0, 0, 0, if centered_light_shadow { 56 } else { 28 }),
+                    offset: vec2f(0., if centered_light_shadow { 0. } else { 2. }),
                     blur_radius: 12.,
                     // The renderer uses spread as drawable padding for the blur.
                     spread_radius: 36.,
