@@ -59,6 +59,9 @@ impl TerminalView {
         self.codex_mcp_launch_generation = self.codex_mcp_launch_generation.wrapping_add(1);
         let generation = self.codex_mcp_launch_generation;
         let trimmed = event.command.trim_start();
+        if !trimmed.split_whitespace().next().is_some_and(|program| program.eq_ignore_ascii_case("codex")) {
+            return false;
+        }
         let Some(words) = shlex::split(trimmed) else {
             return false;
         };
