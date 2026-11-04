@@ -219,3 +219,8 @@ only the synthetic insertion with three harmless native Git read commands,
 submitted separately through the existing pending-command API and awaited via
 their completed failure blocks. Preserve capture names/counts and the live shell
 for the later SSH scenarios; rerun both native capture jobs on corrected source.
+
+
+History edges use the existing non-hidden block queries. Input pinned to the top
+reverses physical block order, so swap the logical endpoints before computing
+outer corners. Preserve the existing input-placement setting and scrolling.

@@ -3787,10 +3787,9 @@ impl Element for BlockListElement {
         let round_history = crate::tab::uses_vertical_tabs(app);
         let mut history_edges = (None, None);
         let (first_history, last_history) = if round_history {
-            let history_indices = block_list.blocks().iter().enumerate()
-                .filter(|(_, block)| block.height(agent_view_state) > Lines::zero())
-                .map(|(index, _)| BlockIndex::from(index));
-            (history_indices.clone().next(), history_indices.clone().next_back())
+            let first = block_list.first_non_hidden_block_by_index();
+            let last = block_list.last_non_hidden_block_by_index();
+            if self.input_mode.is_inverted_blocklist() { (last, first) } else { (first, last) }
         } else {
             (None, None)
         };
