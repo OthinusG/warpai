@@ -3784,12 +3784,16 @@ impl Element for BlockListElement {
 
         let mut cli_subagent_views_to_paint = vec![];
         let agent_view_state = model.block_list().agent_view_state();
+        let round_history = crate::tab::uses_vertical_tabs(app);
         let mut history_edges = (None, None);
-        let history_indices = block_list.blocks().iter().enumerate()
-            .filter(|(_, block)| !block.is_hidden() && block.height(agent_view_state) > Lines::zero())
-            .map(|(index, _)| BlockIndex::from(index));
-        let first_history = history_indices.clone().next();
-        let last_history = history_indices.clone().next_back();
+        let (first_history, last_history) = if round_history {
+            let history_indices = block_list.blocks().iter().enumerate()
+                .filter(|(_, block)| block.height(agent_view_state) > Lines::zero())
+                .map(|(index, _)| BlockIndex::from(index));
+            (history_indices.clone().next(), history_indices.clone().next_back())
+        } else {
+            (None, None)
+        };
 
         let items = self
             .visible_items
@@ -4423,7 +4427,7 @@ impl Element for BlockListElement {
             }
         }
 
-        if crate::tab::uses_vertical_tabs(app) {
+        if round_history {
             paint_history_corners(element_bounds, history_edges, self.warp_theme.background(), ctx);
         }
         ctx.scene.stop_layer();
