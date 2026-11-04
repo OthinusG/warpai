@@ -246,3 +246,14 @@ Native macOS traffic lights are excluded from GPU capture. Their titlebar geomet
 was reviewed in source; physical traffic-light placement still needs hardware
 confirmation. Older remote Companions need the additive TaskDelete operation to
 support targeted deletion; no broad-purge fallback is used.
+
+## Updated branch test installer
+
+Owner request after final acceptance: build a macOS test installer from this
+branch. Use test version `v1.8.1.2` to distinguish the prior `v1.8.1.1` artifact.
+Dispatch the existing macOS workflow with `artifact_only=true` and
+`auto_publish=false`; retain source-matched Companion dependencies and all
+packaging checks. Poll every 15 minutes, repair failures and retry. Verify the
+downloaded DMG checksum/integrity, read-only bundle version/identity/signature,
+canonical artwork and bundled bridge. Deliver the artifact without installing
+it or changing personal configuration, tags or public releases.
