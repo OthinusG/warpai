@@ -34,7 +34,8 @@ documentation, verify production website rendering/links/deployment, then update
 Homebrew with the independently downloaded public DMG SHA-256.
 
 Owner follow-up supersedes the initial 1.8.6 target: stop publication, restore
-only the left vertical column horizontal inset from 12px to its original 8px,
+only the left vertical column horizontal inset from 12px to 6px (the owner
+subsequently chose 6px instead of restoring the original 8px),
 verify native captures, merge the accepted source into main and publish 1.8.6.1.
 Keep the right column, vertical spacing, controls, radii and themes unchanged.
 No formal v1.8.6 tag/release was created. The supplied Desktop/{前,后}.png images

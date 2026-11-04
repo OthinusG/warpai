@@ -276,7 +276,7 @@ packaging-only follow-up.
 Owner reference: Desktop/前.png (approved narrower horizontal inset) and
 Desktop/后.png (regression). The shared column inset was increased from 8px to
 12px during the toolbar change. Restore only the left column horizontal inset
-to 8px; keep the right at 12px and preserve all vertical geometry, margins,
+to the owner-selected 6px; keep the right at 12px and preserve all vertical geometry, margins,
 radii, shadows, theme and control styles. Reuse the native screenshot fixtures
 and verify the source-matched left column at the same display scale, then merge
 into main and proceed with 1.8.6.1. Supersedes publication of 1.8.6.
