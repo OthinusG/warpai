@@ -139,4 +139,4 @@ Windows 覆盖原生 Shell、参数传递和进程测试。其他服务商版本
 
 远程账号需要匹配版本的 companion 和在该账号中已安装、认证的 CLI。
 桌面凭据不会复制到远端；远程参与权限固定在选定的账号和项目。
-按照 [中文 SSH 入门步骤](../README.zh-CN.md#work-on-remote-projects) 配置和启动。
+按照 [中文 SSH 入门步骤](REMOTE-INSTALLATION.zh-CN.md) 配置和启动。

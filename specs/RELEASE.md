@@ -11,7 +11,8 @@ supported desktop/Companion pairing changes without inventing a wire version.
 
 Use prominent heading-sized bold English/Chinese compatibility notices in release
 notes, README, installation guides and website: Companion versions across the
-1.8.6 boundary are not interchangeable; overwrite-install Companion 6.0.0 for
+1.8.6 boundary are not interchangeable; Companion is needed only for SSH and
+local WSL, never ordinary local terminals. Overwrite-install Companion 6.0.0 for
 Warpai 1.8.6. Install under the same SSH account, retain settings/data, reconnect;
 update local WSL through its existing settings installer. Do not claim rollback
 or database downgrade support.
