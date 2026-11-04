@@ -54,6 +54,26 @@ The new Companion version still requires source-matched cloud verification.
 Preserve the owner's unrelated MEMORY cleanup and archive, prior immutable tags,
 public assets, personal installations and configuration.
 
+### 1.8.6.1 acceptance and main integration
+
+Runtime source `1479846db7c0f67095e171f9c7acb00da1dee72d` passed complete
+https://github.com/OthinusG/warpai/actions/runs/41834742647 on both desktops and
+both protocol jobs. Downloaded and verified 1,110 PNGs per platform, 370 per
+language; diagnostics have exit zero, no failed assertions/panic and three live
+macOS SSH fixture masters. Reviewed native left-column, history/menu and both-column
+views. The left body moved from x=19 to x=13 in the fixed capture (matching the
+12px-to-6px inset change including antialiasing); the top halo's RGB sample moved
+from (238,237,234) to (232,231,228), and the left halo is visibly stronger.
+Both columns retain identical centered shadow parameters. Padding details are
+excluded from both languages of the public release notes.
+
+Integrated the validated branch into the latest main at merge `f8295371`,
+preserving owner commits `01f53e81` and `5cb5ffcc` for the reference-only mirror.
+Application/crate/script/Cargo content exactly matches the accepted runtime;
+release workflows are unchanged from latest main. Subsequent changes are release
+instructions/notes/receipts only. Root worktree MEMORY cleanup/archive remain
+uncommitted and untouched by this integration.
+
 ## 1.8.1 delivery contract
 
 Owner authorization on 2026-10-30 resumes release work as 1.8.1 after macOS
