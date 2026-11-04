@@ -267,6 +267,7 @@ fn collaboration_detect_known_agents_case_insensitive() {
                 ("vibe", CLIAgent::Vibe),
                 ("vibe-acp", CLIAgent::Vibe),
                 ("grok", CLIAgent::Grok),
+                ("dsh-tui", CLIAgent::DeepSeekHarness),
                 ("qoder", CLIAgent::Qoder),
                 ("qodercn", CLIAgent::QoderCN),
                 ("qoderclicn", CLIAgent::QoderCN),

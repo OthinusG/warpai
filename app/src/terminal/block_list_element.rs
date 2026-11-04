@@ -4863,18 +4863,40 @@ where
 
 
 // Mask only the true history boundary; viewport clipping must never create a new corner.
-fn paint_history_corners(bounds: RectF, edges: (Option<f32>, Option<f32>), background: Fill, ctx: &mut PaintContext) {
+fn paint_history_corners(
+    bounds: RectF,
+    edges: (Option<f32>, Option<f32>),
+    background: Fill,
+    ctx: &mut PaintContext,
+) {
     let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.);
     for (edge, bottom) in [(edges.0, false), (edges.1, true)] {
-        let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else { continue; };
+        let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else {
+            continue;
+        };
         for right in [false, true] {
-            let x = if right { bounds.max_x() - radius } else { bounds.min_x() };
+            let x = if right {
+                bounds.max_x() - radius
+            } else {
+                bounds.min_x()
+            };
             let top = if bottom { y - radius } else { y };
-            let center = vec2f(if right { x } else { x + radius }, if bottom { top } else { top + radius });
-            ctx.scene.start_layer(ClipBounds::BoundedByActiveLayerAnd(RectF::new(vec2f(x, top), vec2f(radius, radius))));
+            let center = vec2f(
+                if right { x } else { x + radius },
+                if bottom { top } else { top + radius },
+            );
+            ctx.scene
+                .start_layer(ClipBounds::BoundedByActiveLayerAnd(RectF::new(
+                    vec2f(x, top),
+                    vec2f(radius, radius),
+                )));
             ctx.scene.set_active_layer_click_through();
             // A circular border paints the exterior of the inner quarter circle, preserving all block fills.
-            ctx.scene.draw_rect_without_hit_recording(RectF::new(center - vec2f(2. * radius, 2. * radius), vec2f(4. * radius, 4. * radius)))
+            ctx.scene
+                .draw_rect_without_hit_recording(RectF::new(
+                    center - vec2f(2. * radius, 2. * radius),
+                    vec2f(4. * radius, 4. * radius),
+                ))
                 .with_corner_radius(CornerRadius::with_all(Radius::Pixels(2. * radius)))
                 .with_border(Border::all(radius).with_border_fill(background));
             ctx.scene.stop_layer();
@@ -4883,8 +4905,11 @@ fn paint_history_corners(bounds: RectF, edges: (Option<f32>, Option<f32>), backg
 }
 
 fn history_edge_is_visible(bounds: RectF, y: f32, bottom: bool, radius: f32) -> bool {
-    if bottom { y <= bounds.max_y() && y - radius >= bounds.min_y() }
-    else { y >= bounds.min_y() && y + radius <= bounds.max_y() }
+    if bottom {
+        y <= bounds.max_y() && y - radius >= bounds.min_y()
+    } else {
+        y >= bounds.min_y() && y + radius <= bounds.max_y()
+    }
 }
 
 #[test]

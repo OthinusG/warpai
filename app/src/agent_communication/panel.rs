@@ -2754,6 +2754,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("custom tab icon in vertical layout")
                 .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| {
+                        terminal.model.lock().block_list_mut().create_restored_command_block(
+                            "printf 'single history block'", "Single history block\r\n", None, 1, None, None);
+                        ctx.notify();
+                    });
                     app.update(|ctx| {
                         crate::workspace::tab_settings::TabSettings::handle(ctx).update(ctx, |settings, ctx| {
                             settings.use_vertical_tabs.set_value(true, ctx).unwrap();
@@ -2794,6 +2800,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(
             TestStep::new("custom tab icon picker")
                 .with_action(|app, window, _| {
+                    let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                    terminal.update(app, |terminal, ctx| {
+                        let mut model = terminal.model.lock();
+                        for label in ["Middle history block", "Last history block"] {
+                            model.block_list_mut().create_restored_command_block(label, &format!("{label}\r\n"), None, 1, None, None);
+                        }
+                        ctx.notify();
+                    });
                     let root = app.root_view::<RootView>(window).unwrap();
                     let workspace =
                         root.read(app, |root, _| root.workspace_view().unwrap().clone());
@@ -2826,6 +2840,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         )
         .with_step(
             TestStep::new("restore default tab icon and layout").with_action(|app, window, _| {
+                let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+                terminal.update(app, |terminal, ctx| terminal.handle_action(&crate::terminal::view::TerminalAction::ClearBuffer, ctx));
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
                 workspace.update(app, |workspace, ctx| {

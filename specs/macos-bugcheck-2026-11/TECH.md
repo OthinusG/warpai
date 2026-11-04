@@ -162,3 +162,17 @@ blur=12, alpha=28 and offset y=2; set drawable spread=36. Re-capture and verify 
 visible gradient in the margin against the same-frame flat background. No
 renderer or clipping changes are needed. Other inspected geometry, palette,
 typography, assets and menu highlights match the scoped visual contract.
+
+
+### Follow-up validation receipt
+
+- First candidate: `f105e957`, run
+  https://github.com/OthinusG/warpai/actions/runs/41759499952.
+- Existing OAuth permissions reject workflow-file changes. Reused the unmodified
+  workflow: new application checks use its `collaboration_` group and the native
+  submenu replaces the existing icon-picker checkpoint, preserving image counts.
+- The vertical icon checkpoints now also exercise one failed history block and
+  multiple failed blocks with representative fixed content. They do not execute
+  the displayed commands; the existing ClearBuffer action removes the fixtures.
+- Local Rust parsing, diff checks and strict translation coverage passed.
+  Compilation, native rendering and functional acceptance remain pending CI.
