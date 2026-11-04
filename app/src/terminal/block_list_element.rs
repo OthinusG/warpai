@@ -4875,6 +4875,13 @@ fn paint_history_corners(
 ) {
     let group_height = edges.0.zip(edges.1).map_or(bounds.height(), |(top, bottom)| bottom - top);
     let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.).min(group_height / 2.);
+    #[cfg(debug_assertions)]
+    if std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
+        if let (Some(top), Some(bottom)) = edges {
+            eprintln!("Native history corners: top={top:.5}, bottom={bottom:.5}, min={:.5}, max={:.5}, radius={radius:.5}, top_visible={}, bottom_visible={}",
+                bounds.min_y(), bounds.max_y(), history_edge_is_visible(bounds, top, false, radius), history_edge_is_visible(bounds, bottom, true, radius));
+        }
+    }
     for (edge, bottom) in [(edges.0, false), (edges.1, true)] {
         let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else {
             continue;
