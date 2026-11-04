@@ -1,6 +1,6 @@
 # Warpai releases
 
-## 1.8.6 / Companion 6.0.0 delivery contract
+## 1.8.6.1 / Companion 6.0.0 delivery contract
 
 Owner accepted the macOS 1.8.1.2 branch test package and authorized the 1.8.6
 release on 2026-11-04. Shared Companion code changed since v1.8.1: task handoff
@@ -11,9 +11,9 @@ supported desktop/Companion pairing changes without inventing a wire version.
 
 Use prominent heading-sized bold English/Chinese compatibility notices in release
 notes, README, installation guides and website: Companion versions across the
-1.8.6 boundary are not interchangeable; Companion is needed only for SSH and
+1.8.6.1 boundary are not interchangeable; Companion is needed only for SSH and
 local WSL, never ordinary local terminals. Overwrite-install Companion 6.0.0 for
-Warpai 1.8.6. Install under the same SSH account, retain settings/data, reconnect;
+Warpai 1.8.6.1. Install under the same SSH account, retain settings/data, reconnect;
 update local WSL through its existing settings installer. Do not claim rollback
 or database downgrade support.
 
@@ -24,7 +24,7 @@ authority. Integrate into source guides, README and bilingual website feature/MC
 pages. Change history belongs in release notes only.
 
 Tasks: update version and fixtures; cloud-verify protocol/installation/application
-and native UI; fast-forward accepted source into main; create immutable v1.8.6;
+and native UI; fast-forward accepted source into main; create immutable v1.8.6.1;
 reuse existing macOS/Windows/Linux release workflows. Retain every native package,
 source/version/runtime/checksum gate. Build a draft and attach/verify all 13
 installers and checksum/provenance inventories before publishing. Monitor at the
@@ -32,6 +32,14 @@ owner's 15-minute cadence; repair failures and retry without moving the tag.
 After public assets resolve, synchronize current download links and bilingual
 documentation, verify production website rendering/links/deployment, then update
 Homebrew with the independently downloaded public DMG SHA-256.
+
+Owner follow-up supersedes the initial 1.8.6 target: stop publication, restore
+only the left vertical column horizontal inset from 12px to its original 8px,
+verify native captures, merge the accepted source into main and publish 1.8.6.1.
+Keep the right column, vertical spacing, controls, radii and themes unchanged.
+No formal v1.8.6 tag/release was created. The supplied Desktop/{前,后}.png images
+are the visual reference for this bounded correction. Companion remains 6.0.0;
+all compatibility notices and current download surfaces must name 1.8.6.1.
 
 Existing acceptance: complete desktop/protocol/native UI run 41800961052 and
 macOS release-package run 41813550989 passed; owner reported no observed bug.

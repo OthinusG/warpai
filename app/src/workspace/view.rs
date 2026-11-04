@@ -21180,7 +21180,7 @@ impl Workspace {
                     // The renderer uses spread as drawable padding for the blur.
                     spread_radius: 36.,
                 })
-                .with_horizontal_padding(12.)
+                .with_horizontal_padding(if side == PanelPosition::Left { 8. } else { 12. })
                 .with_padding_top(0.)
                 .with_padding_bottom(8.)
                 .with_uniform_margin(6.)
