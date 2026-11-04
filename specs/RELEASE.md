@@ -38,8 +38,9 @@ only the left vertical column horizontal inset from 12px to 6px (the owner
 subsequently chose 6px instead of restoring the original 8px),
 verify native captures, merge the accepted source into main and publish 1.8.6.1.
 Keep the right column, vertical spacing, controls, radii and themes unchanged.
-The owner also approved a stronger, zero-offset soft shadow only for the light
-left column; verify its halo in native captures before release.
+The owner requires matching four-direction shadows on both columns, allowing
+a uniform moderate strength increase. Use the same zero-offset halo (alpha 40)
+for both, preserving blur/spread and geometry; verify both in native captures.
 No formal v1.8.6 tag/release was created. The supplied Desktop/{前,后}.png images
 are the visual reference for this bounded correction. Companion remains 6.0.0;
 all compatibility notices and current download surfaces must name 1.8.6.1.
