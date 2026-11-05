@@ -175,6 +175,47 @@ Retrieves pending notifications and unacknowledged messages from the agent's pri
 
 ---
 
+## Task handoff resources
+
+Task lifecycle calls accept optional `handoff` sections. `warp_task_submit` always
+creates a baseline brief; `warp_task_progress` only creates one with explicit
+`handoff`. Failure and confirmed cancellation retain partial/stopped snapshots.
+The Broker reserves the handoff kind; `warp_context_publish` cannot create it.
+Each section uses `provided` with `items`, `not_provided` or `not_applicable`.
+The entire encoded submission is limited to 8 KiB, including UTF-8/JSON escaping.
+
+```json
+{
+  "decisions": {
+    "status": "not_provided"
+  },
+  "unresolved_issues": {
+    "status": "not_applicable"
+  },
+  "next_steps": {
+    "status": "provided",
+    "items": [
+      "Check current source review."
+    ]
+  }
+}
+```
+
+This is the value of the optional `handoff` field, not a standalone tool call.
+`warp_task_history(handoff_only=true)` pages compact version events.
+`warp_context_get(reference, handoff_part?)` reads an exact pin; parts select
+`binding`, `status`, `task`, `result` or `evidence` with its ID. Most source parts
+are bounded to 48 KiB, and native binding reads to 256 KiB. Task/detail/bootstrap
+projections flag changed or unavailable pinned sources without following heads.
+Review is separate from the snapshot; reported tests are not proof of verification.
+
+A pin on an assigned/pool task grants only that version to authorized target
+readers. Ordinary messages need an explicit version-scoped context share. Neither
+path grants source-task/history, recursive context, filesystem or execution
+access. Live pins protect source retention. Handoffs require Companion 6.0.0 and
+`handoff_briefs_v1`; unsupported remote requests are rejected before transmission.
+See the [handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#task-handoff-briefs).
+
 ## 3. Shared Context & Project Memory
 
 ### `warp_context_publish`

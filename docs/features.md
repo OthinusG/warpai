@@ -14,6 +14,16 @@ Warpai is the local-first, privacy-focused modern terminal built around autonomo
 
 ---
 
+## Task handoff briefs
+
+Tracked tasks preserve immutable, versioned handoffs for continuation across Agents.
+Submission, failure and confirmed cancellation retain source-bound snapshots;
+explicit progress checkpoints can add decisions, unresolved issues and next steps.
+Browse and load exact versions from task detail, pin them to follow-up tasks or
+share a specific version. Current source status/review remains separate, and pins
+grant no execution or filesystem authority. Live references protect retained
+sources. See the [handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#task-handoff-briefs).
+
 ## 1. Developer Ecosystem Positioning at a Glance
 
 To understand Warpai's positioning in the modern developer ecosystem, the table below summarizes how Warpai relates to each major tool archetype:

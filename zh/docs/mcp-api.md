@@ -176,6 +176,44 @@ Warpai 依托底层轻量 SQLite 状态总线，构建了高并发、强秩序�
 
 ---
 
+## 任务交接资源（handoff）
+
+任务生命周期接口接受可选 `handoff`。`warp_task_submit` 总会生成基础简报；
+`warp_task_progress` 仅在显式提供 `handoff` 时生成检查点。失败与确认取消时保留
+部分成果或停止点。handoff 类型由 Broker 保留，`warp_context_publish` 不可伪造。
+各部分使用带 `items` 的 `provided`、`not_provided` 或 `not_applicable` 状态。
+整份提交编码后上限为 8 KiB，包括 UTF-8 和 JSON 转义。
+
+```json
+{
+  "decisions": {
+    "status": "not_provided"
+  },
+  "unresolved_issues": {
+    "status": "not_applicable"
+  },
+  "next_steps": {
+    "status": "provided",
+    "items": [
+      "Check current source review."
+    ]
+  }
+}
+```
+
+上例是可选 `handoff` 字段的值，不是独立工具调用。
+`warp_task_history(handoff_only=true)` 分页读取简报版本事件。
+`warp_context_get(reference, handoff_part?)` 读取精确固定版本；可选部分为
+`binding`、`status`、`task`、`result` 或附带 ID 的 `evidence`。普通源部分上限为
+48 KiB，原生绑定上限为 256 KiB。任务详情和 bootstrap 会提示引用源已变化或不可用，
+不会自动跟随最新版。当前评审与快照分开，报告的测试结果不等于已验证证据。
+
+分配任务或任务池条目中的固定引用只向目标任务的授权读者开放指定版本；普通消息
+需要显式的版本级 context 共享。两者均不授予源任务历史、递归上下文、文件系统或
+执行权限。活跃引用会保护源记录的保留。远端需 Companion 6.0.0 和
+`handoff_briefs_v1`，不支持的请求会在传输前被拒绝。参见
+[交接使用流程]({{ site.baseurl }}/zh/docs/using-warpai-agents.html#任务交接简报handoff)。
+
 ## 3. 全局共享上下文与长期项目记忆
 
 ### `warp_context_publish`

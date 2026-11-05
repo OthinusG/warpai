@@ -10,7 +10,19 @@ next_url: /docs/wsl-installation.html
 next_title: Windows WSL Installation & Setup
 ---
 
-This guide covers the complete SSH remote setup for Warpai 1.8.1: installing and enabling OpenSSH Server on Linux, macOS, and Windows, switching the Windows SSH login shell from CMD to PowerShell, installing Warpai Companion, configuring per-Agent MCP on the remote account, and running the same multi-Agent workflow as a local project.
+## **Companion compatibility: overwrite-install 6.0.0**
+
+**Companion is only for SSH remote hosts and local WSL environments. Ordinary
+local terminals do not require Companion installation or updates.
+Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
+Warpai 1.8.6.1 requires Companion 6.0.0. Overwrite-install the matching new Companion
+on each remote host under the same SSH account, then reconnect. Update local WSL
+through its settings installer. Keep old desktops paired with their matching
+older Companion; do not downgrade an updated data store.**
+
+
+
+This guide covers the complete SSH remote setup for Warpai 1.8.6.1: installing and enabling OpenSSH Server on Linux, macOS, and Windows, switching the Windows SSH login shell from CMD to PowerShell, installing Warpai Companion, configuring per-Agent MCP on the remote account, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
 - [Windows WSL Installation & Setup]({{ '/docs/wsl-installation.html' | relative_url }})
@@ -23,12 +35,12 @@ Related documentation:
 
 | Requirement | Details |
 | :--- | :--- |
-| Client | Warpai 1.8.1 desktop on macOS, Windows, or Linux. |
+| Client | Warpai 1.8.6.1 desktop on macOS, Windows, or Linux. |
 | Remote host | Linux, macOS, or Windows with an account that can install software. |
 | Network | TCP port 22 reachable from the client, or a custom port forwarded through your SSH config. |
 | Authentication | Key-based authentication or a loaded SSH agent is strongly recommended. The SSH Remote panel uses a non-interactive SSH control connection and cannot type a password. |
 | Host key | Connect once from a normal terminal and confirm the host fingerprint before enabling SSH Remote. |
-| Companion | Warpai Companion 5.5.0 on the remote account. It is required for file exploration, Review, and Agent communication. |
+| Companion | Warpai Companion 6.0.0 on the remote account. It is required for file exploration, Review, and Agent communication. |
 
 Basic terminal SSH works as soon as `sshd` is reachable. The SSH Remote collaboration panel is a separate, independently switched feature that also requires Companion and a trusted host key.
 
@@ -258,11 +270,11 @@ Companion provides the private Git engine, SFTP-backed file exploration, VT100 o
 
 | Remote OS | Architecture | Package | Installation |
 | :--- | :--- | :--- | :--- |
-| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-linux-x64.run) | `sh WarpaiCompanion-5.5.0-linux-x64.run` |
-| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-macos-arm64.dmg) | Open the image and run `Install Warpai Companion.command` |
-| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | Run the installer as the remote SSH user |
+| **Linux** | x86_64 | [Companion Linux x64](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-linux-x64.run) | `sh WarpaiCompanion-6.0.0-linux-x64.run` |
+| **macOS** | Apple Silicon (ARM64) | [Companion macOS ARM64](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-macos-arm64.dmg) | Open the image and run `Install Warpai Companion.command` |
+| **Windows** | x86_64 | [Companion Windows x64](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-windows-x64-setup.exe) | Run the installer as the remote SSH user |
 
-Companion 5.5.0 is published for these three targets. Other remote architectures are not supported by this release.
+Companion 6.0.0 is published for these three targets. Other remote architectures are not supported by this release.
 
 ### Stable installation paths
 
@@ -314,7 +326,7 @@ The switch gates remote file exploration, Review, and Agent communication. Basic
 
 ### 5.3 Configure per-Agent MCP
 
-With Companion 5.5.0 installed and the account selected:
+With Companion 6.0.0 installed and the account selected:
 
 1. Warpai discovers managed CLI Agents installed on that remote account.
 2. Each discovered Agent has a checkbox. Enabling it writes Warpai's `warpai-ssh-com` bridge into that Agent's own remote configuration.
@@ -399,7 +411,7 @@ Connecting over SSH in Warpai keeps the same core workflow as a local project:
 | Terminal connects, but SSH Remote says authentication unavailable | The control channel uses `BatchMode=yes` and cannot prompt for a password. Configure a key or SSH agent. |
 | Panel says host key is unknown | Connect once from the Warpai terminal and confirm the fingerprint. The control channel uses `StrictHostKeyChecking=yes`. |
 | Windows login still opens CMD | Set `DefaultShell` under `HKLM:\SOFTWARE\OpenSSH`, then open a new SSH session. |
-| Companion missing or incompatible | Install Companion 5.5.0 for the remote OS/architecture, verify `--check-runtime`, then reconnect or rescan. |
+| Companion missing or incompatible | Install Companion 6.0.0 for the remote OS/architecture, verify `--check-runtime`, then reconnect or rescan. |
 | Agent checkbox is disabled | Companion is missing/old, the CLI was not discovered, the account is not confirmed, or a setup operation is busy. |
 | MCP still absent in the CLI | The Agent may have started before the checkbox was enabled. Start a new session and confirm the remote config file. |
 | MCP works in the terminal Agent but not in Warpai | They are different tiers: the terminal Agent reads remote config; the Warpai desktop process reads local config. |

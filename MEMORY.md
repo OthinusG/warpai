@@ -10,6 +10,14 @@
 
 ## Decisions & Context
 
+- Current documentation targets Warpai 1.8.6.1 / Companion 6.0.0. Companion is
+  only required for SSH remote hosts and local WSL; ordinary native local
+  terminals need no Companion installation/update. Keep the cross-version
+  overwrite-install warning in prominent bold headings in both languages.
+- Task handoffs belong in feature, collaboration usage and MCP reference docs,
+  describing immutable pins, current source/review checks, scoped sharing and
+  normal execution authorization. Keep implementation tweaks out of user docs.
+
 - **Dark screenshot correction (2026-10-31)**: Ink mode uses the selectively
   inverted `assets/images/warpai-hero-showcase-dark.png` on both homepages and
   both Overviews; paper retains the original. Restore the original traffic
