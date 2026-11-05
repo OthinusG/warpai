@@ -2,7 +2,18 @@
 
 [English](WSL-INSTALLATION.md) | [简体中文](WSL-INSTALLATION.zh-CN.md)
 
-This guide covers Warpai 1.8.1 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
+
+## **Companion compatibility: overwrite-install 6.0.0**
+
+**Companion is only for SSH remote hosts and local WSL environments. Ordinary
+local terminals outside WSL do not require Companion installation or updates.
+Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
+Warpai 1.8.6.1 requires Companion 6.0.0 for SSH/WSL. Overwrite-install the matching
+new Companion on each remote host under the same SSH account, then reconnect.
+Update local WSL through its settings installer. Keep old desktops paired with
+their matching older Companion; do not downgrade an updated data store.**
+
+This guide covers Warpai 1.8.6.1 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
 - [OpenSSH Server Installation and Setup Guide](SSH-INSTALLATION.md)
@@ -17,7 +28,7 @@ Related documentation:
 | :--- | :--- |
 | Windows | Windows 10 version 2004 (build 19041) or later, or Windows 11. |
 | Virtualization | Hardware virtualization enabled in BIOS/UEFI. |
-| Warpai | Warpai 1.8.1 for Windows. WSL integration is a Windows-only feature. |
+| Warpai | Warpai 1.8.6.1 for Windows. WSL integration is a Windows-only feature. |
 | Distribution | A WSL 2 distribution, preferably Ubuntu 22.04 LTS or 24.04 LTS. The bundled WSL Companion supports x86_64 guests. |
 | Account | A Linux user inside the distribution. The Companion installs into that user's home directory. |
 
@@ -123,7 +134,7 @@ Warpai for Windows bundles the dedicated WSL guest payload. The WSL Companion is
 Unchecking **Install WSL Companion** removes the installation for that account. **Uninstall WSL Companion** performs the same removal from the maintenance buttons.
 
 > [!NOTE]
-> The Linux `WarpaiCompanion-5.5.0-linux-x64.run` package published on GitHub is for **SSH remote hosts**. It installs `~/.config/warpai/bin/warpai-companion` and does not install the dedicated WSL service at `~/.config/warpai/wsl/bin/warpai-wsl-companion`. Use the WSL settings installer for local WSL.
+> The Linux `WarpaiCompanion-6.0.0-linux-x64.run` package published on GitHub is for **SSH remote hosts**. It installs `~/.config/warpai/bin/warpai-companion` and does not install the dedicated WSL service at `~/.config/warpai/wsl/bin/warpai-wsl-companion`. Use the WSL settings installer for local WSL.
 
 ### Installation paths
 
@@ -249,7 +260,7 @@ With WSL configured as above, Warpai provides the same core experience as a loca
 | :--- | :--- |
 | `wsl --install` fails or WSL will not start | Virtualization is enabled in BIOS/UEFI; the Windows features are enabled; reboot after enabling them. |
 | The distribution is not listed in Warpai's WSL account dropdown | Open a WSL terminal in Warpai first; confirm the distribution and user with `wsl --list --verbose`. |
-| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.8.1. |
+| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.8.6.1. |
 | WSL Companion install fails | The guest must be x86_64; check free disk space and the selected distribution/user. Rescan before retrying. |
 | WSL Companion is missing after install | Verify `~/.config/warpai/wsl/bin/warpai-wsl-companion --check-runtime` in the same Linux account. |
 | Agent checkbox is disabled | Companion is not installed or is incompatible, the CLI was not discovered, or the account is not selected. |

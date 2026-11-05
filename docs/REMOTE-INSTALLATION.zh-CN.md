@@ -2,7 +2,16 @@
 
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
-Warpai 1.8.1 使用安装在远端 SSH 账号下的组件。每台远端主机安装一次，之后在 Warpai 终端中正常连接：
+
+## **Companion 兼容性：必须覆盖安装 6.0.0**
+
+**Companion 只用于 SSH 远端和本地 WSL 环境；普通本地终端（非 WSL）无需安装或更新
+Companion。Warpai 1.8.6.1 前后的 Companion 不通用。Warpai 1.8.6.1 的 SSH/WSL 必须配套
+Companion 6.0.0。请在每台远程主机上以原 SSH 账号覆盖安装新版 Companion，然后
+重新连接。本地 WSL 请通过设置中的安装器更新专用组件。旧版桌面端继续配套旧版
+Companion，不支持降级已更新的数据存储。**
+
+Warpai 1.8.6.1 使用安装在远端 SSH 账号下的组件。每台远端主机安装一次，之后在 Warpai 终端中正常连接：
 
 ```sh
 ssh user@host
@@ -20,9 +29,9 @@ Warpai 根据已确认的远端 shell 会话识别目录；仅安装组件不会
 
 | 远端系统 | 下载 | 安装方式 |
 | --- | --- | --- |
-| Linux x64 | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-linux-x64.run) | 运行 `sh WarpaiCompanion-5.5.0-linux-x64.run`。 |
-| macOS Apple 芯片 | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-macos-arm64.dmg) | 打开镜像，双击 **Install Warpai Companion.command**。 |
-| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.8.1/WarpaiCompanion-5.5.0-windows-x64-setup.exe) | 使用远端 SSH 账号运行安装器。 |
+| Linux x64 | [独立安装包](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-linux-x64.run) | 运行 `sh WarpaiCompanion-6.0.0-linux-x64.run`。 |
+| macOS Apple 芯片 | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-macos-arm64.dmg) | 打开镜像，双击 **Install Warpai Companion.command**。 |
+| Windows x64 | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-windows-x64-setup.exe) | 使用远端 SSH 账号运行安装器。 |
 
 安装包包含对应的运行组件、校验和、版本与源码清单及许可说明，无需手动解压或填写执行路径。
 Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。默认位置固定为：
@@ -34,7 +43,7 @@ Unix 安装器会设置执行权限，Windows 使用当前账号安装方式。�
 
 ## 连接与排错
 
-Companion 5.5.0 自带私有 Git。文件操作、Agent 协作和 MCP 桥接由编译后的组件处理，
+Companion 6.0.0 自带私有 Git。文件操作、Agent 协作和 MCP 桥接由编译后的组件处理，
 代码、文本和 Markdown 预览由桌面端渲染。Warpai 基础功能无需在远端另装 Git、Python、
 Node、tmux 或 socat；第三方 Agent CLI 仍使用自己的运行环境和认证。
 SSH/SFTP 和会话级 shell 集成仍是连接前提。私有 Git 不修改账号 PATH，也不替换系统 Git。

@@ -74,6 +74,42 @@ release workflows are unchanged from latest main. Subsequent changes are release
 instructions/notes/receipts only. Root worktree MEMORY cleanup/archive remain
 uncommitted and untouched by this integration.
 
+### Published 1.8.6.1 package acceptance
+
+Published latest stable `v1.8.6.1` / Companion 6.0.0 at
+2026-11-05T14:44:31Z. Immutable source is
+`a760f8ce4ce36e9b5a3264aceb82899d055fe436` on main. Formal macOS run
+41849044843, automatic Windows run 41865963847 and automatic Linux run
+41876018341 all succeeded. The automatic Linux path completed overnight; no
+parallel manual build or duplicate cancellation was needed.
+
+All 13 installers and six checksum/provenance assets are present. Four checksum
+inventories agree with GitHub's uploaded-byte SHA-256 digests for every installer;
+both Linux manifests match the immutable source/tag, target and glibc 2.31 baseline.
+Both native Linux architectures passed all four package-format checks and installed
+X11 startup. The native Windows job log confirms the source checkout plus desktop
+and installer product/file version and icon checks.
+
+Downloaded and independently hashed 11 complete files (five desktop/Companion
+installers plus six metadata files). Eight Linux installer downloads remained
+partial after transport interruptions; their acceptance uses native CI package
+checks, source manifests, checksum inventories and matching GitHub storage digests,
+rather than claiming a full local download. Both public asset inventories and
+all 19 canonical URLs were checked after publication and return HTTP 200. Draft
+`untagged-*` URLs were refreshed to the public tag URLs after publication.
+
+Local read-only checks passed macOS desktop DMG integrity, both 1.8.6.1 bundle
+versions, dev.warpai.Warpai identity, ARM64 app/bridge, strict deep ad-hoc signature,
+canonical app/volume artwork and Applications link. Linux/macOS Companion payload
+manifests identify 6.0.0 and this source; all 15 internal checksum entries pass.
+Neither installer nor application was launched. The macOS desktop SHA-256 is
+`954f3c6b31c6faaca0395cf51816904151a4decc6d0f79c1e8f6924e94f37e63`.
+
+Current bilingual README and SSH/WSL installation guides now name the 13 exact
+public installers, matching Companion 6.0.0 and its SSH/WSL-only scope. Handoff
+remains ordinary feature documentation in both languages. Website deployment and
+Homebrew synchronization are the remaining delivery steps.
+
 ## 1.8.1 delivery contract
 
 Owner authorization on 2026-10-30 resumes release work as 1.8.1 after macOS

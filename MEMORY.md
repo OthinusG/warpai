@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -23,7 +23,7 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Published releases and maintenance
 
-- Public: Warpai 1.8.1 / Companion 5.5.0. All 19 assets verified; match README links.
+- Public: Warpai 1.8.6.1 / Companion 6.0.0. All 19 assets verified; match README links.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
 - Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
   Pane icons passed both desktops (41053972438); immutable release source 8ff0c00f.
@@ -81,7 +81,7 @@ Updated 2026-11-03. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - SSH masters need no retained argv; independent transport does. OpenSSH owns
   ~/.ssh. SSH Remote defaults off and gates all Companion APIs independently of
-  OpenSSH; MCP needs 5.5.0. Contracts: specs/agent-communication-v2/{SSH-MCP-SETTINGS,INSTALLATION}.md.
+  OpenSSH; current SSH/WSL needs Companion 6.0.0; native local needs none. Contracts: specs/agent-communication-v2/{SSH-MCP-SETTINGS,INSTALLATION}.md.
 - WSL setup/recovery/discovery must use spawn_blocking to avoid nested-runtime
   panic; empty scans prove nothing. Receipts: FIXES-1.6.4.md.
 - Diagnose real stage exit/stderr, not launcher failures. Use script/diagnose-wsl-companion
