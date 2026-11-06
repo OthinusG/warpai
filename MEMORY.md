@@ -137,6 +137,7 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   4032x2304, shared byte-for-byte by bilingual READMEs/gh-pages Overviews and
   homepage CTA previews. Preserve resolution; do not regenerate whole images.
   READMEs use picture media selection; site retains ink/paper CSS and CTA fade.
+  Omit fixed README img dimensions: GitHub clamps width without resetting height.
   Homepage and installation-guide compatibility notices removed by owner request;
   retain current Companion downloads and setup steps. Provenance: docs/images/README.md.
 

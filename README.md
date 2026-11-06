@@ -31,7 +31,7 @@ Linux, macOS, and Windows machines.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/warpai-hero-showcase-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/images/warpai-hero-showcase.png">
-  <img src="docs/images/warpai-hero-showcase.png" alt="Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel" width="4032" height="2304">
+  <img src="docs/images/warpai-hero-showcase.png" alt="Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel">
 </picture>
 
 *Warpai in light and dark themes: vertical tabs on the left, Spotify and btop in split terminal panes, and Agent collaboration with provider usage on the right.*
