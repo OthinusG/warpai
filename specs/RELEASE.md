@@ -110,6 +110,30 @@ public installers, matching Companion 6.0.0 and its SSH/WSL-only scope. Handoff
 remains ordinary feature documentation in both languages. Website deployment and
 Homebrew synchronization are the remaining delivery steps.
 
+### Completed download surfaces and Homebrew
+
+Main download/source-guide synchronization is `c365a6e0`. Bilingual website
+source `4fe4db12de3521ce022b052eae849373de9f4632` passed the strict production
+Jekyll build, 34-page internal link/anchor checks and the exact 13-installer URL
+inventory. Pages reports that source as built. Fourteen live English/Chinese
+home, install, SSH/WSL, feature, collaboration usage and MCP pages passed content
+checks. Handoff is documented as current functionality; prominent compatibility
+notices explicitly exempt ordinary native local terminals from Companion setup.
+
+Homebrew PR https://github.com/OthinusG/homebrew-tap/pull/2 merged at
+2026-11-06T00:29:28Z as `5a537358697eb29eb00984a3bc9a5e4faa5b58b0`.
+The cask uses the independently fetched public macOS DMG checksum above. Metadata,
+online audit, public fetch/checksum and install dry-run pass. Style passes with
+only Homebrew/OSDependsOn excluded: the existing macOS 11 floor is intentionally
+retained for older Homebrew clients, alongside ARM64 and quarantine safeguards.
+Validation used an isolated temporary tap/trust configuration, which was removed;
+Homebrew developer mode was restored to disabled. No application was installed
+or launched by the verification. The owner's primary memory cleanup/archive
+remains uncommitted; only current release facts were refreshed.
+
+Delivery is complete. Immutable tag/source and all existing release assets are
+preserved; no installer, personal account or application configuration was changed.
+
 ## 1.8.1 delivery contract
 
 Owner authorization on 2026-10-30 resumes release work as 1.8.1 after macOS
