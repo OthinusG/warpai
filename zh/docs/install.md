@@ -11,14 +11,6 @@ next_url: /docs/quick-start.html
 next_title: 快速上手 (5分钟)
 ---
 
-## **Companion 兼容性：必须覆盖安装 6.0.0**
-
-**Companion 只用于 SSH 远端和本地 WSL 环境；普通本地终端无需安装或更新 Companion。
-Warpai 1.8.6.1 前后的 Companion 不通用。Warpai 1.8.6.1 必须配套 Companion 6.0.0。
-请在每台远程主机上以原 SSH 账号覆盖安装新版 Companion，然后重新连接。本地 WSL
-请通过设置中的安装器更新专用组件。旧版桌面端继续配套旧版 Companion，
-不支持降级已更新的数据存储。**
-
 
 
 Warpai 1.8.6.1 是一款原生桌面应用程序，支持 **macOS（Apple 芯片）**、**Windows（x64）** 与 **Linux**。Linux 桌面端提供 x64 和 ARM64 安装包。连接 SSH 远端 **Linux**、**macOS**、**Windows** 主机及 Windows **WSL 2**，请使用独立的 **Warpai Companion**。

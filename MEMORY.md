@@ -12,26 +12,18 @@
 
 - Current documentation targets Warpai 1.8.6.1 / Companion 6.0.0. Companion is
   only required for SSH remote hosts and local WSL; ordinary native local
-  terminals need no Companion installation/update. Keep the cross-version
-  overwrite-install warning in prominent bold headings in both languages.
+  terminals need no Companion installation/update. Keep the current Companion
+  version in setup instructions; the owner removed the repeated
+  compatibility notices from homepages and installation guides on Nov6.
 - Task handoffs belong in feature, collaboration usage and MCP reference docs,
   describing immutable pins, current source/review checks, scoped sharing and
   normal execution authorization. Keep implementation tweaks out of user docs.
 
-- **Dark screenshot correction (2026-10-31)**: Ink mode uses the selectively
-  inverted `assets/images/warpai-hero-showcase-dark.png` on both homepages and
-  both Overviews; paper retains the original. Restore the original traffic
-  lights, Spotify/Monitor/Codex sidebar icons and album cover; all other pixels
-  match the approved inverted preview. This is a derived marketing image,
-  not a native dark-theme capture. Shared CSS follows `data-mode` immediately.
-
-- **Workspace screenshot (2026-10-31)**: Owner-supplied
-  `warpai-window-clean-original-resolution.png` (3836 × 2114) replaces both hero
-  asset copies, synchronized with main's bilingual READMEs. Both Overview pages
-  show the complete capture with matching captions. Both homepage download
-  sections use a decorative right-side CSS crop, edge masks and a one-time
-  IntersectionObserver blur reveal; mobile stacks it below the copy. Reduced
-  motion/no JavaScript keeps it static. Scope and QA: docs/SCREENSHOT-REFRESH.md.
+- **Workspace screenshots (2026-11-06)**: Use the owner-approved locally edited
+  native light/dark PNGs at 4032 × 2304, shared byte-for-byte with main's bilingual
+  READMEs. Do not regenerate or resize. Both Overviews and both homepage download
+  previews retain ink/paper selection; homepage keeps its CSS crop/fade/reveal.
+  Source hashes and acceptance: docs/SCREENSHOT-REFRESH.md.
 
 - **Warpai 1.8.1 download sync (2026-10-31)**: Both homepages, strings/footer,
   install and SSH/WSL guides target the public 1.8.1 installers; Companion remains

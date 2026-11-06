@@ -1,5 +1,28 @@
 # Workspace screenshot refresh
 
+## Current refresh (2026-11-06)
+
+- Use the owner-approved locally edited light and dark PNGs, both 4032 × 2304.
+  Copy them byte-for-byte; do not regenerate, resize, invert, or crop the files.
+- Replace both light asset copies and the dark asset. Both language Overviews
+  and homepage download previews must select them using the existing ink/paper
+  theme. Keep the homepage fade/reveal and full Overview image unchanged.
+- Main's English and Chinese READMEs select the same light/dark pair with a
+  native HTML picture element. Keep provenance synchronized across branches.
+- Remove the complete Companion compatibility teaser from both homepages and
+  the repeated notice from bilingual installation guides at the owner's request;
+  retain current downloads and setup steps.
+- Acceptance: verify PNG dimensions and source SHA-256, bilingual image paths,
+  theme changes, desktop/mobile image loading and layout, and the GitHub Pages
+  production build. Preserve unrelated application code and user changes.
+
+Approved source SHA-256 (also recorded in main's docs/images/README.md):
+
+- Light: `60995938b1b1186ead966c8465fda8db18718ec743ca4d276300e197170e480d`.
+- Dark: `bfc8ee583d57b5bacbf54a20bd4042f6e7a96c81964dbb89f2d509391fa6e8d9`.
+
+The sections below record the previous refresh and its verification.
+
 ## Scope and source
 
 Use the owner-provided `warpai-window-clean-original-resolution.png` unchanged

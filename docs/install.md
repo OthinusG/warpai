@@ -10,16 +10,6 @@ next_url: /docs/quick-start.html
 next_title: Quick Start (5 Min)
 ---
 
-## **Companion compatibility: overwrite-install 6.0.0**
-
-**Companion is only for SSH remote hosts and local WSL environments. Ordinary
-local terminals do not require Companion installation or updates.
-Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
-Warpai 1.8.6.1 requires Companion 6.0.0. Overwrite-install the matching new Companion
-on each remote host under the same SSH account, then reconnect. Update local WSL
-through its settings installer. Keep old desktops paired with their matching
-older Companion; do not downgrade an updated data store.**
-
 
 
 Warpai 1.8.6.1 is a native desktop application for **macOS**, **Windows**, and **Linux**. Linux desktop packages are available for x64 and ARM64. For remote **Linux**, **macOS**, and **Windows** hosts and Windows **WSL 2**, use the standalone **Warpai Companion**.
