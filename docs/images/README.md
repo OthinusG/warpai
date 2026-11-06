@@ -6,15 +6,24 @@ The README brand cover is a generated marketing image, documented separately in
 [Social preview provenance and upload instructions](SOCIAL-PREVIEW.md).
 The following provenance applies only to the native application screenshots.
 
-## Workspace hero (2026-10-31)
+## Workspace heroes (2026-11-06)
 
-[warpai-hero-showcase.png](warpai-hero-showcase.png) is the owner-supplied
-`warpai-window-clean-original-resolution.png`, preserved byte-for-byte at
-3836 × 2114 pixels. It shows vertical tabs, Spotify/btop split terminals,
-and the right Agent collaboration and provider usage panel. Both READMEs and
-both website documentation overviews use this capture; the homepage download
-section uses a decorative CSS crop. The CI provenance below applies to the
-older workspace/SSH captures only.
+[Light](warpai-hero-showcase.png) and [dark](warpai-hero-showcase-dark.png)
+are owner-approved local edits of native macOS screenshots captured on
+2026-11-06 at 12:02:55 and 12:03:31. Both retain the 4032 × 2304 canvas.
+Only the specified sidebar icon/status/path fields, collaboration panel, and
+process User column were edited; pixels outside these regions are unchanged.
+These are edited product illustrations, not unmodified runtime evidence.
+No whole-image generation, resampling, or theme inversion was used.
+
+Both bilingual READMEs and website Overviews use the matching light/dark pair;
+the homepage download previews retain their decorative CSS crop and fade.
+Copies in main and gh-pages are byte-identical to the approved PNGs.
+
+- Light SHA-256: `60995938b1b1186ead966c8465fda8db18718ec743ca4d276300e197170e480d`.
+- Dark SHA-256: `bfc8ee583d57b5bacbf54a20bd4042f6e7a96c81964dbb89f2d509391fa6e8d9`.
+
+The CI provenance below applies only to the older workspace/SSH captures.
 
 ## Native review captures
 

@@ -5,12 +5,21 @@
 README 顶部封面是生成的品牌宣传图，来源与上传说明见
 [Social preview 文档（英文）](SOCIAL-PREVIEW.md)。以下来源记录仅适用于原生应用截图。
 
-## 工作空间主图（2026-10-31）
+## 工作空间主图（2026-11-06）
 
-[warpai-hero-showcase.png](warpai-hero-showcase.png) 来自用户提供的
-`warpai-window-clean-original-resolution.png`，逐字节保留原图，尺寸为
-3836 × 2114。图中展示垂直标签栏、Spotify/btop 分屏终端及右侧 Agent 协同与用量面板。
-中英文 README 和官网文档概览使用完整截图；首页下载区使用 CSS 局部裁切。
+[浅色图](warpai-hero-showcase.png)和[深色图](warpai-hero-showcase-dark.png)
+来自用户于 2026-11-06 12:02:55、12:03:31 拍摄的原生 macOS 截图，
+经用户确认进行局部编辑，两图均保留 4032 × 2304 像素尺寸。
+仅修改指定的侧栏图标、状态、路径、协同面板及进程 User 列，修改区域外像素不变。
+这些图片是经过编辑的产品示意图，不作为未经修改的运行时证据；
+未进行整图生成、重采样或主题反色。
+
+中英文 README 和官网文档概览使用对应的深浅色图；首页下载区保留 CSS 局部裁切与淡出效果。
+main 与 gh-pages 中的资源副本与用户确认的 PNG 逐字节一致。
+
+- 浅色 SHA-256：`60995938b1b1186ead966c8465fda8db18718ec743ca4d276300e197170e480d`。
+- 深色 SHA-256：`bfc8ee583d57b5bacbf54a20bd4042f6e7a96c81964dbb89f2d509391fa6e8d9`。
+
 下方 CI 来源仅适用于原有工作空间与 SSH 截图。
 
 ## 原生验收截图

@@ -133,8 +133,12 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Product defaults, CLI integration and website
 
-- Hero screenshot: owner-supplied 3836x2114 PNG (Oct31), shared by bilingual
-  READMEs/gh-pages Overview; homepage CTA uses a CSS crop. Provenance: docs/images/README.md.
+- Hero screenshots: owner-approved locally edited light/dark PNGs (Nov6), both
+  4032x2304, shared byte-for-byte by bilingual READMEs/gh-pages Overviews and
+  homepage CTA previews. Preserve resolution; do not regenerate whole images.
+  READMEs use picture media selection; site retains ink/paper CSS and CTA fade.
+  Homepage and installation-guide compatibility notices removed by owner request;
+  retain current Companion downloads and setup steps. Provenance: docs/images/README.md.
 
 - Icons belong to panes, not tabs (owner correction Oct30). Save each icon in its
   existing tab-config [[panes]] TOML entry: builtin string or { local = "file.svg" }.

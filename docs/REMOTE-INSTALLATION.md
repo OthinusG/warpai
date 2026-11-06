@@ -3,16 +3,6 @@
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
 
-## **Companion compatibility: overwrite-install 6.0.0**
-
-**Companion is only for SSH remote hosts and local WSL environments. Ordinary
-local terminals outside WSL do not require Companion installation or updates.
-Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
-Warpai 1.8.6.1 requires Companion 6.0.0 for SSH/WSL. Overwrite-install the matching
-new Companion on each remote host under the same SSH account, then reconnect.
-Update local WSL through its settings installer. Keep old desktops paired with
-their matching older Companion; do not downgrade an updated data store.**
-
 Warpai 1.8.6.1 uses the remote component installed for the SSH account. Install it
 once on each remote machine, then connect from an ordinary Warpai terminal:
 

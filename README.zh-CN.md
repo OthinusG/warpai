@@ -26,9 +26,13 @@
 
 </div>
 
-![Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板](docs/images/warpai-hero-showcase.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/warpai-hero-showcase-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/warpai-hero-showcase.png">
+  <img src="docs/images/warpai-hero-showcase.png" alt="Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板" width="4032" height="2304">
+</picture>
 
-*Claude Warm Light 主题下的 Warpai：左侧垂直标签栏，中间 Spotify 与 btop 分屏终端，右侧 Agent 协同面板与服务商用量。*
+*深浅色主题下的 Warpai：左侧垂直标签栏，中间 Spotify 与 btop 分屏终端，右侧 Agent 协同面板与服务商用量。*
 
 <a id="agents-as-the-unit-of-work"></a>
 

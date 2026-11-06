@@ -3,14 +3,6 @@
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
 
-## **Companion 兼容性：必须覆盖安装 6.0.0**
-
-**Companion 只用于 SSH 远端和本地 WSL 环境；普通本地终端（非 WSL）无需安装或更新
-Companion。Warpai 1.8.6.1 前后的 Companion 不通用。Warpai 1.8.6.1 的 SSH/WSL 必须配套
-Companion 6.0.0。请在每台远程主机上以原 SSH 账号覆盖安装新版 Companion，然后
-重新连接。本地 WSL 请通过设置中的安装器更新专用组件。旧版桌面端继续配套旧版
-Companion，不支持降级已更新的数据存储。**
-
 Warpai 1.8.6.1 使用安装在远端 SSH 账号下的组件。每台远端主机安装一次，之后在 Warpai 终端中正常连接：
 
 ```sh

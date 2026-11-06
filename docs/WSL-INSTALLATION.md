@@ -3,16 +3,6 @@
 [English](WSL-INSTALLATION.md) | [简体中文](WSL-INSTALLATION.zh-CN.md)
 
 
-## **Companion compatibility: overwrite-install 6.0.0**
-
-**Companion is only for SSH remote hosts and local WSL environments. Ordinary
-local terminals outside WSL do not require Companion installation or updates.
-Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
-Warpai 1.8.6.1 requires Companion 6.0.0 for SSH/WSL. Overwrite-install the matching
-new Companion on each remote host under the same SSH account, then reconnect.
-Update local WSL through its settings installer. Keep old desktops paired with
-their matching older Companion; do not downgrade an updated data store.**
-
 This guide covers Warpai 1.8.6.1 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
