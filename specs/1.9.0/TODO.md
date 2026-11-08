@@ -333,6 +333,14 @@ runtime receipt exists; local Rust builds remain prohibited.
   Evidence: Rust source parse via `rustfmt --edition 2021 --emit stdout`;
   `python3 script/check-interface-locales.py --strict` (2981 pairs);
   panel fixture JSON parse; `git diff --check`. These are not runtime tests.
+- [ ] R2 cloud CI execution (blocked).
+  Evidence: branch `r2-agent-lifecycle-ci`, source `c1bab807b`; runs
+  [42483412297](https://github.com/OthinusG/warpai/actions/runs/42483412297) and
+  [42483415951](https://github.com/OthinusG/warpai/actions/runs/42483415951)
+  failed before any job step. GitHub annotation: "The job was not started because
+  your account is locked due to a billing issue." Recent `main` runs show the
+  same account-level blocker. Smallest next action: restore GitHub Actions
+  billing, then rerun both workflows on the branch; no Rust test has executed.
 - [ ] R2-01: audit task/attempt/run/conversation separation and reused-process
   context; verify SP01 without forcing a new process per task.
 - [ ] R2-02: audit task/turn/leader/owned-child lifetimes and human review handoff;
