@@ -24,6 +24,15 @@
     "guidance": "All states · All assignees · sample tasks. Controls remain disabled in the static preview.",
     "sections": [
       {
+        "title": "Needs attention",
+        "rows": [
+          "3 tasks need action.",
+          "Answer question 1 · Review result 1 · Follow-up needs reconciliation 1",
+          "46 · Submitted · Review result · Overdue · Last observed 12s ago",
+          "43 · Queued · Follow-up needs reconciliation"
+        ]
+      },
+      {
         "title": "Tasks",
         "rows": [
           "42 · Running · worker · attempt 1 · Update the focused source fixture",
@@ -232,8 +241,7 @@
         ]
       }
     ]
-  }
-,
+  },
   {
     "state": "handoff details",
     "guidance": "Handoffs are Agent context, never execution authorization.",

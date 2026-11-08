@@ -6053,6 +6053,58 @@
     "此页没有任务。",
     "此頁沒有工作。"
   ],
+  "Needs attention": [
+    "需要处理",
+    "需要處理"
+  ],
+  "{} tasks need action.": [
+    "{} 个任务需要处理。",
+    "{} 個任務需要處理。"
+  ],
+  "Showing {} of {} tasks that need action.": [
+    "显示 {} 个需要处理的任务，共 {} 个。",
+    "顯示 {} 個需要處理的任務，共 {} 個。"
+  ],
+  "Answer question": [
+    "回答问题",
+    "回答問題"
+  ],
+  "Review result": [
+    "审核结果",
+    "審核結果"
+  ],
+  "Permission or input": [
+    "权限或输入",
+    "權限或輸入"
+  ],
+  "Unknown execution": [
+    "执行状态未知",
+    "執行狀態未知"
+  ],
+  "Delivery trouble": [
+    "投递异常",
+    "投遞異常"
+  ],
+  "Dependency wait": [
+    "等待依赖",
+    "等待依賴"
+  ],
+  "Overdue": [
+    "已逾期",
+    "已逾期"
+  ],
+  "Follow-up needs reconciliation": [
+    "后续消息需要协调",
+    "後續訊息需要協調"
+  ],
+  "Action required": [
+    "需要操作",
+    "需要操作"
+  ],
+  "Last observed {}s ago": [
+    "上次观测于 {} 秒前",
+    "上次觀測於 {} 秒前"
+  ],
   "No terminal pane open. Open a new pane to attach as context.": [
     "没有打开的终端面板。请打开新面板以附加为上下文。",
     "沒有開啟的終端面板。請開啟新面板以附加為上下文。"

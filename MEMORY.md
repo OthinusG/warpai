@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-08. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -20,6 +20,7 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   command-line `-c` and runner workspace aliases do not work.
 - Immutable tagged releases: accept UI, create draft, then attach Windows/Linux.
   See specs/RELEASE.md gates/HTTP 500 recovery. SSH major 1; Agent Bus 2.
+- Fork LFS quota exhausted: pull `*.pdb` via temporary upstream `lfs.url`, then unset and `git reset`.
 
 ## Published releases and maintenance
 
@@ -38,9 +39,22 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 ## Project, worktree and Agent ownership
 
 - Task handoff contract: specs/agent-communication-v2/HANDOFF.md; immutable pins grant no execution or source-task access.
+  1.9.0 plan: specs/1.9.0/TODO.md; process-mapping audit: specs/1.9.0/PROCESS-REVIEW.md.
+  R2 prompt: AGENT-EXECUTION-1.9.0-R2.md; assume round one provisionally complete, work only the delta.
+  research: specs/SUPERAGENT-REVIEW-1.9.0.md. Owner excludes external event intake
+  and danger-full-access remediation; retain native authority/guarded recovery.
 
 - Supervision dispatches anytime, retaining unresolved task/request IDs across
   waits/yields and retiring only handled outcomes. No batch/exclusive watch.
+- Task-linked follow-ups pin the task revision at send; wake/wait delivery skips
+  overtaken `message`/`request` entries (kept unread in inbox/history), and the
+  panel derives a bounded, filter-scoped `attention` projection with
+  reconcile/answer/review/recovery/permission/unreachable/dependency/overdue
+  actions. Additive only: no lifecycle/schema/protocol change, and older
+  Companions omit the field. See specs/agent-communication-v2/API.md (2026-11-08).
+- Expired advisory reservations tied to `active` or unresolved `unknown` attempts
+  keep their row and `abandoned` warning until execution resolves; TTL still
+  permits new writes because reservations are not OS locks. See specs/1.9.0/TECH.md.
 - Native worktrees own creation/catalog/tabs; creation never launches an Agent.
 - Membership uses canonical Git common-directory identity across registered
   checkouts/subdirectories, including empty tabs. Never infer it from names,

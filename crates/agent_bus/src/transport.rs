@@ -879,7 +879,7 @@ impl Broker {
                 let live = binding.live.as_ref()?;
                 let message = state
                     .store
-                    .first_pending(live.agent.as_ref()?, false)
+                    .first_deliverable(live.agent.as_ref()?, false)
                     .ok()??;
                 Some(Wake {
                     terminal: terminal.clone(),
@@ -1570,6 +1570,7 @@ impl Broker {
                 "worktree_joined":false,"worktree_root":query.project,"worktree_branch":null,
                 "roles":[],"candidates":[],"worktrees":[],"coordinator_online":false,
                 "agents":[],"agent_cursor":null,"tasks":[],"task_cursor":null,"task":null,"task_runtime":null,
+                "attention":{"tasks":[],"total":0,"truncated":false,"counts":{"answer":0,"review":0,"permission":0,"recovery":0,"unreachable":0,"dependency":0,"overdue":0,"reconcile":0}},
                 "events":[],"event_cursor":null,"spaces":[],"space_cursor":null,
                 "reservations":[],"reservation_cursor":null,"messages":[],"message_cursor":null,"history":null}));
         }
@@ -1653,6 +1654,7 @@ impl Broker {
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
         let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
+        let attention = state.store.operator_attention(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), query.include_archived)?;
         if query.worktree {
             if let Some(rows) = tasks["tasks"].as_array_mut() {
                 for row in rows { row["integration"] = json!(state.store.worktree_integration(&project, row["id"].as_str().unwrap())?); }
@@ -1717,7 +1719,7 @@ impl Broker {
             "worktree_available": Path::new(&query.project).join(".git").exists(),
             "resources": contexts["resources"], "context_cursor": contexts["cursor"],
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
-            "task": task, "task_runtime": runtime, "events": events["events"],
+            "task": task, "task_runtime": runtime, "attention": attention, "events": events["events"],
             "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))
     }
 }

@@ -145,6 +145,20 @@ fn button_row(buttons: Vec<Box<dyn Element>>) -> Option<Box<dyn Element>> {
     })
 }
 
+fn attention_action_label(action: &str) -> &'static str {
+    match action {
+        "answer" => warpui::localization::text("Answer question"),
+        "review" => warpui::localization::text("Review result"),
+        "permission" => warpui::localization::text("Permission or input"),
+        "recovery" => warpui::localization::text("Unknown execution"),
+        "unreachable" => warpui::localization::text("Delivery trouble"),
+        "dependency" => warpui::localization::text("Dependency wait"),
+        "overdue" => warpui::localization::text("Overdue"),
+        "reconcile" => warpui::localization::text("Follow-up needs reconciliation"),
+        _ => warpui::localization::text("Action required"),
+    }
+}
+
 #[derive(Deserialize)]
 struct Fixture {
     state: String,
@@ -207,6 +221,28 @@ struct TaskRuntime {
     delivery_phase: Option<String>,
     #[serde(default)]
     delivery_retained: Option<bool>,
+}
+#[derive(Default, Deserialize)]
+struct AttentionPage {
+    #[serde(default)]
+    tasks: Vec<AttentionTask>,
+    #[serde(default)]
+    total: u64,
+    #[serde(default)]
+    truncated: bool,
+    #[serde(default)]
+    counts: std::collections::BTreeMap<String, u64>,
+}
+#[derive(Deserialize)]
+struct AttentionTask {
+    task_id: String,
+    #[serde(default)]
+    description: String,
+    state: String,
+    #[serde(default)]
+    actions: Vec<String>,
+    #[serde(default)]
+    observation_age_ms: Option<u64>,
 }
 #[derive(Clone, Deserialize)]
 struct WorkspacePreview {
@@ -275,6 +311,8 @@ struct Snapshot {
     task_cursor: Option<u64>,
     task: Option<Task>,
     task_runtime: Option<TaskRuntime>,
+    #[serde(default)]
+    attention: Option<AttentionPage>,
     events: Vec<Event>,
     event_cursor: Option<u64>,
     admission: String,
@@ -800,11 +838,15 @@ impl CollaborationPanel {
                     }
                     panel.query.event_after = snapshot.event_cursor.or(panel.query.event_after);
                     panel.query.wait = true;
-                    panel.task_buttons.retain(|id, _| snapshot.tasks.iter().any(|task| &task.id == id));
+                    panel.task_buttons.retain(|id, _| snapshot.tasks.iter().any(|task| &task.id == id)
+                        || snapshot.attention.as_ref().is_some_and(|page| page.tasks.iter().any(|row| &row.task_id == id)));
                     panel.checkout_buttons.retain(|root, _| snapshot.worktrees.iter().any(|checkout| &checkout.root == root));
                     for checkout in &snapshot.worktrees { panel.checkout_buttons.entry(checkout.root.clone()).or_default(); }
                     for task in &snapshot.tasks {
                         panel.task_buttons.entry(task.id.clone()).or_default();
+                    }
+                    if let Some(page) = &snapshot.attention {
+                        for row in &page.tasks { panel.task_buttons.entry(row.task_id.clone()).or_default(); }
                     }
                     panel.evidence_buttons.retain(|id, _| snapshot.task.as_ref().is_some_and(|task| task.evidence_records.iter().any(|evidence| &evidence.id == id)));
                     if let Some(task) = &snapshot.task { for evidence in &task.evidence_records { panel.evidence_buttons.entry(evidence.id.clone()).or_default(); } }
@@ -1949,6 +1991,78 @@ impl View for CollaborationPanel {
                         );
                     }
                 } else {
+                    if let Some(attention) = &snapshot.attention {
+                        if attention.total > 0 {
+                            body.add_child(heading(appearance, warpui::localization::text("Needs attention")));
+                            body.add_child(note(appearance, if attention.truncated {
+                                {
+                                    let __warpai_locale_argument_0 = &(attention.tasks.len());
+                                    let __warpai_locale_argument_1 = &(attention.total);
+                                    warpui::localization::format_text(
+                                        "Showing {} of {} tasks that need action.",
+                                        &[
+                                            ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                                            ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                                        ],
+                                    )
+                                }
+                            } else {
+                                {
+                                    let __warpai_locale_argument_0 = &(attention.total);
+                                    warpui::localization::format_text(
+                                        "{} tasks need action.",
+                                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                                    )
+                                }
+                            }));
+                            let counts = ["answer", "review", "permission", "recovery", "unreachable", "dependency", "overdue", "reconcile"]
+                                .into_iter()
+                                .filter_map(|action| attention.counts.get(action).filter(|count| **count > 0)
+                                    .map(|count| format!("{} {}", attention_action_label(action), count)))
+                                .collect::<Vec<_>>()
+                                .join(" · ");
+                            if !counts.is_empty() {
+                                body.add_child(note(appearance, counts));
+                            }
+                            for row in &attention.tasks {
+                                let id = row.task_id.clone();
+                                body.add_child(
+                                    builder
+                                        .button(ButtonVariant::Text, self.task_buttons[&row.task_id].clone())
+                                        .with_custom_label(
+                                            builder
+                                                .span(if row.description.is_empty() {
+                                                    warpui::localization::text("Open task").to_owned()
+                                                } else {
+                                                    row.description.clone()
+                                                })
+                                                .with_soft_wrap()
+                                                .build()
+                                                .finish(),
+                                        )
+                                        .build()
+                                        .on_click(move |ctx, _, _| {
+                                            ctx.dispatch_typed_action(Action::SelectTask(id.clone()))
+                                        })
+                                        .finish(),
+                                );
+                                let mut detail = format!(
+                                    "{} · {}",
+                                    warpui::localization::text(&row.state),
+                                    row.actions.iter().map(|action| attention_action_label(action)).collect::<Vec<_>>().join(" · ")
+                                );
+                                if let Some(age) = row.observation_age_ms {
+                                    let __warpai_locale_argument_0 = &(age / 1000);
+                                    detail.push_str(" · ");
+                                    detail.push_str(&warpui::localization::format_text(
+                                        "Last observed {}s ago",
+                                        &[("0", format!("{__warpai_locale_argument_0}").as_str())],
+                                    ));
+                                }
+                                body.add_child(builder.span(detail).with_soft_wrap().build().finish());
+                            }
+                        }
+                    }
                     body.add_child(heading(appearance, warpui::localization::text("Tasks")));
                     if snapshot.tasks.is_empty() {
                         body.add_child(note(appearance, warpui::localization::text("No tasks on this page.")));
@@ -6489,5 +6603,32 @@ mod tests {
             .flat_map(|fixture| &fixture.sections)
             .flat_map(|section| &section.rows)
             .any(|row| row.len() > 256));
+        let tasks = fixtures.iter().find(|fixture| fixture.state == "tasks").unwrap();
+        assert!(tasks.sections.iter().any(|section| section.title == "Needs attention"
+            && section.rows.iter().any(|row| row.contains("Follow-up needs reconciliation"))
+            && section.rows.iter().any(|row| row.contains("Last observed"))));
+    }
+
+    #[test]
+    fn attention_page_parses_scoped_counts_and_freshness() {
+        let snapshot: Snapshot = serde_json::from_value(serde_json::json!({
+            "project": "/project", "agents": [], "tasks": [], "events": [], "admission": "active",
+            "spaces": [], "reservations": [], "messages": [],
+            "attention": {"tasks": [{"task_id": "42", "description": "work", "state": "running",
+                "revision": 2, "actions": ["answer", "reconcile"], "observation_age_ms": 3000}],
+                "total": 2, "truncated": true, "counts": {"answer": 1, "reconcile": 1}}
+        })).unwrap();
+        let page = snapshot.attention.unwrap();
+        assert_eq!(page.tasks[0].task_id, "42");
+        assert_eq!(page.tasks[0].actions, ["answer", "reconcile"]);
+        assert_eq!(page.tasks[0].observation_age_ms, Some(3000));
+        assert_eq!(page.total, 2);
+        assert!(page.truncated);
+        assert_eq!(page.counts["answer"], 1);
+        let absent: Snapshot = serde_json::from_value(serde_json::json!({
+            "project": "/project", "agents": [], "tasks": [], "events": [], "admission": "active",
+            "spaces": [], "reservations": [], "messages": []
+        })).unwrap();
+        assert!(absent.attention.is_none());
     }
 }

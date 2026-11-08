@@ -1,5 +1,31 @@
 # SSH Agent Communication API
 
+## Task-linked follow-ups and attention projection (2026-11-08)
+
+`warp_agent_send` with `task_id` (explicit or inherited through `reply_to`) records
+the task revision at queue time on the `message`/`request`. Native wake,
+`agent_wait` and panel pending work skip a task-linked `message`/`request` whose
+recorded revision differs from the current task revision: a review rejection or
+other revision bump must not drive work with an overtaken instruction. The
+message remains in the inbox/history, is not rewritten, retargeted, acknowledged
+or deleted, and the operator sends a fresh follow-up against the current
+revision. State notifications (`assignment`, `review`, `observation`,
+`cancel_requested`, `interrupted`) keep their existing transition semantics.
+No schema or protocol-major change is required.
+
+`operator_panel` adds a derived `attention` projection for the same project and
+task filters as the Tasks list:
+`{tasks:[{task_id,description,state,revision,assignee,reviewer,actions,observation_age_ms}],total,truncated,counts}`.
+Actions are `answer`, `review`, `permission`, `recovery`, `unreachable`,
+`dependency`, `overdue` and `reconcile`; each task appears once with every
+pending action. `total` and `counts` cover the whole filtered set while `tasks`
+is bounded to 100 rows (`truncated` when more). The projection derives from
+current tasks, unfinished uncertain attempts, unread questions/follow-ups,
+dependencies, deadlines and the latest current-revision native observation; it
+stores no new lifecycle state. Companions that predate the field omit it and the
+panel hides the section. This is additive: no new operation, automatic retry,
+automatic approval or capability/version bump.
+
 ## Task dispatch and panel projection (2026-11-03)
 
 Use `warp_task_assign` when delegating execution or when the user explicitly

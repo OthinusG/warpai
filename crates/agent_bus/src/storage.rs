@@ -1173,15 +1173,49 @@ impl Store {
     pub fn next_work(&self, actor: &Agent, run: &str) -> Result<Option<Message>> {
         self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
         let executing = self.execution_in_run(&actor.id, run)?;
-        self.first_pending(actor, executing)
+        self.first_deliverable(actor, executing)
     }
 
     /// Submission is not consumption; later mail must remain eligible for notification.
     pub(crate) fn next_unnotified(&self, actor: &Agent, run: &str, delivered: &std::collections::HashSet<String>) -> Result<Option<Message>> {
         self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
         let executing = self.execution_in_run(&actor.id, run)?;
-        Ok(self.pending(actor)?.into_iter().find(|message| !delivered.contains(&message.id)
-            && (!executing || !matches!(message.kind.as_str(), "assignment" | "available"))))
+        for message in self.pending(actor)? {
+            if delivered.contains(&message.id)
+                || executing && matches!(message.kind.as_str(), "assignment" | "available")
+                || self.stale_followup(&message)? {
+                continue;
+            }
+            return Ok(Some(message));
+        }
+        Ok(None)
+    }
+
+    /// A task-linked follow-up queued for an older revision must not drive current work.
+    fn stale_followup(&self, message: &Message) -> Result<bool> {
+        if !matches!(message.kind.as_str(), "message" | "request") {
+            return Ok(false);
+        }
+        let (Some(task_id), Some(revision)) = (message.task_id.as_deref(), message.revision) else {
+            return Ok(false);
+        };
+        Ok(diesel::sql_query("SELECT revision FROM tasks WHERE id = ?")
+            .bind::<Text, _>(task_id)
+            .get_result::<RevisionRow>(&mut *self.connection.borrow_mut())
+            .optional()?
+            .is_some_and(|row| row.revision != revision as i32))
+    }
+
+    pub(crate) fn first_deliverable(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
+        self.authorize(actor)?;
+        for message in self.pending(actor)? {
+            if skip_delegation && matches!(message.kind.as_str(), "assignment" | "available")
+                || self.stale_followup(&message)? {
+                continue;
+            }
+            return Ok(Some(message));
+        }
+        Ok(None)
     }
 
     pub(crate) fn first_pending(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
@@ -1585,6 +1619,108 @@ impl Store {
         Ok(task_summaries(rows, limit))
     }
 
+    /// Derived attention facts for the operator panel; tasks are never re-parented or retyped.
+    pub(crate) fn operator_attention(
+        &self,
+        project: &str,
+        state: Option<&str>,
+        assignee: Option<&str>,
+        include_archived: bool,
+    ) -> Result<Value> {
+        let now = now() as i64;
+        let rows = diesel::sql_query(
+            "WITH latest AS (
+                SELECT resource,payload,observed_at FROM (
+                    SELECT resource,payload,observed_at,
+                        ROW_NUMBER() OVER (PARTITION BY resource ORDER BY sequence DESC) AS position
+                    FROM events WHERE project=? AND kind='task_observed'
+                ) WHERE position=1),
+            questions AS (
+                SELECT task_id,COUNT(*) AS count FROM messages
+                WHERE project=? AND kind='question' AND acknowledged=0 GROUP BY task_id),
+            followups AS (
+                SELECT m.task_id AS task_id,COUNT(*) AS count FROM messages m JOIN tasks t ON t.id=m.task_id
+                WHERE m.project=? AND m.kind IN ('message','request') AND m.acknowledged=0
+                    AND m.revision IS NOT NULL AND m.revision<>t.revision GROUP BY m.task_id),
+            uncertain AS (
+                SELECT a.task_id AS task_id,COUNT(*) AS count FROM attempts a JOIN tasks t ON t.id=a.task_id
+                WHERE a.certainty IN ('unknown','interrupted') AND a.finished_at IS NULL AND a.outcome IS NULL
+                GROUP BY a.task_id),
+            dependencies AS (
+                SELECT dependency.task_id AS task_id,COUNT(*) AS count FROM task_dependencies dependency
+                JOIN tasks prerequisite ON prerequisite.id=dependency.prerequisite_id
+                WHERE prerequisite.state NOT IN ('accepted','failed','cancelled','expired')
+                GROUP BY dependency.task_id)
+            SELECT t.id,t.state,t.revision,t.assignee,t.reviewer,substr(t.description,1,512) AS description,
+                t.execution_deadline,t.review_deadline,
+                COALESCE(q.count,0) AS questions,COALESCE(f.count,0) AS followups,
+                COALESCE(u.count,0) AS uncertain,COALESCE(d.count,0) AS dependencies,
+                CASE WHEN json_extract(l.payload,'$.revision')=t.revision AND json_extract(l.payload,'$.observation.connected')=0 THEN 1 ELSE 0 END AS unreachable,
+                CASE WHEN json_extract(l.payload,'$.revision')=t.revision AND (json_extract(l.payload,'$.observation.blocked')=1 OR json_extract(l.payload,'$.observation.activity') IN ('waiting_approval','waiting_input')) THEN 1 ELSE 0 END AS permission,
+                CASE WHEN json_extract(l.payload,'$.revision')=t.revision THEN l.observed_at END AS observed_at
+            FROM tasks t LEFT JOIN latest l ON l.resource=t.id
+                LEFT JOIN questions q ON q.task_id=t.id LEFT JOIN followups f ON f.task_id=t.id
+                LEFT JOIN uncertain u ON u.task_id=t.id LEFT JOIN dependencies d ON d.task_id=t.id
+            WHERE t.project=? AND t.state=COALESCE(?,t.state) AND (t.assignee=COALESCE(?,t.assignee) OR ?='') AND (t.archived=0 OR ?)
+                AND (t.state='submitted' OR COALESCE(q.count,0)>0 OR COALESCE(f.count,0)>0 OR COALESCE(u.count,0)>0
+                    OR t.state='blocked'
+                    OR (t.state IN ('running','cancel_requested') AND (
+                        (json_extract(l.payload,'$.revision')=t.revision AND (json_extract(l.payload,'$.observation.connected')=0 OR json_extract(l.payload,'$.observation.blocked')=1 OR json_extract(l.payload,'$.observation.activity') IN ('waiting_approval','waiting_input')))
+                        OR (t.execution_deadline IS NOT NULL AND t.execution_deadline<=?)))
+            ORDER BY t.created_seq",
+        )
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Nullable<Text>, _>(state)
+        .bind::<Nullable<Text>, _>(assignee)
+        .bind::<Text, _>(assignee.unwrap_or(""))
+        .bind::<Integer, _>(i32::from(include_archived))
+        .bind::<BigInt, _>(now)
+        .load::<AttentionRow>(&mut *self.connection.borrow_mut())?;
+        let mut counts: std::collections::BTreeMap<&str, u64> = [
+            "answer", "review", "permission", "recovery", "unreachable", "dependency",
+            "overdue", "reconcile",
+        ]
+        .into_iter()
+        .map(|action| (action, 0))
+        .collect();
+        let total = rows.len() as u64;
+        let mut tasks = Vec::new();
+        for row in rows {
+            let mut actions = Vec::new();
+            let execution_overdue = matches!(row.state.as_str(), "running" | "cancel_requested")
+                && row.execution_deadline.is_some_and(|at| at <= now);
+            let review_overdue = row.state == "submitted"
+                && row.review_deadline.is_some_and(|at| at <= now);
+            for (action, pending) in [
+                ("answer", row.questions != 0),
+                ("review", row.state == "submitted"),
+                ("permission", row.permission != 0),
+                ("recovery", row.uncertain != 0),
+                ("unreachable", row.unreachable != 0),
+                ("dependency", row.dependencies != 0 || row.state == "blocked"),
+                ("overdue", execution_overdue || review_overdue),
+                ("reconcile", row.followups != 0),
+            ] {
+                if pending {
+                    actions.push(action);
+                    *counts.get_mut(action).unwrap() += 1;
+                }
+            }
+            if tasks.len() < 100 {
+                let observation_age_ms = row.observed_at.map(|at| now.saturating_sub(at) as u64);
+                tasks.push(json!({
+                    "task_id": row.id, "description": row.description, "state": row.state,
+                    "revision": row.revision as u32, "assignee": row.assignee, "reviewer": row.reviewer,
+                    "actions": actions, "observation_age_ms": observation_age_ms,
+                }));
+            }
+        }
+        Ok(json!({"tasks": tasks, "total": total, "truncated": total > 100, "counts": counts}))
+    }
+
     pub fn events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
         let rows = diesel::sql_query("SELECT id, project, sequence, kind, actor, resource, attempt, observed_at, imported, payload FROM events WHERE project = ? AND sequence > ? ORDER BY sequence LIMIT ?")
@@ -1844,8 +1980,10 @@ impl Store {
     }
 
     fn sweep_at(&self, project: &str, now: u64) -> Result<()> {
-        // Expired leases whose execution already resolved are dropped; unknown owners keep their warning.
-        diesel::sql_query("DELETE FROM reservations WHERE owner IN (SELECT id FROM agents WHERE project = ?) AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty = 'active'))")
+        // Expired leases whose execution already resolved are dropped. Active and
+        // unknown attempts retain their expired row so readers can show the
+        // abandoned-owner warning instead of silently releasing it.
+        diesel::sql_query("DELETE FROM reservations WHERE owner IN (SELECT id FROM agents WHERE project = ?) AND expires_at <= ? AND (attempt_id IS NULL OR NOT EXISTS (SELECT 1 FROM attempts WHERE attempts.id = reservations.attempt_id AND attempts.certainty IN ('active','unknown')))")
             .bind::<Text, _>(project)
             .bind::<BigInt, _>(now as i64)
             .execute(&mut *self.connection.borrow_mut())?;
@@ -2093,6 +2231,10 @@ impl Store {
                         (thread_id.clone(), None, task_id.clone())
                     }
                 };
+                let revision = match &linked_task {
+                    Some(task_id) => Some(self.actor_task(actor, task_id)?.revision),
+                    None => None,
+                };
                 let message = Message {
                     id: String::new(),
                     from: actor.id.clone(),
@@ -2102,7 +2244,7 @@ impl Store {
                     thread_id: thread,
                     reply_to: reply,
                     task_id: linked_task,
-                    revision: None,
+                    revision,
                     kind: if *expects_result { "request" } else { "message" }.into(),
                     acknowledged: false,
                     sequence: 0,
@@ -4951,6 +5093,12 @@ struct CountRow {
 }
 
 #[derive(QueryableByName)]
+struct RevisionRow {
+    #[diesel(sql_type = Integer)]
+    revision: i32,
+}
+
+#[derive(QueryableByName)]
 struct BytesRow {
     #[diesel(sql_type = BigInt)]
     value: i64,
@@ -5098,6 +5246,40 @@ struct TaskSummaryRow {
     created_seq: i64,
     #[diesel(sql_type = Text)]
     description: String,
+}
+
+#[derive(QueryableByName)]
+struct AttentionRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Text)]
+    state: String,
+    #[diesel(sql_type = Integer)]
+    revision: i32,
+    #[diesel(sql_type = Text)]
+    assignee: String,
+    #[diesel(sql_type = Text)]
+    reviewer: String,
+    #[diesel(sql_type = Text)]
+    description: String,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    execution_deadline: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    review_deadline: Option<i64>,
+    #[diesel(sql_type = BigInt)]
+    questions: i64,
+    #[diesel(sql_type = BigInt)]
+    followups: i64,
+    #[diesel(sql_type = BigInt)]
+    uncertain: i64,
+    #[diesel(sql_type = BigInt)]
+    dependencies: i64,
+    #[diesel(sql_type = Integer)]
+    unreachable: i32,
+    #[diesel(sql_type = Integer)]
+    permission: i32,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    observed_at: Option<i64>,
 }
 
 #[derive(QueryableByName)]
@@ -5688,6 +5870,79 @@ mod tests {
             answer:"Obsolete approval".into(), request_id:Uuid::new_v4().to_string() };
         assert_eq!(code(&store.execute(&issuer, "issuer-run", &answer).unwrap_err()), "invalid_state");
         assert!(store.task_history(&peer, id, None, None).unwrap()["events"].as_array().unwrap().iter().any(|e| e["kind"] == "question_asked"));
+    }
+
+    #[test]
+    fn task_followups_bind_the_current_revision_and_stale_ones_wait_for_reconciliation() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let followup = |request_id: &str| Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Validate the bounded change".into(), subject: Some("Next step".into()),
+            thread_id: None, reply_to: None, task_id: Some(id.clone()), request_id: request_id.into(),
+        };
+        let stale = store.execute(&issuer, "issuer-run", &followup(&Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(stale["task_id"], id);
+        assert_eq!(stale["revision"], 1);
+        let stale_id = stale["id"].as_str().unwrap().to_owned();
+        assert_eq!(store.next_unnotified(&worker, "worker-run", &Default::default()).unwrap().unwrap().id, stale_id);
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        let rejected = store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(rejected["revision"], 2);
+        let undelivered: std::collections::HashSet<String> = store.pending(&worker).unwrap().into_iter()
+            .filter(|message| message.id != stale_id).map(|message| message.id).collect();
+        assert!(store.next_unnotified(&worker, "worker-run", &undelivered).unwrap().is_none());
+        assert!(store.first_deliverable(&worker, true).unwrap().is_none());
+        let fresh = store.execute(&issuer, "issuer-run", &followup(&Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(fresh["revision"], 2);
+        assert_eq!(store.first_deliverable(&worker, true).unwrap().unwrap().id, fresh["id"].as_str().unwrap());
+        let attention = store.operator_attention("/project", None, None, false).unwrap();
+        let row = attention["tasks"].as_array().unwrap().iter().find(|row| row["task_id"].as_str() == Some(id.as_str())).unwrap();
+        assert!(row["actions"].as_array().unwrap().iter().any(|action| action == "reconcile"));
+        assert_eq!(attention["counts"]["reconcile"], 1u64);
+        assert_eq!(store.operator_attention("/project", Some("accepted"), None, false).unwrap()["total"], 0u64);
+    }
+
+    #[test]
+    fn attention_derives_questions_review_and_unknown_execution_from_current_state() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let peer = actor(&store, "peer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("peer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let question = store.execute(&worker, "worker-run", &Operation::AgentAsk { task_id: Some(id.clone()), reply_to: None,
+            question: "Which contract?".into(), request_id: Uuid::new_v4().to_string() }).unwrap();
+        let attention = store.operator_attention("/project", None, None, false).unwrap();
+        let active = |attention: &Value| attention["tasks"].as_array().unwrap().iter().find(|row| row["task_id"].as_str() == Some(id.as_str())).cloned().unwrap();
+        assert!(active(&attention)["actions"].as_array().unwrap().iter().any(|action| action == "answer"));
+        assert_eq!(attention["counts"]["answer"], 1u64);
+        assert_eq!(store.operator_attention("/project", None, Some("peer"), false).unwrap()["total"], 0u64);
+        store.execute(&peer, "peer-run", &Operation::AgentAnswer { question_id: question["id"].as_str().unwrap().into(),
+            answer: "Use the existing contract.".into(), request_id: Uuid::new_v4().to_string() }).unwrap();
+        store.recover(&worker, "worker-run").unwrap();
+        let attention = store.operator_attention("/project", None, None, false).unwrap();
+        assert!(active(&attention)["actions"].as_array().unwrap().iter().any(|action| action == "recovery"));
+        store.execute_controller("/project", &ControllerOperation::TaskForceCancel {
+            task_id: id.clone(), reason: "Operator accepts overlap risk".into(),
+            expected_version: Some(store.operator_task("/project", &id).unwrap().version),
+            request_id: Uuid::new_v4().to_string() }).unwrap();
+        assert_eq!(store.task(&worker, &id).unwrap().state, "cancelled");
+        let attention = store.operator_attention("/project", None, None, false).unwrap();
+        assert!(attention["tasks"].as_array().unwrap().iter().all(|row| row["task_id"].as_str() != Some(id.as_str())));
+        let submitted = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("peer"), &Uuid::new_v4().to_string())).unwrap();
+        let submitted_id = submitted["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&submitted_id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&submitted_id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        let attention = store.operator_attention("/project", Some("submitted"), None, false).unwrap();
+        let row = attention["tasks"].as_array().unwrap().iter().find(|row| row["task_id"].as_str() == Some(submitted_id.as_str())).unwrap();
+        assert!(row["actions"].as_array().unwrap().iter().any(|action| action == "review"));
+        assert_eq!(attention["counts"]["review"], 1u64);
     }
 
     #[test]
@@ -7540,6 +7795,95 @@ mod tests {
             )
             .unwrap();
         assert!(swept["reservations"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn expired_reservations_keep_unknown_owners_until_execution_resolves() {
+        let store = Store::open(":memory:").unwrap();
+        let workspace = tempfile::tempdir().unwrap();
+        let root = workspace.path().to_str().unwrap();
+        let issuer = store
+            .register("terminal-issuer", "claude", root, "issuer")
+            .unwrap();
+        let worker = store.register("worker", "codex", root, "worker").unwrap();
+        let task = store
+            .execute(
+                &issuer,
+                "run-issuer",
+                &assign(&issuer, "worker", None, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let task_id = task["id"].as_str().unwrap().to_owned();
+        let started = store
+            .execute(
+                &worker,
+                "run-worker",
+                &transition(&task_id, 1, &Uuid::new_v4().to_string()),
+            )
+            .unwrap();
+        let attempt_id = started["attempt_id"].as_str().unwrap().to_owned();
+        let reserved = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReserve {
+                    paths: vec!["src/owned.rs".into()],
+                    mode: "exclusive".into(),
+                    task_id: Some(task_id),
+                    attempt_id: Some(attempt_id.clone()),
+                    ttl_seconds: Some(1),
+                    request_id: Uuid::new_v4().to_string(),
+                },
+            )
+            .unwrap();
+        let reservation_id = reserved["reservation_ids"][0].as_str().unwrap().to_owned();
+        diesel::sql_query("UPDATE reservations SET expires_at = ? WHERE id = ?")
+            .bind::<BigInt, _>((now() as i64) - 1_000)
+            .bind::<Text, _>(&reservation_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        diesel::sql_query("UPDATE attempts SET certainty='unknown', outcome='overridden', finished_at=NULL WHERE id=?")
+            .bind::<Text, _>(&attempt_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        let visible = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReservations {
+                    path: Some("src/owned.rs".into()),
+                    cursor: None,
+                    limit: None,
+                    include_expired: true,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            visible["reservations"].as_array().unwrap().len(),
+            1,
+            "An unresolved unknown owner must not be swept as if execution stopped"
+        );
+        assert_eq!(visible["reservations"][0]["expired"], true);
+        assert_eq!(visible["reservations"][0]["abandoned"], true);
+        diesel::sql_query("UPDATE attempts SET certainty='finished', outcome='cancelled', finished_at=? WHERE id=?")
+            .bind::<BigInt, _>(now() as i64)
+            .bind::<Text, _>(&attempt_id)
+            .execute(&mut *store.connection.borrow_mut())
+            .unwrap();
+        let swept = store
+            .execute(
+                &worker,
+                "run-worker",
+                &Operation::FileReservations {
+                    path: Some("src/owned.rs".into()),
+                    cursor: None,
+                    limit: None,
+                    include_expired: true,
+                },
+            )
+            .unwrap();
+        assert!(swept["reservations"].as_array().unwrap().is_empty());
+        assert!(store.reservation_by_id(&reservation_id).unwrap().is_none());
     }
 
     #[test]
