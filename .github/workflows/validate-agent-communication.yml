@@ -243,6 +243,7 @@ jobs:
           cargo test -p warpai --lib agent_communication::ssh_settings::tests --locked
           RUST_LOG=error cargo test -p warpai --lib peer_wake_submits_to_dormant_agent_and_cancels_stale_enter --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
+          cargo test -p warpai --lib attention_page_parses_scoped_counts_and_freshness --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
           cargo test -p warpai --lib terminal_ssh_session_ --locked
           cargo test -p warpai --lib wsl_selection_ --locked
@@ -490,6 +491,7 @@ jobs:
           cargo test -p warpai --lib agent_communication::codex_launch::tests --locked
           cargo test -p warpai --lib agent_communication::ssh_settings::tests --locked
           cargo test -p warpai --lib companion_transport_preserves_destination_and_native_authentication_paths --locked
+          cargo test -p warpai --lib attention_page_parses_scoped_counts_and_freshness --locked
           cargo test -p warpai --lib powershell_subshell_initialization_emits_native_session_hook --locked
           cargo test -p warpai --lib terminal_ssh_session_ --locked
           cargo test -p warpai --lib codex_pending_launch_is_canceled_by_both_ctrl_c_paths --locked
