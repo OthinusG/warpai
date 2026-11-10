@@ -1666,7 +1666,7 @@ impl Store {
                     OR t.state='blocked'
                     OR (t.state IN ('running','cancel_requested') AND (
                         (json_extract(l.payload,'$.revision')=t.revision AND (json_extract(l.payload,'$.observation.connected')=0 OR json_extract(l.payload,'$.observation.blocked')=1 OR json_extract(l.payload,'$.observation.activity') IN ('waiting_approval','waiting_input')))
-                        OR (t.execution_deadline IS NOT NULL AND t.execution_deadline<=?)))
+                        OR (t.execution_deadline IS NOT NULL AND t.execution_deadline<=?))))
             ORDER BY t.created_seq",
         )
         .bind::<Text, _>(project)
