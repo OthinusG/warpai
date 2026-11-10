@@ -5925,7 +5925,7 @@ mod tests {
         assert_eq!(store.operator_attention("/project", None, Some("peer"), false).unwrap()["total"], 0u64);
         store.execute(&peer, "peer-run", &Operation::AgentAnswer { question_id: question["id"].as_str().unwrap().into(),
             answer: "Use the existing contract.".into(), request_id: Uuid::new_v4().to_string() }).unwrap();
-        store.recover(&worker, "worker-run").unwrap();
+        store.recover(&worker, "worker-recovered").unwrap();
         let attention = store.operator_attention("/project", None, None, false).unwrap();
         assert!(active(&attention)["actions"].as_array().unwrap().iter().any(|action| action == "recovery"));
         store.execute_controller("/project", &ControllerOperation::TaskForceCancel {
