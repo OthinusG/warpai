@@ -1,7 +1,8 @@
 # Warpai 1.9.0 execution ledger
 
-Date: 2026-11-08. State: implementation in progress in the working tree; runtime
-verification pending CI (local Rust builds are prohibited by `MEMORY.md`).
+Date: 2026-11-10. State: shared Rust and application suites verified by cloud CI
+on `96122b72c`/`3a59828ad`; native capture and live user acceptance remain
+pending (local Rust builds are prohibited by `MEMORY.md`).
 
 Sources: [product](PRODUCT.md), [technical plan](TECH.md),
 [first-round execution prompt](AGENT-EXECUTION-1.9.0.md),
@@ -70,9 +71,14 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   `observe_native_delivery` records `claimed|submitted|cancelled` while
   acknowledgement/execution remain separate; test
   `every_receiver_state_preserves_work_and_initial_readiness_is_one_shot`.
-- [ ] Verify S01, S03 and S05, including changed payload replay refusal.
-  Blocked: requires CI execution; reuse `cargo test -p warp-agent-bus` and
-  `cargo test -p warpai` CI jobs. Smallest next action: run the GitHub workflows.
+- [x] Verify S01, S03 and S05, including changed payload replay refusal.
+  Evidence: `cargo test -p warp-agent-bus` green on macOS 15 and Windows in
+  Protocol jobs of run
+  [42788093249](https://github.com/OthinusG/warpai/actions/runs/42788093249)
+  (45 lib tests in the wire subset, including request replay and payload-conflict
+  tests); companion wire suites green on ubuntu-22.04, macos-15 and
+  windows-latest in run
+  [42788086593](https://github.com/OthinusG/warpai/actions/runs/42788086593).
 
 ## P0-02 — Follow-up ownership and task continuation
 
@@ -100,8 +106,10 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   `message`/`request` whose recorded revision differs from the current task;
   messages stay in `inbox`/history and the derived attention action `reconcile`
   surfaces them. State notifications keep their transitions.
-- [ ] Verify S04 and stale-association cases in S07.
-  Blocked: requires CI execution of the new focused tests plus the transport suite.
+- [x] Verify S04 and stale-association cases in S07.
+  Evidence: same runs as P0-01; the new follow-up tests executed with nonzero
+  counts (`task_followups_bind_the_current_revision_and_stale_ones_wait_for_reconciliation`)
+  and the transport suite passed on macOS and Windows.
 
 ## P0-03 — Continuous supervision and collaboration modes
 
@@ -121,8 +129,11 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   Evidence: `authorize_orchestration` and `can_communicate`; tests
   `project_peers_communicate_without_selection_and_policy_revokes_runs`,
   `competing_task_controls_preserve_versions_in_both_orders`.
-- [ ] Verify S02, S03 and S09, including offline workers and Coordinator changes.
-  Blocked: requires CI and native multi-agent acceptance.
+- [x] Verify S02, S03 and S09, including offline workers and Coordinator changes.
+  Evidence: transport supervision/question tests passed in Protocol jobs; the
+  companion wire suites exercised installed-Agent fixtures, remote task history
+  and Coordinator switching across project fences on ubuntu-22.04, macos-15 and
+  windows-latest (runs 42788086593, 42788093249).
 
 ## P0-04 — Recovery and stale mutations
 
@@ -145,8 +156,11 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   Evidence: `INSTRUCTIONS` and `automatic_retry:false`; recovery only records
   interruption and queues observation; tests `recover_interrupts_only_once_per_revision`,
   `unknown_outcomes_require_the_unchanged_original_owner_attempt_and_run`.
-- [ ] Verify S05, S06, S07 and S08 in shared logic and applicable transports.
-  Blocked: requires CI plus SSH/WSL acceptance.
+- [x] Verify S05, S06, S07 and S08 in shared logic and applicable transports.
+  Evidence: Agent Bus suite passed on macOS and Windows; wire run 42788086593
+  passed the real controlled SSH companion, native SSH/SFTP file tools, WSL
+  setup/recovery fixture, disposable-account MCP and retained-history migration
+  steps on all three wire platforms.
 
 ## P0-05 — Delivery evidence and integration
 
@@ -161,8 +175,11 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
 - [x] Keep non-Git deliverables first-class; no Git prerequisite for Project work.
   Evidence: integration is optional and Worktree-only; Project task/review paths
   never invoke Git.
-- [ ] Verify S10 and combined-delivery evidence using disposable repositories/artifacts.
-  Blocked: requires CI/native disposable repositories.
+- [x] Verify S10 and combined-delivery evidence using disposable repositories/artifacts.
+  Evidence: worktree submit/reject/accept and integration-selection tests ran in
+  the Agent Bus suite on macOS and Windows; wire run 42788086593 packaged and
+  verified native remote installers and the self-contained Windows Companion
+  without publishing.
 
 ## P0-06 — Existing panel attention section
 
@@ -181,15 +198,16 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   Evidence: existing `tasks` fixture state extended with a “Needs attention”
   section; fixture test asserts action and freshness rows.
 - [ ] Inspect static multilingual light/dark captures and fix defects.
-  Blocked: native capture requires a local Rust build, prohibited by `MEMORY.md`.
-  Smallest next action: run the collaboration capture workflow on GitHub.
+  Blocked: none of the executed runs included `capture_ui`. Smallest next action:
+  dispatch the communication workflow on this branch with `capture_ui=true`.
 - [x] Wire existing projection/operations; revalidate action versions and late responses.
   Evidence: `operator_panel` adds derived `attention`; the panel reuses
   `SelectTask` and current snapshot/version fetches; no new mutation operation.
 - [ ] Verify drafts/focus/scroll, error handling, duplicates and new actionable changes.
   Blocked: requires native UI capture/manual acceptance.
 - [ ] Verify S11 and S14, then inspect source-matched live captures.
-  Blocked: requires CI/native live capture.
+  S11: covered by the attention tests in runs 42788086593/42788093249. S14:
+  blocked because no executed run included `capture_ui`.
 
 ## P1-01 — Handoff/context continuation and retention
 
@@ -205,8 +223,10 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   Evidence: `task_archive`, `history_purge`, `PURGEABLE_TASK`, referenced-record
   tests (`task_delete_is_targeted_versioned_guarded_and_replayable`,
   `history_export_is_ordered_and_purge_preserves_unread_work`).
-- [ ] Verify S12 and representative payload bounds; add no new memory/cleanup service.
-  Blocked: requires CI execution; no new service was added.
+- [x] Verify S12 and representative payload bounds; add no new memory/cleanup service.
+  Evidence: handoff/context and purge tests ran in the Agent Bus suite; the
+  ignored budget test `representative_history_pages_within_budget_and_preserves_live_work`
+  passed in the Protocol jobs of run 42788093249.
 
 ## C1 — Conditional capacity audit
 
@@ -217,37 +237,47 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
 - [x] If an in-scope gap exists, fix it without adding automatic launch or an unrelated scheduler.
   Result: `conditional_skip` — no in-scope automatic dispatch path requires a
   capacity change; Warpai has no automatic Agent launching.
-- [ ] Verify control/answer delivery under saturation and concurrent startup (S13).
-  Blocked: requires CI execution of
-  `pagination_holds_at_capacity_scale`,
-  `archival_recovers_capacity_and_full_inboxes_preserve_stop_requests`.
+- [x] Verify control/answer delivery under saturation and concurrent startup (S13).
+  Evidence: `pagination_holds_at_capacity_scale` and
+  `archival_recovers_capacity_and_full_inboxes_preserve_stop_requests` ran in the
+  Agent Bus suite on macOS and Windows (run 42788093249).
 - [x] Otherwise record `conditional_skip` with source/test evidence; no new settings.
   Evidence: constants and reserve path above; no new setting, scheduler or launcher.
 
 ## V1 — Source-matched verification
 
-- [ ] Focused shared logic tests execute with nonzero matching test counts.
-  Pending: new tests
-  `task_followups_bind_the_current_revision_and_stale_ones_wait_for_reconciliation`,
-  `attention_derives_questions_review_and_unknown_execution_from_current_state`,
-  `attention_page_parses_scoped_counts_and_freshness`,
-  `collaboration_fixtures_cover_required_states_and_long_content` need CI.
-- [ ] Relevant full Agent Bus/protocol suites pass; changed DTO compatibility is covered.
-  Pending: additive JSON fields; run CI.
-- [ ] Default and warp_platform application checks pass where application changes require them.
-  Pending: `panel.rs` changed; run CI.
+- [x] Focused shared logic tests execute with nonzero matching test counts.
+  Evidence: the new tests ran in run 42788093249 — wire subset reported 45/28/32
+  passing tests per platform before the fixes, then full suites green; panel tests
+  `attention_page_parses_scoped_counts_and_freshness` and
+  `collaboration_fixtures_cover_required_states_and_long_content` passed on
+  macOS, and the attention parser test also passed on Windows (run 42794865032).
+- [x] Relevant full Agent Bus/protocol suites pass; changed DTO compatibility is covered.
+  Evidence: `cargo test -p warp-agent-bus`, clippy and the ignored budget test
+  passed in both Protocol jobs; additive `attention` fields leave older
+  Companions hiding the section.
+- [x] Default and warp_platform application checks pass where application changes require them.
+  Evidence: Windows `cargo check -p warpai` default/platform/rlto steps and macOS
+  `Check default Warpai application`/`Check platform application` passed in runs
+  42788093249 and 42794865032.
 - [ ] Applicable macOS/Windows/Linux artifact/build coverage passes without publication.
-  Pending CI.
-- [ ] Local/SSH/direct WSL acceptance passes in supported disposable environments.
-  Pending.
+  macOS and Windows application builds plus Companion installers passed (runs
+  42788086593/42788093249); Linux desktop packaging was not part of these
+  workflows and remains pending.
+- [x] Local/SSH/direct WSL acceptance passes in supported disposable environments.
+  Evidence: wire run 42788086593 passed the SSH wrapper routing, disposable SSH
+  account MCP, real controlled SSH companion, native SSH/SFTP and WSL
+  setup/recovery fixture steps on ubuntu-22.04, macos-15 and windows-latest.
 - [ ] Static and live native screenshots pass for applicable UI/platform/locale states.
-  Pending.
+  Pending: no executed run included `capture_ui`.
 - [x] Relevant localization, format, script/YAML and documentation checks pass.
   Evidence: `python3 script/check-interface-locales.py --strict` → 2981 pairs,
   2949 sites, 0 unclassified; fixture JSON parsed. Rust formatting was not
   applied because the files are not rustfmt-clean upstream.
-- [ ] Exact-source receipts are recorded; fixture and live-vendor claims remain separate.
-  Pending commit/CI receipts.
+- [x] Exact-source receipts are recorded; fixture and live-vendor claims remain separate.
+  Evidence: source `96122b72c` — runs 42788086593 and 42788093249; source
+  `3a59828ad` — run 42794865032. No live-vendor capability claim is made from
+  these runs.
 
 ## D1 — Reviewable delivery
 
@@ -290,7 +320,10 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
 | Planning documents only | working tree | Local document validation | local | Passed; application tests not run | No implementation or runtime claim |
 | Interface localization | working tree | `python3 script/check-interface-locales.py --strict` | macOS, all catalogs | Passed; 2981 translation pairs, 2949 marked sites, 0 unclassified | New attention strings have zh-Hans/zh-Hant entries |
 | Panel fixture JSON | working tree | `python3 -c "json.load(...)"` | macOS | Passed; 17 states parsed | Static content only; captures pending |
-| Rust source | working tree | `rustfmt --check --config skip_children=true` (parse only) | macOS | Parsed; formatting not applied (files not rustfmt-clean upstream) | No compile/test claim; CI gate pending |
+| Rust source | working tree | `rustfmt --check --config skip_children=true` (parse only) | macOS | Parsed; formatting not applied (files not rustfmt-clean upstream) | No local compile/test claim; CI covers compilation and tests |
+| Agent Bus suite | 96122b72c | `cargo test -p warp-agent-bus`, clippy, ignored budget test; run 42788093249 | macOS 15, Windows | Passed | First execution found the attention SQL defect fixed in 900d6237f |
+| Companion wire | 96122b72c | `validate-remote-companion.yml`; run 42788086593 | ubuntu-22.04, macos-15, windows-latest | Passed (SSH/SFTP, WSL fixture, installers) | No Linux desktop package |
+| Application checks/tests | 3a59828ad | `validate-agent-communication.yml`; run 42794865032 | macOS 15, Windows | Passed, including both panel attention tests | No native capture (`capture_ui` false) |
 
 ## R2 — Independent Agent process review (2026-11-08)
 
@@ -316,52 +349,72 @@ runtime receipt exists; local Rust builds remain prohibited.
 
 | Group | Classification | Existing source and regression candidates | Next gate |
 | --- | --- | --- | --- |
-| R2-01 | existing_unverified | `TaskStart` requires assignee/revision/version, serializes per assignee and returns the task payload; `capture_thread_binding` records attempt/revision/run/terminal/program/workspace; transport rejects stale runs. Tests: `native_thread_bindings_survive_terminal_reuse_and_never_grant_restart_ownership`, `supervision_allows_dispatch_and_completion_while_other_tasks_are_running`. | SP01 |
-| R2-02 | existing_unverified | `NativePty::{exit_code,is_active,stop}` plus Unix group/Windows Job Object ownership; submit/review paths do not call stop; Companion release requires leader exit, inactive owned group and closed output. Test: `owned_group_can_stop_background_children_after_observing_leader_exit`. | SP02, SP03 |
-| R2-03 | existing_unverified | Launch, binding, registration and readiness remain separate; `prepare_binding` rejects reused terminals; remote launch reconciles exact run/root; registration recovery does not overwrite a checkout. Test: `socket_wait_handoff_and_expired_run_rejection`. | SP04 |
-| R2-04 | existing_unverified | Bounded inbox/request stores, `CONTROL_MESSAGE_RESERVE`, per-assignee serialization, ordered wake claim/finish and guarded native input. Tests: `archival_recovers_capacity_and_full_inboxes_preserve_stop_requests`, `every_receiver_state_preserves_work_and_initial_readiness_is_one_shot`. | SP05 |
-| R2-05 | existing_unverified | Structured domain errors and run/attempt fences; no terminal-text retry, account/model switch or whole-task replay. Tests: `unknown_outcomes_require_the_unchanged_original_owner_attempt_and_run`, `native_permission_and_disconnect_observations_survive_broker_restart`. | SP06 |
+| R2-01 | existing_verified | `TaskStart` requires assignee/revision/version, serializes per assignee and returns the task payload; `capture_thread_binding` records attempt/revision/run/terminal/program/workspace; transport rejects stale runs. Tests: `native_thread_bindings_survive_terminal_reuse_and_never_grant_restart_ownership`, `supervision_allows_dispatch_and_completion_while_other_tasks_are_running`. | SP01 |
+| R2-02 | existing_verified | `NativePty::{exit_code,is_active,stop}` plus Unix group/Windows Job Object ownership; submit/review paths do not call stop; Companion release requires leader exit, inactive owned group and closed output. Test: `owned_group_can_stop_background_children_after_observing_leader_exit`. | SP02, SP03 |
+| R2-03 | existing_verified | Launch, binding, registration and readiness remain separate; `prepare_binding` rejects reused terminals; remote launch reconciles exact run/root; registration recovery does not overwrite a checkout. Test: `socket_wait_handoff_and_expired_run_rejection`. | SP04 |
+| R2-04 | existing_verified | Bounded inbox/request stores, `CONTROL_MESSAGE_RESERVE`, per-assignee serialization, ordered wake claim/finish and guarded native input. Tests: `archival_recovers_capacity_and_full_inboxes_preserve_stop_requests`, `every_receiver_state_preserves_work_and_initial_readiness_is_one_shot`. | SP05 |
+| R2-05 | existing_verified | Structured domain errors and run/attempt fences; no terminal-text retry, account/model switch or whole-task replay. Tests: `unknown_outcomes_require_the_unchanged_original_owner_attempt_and_run`, `native_permission_and_disconnect_observations_survive_broker_restart`. | SP06 |
 | R2-06 | demonstrated_gap (fixed) | `sweep_at` deleted expired reservations linked to unresolved `unknown` attempts, contradicting `Reservation.abandoned`; fixed to retain active or unresolved-unknown rows while collecting resolved rows. New test: `expired_reservations_keep_unknown_owners_until_execution_resolves`. Conflict checks remain TTL-only and advisory. | SP07 |
-| R2-07 | existing_unverified | Monotonic event/message sequences, generation-fenced wakes, current-revision `observe_tasks`, derived attention and durable inbox pagination. Tests: `dormant_agents_wake_without_an_open_wait_call`, `cooperative_wait_delivers_later_results_without_discarding_the_head`. | SP08, SP09 |
-| R2-08 | existing_unverified | Binding exposes attempt/revision/agent/terminal/program/run/workspace and task context/handoff pins. Executable, argv, model/prompt and vendor conversation identity are not stored; record as capability limits, not invented fields. No UI change was required. | SP10 |
+| R2-07 | existing_verified | Monotonic event/message sequences, generation-fenced wakes, current-revision `observe_tasks`, derived attention and durable inbox pagination. Tests: `dormant_agents_wake_without_an_open_wait_call`, `cooperative_wait_delivers_later_results_without_discarding_the_head`. | SP08, SP09 |
+| R2-08 | existing_verified | Binding exposes attempt/revision/agent/terminal/program/run/workspace and task context/handoff pins. Executable, argv, model/prompt and vendor conversation identity are not stored; record as capability limits, not invented fields. No UI change was required. | SP10 |
 
 - [x] R2-06 source correction and focused regression added.
   Evidence: `crates/agent_bus/src/storage.rs` (`sweep_at`, test
-  `expired_reservations_keep_unknown_owners_until_execution_resolves`);
-  source-only until CI executes it.
+  `expired_reservations_keep_unknown_owners_until_execution_resolves`); the test
+  executed and passed in the Agent Bus suites of run 42788093249.
 - [x] R2 local source/document checks passed.
   Evidence: Rust source parse via `rustfmt --edition 2021 --emit stdout`;
   `python3 script/check-interface-locales.py --strict` (2981 pairs);
   panel fixture JSON parse; `git diff --check`. These are not runtime tests.
-- [ ] R2 cloud CI execution (blocked).
-  Evidence: branch `r2-agent-lifecycle-ci`, source `c1bab807b`; runs
-  [42483412297](https://github.com/OthinusG/warpai/actions/runs/42483412297) and
-  [42483415951](https://github.com/OthinusG/warpai/actions/runs/42483415951)
-  failed before any job step. GitHub annotation: "The job was not started because
-  your account is locked due to a billing issue." Recent `main` runs show the
-  same account-level blocker. Smallest next action: restore GitHub Actions
-  billing, then rerun both workflows on the branch; no Rust test has executed.
-- [ ] R2-01: audit task/attempt/run/conversation separation and reused-process
+- [x] R2 cloud CI execution.
+  Evidence: branch `r2-agent-lifecycle-ci`; GitHub Actions billing was restored
+  after the 2026-11-08 block. Source `96122b72c`: communication run
+  [42788093249](https://github.com/OthinusG/warpai/actions/runs/42788093249)
+  (Protocol macOS/Windows, both application jobs) and companion wire run
+  [42788086593](https://github.com/OthinusG/warpai/actions/runs/42788086593)
+  (ubuntu-22.04, macos-15, windows-latest) are green. Source `3a59828ad`: run
+  [42794865032](https://github.com/OthinusG/warpai/actions/runs/42794865032)
+  green with the panel attention parser test added to both app jobs.
+  First execution surfaced two defects, both fixed and re-verified:
+  unbalanced parentheses in the panel attention SQL (`900d6237f`, `near "ORDER"`
+  on every platform) and a recovery test that called `recover` with its own live
+  run (`96122b72c`). Native capture was not run; see the open capture items.
+- [x] R2-01: audit task/attempt/run/conversation separation and reused-process
   context; verify SP01 without forcing a new process per task.
-- [ ] R2-02: audit task/turn/leader/owned-child lifetimes and human review handoff;
+  Evidence: R2-01 table row; cited tests passed in run 42788093249.
+- [x] R2-02: audit task/turn/leader/owned-child lifetimes and human review handoff;
   verify SP02/SP03 for actual native ownership paths, without killing user jobs.
-- [ ] R2-03: audit existing workspace/launch/registration/readiness stages and
+  Evidence: R2-02 table row; cited tests passed in run 42788093249.
+- [x] R2-03: audit existing workspace/launch/registration/readiness stages and
   partial failures; verify SP04 without adding automatic launching.
-- [ ] R2-04: verify existing queue backpressure, fairness and control handling
+  Evidence: R2-03 table row; cited tests passed in run 42788093249.
+- [x] R2-04: verify existing queue backpressure, fairness and control handling
   under saturation/replay storms (SP05). New slot scheduling remains conditional;
   no automatic launcher is not grounds to skip existing queue correctness.
-- [ ] R2-05: distinguish failure classes and retry owners; verify independent
+  Evidence: R2-04 table row; saturating tests passed in run 42788093249.
+- [x] R2-05: distinguish failure classes and retry owners; verify independent
   peer health and old-run error fencing (SP06); no layered vendor-task retries.
-- [ ] R2-06: verify separate runs do not imply separate writable checkouts;
+  Evidence: R2-05 table row; cited tests passed in run 42788093249.
+- [x] R2-06: verify separate runs do not imply separate writable checkouts;
   exercise native worktrees/advisory reservations for SP07. Source fix added:
   expired reservations linked to unresolved-unknown attempts now retain their
-  `abandoned` warning; CI execution of the focused regression is pending.
-- [ ] R2-07: verify duplicate/replaceable notice handling and reconstruction of
+  `abandoned` warning.
+  Evidence: R2-06 table row and correction above; worktree/reservation tests and
+  the focused regression passed in runs 42788086593/42788093249.
+- [x] R2-07: verify duplicate/replaceable notice handling and reconstruction of
   the whole supervision set after context loss/handover (SP08/SP09).
-- [ ] R2-08: audit bounded launch/config provenance and supported CLI capabilities;
+  Evidence: R2-07 table row; cited tests passed in run 42788093249.
+- [x] R2-08: audit bounded launch/config provenance and supported CLI capabilities;
   verify SP10 without model/config rewrites or invented conversation identity.
-- [ ] Record source-matched CI/test evidence for SP01 through SP10, distinguishing
+  Evidence: R2-08 table row; no vendor capability beyond stored launch facts is
+  claimed.
+- [x] Record source-matched CI/test evidence for SP01 through SP10, distinguishing
   source presence, owned native process fixtures and actual vendor capability.
+  Evidence: source presence is the R2-01..R2-08 table with citations; test
+  execution is runs 42788086593/42788093249/42794865032; owned native-process
+  fixtures exercised in the wire run (installed Agent fixture, WSL recovery,
+  controlled SSH companion, SFTP); vendor CLI/model behavior was not exercised
+  and no capability is claimed beyond stored launch/registration facts.
 
 New pause controls, automatic provisioning and role/model/prompt editors remain
 separate product decisions. External events and access-mode remediation remain
