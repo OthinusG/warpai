@@ -185,6 +185,9 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
+- The live collaboration seed sends nine revision-pinned follow-ups, then
+  cancels/retries so the task continues at revision 3; later capture assertions
+  on the private/retry state must track that revision.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
 - Vertical chrome: side toolbars live inside inset floating columns; no title
   search setting/config override. Closed columns retain reopening controls.
