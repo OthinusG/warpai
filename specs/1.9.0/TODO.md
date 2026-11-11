@@ -347,9 +347,21 @@ preview did not distinguish a bounded preview from the full body.
       `attention_page_parses_scoped_counts_and_freshness` and
       `reconcile_confirmation_binds_the_visible_followup_and_version`) passed;
       Windows app job green. Remote companion run 42957976165 passed on
-      ubuntu-22.04, macos-15 and windows-latest at the same commit.
-- [ ] Native capture for the multilingual light/dark attention section and the
-      confirmation form, via `validate-agent-communication.yml`.
+      ubuntu-22.04, macos-15 and windows-latest at the same commit. Both
+      protocol jobs and both application jobs re-ran green at `64dce58ee` in
+      run 42972072518.
+- [x] Native capture: run 42972072518 at `64dce58ee`, macOS and Windows capture
+      steps green. Each language produced `17 * 8 + 242` = 378 nonempty PNGs
+      (1134 per OS), and each capture step asserts that exact count. Artifacts:
+      `Warpai-collaboration-native-captures-macOS` (181 MB) and
+      `Warpai-collaboration-native-captures-Windows` (144 MB). Inspected en
+      light/dark at 320/600 px and 1.0/1.25 zoom plus zh-Hans (light) and
+      zh-Hant (dark): nine stale follow-ups show as eight previews with
+      `Showing 8 of 9`, the long body carries the truncation marker, every
+      preview shows `revision 1 → 2` with thread and end controls, and the form
+      binds message, sender, current revision and version without clipping.
+      The previous run 42963496694 failed only the pre-existing retained-private
+      revision assertion; commit `64dce58ee` updates it to the retried revision.
 - [ ] Runtime acceptance and vendor structured-event acceptance remain external
       and are not claimed.
 
@@ -412,8 +424,12 @@ preview did not distinguish a bounded preview from the full body.
   Evidence: wire run 42788086593 passed the SSH wrapper routing, disposable SSH
   account MCP, real controlled SSH companion, native SSH/SFTP and WSL
   setup/recovery fixture steps on ubuntu-22.04, macos-15 and windows-latest.
-- [ ] Static and live native screenshots pass for applicable UI/platform/locale states.
-  Pending: no executed run included `capture_ui`.
+- [x] Static and live native screenshots pass for applicable UI/platform/locale states.
+  Evidence: run 42972072518 at `64dce58ee` ran `capture_ui` on macOS and
+  Windows with 1134 nonempty PNGs each and the en/zh-Hans/zh-Hant sweep; the
+  bounded attention previews and reconcile form were inspected as recorded
+  under P0-08. Static preview fixtures and live handoff/space/worktree frames
+  were also produced by the same green capture steps.
 - [x] Relevant localization, format, script/YAML and documentation checks pass.
   Evidence: `python3 script/check-interface-locales.py --strict` → 2981 pairs,
   2949 sites, 0 unclassified; fixture JSON parsed. Rust formatting was not

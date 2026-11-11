@@ -65,8 +65,8 @@ page). `followup_reconcile` is a local feature, Companion capability and SSH-
 required project feature, so unsupported transports refuse the operation instead
 of silently ignoring it.
 Vendor structured observation remains `existing_unverified` (screen manifests
-only); no adapter, retry wrapper or account/model switching was added. Static
-checks only; Rust tests/captures remain pending in [TODO.md](TODO.md).
+only); no adapter, retry wrapper or account/model switching was added. Rust
+tests, Companion builds and native captures are recorded in [TODO.md](TODO.md).
 
 Capability matrix (all rows: screen manifest present, structured-event adapter
 absent, vendor turn/permission/retry/session events `unknown`):
