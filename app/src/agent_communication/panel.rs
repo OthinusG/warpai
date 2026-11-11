@@ -2731,9 +2731,33 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
         reviewer: None, request_id: uuid::Uuid::new_v4().to_string(), dependencies: vec![],
         start_deadline: None, execution_timeout_seconds: None, review_timeout_seconds: None,
     })?;
+    let task_id = task["id"].as_str().unwrap().to_owned();
+    for index in 0..9u8 {
+        let body = if index == 0 {
+            format!("Overtaken follow-up {}", "details ".repeat(86))
+        } else {
+            format!("Overtaken follow-up {}", index + 1)
+        };
+        broker.operator(&project, &Operation::AgentSend {
+            content: None, expects_result: false,
+            to: "capture-worker".into(), body,
+            subject: Some("Overtaken fixture".into()),
+            thread_id: None, reply_to: None, task_id: Some(task_id.clone()),
+            request_id: uuid::Uuid::new_v4().to_string(),
+        })?;
+    }
+    broker.operator(&project, &Operation::TaskCancel {
+        task_id: task_id.clone(), reason: "Advance the capture revision".into(),
+        expected_version: None, request_id: uuid::Uuid::new_v4().to_string(),
+    })?;
+    broker.operator(&project, &Operation::TaskRetry {
+        task_id: task_id.clone(), reason: "Capture the current revision".into(),
+        start_deadline: None, clear_start_deadline: false, override_uncertain: false,
+        expected_version: None, request_id: uuid::Uuid::new_v4().to_string(),
+    })?;
     request.operation = Operation::TaskStart {
-        task_id: task["id"].as_str().unwrap().into(),
-        revision: 1,
+        task_id: task_id.clone(),
+        revision: 2,
         expected_version: None,
         request_id: uuid::Uuid::new_v4().to_string(),
     };
@@ -2746,7 +2770,7 @@ fn seed_live_checkpoint(root: &str) -> anyhow::Result<()> {
     };
     let evidence = transport::call(&broker.endpoint, &request)?;
     request.operation = Operation::TaskProgress {
-        task_id:task["id"].as_str().unwrap().into(), revision:1, note:"Owned native handoff checkpoint".into(),
+        task_id:task["id"].as_str().unwrap().into(), revision:2, note:"Owned native handoff checkpoint".into(),
         attempt_id:None, waiting_reason:None, expected_version:None, request_id:uuid::Uuid::new_v4().to_string(),
         handoff:Some(warp_agent_bus::handoff::HandoffSubmission {
             decisions:warp_agent_bus::handoff::HandoffSection::Provided(vec![warp_agent_bus::handoff::HandoffDecision {
@@ -3748,6 +3772,105 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             }
         }
     }
+    driver = driver.with_step(TestStep::new("live attention is bounded").add_named_assertion(
+        "eight previews represent nine stale follow-ups",
+        |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref().is_some_and(
+                |snapshot| snapshot.attention.as_ref().is_some_and(|page| page.tasks.iter().any(
+                    |row| row.followup_count == 9 && row.followups.len() == 8
+                        && row.actions.iter().any(|action| action == "reconcile")
+                        && row.followups[0].truncated
+                        && row.followups[0].body.chars().count() == 512))))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        },
+    ));
+    for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
+        for width in [320, 600] {
+            for zoom in [1.0, 1.25] {
+                let theme = theme.clone();
+                let filename = format!("live-reconcile-{theme_name}-{width}-{zoom}.png");
+                filenames.push(filename.clone());
+                driver = driver.with_step(
+                    TestStep::new(&filename)
+                        .with_action(move |app, window, _| {
+                            app.update(|ctx| {
+                                let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                                Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                                    appearance.set_theme(colors, ctx)
+                                });
+                                ctx.set_zoom_factor(zoom);
+                                ResizableData::as_ref(ctx)
+                                    .get_all_handles(window)
+                                    .unwrap()
+                                    .left_panel_width
+                                    .lock()
+                                    .unwrap()
+                                    .set_size(width as f32);
+                            });
+                            let panel =
+                                app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                            panel.update(app, |panel, ctx| {
+                                panel.scroll = Default::default();
+                                let target = panel
+                                    .snapshot
+                                    .as_ref()
+                                    .and_then(|snapshot| snapshot.attention.as_ref())
+                                    .and_then(|page| {
+                                        page.tasks.iter().find(|row| !row.followups.is_empty())
+                                    })
+                                    .map(|row| {
+                                        let followup = &row.followups[0];
+                                        controls::FollowupTarget {
+                                            task_id: row.task_id.clone(),
+                                            message_id: followup.message_id.clone(),
+                                            sender: followup.sender.clone(),
+                                            kind: followup.kind.clone(),
+                                            revision: followup.revision,
+                                            current_revision: row.revision,
+                                            version: row.version,
+                                        }
+                                    })
+                                    .unwrap();
+                                if panel.form.is_some() {
+                                    panel.cancel_control(ctx);
+                                }
+                                panel.handle_action(&Action::OpenFollowupReconcile(target), ctx);
+                            });
+                        })
+                        .add_named_assertion(
+                            "reconcile form names the shown follow-up",
+                            |app, window| {
+                                let panel = app
+                                    .views_of_type::<CollaborationPanel>(window)
+                                    .unwrap()[0]
+                                    .clone();
+                                warpui::async_assert!(panel.read(app, |panel, _| panel
+                                    .form
+                                    .as_ref()
+                                    .is_some_and(|form| form.kind == controls::Kind::Reconcile))
+                                    && checkpoint_draft(app, window) == "unsent collaboration draft")
+                            },
+                        )
+                        .with_take_screenshot(filename),
+                );
+            }
+        }
+    }
+    driver = driver.with_step(
+        TestStep::new("close the reconcile capture form")
+            .with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.cancel_control(ctx));
+            })
+            .add_named_assertion("reconcile form closed with the task selected", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.form.is_none()
+                    && panel.snapshot.as_ref().and_then(|snapshot| snapshot.task.as_ref())
+                        .is_some_and(|task| panel.query.selected_task.as_ref() == Some(&task.id)))
+                    && checkpoint_draft(app, window) == "unsent collaboration draft")
+            }),
+    );
     let mut handoff_settle_started = None::<Instant>;
     driver = driver
         .with_step(TestStep::new("leave a pending handoff read").with_action(|app, window, _| {
@@ -3989,7 +4112,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                     .snapshot
                                     .as_ref()
                                     .and_then(|snapshot| snapshot.task.as_ref())
-                                    .is_some_and(|task| task.revision == 2
+                                    .is_some_and(|task| task.revision == 3
                                         && matches!(task.state.as_str(), "queued" | "blocked")
                                         && task
                                             .attempts
