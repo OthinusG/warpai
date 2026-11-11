@@ -158,6 +158,8 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
 - Vertical chrome: side toolbars live inside inset floating columns; no title
   search setting/config override. Closed columns retain reopening controls.
+  Reserve the center toolbar height even with both columns open so terminal input
+  stays at the closed-right-column top position; specs/terminal-top-alignment.md.
   Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px. Column shadows use matching centered halos.
   History Archive is idempotent and visibly labeled; task Delete is versioned,
   scoped and retains existing certainty/reference/unread-message guards.
