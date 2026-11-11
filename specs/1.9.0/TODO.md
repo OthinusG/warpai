@@ -192,8 +192,9 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   task-linked follow-ups map to `reconcile`.
 - [x] Define authorized total/list/page counts and offline/capability behavior.
   Evidence: operator route is project-authorized; `total`/`counts` cover the whole
-  filtered set; `tasks` is capped at 100 with `truncated`; absent field on older
-  Companions hides the section (no capability/version bump).
+  filtered set; `tasks` is cursor-paged (was capped at 100; see P0-07); absent
+  field on older Companions hides the section, and `followup_reconcile` gates the
+  new operation.
 - [x] Build static fixtures with existing controls/themes before live data wiring.
   Evidence: existing `tasks` fixture state extended with a “Needs attention”
   section; fixture test asserts action and freshness rows.
@@ -202,12 +203,140 @@ Sources: [product](PRODUCT.md), [technical plan](TECH.md),
   dispatch the communication workflow on this branch with `capture_ui=true`.
 - [x] Wire existing projection/operations; revalidate action versions and late responses.
   Evidence: `operator_panel` adds derived `attention`; the panel reuses
-  `SelectTask` and current snapshot/version fetches; no new mutation operation.
+  `SelectTask` and current snapshot/version fetches. Reconciliation was later
+  added as `task_followup_reconcile` (see P0-07) because ending an overtaken
+  instruction is a durable state change, not a view action.
 - [ ] Verify drafts/focus/scroll, error handling, duplicates and new actionable changes.
   Blocked: requires native UI capture/manual acceptance.
 - [ ] Verify S11 and S14, then inspect source-matched live captures.
   S11: covered by the attention tests in runs 42788086593/42788093249. S14:
   blocked because no executed run included `capture_ui`.
+
+## P0-07 — Closed-loop follow-ups, attention reachability, vendor evidence (2026-11-11)
+
+Scope: audit the existing communication chain, fix only confirmed gaps, and do
+not re-implement verified behaviour. Source changes are on this branch; Rust
+build/tests and native captures remain CI/pending per `MEMORY.md`.
+
+### Audited as already correct (no code change)
+
+- [x] Revision-pinned follow-ups: native wake, `agent_wait` and `pending` skip an
+      overtaken `message`/`request` via `next_unnotified`/`first_deliverable`;
+      history/inbox retains it. Audited by reading the delivery queries; the
+      regression test is
+      `task_followups_bind_the_current_revision_and_stale_ones_wait_for_reconciliation`
+      (authored here, executed in the CI run recorded under P0-08).
+- [x] `first_pending` does not skip stale rows, but its only caller
+      (`dispatched_pools`) filters `kind='available'`; `stale_followup` applies
+      only to `message`/`request`, so no stale pool dispatch exists. No fix.
+- [x] Task/attempt/run/version fences, idempotent `request_id` receipts,
+      Coordinator/Worktree authority, Companion capability gating and the SSH
+      operation whitelist already cover association conflicts and replay.
+- [x] Attention projection already derives multiple actions per task from
+      current tasks/questions/follow-ups/uncertain attempts/dependencies/
+      deadlines, with `total`/`counts` over the whole filtered set.
+
+### Fixed gaps
+
+Each `Test:` below names an authored regression test; the tests are executed in
+the CI run recorded under P0-08 verification, not locally.
+
+- [x] `warp_agent_send` now rejects an explicit `task_id` that differs from the
+      task inherited through `reply_to` (`invalid_input`), matching `agent_ask`.
+      Test: `followups_reject_a_task_that_differs_from_the_replied_instruction`.
+- [x] Added `task_followup_reconcile` (operator/issuer/reviewer/active
+      Coordinator; version- and revision-checked; acknowledges without rewriting;
+      queues `result_failed` to a waiting non-actor sender; idempotent receipt).
+      Test: `overtaken_result_requests_are_reconciled_without_rewriting_history`.
+- [x] Attention is cursor-paged (`attention_after`/`cursor`, page 50, stable
+      `created_seq` order) with per-task bounded follow-up previews; `total` and
+      `counts` never derive from page length. Test:
+      `attention_pages_by_stable_task_order_while_totals_cover_the_whole_filter`.
+- [x] Panel shows revision/version, overtaken follow-up body and thread, and an
+      explicit confirmation form (viewing is not confirming); filter/cursor reset
+      on filter and archive changes.
+- [x] Capability `followup_reconcile` added to local features, Companion
+      capabilities and the SSH `required_project_feature` mapping.
+- [x] Exposed to Agents as the MCP tool `warp_task_followup_reconcile` (schema
+      generated from `Operation`, explicit description) and added supervision
+      guidance to end an overtaken follow-up before sending a current-revision
+      replacement. Test: `overtaken_followups_expose_an_explicit_reconcile_tool`.
+
+### Direction 4 capability matrix
+
+Structured observation evidence in this repository is **screen manifests only**
+(`crates/agent_bus/src/screen_detection/manifests`: claude, codex, gemini,
+cursor, qoder and others). No adapter consumes a vendor structured-event stream,
+so every CLI is `existing_unverified` for turn/permission/retry/session events
+and no new adapter is added without a documented, runnable interface.
+
+- [x] Evidence levels recorded: vendor event > explicit MCP operation > native
+      process/lifecycle event > screen observation. Existing `task_observed`
+      events are native lifecycle observations and never submit/fail/retry a task.
+- [x] Unknown/stale handling preserved: disconnect records loss of observation,
+      not stopped execution; missing identity cannot advance state; screen text
+      such as "429"/"retrying" creates no action; vendor session IDs grant no
+      Warpai execution authority.
+- [x] No whole-task retry wrapper, auto restart, model/account switch or duplicate
+      external writes; model/network retries stay with the vendor CLI.
+- [ ] Confirm adapters against running vendor interfaces.
+      Blocked: no verified official structured-event interface or live vendor run
+      in this environment; acceptance cannot come from fixtures or mocks.
+
+### Verification status
+
+- [x] Static/script checks: locale catalog strict check, JSON parse, `git diff --check`.
+- [ ] Rust build/tests and native UI capture (multilingual light/dark,
+      narrow/long content, >100 rows, duplicate clicks, disconnect/reconnect).
+      Blocked: per `MEMORY.md`, Rust builds/tests run in GitHub CI and no
+      `capture_ui` run has been executed for this branch. Local runtime screenshots
+      are not claimed as passing.
+
+## P0-08 — Reconciled terminal state and bounded follow-up access (2026-11-11)
+
+Scope: close the audited gaps left by P0-07 — a reconciled follow-up could still
+receive a late result, a self-issued request had no durable terminal record, a
+question derived from the old instruction could outlive it, and the attention
+preview did not distinguish a bounded preview from the full body.
+
+### Reproduced gaps (test written before the shared fix)
+
+- [ ] `agent_reply` accepted `succeeded`/`failed`/`blocked` for an already
+      reconciled instruction, so an overtaken follow-up could reopen work.
+- [ ] Reconciling a `request` sent by the actor produced no result and no durable
+      terminal record beyond the receipt, leaving the supervisor's closure
+      implicit.
+- [ ] A `question` asked against a stale instruction after the revision bump is
+      bound to the current revision, so `save_task` did not retire it and the
+      task stayed `waiting_for_answer` after reconciliation.
+- [ ] Attention follow-up previews were silently truncated at 512 characters and
+      the panel did not state how many previews were shown out of the real count.
+
+### Fix
+
+- [ ] `AgentReply` rejects any result for a follow-up with a persisted
+      `followup_reconciled` event (`invalid_state`). The check deliberately uses
+      the event, not `acknowledged`, so a read but unreconciled message remains
+      replyable.
+- [ ] Reconciliation retires unacknowledged questions whose `reply_to` is that
+      message, records `retired_questions`, and leaves other instructions and
+      revisions untouched. A self-issued request creates no self-addressed
+      result; the receipt and event are the terminal record.
+- [ ] Attention previews add `truncated` (`length(body) > 512`). The panel shows
+      `Showing X of Y`, a preview marker, and an open-thread control that falls
+      back to the message ID when the follow-up has no thread.
+- [ ] No schema, protocol-major, retry daemon, model routing or permission
+      change; no new message read scope for reviewers or Coordinators.
+
+### Verification status
+
+- [ ] Rust tests: Agent Bus reconciliation/attention suites, panel parser and
+      control-binding tests, `cargo check -p warpai --bin warpai` and the
+      `warp_platform` build in GitHub CI.
+- [ ] Native capture for the multilingual light/dark attention section and the
+      confirmation form, via `validate-agent-communication.yml`.
+- [ ] Runtime acceptance and vendor structured-event acceptance remain external
+      and are not claimed.
 
 ## P1-01 — Handoff/context continuation and retention
 

@@ -39,6 +39,7 @@ pub(crate) enum Kind {
     SelectCoordinator,
     JoinWorktree,
     LeaveWorktree,
+    Reconcile,
 }
 impl Kind {
     pub(super) fn label(self) -> &'static str {
@@ -67,6 +68,7 @@ impl Kind {
             Self::SelectCoordinator => "Select Coordinator",
             Self::JoinWorktree => "Join worktree team",
             Self::LeaveWorktree => "Leave worktree team",
+            Self::Reconcile => "End overtaken follow-up",
         }
     }
     fn labels(self) -> &'static [&'static str] {
@@ -115,6 +117,7 @@ impl Kind {
             ],
             Self::LeaveSpace => &["Agent name to remove"],
             Self::Search => &["Literal search text (up to 256 bytes)"],
+            Self::Reconcile => &["Why this follow-up no longer applies"],
             _ => &["Reason"],
         }
     }
@@ -126,6 +129,17 @@ impl Kind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct FollowupTarget {
+    pub(crate) task_id: String,
+    pub(crate) message_id: String,
+    pub(crate) sender: String,
+    pub(crate) kind: String,
+    pub(crate) revision: u32,
+    pub(crate) current_revision: u32,
+    pub(crate) version: u64,
+}
+
 pub(super) struct Form {
     pub(super) kind: Kind,
     pub(super) candidates: Vec<super::WorktreeCandidate>,
@@ -134,6 +148,7 @@ pub(super) struct Form {
     project: String,
     pub(super) worktree_root: String,
     task: Option<Task>,
+    followup: Option<FollowupTarget>,
     purge_preview: Option<super::PurgePreview>,
     reservations: Vec<warp_agent_bus::Reservation>,
     request_id: String,
@@ -168,6 +183,7 @@ fn command(
     kind: Kind,
     project: &str,
     task: Option<&Task>,
+    followup: Option<&FollowupTarget>,
     fields: &[String],
     request_id: String,
 ) -> anyhow::Result<Command> {
@@ -255,6 +271,17 @@ fn command(
     if kind == Kind::Search {
         anyhow::ensure!(fields[0].len() <= 256, "Search text must fit 256 bytes");
         return Ok(Command::Search(fields[0].trim().to_owned()));
+    }
+    if kind == Kind::Reconcile {
+        let followup = followup.ok_or_else(|| anyhow::anyhow!(
+            "Select an overtaken follow-up from the current attention page"))?;
+        return Ok(Command::Agent(Operation::TaskFollowupReconcile {
+            task_id: followup.task_id.clone(),
+            message_id: followup.message_id.clone(),
+            note: fields[0].clone(),
+            expected_version: followup.version,
+            request_id,
+        }));
     }
     if matches!(kind, Kind::Assign | Kind::Pool) {
         let names = |value: &str| {
@@ -403,7 +430,8 @@ fn command(
         | Kind::LeaveSpace
         | Kind::SelectCoordinator
         | Kind::JoinWorktree
-        | Kind::LeaveWorktree => {
+        | Kind::LeaveWorktree
+        | Kind::Reconcile => {
             unreachable!()
         }
     })
@@ -571,6 +599,10 @@ impl CollaborationPanel {
         if !self.connected || self.preview || self.form.is_some() {
             return;
         }
+        let followup = if kind == Kind::Reconcile { self.pending_followup.take() } else { None };
+        if kind == Kind::Reconcile && followup.is_none() {
+            return;
+        }
         let snapshot = self.snapshot.as_ref();
         if snapshot.is_none() {
             return;
@@ -603,6 +635,7 @@ impl CollaborationPanel {
                 | Kind::SelectCoordinator
                 | Kind::JoinWorktree
                 | Kind::LeaveWorktree
+                | Kind::Reconcile
         ) && snapshot
             .and_then(|snapshot| snapshot.task.as_ref())
             .is_none_or(|task| self.query.selected_task.as_ref() != Some(&task.id))
@@ -627,7 +660,11 @@ impl CollaborationPanel {
         let project = snapshot
             .map(|snapshot| snapshot.project.clone())
             .unwrap_or_default();
-        let task = snapshot.and_then(|snapshot| snapshot.task.clone());
+        let task = if kind == Kind::Reconcile {
+            None
+        } else {
+            snapshot.and_then(|snapshot| snapshot.task.clone())
+        };
         let fields: Vec<_> = kind
             .labels()
             .iter()
@@ -688,6 +725,7 @@ impl CollaborationPanel {
             project,
             worktree_root: snapshot.map(|snapshot| snapshot.worktree_root.clone()).unwrap_or_default(),
             task,
+            followup,
             purge_preview,
             reservations,
             fields,
@@ -909,6 +947,7 @@ impl CollaborationPanel {
             kind,
             &form.project,
             form.task.as_ref(),
+            form.followup.as_ref(),
             &command_fields,
             form.request_id.clone(),
         ) {
@@ -1081,6 +1120,35 @@ impl CollaborationPanel {
                         )
                     },
                 ));
+            }
+            if let Some(followup) = &form.followup {
+                let __warpai_locale_argument_0 = &(followup.task_id);
+                let __warpai_locale_argument_1 = &(followup.revision);
+                let __warpai_locale_argument_2 = &(followup.current_revision);
+                let __warpai_locale_argument_3 = &(followup.version);
+                body.add_child(note(appearance, warpui::localization::format_text(
+                    "Task {} · follow-up revision {} · current revision {} · version {}",
+                    &[
+                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                        ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                        ("3", format!("{__warpai_locale_argument_3}").as_str()),
+                    ],
+                )));
+                let __warpai_locale_argument_0 = &(followup.message_id);
+                let __warpai_locale_argument_1 = &(followup.kind);
+                let __warpai_locale_argument_2 = &(followup.sender);
+                body.add_child(note(appearance, warpui::localization::format_text(
+                    "Follow-up {} · {} from {}",
+                    &[
+                        ("0", format!("{__warpai_locale_argument_0}").as_str()),
+                        ("1", format!("{__warpai_locale_argument_1}").as_str()),
+                        ("2", format!("{__warpai_locale_argument_2}").as_str()),
+                    ],
+                )));
+                body.add_child(builder.span(warpui::localization::text(
+                    "This ends the original follow-up. A request from another sender receives a superseded result; a message or your own request receives none. It does not stop execution or change task ownership."
+                )).with_soft_wrap().build().finish());
             }
             if form.kind.overrides() {
                 body.add_child(builder.span(warpui::localization::text("Earlier execution may still be writing. This operation changes coordination ownership; it does not stop a process or file writes.")).with_soft_wrap().build().finish());
@@ -1365,9 +1433,32 @@ impl CollaborationPanel {
 mod tests {
     use super::*;
     #[test]
+    fn reconcile_confirmation_binds_the_visible_followup_and_version() {
+        let target = FollowupTarget {
+            task_id: "task-1".into(),
+            message_id: "message-1".into(),
+            sender: "warp:/project".into(),
+            kind: "request".into(),
+            revision: 1,
+            current_revision: 2,
+            version: 9,
+        };
+        let reconcile = command(Kind::Reconcile, "/project", None, Some(&target), &["Superseded".into()], "reconcile-intent".into()).unwrap();
+        let Command::Agent(Operation::TaskFollowupReconcile { task_id, message_id, note, expected_version, request_id }) = reconcile else {
+            panic!("Reconcile operation required");
+        };
+        assert_eq!(task_id, "task-1");
+        assert_eq!(message_id, "message-1");
+        assert_eq!(note, "Superseded");
+        assert_eq!(expected_version, 9);
+        assert_eq!(request_id, "reconcile-intent");
+        assert!(command(Kind::Reconcile, "/project", None, None, &["Superseded".into()], "reconcile-intent".into()).is_err());
+    }
+
+    #[test]
     fn panel_send_preserves_structured_objective_and_pinned_references() {
         let reference = warp_agent_bus::context::ContextRef { id:uuid::Uuid::new_v4().to_string(), revision:3, sha256:"a".repeat(64) };
-        let mut send = command(Kind::Send, "/project", None, &["worker".into(), "Review the analysis".into(), String::new()], "same-intent".into()).unwrap();
+        let mut send = command(Kind::Send, "/project", None, None, &["worker".into(), "Review the analysis".into(), String::new()], "same-intent".into()).unwrap();
         attach_context(&mut send, vec![reference.clone()]);
         let Command::Agent(Operation::AgentSend { content:Some(content), request_id, task_id, .. }) = send else { panic!("Structured message required"); };
         assert_eq!(content.objective, "Review the analysis");
@@ -1391,7 +1482,7 @@ mod tests {
             String::new(),
         ];
         assert!(
-            matches!(command(Kind::Send, "remote-project", None, &message, "original-message".into()).unwrap(), Command::Agent(Operation::AgentSend { request_id, subject: None, .. }) if request_id == "original-message")
+            matches!(command(Kind::Send, "remote-project", None, None, &message, "original-message".into()).unwrap(), Command::Agent(Operation::AgentSend { request_id, subject: None, .. }) if request_id == "original-message")
         );
         let fields = vec![
             "worker".into(),
@@ -1404,9 +1495,9 @@ mod tests {
             String::new(),
         ];
         assert!(
-            matches!(command(Kind::Assign, "/project", None, &fields, "original-request".into()).unwrap(), Command::Agent(Operation::TaskAssign { request_id, .. }) if request_id == "original-request")
+            matches!(command(Kind::Assign, "/project", None, None, &fields, "original-request".into()).unwrap(), Command::Agent(Operation::TaskAssign { request_id, .. }) if request_id == "original-request")
         );
-        assert!(command(Kind::Assign, "/project", None, &fields[..2], "id".into()).is_err());
+        assert!(command(Kind::Assign, "/project", None, None, &fields[..2], "id".into()).is_err());
         let mut scheduled = fields.clone();
         scheduled[0] = "worker, helper".into();
         scheduled[3] = "prerequisite-a, prerequisite-b".into();
@@ -1415,19 +1506,19 @@ mod tests {
         scheduled[6] = "120".into();
         scheduled[7] = "reviewer".into();
         assert!(
-            matches!(command(Kind::Pool, "/project", None, &scheduled, "pool-intent".into()).unwrap(),
+            matches!(command(Kind::Pool, "/project", None, None, &scheduled, "pool-intent".into()).unwrap(),
             Command::Agent(Operation::TaskCreatePool { eligible, dependencies, start_deadline, execution_timeout_seconds: Some(60), review_timeout_seconds: Some(120), reviewer: Some(reviewer), .. })
                 if eligible == ["worker", "helper"] && dependencies == ["prerequisite-a", "prerequisite-b"]
                     && start_deadline.as_deref() == Some("2030-01-01T09:00:00Z") && reviewer == "reviewer")
         );
         scheduled[5] = "0".into();
         assert!(
-            matches!(command(Kind::Search, "/project", None, &["literal _%".into()], "read".into()).unwrap(), Command::Search(query) if query == "literal _%")
+            matches!(command(Kind::Search, "/project", None, None, &["literal _%".into()], "read".into()).unwrap(), Command::Search(query) if query == "literal _%")
         );
         assert!(command(
             Kind::Search,
             "/project",
-            None,
+            None, None,
             &["x".repeat(257)],
             "read".into()
         )
@@ -1435,7 +1526,7 @@ mod tests {
         assert!(command(
             Kind::Pool,
             "/project",
-            None,
+            None, None,
             &scheduled,
             "bad-timeout".into()
         )
@@ -1443,7 +1534,7 @@ mod tests {
         assert!(command(
             Kind::ForceCancel,
             "/project",
-            None,
+            None, None,
             &["Investigated".into(), "yes".into()],
             "id".into()
         )
@@ -1451,7 +1542,7 @@ mod tests {
         assert!(command(
             Kind::Purge,
             "/project",
-            None,
+            None, None,
             &["yes".into()],
             "purge".into()
         )
@@ -1460,7 +1551,7 @@ mod tests {
             command(
                 Kind::Purge,
                 "/project",
-                None,
+                None, None,
                 &["DELETE HISTORY".into()],
                 "purge".into()
             )
@@ -1473,7 +1564,7 @@ mod tests {
         assert!(command(
             Kind::ArchiveAged,
             "/project",
-            None,
+            None, None,
             &["0".into()],
             "archive".into()
         )
@@ -1482,7 +1573,7 @@ mod tests {
             command(
                 Kind::ArchiveAged,
                 "/project",
-                None,
+                None, None,
                 &["30".into()],
                 "archive".into()
             )
@@ -1496,7 +1587,7 @@ mod tests {
         assert!(command(
             Kind::ReleaseReservation,
             "/project",
-            None,
+            None, None,
             &[reservation_id.clone(), "Reviewed".into(), "yes".into()],
             "release".into()
         )
@@ -1505,7 +1596,7 @@ mod tests {
             command(
                 Kind::ReleaseReservation,
                 "/project",
-                None,
+                None, None,
                 &[
                     reservation_id.clone(),
                     "Reviewed".into(),
@@ -1519,13 +1610,13 @@ mod tests {
         assert!(command(
             Kind::RenewReservation,
             "/project",
-            None,
+            None, None,
             &[reservation_id, "3601".into(), "Reviewed".into()],
             "renew".into()
         )
         .is_err());
         let mut injected = fields;
         injected[0] = "worker\nother".into();
-        assert!(command(Kind::Assign, "/project", None, &injected, "id".into()).is_err());
+        assert!(command(Kind::Assign, "/project", None, None, &injected, "id".into()).is_err());
     }
 }

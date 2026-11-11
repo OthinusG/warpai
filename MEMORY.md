@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-08. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -52,6 +52,21 @@ Updated 2026-11-08. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   reconcile/answer/review/recovery/permission/unreachable/dependency/overdue
   actions. Additive only: no lifecycle/schema/protocol change, and older
   Companions omit the field. See specs/agent-communication-v2/API.md (2026-11-08).
+- Overtaken follow-ups end only via `task_followup_reconcile` (operator/issuer/
+  reviewer/active Coordinator; version+revision checked; acknowledges without
+  rewriting; releases a waiting sender with `result_failed`). A durable
+  `followup_reconciled` event is the terminal fact: late results are refused
+  without treating every acknowledged message as resolved, a self-ended request
+  closes with no self-result, and questions derived from the ended follow-up are
+  retired. "Resend" is a new `agent_send`, never a task restart. Attention is
+  cursor-paged with whole-set `total`/`counts`; previews stay bounded (8 per task,
+  truncation marked) and the full body stays readable through its thread; never
+  derive totals from page length. Capability `followup_reconcile`. See API.md
+  (2026-11-11).
+- Vendor structured observation stays `existing_unverified`: only screen
+  manifests exist; no adapter or whole-task retry wrapper. Keep unknown on
+  missing identity, and never infer failure/health from idle, timeout, "429" or
+  disconnect. See specs/1.9.0/TODO.md P0-07.
 - Expired advisory reservations tied to `active` or unresolved `unknown` attempts
   keep their row and `abandoned` warning until execution resolves; TTL still
   permits new writes because reservations are not OS locks. See specs/1.9.0/TECH.md.

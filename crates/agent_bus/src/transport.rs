@@ -37,7 +37,7 @@ pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
 pub const TERMINAL: &str = "WARP_TERMINAL_SESSION_UUID";
 pub const PROTOCOL_MAJOR: u16 = 2;
 pub const LOCAL_FEATURES: &[&str] = &[
-    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history", "correlated_results", "decision_questions", "project_supervision", "context_resources", "structured_task_messages", "execution_threads", "project_memory", "handoff_briefs_v1",
+    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history", "correlated_results", "decision_questions", "project_supervision", "context_resources", "structured_task_messages", "execution_threads", "project_memory", "handoff_briefs_v1", "followup_reconcile",
 ];
 const WAIT: Duration = Duration::from_secs(20);
 #[derive(Clone, Serialize, Deserialize)]
@@ -176,6 +176,8 @@ pub struct PanelQuery {
     pub terminal: Option<String>,
     pub agent_after: Option<String>,
     pub task_after: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attention_after: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_after: Option<u64>,
     pub selected_task: Option<String>,
@@ -1654,7 +1656,9 @@ impl Broker {
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
         let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
-        let attention = state.store.operator_attention(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), query.include_archived)?;
+        let attention = state.store.operator_attention_page(&project, query.task_state.as_deref(),
+            query.task_assignee.as_deref(), query.include_archived,
+            same_scope.then_some(query.attention_after).flatten(), Some(50))?;
         if query.worktree {
             if let Some(rows) = tasks["tasks"].as_array_mut() {
                 for row in rows { row["integration"] = json!(state.store.worktree_integration(&project, row["id"].as_str().unwrap())?); }

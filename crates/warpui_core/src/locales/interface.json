@@ -11523,5 +11523,37 @@
   "Updating MCP settings on the selected SSH account…": [
     "正在更新选中 SSH 账户的 MCP 设置…",
     "正在更新選取 SSH 帳戶的 MCP 設定…"
-  ]
+  ],
+  "End overtaken follow-up": ["结束已过期的后续消息", "結束已過期的後續訊息"],
+  "Open follow-up thread": ["打开后续消息线程", "開啟後續訊息執行緒"],
+  "Overtaken follow-up from {} · revision {} → {}": [
+    "来自 {} 的过期后续消息 · 修订 {} → {}",
+    "來自 {} 的過期後續訊息 · 修訂 {} → {}"
+  ],
+  "Task {} · follow-up revision {} · current revision {} · version {}": [
+    "任务 {} · 后续消息修订 {} · 当前修订 {} · 版本 {}",
+    "任務 {} · 後續訊息修訂 {} · 目前修訂 {} · 版本 {}"
+  ],
+  "Follow-up {} · {} from {}": [
+    "后续消息 {} · {} · 来自 {}",
+    "後續訊息 {} · {} · 來自 {}"
+  ],
+  "Showing {} of {} overtaken follow-ups.": [
+    "显示 {} / {} 条过期后续消息。",
+    "顯示 {} / {} 條過期後續訊息。"
+  ],
+  "End the shown follow-ups and refresh to load later ones.": [
+    "结束已显示的后续消息并刷新，以加载后续项。",
+    "結束已顯示的後續訊息並重新整理，以載入後續項目。"
+  ],
+  "Preview truncated · open the follow-up thread for the full message": [
+    "预览已截断 · 打开后续消息线程查看完整内容",
+    "預覽已截斷 · 開啟後續訊息執行緒查看完整內容"
+  ],
+  "This ends the original follow-up. A request from another sender receives a superseded result; a message or your own request receives none. It does not stop execution or change task ownership.": [
+    "这会结束原始后续消息。来自其他发送方的请求会收到已取代的结果；普通消息或你自己发出的请求不会收到结果。不会停止执行，也不会更改任务归属。",
+    "這會結束原始後續訊息。來自其他傳送方的請求會收到已取代的結果；一般訊息或你自己送出的請求不會收到結果。不會停止執行，也不會變更任務歸屬。"
+  ],
+  "First attention page": ["首个待办页", "首個待辦頁"],
+  "Next attention page": ["下一页待办", "下一頁待辦"]
 }

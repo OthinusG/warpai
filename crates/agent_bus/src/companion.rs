@@ -126,6 +126,7 @@ impl Companion {
                         "execution_threads".into(),
                         "project_memory".into(),
                         "handoff_briefs_v1".into(),
+                        "followup_reconcile".into(),
                         "project_mcp".into(),
                         #[cfg(not(feature = "wsl_companion"))]
                         "native_mcp_setup".into(),

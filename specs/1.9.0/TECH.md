@@ -8,6 +8,81 @@ Owner exclusions: no external event intake/connectors and no danger-full-access
 remediation, permission-flow changes or sandbox work. Existing identity and
 credential safeguards remain. This plan does not authorize implementation by itself.
 
+## Closed-loop follow-up and attention delta (2026-11-11)
+
+Audit result: revision-pinned follow-ups, stale skipping in native wake/wait/
+pending, task/attempt/run/version fences, idempotent receipts and Coordinator
+authority were already implemented and are reused unchanged. Two gaps and one
+reachability limit were fixed:
+
+1. `agent_send` accepted an explicit `task_id` that disagreed with the task
+   inherited from `reply_to`. It now returns `invalid_input`, as `agent_ask`
+   already did.
+2. Ending an overtaken instruction had no durable operation, so attention could
+   report `reconcile` forever. `task_followup_reconcile` revalidates project,
+   task version and message revision, acknowledges the original message without
+   rewriting it, and — when the actor is not the sender — queues a
+   `result_failed` (`Superseded follow-up`) with the current revision to release
+   a waiting `expects_result` sender. It changes no ownership, execution or
+   permission and is fenced by the existing `request_id` receipt. Sending the
+   replacement instruction remains a separate `agent_send`.
+3. Attention was capped at 100 rows with no way to reach later tasks.
+   `operator_attention_page` builds a shared CTE, computes `total`/`counts` over
+   the entire filter, and pages rows by `created_seq` with per-task follow-up
+   previews aggregated in SQL (max 8, 512-character bodies). The panel passes
+   `attention_after`, renders the current-vs-message revision and reuses the
+   task thread/controls; filters and archive scope reset the cursor.
+
+A second audit identified four remaining gaps; regression tests were added with
+the fixes and are pending CI execution:
+
+4. Reconciliation was not terminal. `AgentReply` now refuses any outcome when a
+   persisted `followup_reconciled` event names the instruction; using the event
+   (looked up through `events(project,resource=task,kind)`) instead of
+   `acknowledged` keeps an ordinary read message replyable.
+5. A self-issued request had no durable closure. The receipt
+   (`result_message_id: null`) plus the event are the terminal record and no
+   self-addressed result is queued; a request from another sender still receives
+   the superseded `result_failed`.
+6. Reconciliation retires unacknowledged `question` rows whose `reply_to` is the
+   reconciled message and records `retired_questions`; questions bound to other
+   instructions or revisions are unaffected.
+7. Attention previews expose `truncated`; the panel shows `Showing X of Y`,
+   labels a preview as truncated and opens the thread by message ID when the
+   follow-up has none. Rendering is still bounded at 8 previews — the full body
+   comes from `thread_get`, not a larger preview.
+
+Reply and reconciliation race inside one transaction: the loser observes the
+committed acknowledgement or event and returns `invalid_state`; no second
+terminal result exists. No schema, protocol-major or lifecycle change was made.
+
+Compatibility: additive `attention_after` request field and `cursor` response
+field; an older Companion ignores the request field and its response lacks
+`followups`/`cursor`, which the panel treats as absent (no previews, no next
+page). `followup_reconcile` is a local feature, Companion capability and SSH-
+required project feature, so unsupported transports refuse the operation instead
+of silently ignoring it.
+Vendor structured observation remains `existing_unverified` (screen manifests
+only); no adapter, retry wrapper or account/model switching was added. Static
+checks only; Rust tests/captures remain pending in [TODO.md](TODO.md).
+
+Capability matrix (all rows: screen manifest present, structured-event adapter
+absent, vendor turn/permission/retry/session events `unknown`):
+
+| CLI (manifest) | Screen states | Structured events | Session/run identity | Retry/recovery events |
+| --- | --- | --- | --- | --- |
+| claude | existing | none verified | unknown | unknown |
+| codex | existing | none verified | unknown | unknown |
+| gemini | existing | none verified | unknown | unknown |
+| cursor | existing | none verified | unknown | unknown |
+| qoder | existing | none verified | unknown | unknown |
+| amp, antigravity, auggie, copilot, droid, dsh, goose, grok, hermes, omp, opencode, pi, trae, vibe | existing | none verified | unknown | unknown |
+
+`shared.toml` holds common patterns only. Screen text never proves turn start/
+end, message consumption, task completion, or vendor retry; only native
+lifecycle/MCP operations advance task state. Adding a vendor adapter requires a
+documented structured interface plus a running vendor instance for acceptance.
+
 ## Implementation status (2026-11-08)
 
 Additive changes are in the working tree: task-linked `agent_send` messages now

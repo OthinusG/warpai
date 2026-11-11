@@ -34,10 +34,13 @@ to justify capacity work.
    read. Explicit message acknowledgement is not proof of implementation success.
 2. **BI-02 — Task-linked continuation.** An in-scope follow-up uses the existing
    task/thread association and durable inbox. Busy delivery preserves existing
-   input/run fences. Review rejection uses the current revision workflow.
-   Additional work after accepted completion uses a new authorized task with an
-   exact source handoff reference. Failed/cancelled work uses existing retry rules,
-   with unresolved execution reconciled first. Topic similarity grants nothing.
+   input/run fences. Review rejection uses the current revision workflow. An
+   overtaken follow-up stays visible with its original text and revision and is
+   ended explicitly before a current-revision replacement is sent; ending it
+   changes no ownership or execution and notifies a waiting sender. Additional
+   work after accepted completion uses a new authorized task with an exact source
+   handoff reference. Failed/cancelled work uses existing retry rules, with
+   unresolved execution reconciled first. Topic similarity grants nothing.
 3. **BI-03 — Continuous supervision.** Outstanding task/request IDs remain tracked
    across waits, yields and focus changes. New work can be dispatched while other
    tasks run. Pending questions, submitted reviews, cancellation requests and
@@ -61,8 +64,11 @@ to justify capacity work.
 8. **BI-08 — Actionable panel.** Reuse the collaboration panel. Show authorized
    tasks once with all relevant pending actions. Distinguish questions, review,
    permission/input observations, delivery trouble, dependency waits and unknown
-   execution. Counts and lists use the same scoped source; transient observations
-   show freshness. No new dashboard or replacement persisted lifecycle enum.
+   execution. Counts and lists use the same scoped source; totals describe the
+   whole filtered set while rows are paged, so later tasks stay reachable and a
+   page length is never a total; transient observations show freshness and a
+   missing observation is neither healthy nor failed. No new dashboard or
+   replacement persisted lifecycle enum.
 9. **BI-09 — Quiet, safe interaction.** Routine progress stays in history; repeated
    polling does not repeat notifications. New actionable changes remain visible.
    Mutating actions revalidate current state/version and retain drafts on failure.

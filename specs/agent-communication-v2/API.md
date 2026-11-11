@@ -1,5 +1,75 @@
 # SSH Agent Communication API
 
+## Follow-up reconciliation and attention paging (2026-11-11)
+
+An overtaken task-linked `message`/`request` stays unread until an authorized
+actor ends it explicitly with `task_followup_reconcile`, exposed to Agents as the
+MCP tool `warp_task_followup_reconcile`
+(`{task_id,message_id,note,expected_version,request_id}`). Authority is the
+operator, task issuer, reviewer or selected Worktree Coordinator. The operation
+returns only the receipt, never a message body, so it grants no message read
+access; an authorized actor still obtains the body through its inbox or a thread
+it participates in. Behaviour:
+
+- `expected_version` must equal the task's current version and the message must
+  belong to that task and project; a stale version returns `version_conflict`.
+- Only an unacknowledged `message`/`request` whose recorded revision differs from
+  the current task revision can be reconciled; a current-revision instruction is
+  `invalid_state` and must be delivered normally.
+- Reconciliation acknowledges the original message without rewriting its body,
+  revision, thread or sender. Task ownership, assignment and execution are
+  unchanged; no retry, cancel or permission change is implied.
+- When the actor is not the message sender, a `result_failed` with subject
+  `Superseded follow-up` is queued to the original sender, tagged with the
+  current task revision and `reply_to` the original message, so a waiting
+  `expects_result` sender is released. Sending the new instruction remains a
+  separate `warp_agent_send` against the current revision.
+- Reconciliation is terminal for the follow-up. A later `agent_reply` with
+  `succeeded`, `failed` or `blocked` returns `invalid_state`; the check uses the
+  persisted `followup_reconciled` event, not `acknowledged`, because an ordinary
+  read message that was never reconciled can still be answered.
+- A reconciled `message` never requested a result and produces none. A reconciled
+  `request` from another sender produces the superseded `result_failed` above. A
+  request reconciled by its own sender produces no self-addressed result: the
+  receipt (`result_message_id: null`) and the `followup_reconciled` event are the
+  durable terminal record, so the issuer's inbox and unresolved-work sets close
+  without a self-wake or a reply loop.
+- Unacknowledged `question` messages whose `reply_to` is the reconciled follow-up
+  are retired in the same transaction; questions belonging to other instructions
+  or revisions are untouched. The `followup_reconciled` payload adds
+  `retired_questions`, and `waiting_for_answer` reflects the retirement.
+- A reply and a reconciliation race resolves inside one transaction: whichever
+  commits first wins and the other returns `invalid_state`. No second terminal
+  result is created.
+- The receipt is `{message_id,acknowledged,task_id,revision,version,result_message_id}`
+  and is idempotent under `request_id`; the same `request_id` with a different
+  note returns `request_conflict`, and a different `request_id` after
+  reconciliation returns `invalid_state`. History records `followup_reconciled`
+  with task revision, message revision, kind, thread, note and result message ID.
+- Capability name `followup_reconcile`. Companions without it do not expose the
+  operation; an older panel payload without the new accounting fields stays
+  readable, and absent `followups`/`cursor` simply render no previews or next
+  page.
+
+`attention` rows add `version`, `created_seq`, `followup_count` and
+`followups:[{message_id,revision,kind,sender,thread_id,body,truncated}]` (at most
+8 per task, body a 512-character preview; `truncated` marks a longer original).
+The preview is never the only copy: `thread_get` with the follow-up's thread ID,
+or with the message ID when it has no thread, returns the full body to a sender,
+recipient or the operator. `tasks` is a page ordered by `created_seq`;
+`operator_panel` accepts `attention_after` and returns `cursor` only when another
+row exists. `total` and `counts` always describe the whole filtered set, not the
+page, so a page length is never a total and the sum of action counts may exceed
+`total`. Changing the task state/assignee filter or archive scope resets the
+cursor; resolution of the last row on a page may empty it and the panel reloads
+the first page.
+
+The collection is dynamic, not a cross-request snapshot: each page re-evaluates
+the filter, newly created tasks have higher `created_seq` and appear on a later
+page, and rows that stop matching disappear. A task whose pending work shrinks
+below the current page start is reached again from the first page. The panel
+shows the loaded row count against `total` rather than claiming completeness.
+
 ## Task-linked follow-ups and attention projection (2026-11-08)
 
 `warp_agent_send` with `task_id` (explicit or inherited through `reply_to`) records
@@ -19,7 +89,7 @@ task filters as the Tasks list:
 Actions are `answer`, `review`, `permission`, `recovery`, `unreachable`,
 `dependency`, `overdue` and `reconcile`; each task appears once with every
 pending action. `total` and `counts` cover the whole filtered set while `tasks`
-is bounded to 100 rows (`truncated` when more). The projection derives from
+is paged (see 2026-11-11). The projection derives from
 current tasks, unfinished uncertain attempts, unread questions/follow-ups,
 dependencies, deadlines and the latest current-revision native observation; it
 stores no new lifecycle state. Companions that predate the field omit it and the

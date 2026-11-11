@@ -1450,6 +1450,15 @@ impl Store {
             .ok_or_else(|| scope_denied("Message not found"))
     }
 
+    /// Reconciliation is a durable event, not an acknowledgement: an ordinary
+    /// read message stays replyable until an authorized actor ends it.
+    fn followup_reconciled(&self, project: &str, task_id: &str, message_id: &str) -> Result<bool> {
+        Ok(self.count(
+            "SELECT COUNT(*) AS count FROM events WHERE project=? AND resource=? AND kind='followup_reconciled' AND json_extract(payload,'$.message_id')=?",
+            &[project, task_id, message_id],
+        )? > 0)
+    }
+
     fn question_message(&self, actor: &Agent, id: &str) -> Result<Message> {
         let message = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE id=? AND project=? AND kind='question'")
             .bind::<Text, _>(id).bind::<Text, _>(&actor.project)
@@ -1620,6 +1629,7 @@ impl Store {
     }
 
     /// Derived attention facts for the operator panel; tasks are never re-parented or retyped.
+    #[cfg(test)]
     pub(crate) fn operator_attention(
         &self,
         project: &str,
@@ -1627,9 +1637,25 @@ impl Store {
         assignee: Option<&str>,
         include_archived: bool,
     ) -> Result<Value> {
+        self.operator_attention_page(project, state, assignee, include_archived, None, None)
+    }
+
+    /// One cursor page plus whole-filter totals; attention rows stay ordered by task creation.
+    pub(crate) fn operator_attention_page(
+        &self,
+        project: &str,
+        state: Option<&str>,
+        assignee: Option<&str>,
+        include_archived: bool,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
         let now = now() as i64;
-        let rows = diesel::sql_query(
-            "WITH latest AS (
+        let limit = match limit {
+            Some(limit) => Self::page_limit(Some(limit))?,
+            None => 100,
+        };
+        let base = "WITH latest AS (
                 SELECT resource,payload,observed_at FROM (
                     SELECT resource,payload,observed_at,
                         ROW_NUMBER() OVER (PARTITION BY resource ORDER BY sequence DESC) AS position
@@ -1650,9 +1676,10 @@ impl Store {
                 SELECT dependency.task_id AS task_id,COUNT(*) AS count FROM task_dependencies dependency
                 JOIN tasks prerequisite ON prerequisite.id=dependency.prerequisite_id
                 WHERE prerequisite.state NOT IN ('accepted','failed','cancelled','expired')
-                GROUP BY dependency.task_id)
-            SELECT t.id,t.state,t.revision,t.assignee,t.reviewer,substr(t.description,1,512) AS description,
-                t.execution_deadline,t.review_deadline,
+                GROUP BY dependency.task_id),
+            base AS (
+            SELECT t.id,t.state,t.revision,t.version,t.assignee,t.reviewer,
+                substr(t.description,1,512) AS description,t.created_seq,t.execution_deadline,t.review_deadline,
                 COALESCE(q.count,0) AS questions,COALESCE(f.count,0) AS followups,
                 COALESCE(u.count,0) AS uncertain,COALESCE(d.count,0) AS dependencies,
                 CASE WHEN json_extract(l.payload,'$.revision')=t.revision AND json_extract(l.payload,'$.observation.connected')=0 THEN 1 ELSE 0 END AS unreachable,
@@ -1666,9 +1693,17 @@ impl Store {
                     OR t.state='blocked'
                     OR (t.state IN ('running','cancel_requested') AND (
                         (json_extract(l.payload,'$.revision')=t.revision AND (json_extract(l.payload,'$.observation.connected')=0 OR json_extract(l.payload,'$.observation.blocked')=1 OR json_extract(l.payload,'$.observation.activity') IN ('waiting_approval','waiting_input')))
-                        OR (t.execution_deadline IS NOT NULL AND t.execution_deadline<=?))))
-            ORDER BY t.created_seq",
-        )
+                        OR (t.execution_deadline IS NOT NULL AND t.execution_deadline<=?)))))";
+        let totals = diesel::sql_query(format!(
+            "{base} SELECT COUNT(*) AS total,
+                COALESCE(SUM(questions>0),0) AS answer,COALESCE(SUM(state='submitted'),0) AS review,
+                COALESCE(SUM(permission),0) AS permission,COALESCE(SUM(uncertain>0),0) AS recovery,
+                COALESCE(SUM(unreachable),0) AS unreachable,COALESCE(SUM(dependencies>0 OR state='blocked'),0) AS dependency,
+                COALESCE(SUM(CASE WHEN (state IN ('running','cancel_requested') AND execution_deadline IS NOT NULL AND execution_deadline<=?)
+                    OR (state='submitted' AND review_deadline IS NOT NULL AND review_deadline<=?) THEN 1 ELSE 0 END),0) AS overdue,
+                COALESCE(SUM(followups>0),0) AS reconcile
+            FROM base"
+        ))
         .bind::<Text, _>(project)
         .bind::<Text, _>(project)
         .bind::<Text, _>(project)
@@ -1678,17 +1713,38 @@ impl Store {
         .bind::<Text, _>(assignee.unwrap_or(""))
         .bind::<Integer, _>(i32::from(include_archived))
         .bind::<BigInt, _>(now)
+        .bind::<BigInt, _>(now)
+        .bind::<BigInt, _>(now)
+        .get_result::<AttentionCountsRow>(&mut *self.connection.borrow_mut())?;
+        let rows = diesel::sql_query(format!(
+            "{base}, page AS (
+                SELECT * FROM base WHERE created_seq > ? ORDER BY created_seq LIMIT ?)
+            SELECT p.*, (SELECT COALESCE(json_group_array(json_object(
+                    'message_id',m.id,'revision',m.revision,'kind',m.kind,'sender',m.sender,
+                    'recipient',m.recipient,'thread_id',m.thread_id,'body',m.body,
+                    'truncated',CASE WHEN m.truncated=1 THEN json('true') ELSE json('false') END)),'[]')
+                FROM (SELECT id,revision,kind,sender,recipient,thread_id,substr(body,1,512) AS body,
+                        length(body)>512 AS truncated
+                    FROM messages WHERE task_id=p.id AND kind IN ('message','request') AND acknowledged=0
+                        AND revision IS NOT NULL AND revision<>p.revision
+                    ORDER BY sequence LIMIT 8) m) AS followups_json
+            FROM page p ORDER BY p.created_seq"
+        ))
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Text, _>(project)
+        .bind::<Nullable<Text>, _>(state)
+        .bind::<Nullable<Text>, _>(assignee)
+        .bind::<Text, _>(assignee.unwrap_or(""))
+        .bind::<Integer, _>(i32::from(include_archived))
+        .bind::<BigInt, _>(now)
+        .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+        .bind::<BigInt, _>(limit as i64 + 1)
         .load::<AttentionRow>(&mut *self.connection.borrow_mut())?;
-        let mut counts: std::collections::BTreeMap<&str, u64> = [
-            "answer", "review", "permission", "recovery", "unreachable", "dependency",
-            "overdue", "reconcile",
-        ]
-        .into_iter()
-        .map(|action| (action, 0))
-        .collect();
-        let total = rows.len() as u64;
+        let truncated = rows.len() > limit as usize;
         let mut tasks = Vec::new();
-        for row in rows {
+        for row in rows.into_iter().take(limit as usize) {
             let mut actions = Vec::new();
             let execution_overdue = matches!(row.state.as_str(), "running" | "cancel_requested")
                 && row.execution_deadline.is_some_and(|at| at <= now);
@@ -1704,21 +1760,35 @@ impl Store {
                 ("overdue", execution_overdue || review_overdue),
                 ("reconcile", row.followups != 0),
             ] {
-                if pending {
-                    actions.push(action);
-                    *counts.get_mut(action).unwrap() += 1;
-                }
+                if pending { actions.push(action); }
             }
-            if tasks.len() < 100 {
-                let observation_age_ms = row.observed_at.map(|at| now.saturating_sub(at) as u64);
-                tasks.push(json!({
-                    "task_id": row.id, "description": row.description, "state": row.state,
-                    "revision": row.revision as u32, "assignee": row.assignee, "reviewer": row.reviewer,
-                    "actions": actions, "observation_age_ms": observation_age_ms,
-                }));
-            }
+            let observation_age_ms = row.observed_at.map(|at| now.saturating_sub(at) as u64);
+            let followups = serde_json::from_str::<Value>(&row.followups_json)?;
+            tasks.push(json!({
+                "task_id": row.id, "description": row.description, "state": row.state,
+                "revision": row.revision as u32, "version": row.version as u64,
+                "created_seq": row.created_seq as u64,
+                "assignee": row.assignee, "reviewer": row.reviewer,
+                "actions": actions, "observation_age_ms": observation_age_ms,
+                "followup_count": row.followups as u64,
+                "followups": followups.as_array().cloned().unwrap_or_default(),
+            }));
         }
-        Ok(json!({"tasks": tasks, "total": total, "truncated": total > 100, "counts": counts}))
+        let cursor = truncated.then(|| tasks.last().and_then(|task| task["created_seq"].as_u64())).flatten();
+        let counts = [
+            ("answer", totals.answer),
+            ("review", totals.review),
+            ("permission", totals.permission),
+            ("recovery", totals.recovery),
+            ("unreachable", totals.unreachable),
+            ("dependency", totals.dependency),
+            ("overdue", totals.overdue),
+            ("reconcile", totals.reconcile),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeMap<_, _>>();
+        Ok(json!({"tasks": tasks, "total": totals.total as u64, "truncated": truncated,
+            "counts": counts, "cursor": cursor}))
     }
 
     pub fn events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
@@ -2145,6 +2215,10 @@ impl Store {
                 ensure!(parent.to == actor.id, unauthorized("Only the recipient can return a result"));
                 ensure!(matches!(parent.kind.as_str(), "message" | "request"),
                     invalid_state("Only peer instructions can receive processing results"));
+                if let Some(task_id) = &parent.task_id {
+                    ensure!(!self.followup_reconciled(&actor.project, task_id, &parent.id)?,
+                        invalid_state("This follow-up was ended as overtaken and cannot receive a result"));
+                }
                 if matches!(outcome, crate::ReplyOutcome::Succeeded) {
                     ensure!(self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind='question' AND acknowledged=0", &[reply_to])? == 0,
                         invalid_state("Resolve outstanding questions before reporting success"));
@@ -2220,6 +2294,9 @@ impl Store {
                                 invalid_input("reply_to does not belong to thread_id")
                             );
                         }
+                        if let (Some(explicit), Some(inherited)) = (task_id, &parent.task_id) {
+                            ensure!(explicit == inherited, invalid_input("Follow-up task does not match its instruction"));
+                        }
                         let linked_task = task_id.clone().or(parent.task_id);
                         if let Some(task_id) = &linked_task { self.actor_task(actor, task_id)?; }
                         (inherited, Some(parent.id), linked_task)
@@ -2289,6 +2366,103 @@ impl Store {
                     json!({}),
                 )?;
                 Ok(json!({"acknowledged": message_id}))
+            }
+            Operation::TaskFollowupReconcile {
+                task_id,
+                message_id,
+                note,
+                expected_version,
+                ..
+            } => {
+                text(note)?;
+                self.budget_available()?;
+                let task = self.actor_task(actor, task_id)?;
+                ensure!(
+                    actor.program == OPERATOR_PROGRAM
+                        || task.issuer == actor.id
+                        || task.reviewer == actor.id
+                        || self.is_worktree_coordinator(actor)?,
+                    unauthorized(
+                        "Only the task issuer, reviewer, Coordinator or operator can reconcile an overtaken follow-up"
+                    )
+                );
+                ensure!(
+                    *expected_version == task.version,
+                    version_conflict("Task version does not match", task.version)
+                );
+                let message = diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE id=? AND project=? AND task_id=?")
+                    .bind::<Text, _>(message_id)
+                    .bind::<Text, _>(&actor.project)
+                    .bind::<Text, _>(&task.id)
+                    .get_result::<MessageRow>(&mut *self.connection.borrow_mut())
+                    .optional()?
+                    .map(MessageRow::message)
+                    .ok_or_else(|| scope_denied("Follow-up not found"))?;
+                ensure!(
+                    matches!(message.kind.as_str(), "message" | "request"),
+                    invalid_state("Only an instruction follow-up can be reconciled")
+                );
+                ensure!(
+                    !message.acknowledged,
+                    invalid_state("Follow-up is already resolved")
+                );
+                let message_revision = message
+                    .revision
+                    .ok_or_else(|| invalid_state("Follow-up has no recorded task revision"))?;
+                ensure!(
+                    message_revision != task.revision,
+                    invalid_state("Follow-up still matches the current task revision")
+                );
+                diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE id = ?")
+                    .bind::<Text, _>(message_id)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                let retired_questions = diesel::sql_query("UPDATE messages SET acknowledged = 1 WHERE reply_to = ? AND kind = 'question' AND acknowledged = 0")
+                    .bind::<Text, _>(message_id)
+                    .execute(&mut *self.connection.borrow_mut())?;
+                // A result request must not leave its sender waiting after an explicit resolution.
+                let result = if message.kind == "request" && message.from != actor.id {
+                    Some(self.queue(
+                        &actor.project,
+                        Message {
+                            id: String::new(),
+                            from: actor.id.clone(),
+                            to: message.from.clone(),
+                            body: note.clone(),
+                            subject: Some("Superseded follow-up".into()),
+                            thread_id: message.thread_id.clone().or_else(|| Some(message.id.clone())),
+                            reply_to: Some(message.id.clone()),
+                            task_id: Some(task.id.clone()),
+                            revision: Some(task.revision),
+                            kind: "result_failed".into(),
+                            acknowledged: false,
+                            sequence: 0,
+                        },
+                    )?)
+                } else {
+                    None
+                };
+                self.record(
+                    &actor.project,
+                    "followup_reconciled",
+                    &actor.id,
+                    Some(task.id.as_str()),
+                    None,
+                    json!({
+                        "message_id": message.id,
+                        "task_revision": task.revision,
+                        "message_revision": message_revision,
+                        "kind": message.kind,
+                        "thread_id": message.thread_id,
+                        "result_message_id": result.as_ref().map(|message| message.id.clone()),
+                        "retired_questions": retired_questions,
+                        "note": note,
+                    }),
+                )?;
+                Ok(json!({
+                    "message_id": message_id, "acknowledged": true,
+                    "task_id": task.id, "revision": task.revision, "version": task.version,
+                    "result_message_id": result.map(|message| message.id),
+                }))
             }
             Operation::TaskAssign {
                 to,
@@ -5249,6 +5423,28 @@ struct TaskSummaryRow {
 }
 
 #[derive(QueryableByName)]
+struct AttentionCountsRow {
+    #[diesel(sql_type = BigInt)]
+    total: i64,
+    #[diesel(sql_type = BigInt)]
+    answer: i64,
+    #[diesel(sql_type = BigInt)]
+    review: i64,
+    #[diesel(sql_type = BigInt)]
+    permission: i64,
+    #[diesel(sql_type = BigInt)]
+    recovery: i64,
+    #[diesel(sql_type = BigInt)]
+    unreachable: i64,
+    #[diesel(sql_type = BigInt)]
+    dependency: i64,
+    #[diesel(sql_type = BigInt)]
+    overdue: i64,
+    #[diesel(sql_type = BigInt)]
+    reconcile: i64,
+}
+
+#[derive(QueryableByName)]
 struct AttentionRow {
     #[diesel(sql_type = Text)]
     id: String,
@@ -5256,6 +5452,10 @@ struct AttentionRow {
     state: String,
     #[diesel(sql_type = Integer)]
     revision: i32,
+    #[diesel(sql_type = BigInt)]
+    version: i64,
+    #[diesel(sql_type = BigInt)]
+    created_seq: i64,
     #[diesel(sql_type = Text)]
     assignee: String,
     #[diesel(sql_type = Text)]
@@ -5280,6 +5480,8 @@ struct AttentionRow {
     permission: i32,
     #[diesel(sql_type = Nullable<BigInt>)]
     observed_at: Option<i64>,
+    #[diesel(sql_type = Text)]
+    followups_json: String,
 }
 
 #[derive(QueryableByName)]
@@ -5776,6 +5978,26 @@ mod tests {
         }
     }
 
+    fn reconcile(task_id: &str, message_id: &str, version: u64, note: &str) -> Operation {
+        Operation::TaskFollowupReconcile {
+            task_id: task_id.into(),
+            message_id: message_id.into(),
+            note: note.into(),
+            expected_version: version,
+            request_id: Uuid::new_v4().to_string(),
+        }
+    }
+
+    fn reply(reply_to: &str, outcome: crate::ReplyOutcome, request_id: &str) -> Operation {
+        Operation::AgentReply {
+            handoff_ref: None,
+            reply_to: reply_to.into(),
+            body: "Late processing result".into(),
+            outcome,
+            request_id: request_id.into(),
+        }
+    }
+
     fn submit(task_id: &str, revision: u32, attempt_id: Option<&str>, request_id: &str) -> Operation {
         Operation::TaskSubmit { handoff: None,
             task_id: task_id.into(),
@@ -5905,6 +6127,441 @@ mod tests {
         assert!(row["actions"].as_array().unwrap().iter().any(|action| action == "reconcile"));
         assert_eq!(attention["counts"]["reconcile"], 1u64);
         assert_eq!(store.operator_attention("/project", Some("accepted"), None, false).unwrap()["total"], 0u64);
+    }
+
+    #[test]
+    fn attention_pages_by_stable_task_order_while_totals_cover_the_whole_filter() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let mut ids = Vec::new();
+        for _ in 0..2 {
+            let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+            let id = task["id"].as_str().unwrap().to_owned();
+            store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+            ids.push(id);
+        }
+        let first = store.operator_attention_page("/project", None, None, false, None, Some(1)).unwrap();
+        assert_eq!(first["total"], 2u64);
+        assert_eq!(first["counts"]["review"], 2u64);
+        assert_eq!(first["tasks"].as_array().unwrap().len(), 1);
+        assert_eq!(first["truncated"], true);
+        assert_eq!(first["tasks"][0]["task_id"], ids[0]);
+        assert_eq!(first["tasks"][0]["version"], 3u64);
+        let cursor = first["cursor"].as_u64().unwrap();
+        let second = store.operator_attention_page("/project", None, None, false, Some(cursor), Some(1)).unwrap();
+        assert_eq!(second["tasks"].as_array().unwrap().len(), 1);
+        assert_eq!(second["tasks"][0]["task_id"], ids[1]);
+        assert_eq!(second["truncated"], false);
+        assert!(second["cursor"].is_null());
+        assert_eq!(second["counts"]["review"], 2u64);
+    }
+
+    #[test]
+    fn overtaken_result_requests_are_reconciled_without_rewriting_history() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let request = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: true,
+            to: worker.id.clone(), body: "Apply the bounded change".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let request_id = request["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let attention = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        let row = attention["tasks"].as_array().unwrap().iter().find(|row| row["task_id"].as_str() == Some(id.as_str())).unwrap();
+        assert_eq!(row["revision"], 2u32);
+        assert_eq!(row["followup_count"], 1u64);
+        assert!(row["actions"].as_array().unwrap().iter().any(|action| action == "reconcile"));
+        let followup = &row["followups"][0];
+        assert_eq!(followup["message_id"], request_id);
+        assert_eq!(followup["revision"], 1u32);
+        assert_eq!(followup["kind"], "request");
+        assert_eq!(followup["body"], "Apply the bounded change");
+        let operator = Store::operator("/project");
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let reconcile = Operation::TaskFollowupReconcile { task_id: id.clone(), message_id: request_id.clone(),
+            note: "Superseded by revision 2".into(), expected_version: version, request_id: Uuid::new_v4().to_string() };
+        let stale_version = Operation::TaskFollowupReconcile { task_id: id.clone(), message_id: request_id.clone(),
+            note: "Stale confirmation".into(), expected_version: version + 1, request_id: Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&operator, OPERATOR_EPOCH, &stale_version).unwrap_err()), "version_conflict");
+        let result = store.execute(&operator, OPERATOR_EPOCH, &reconcile).unwrap();
+        assert_eq!(result["acknowledged"], true);
+        assert_eq!(result["revision"], 2u32);
+        assert_eq!(store.execute(&operator, OPERATOR_EPOCH, &reconcile).unwrap(), result);
+        let Operation::TaskFollowupReconcile { request_id: reconcile_id, .. } = &reconcile else { unreachable!() };
+        let conflicting = Operation::TaskFollowupReconcile { task_id: id.clone(), message_id: request_id.clone(),
+            note: "Different resolution for the same request".into(), expected_version: version,
+            request_id: reconcile_id.clone() };
+        assert_eq!(code(&store.execute(&operator, OPERATOR_EPOCH, &conflicting).unwrap_err()), "request_conflict");
+        let repeat = Operation::TaskFollowupReconcile { task_id: id.clone(), message_id: request_id.clone(),
+            note: "Another resolution".into(), expected_version: version, request_id: Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&operator, OPERATOR_EPOCH, &repeat).unwrap_err()), "invalid_state");
+        let inbox = store.inbox(&issuer, None, None).unwrap();
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["kind"] == "result_failed"
+            && message["reply_to"].as_str() == Some(request_id.as_str())));
+        let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet {
+            thread_id: request_id.clone(), cursor: None, limit: None }).unwrap();
+        assert!(thread["messages"].as_array().unwrap().iter().any(|message| message["id"].as_str() == Some(request_id.as_str())
+            && message["body"] == "Apply the bounded change"));
+        assert!(store.task_history(&issuer, &id, None, None).unwrap()["events"].as_array().unwrap().iter()
+            .any(|event| event["kind"] == "followup_reconciled" && event["payload"]["message_revision"] == 1
+                && event["payload"]["task_revision"] == 2));
+        let attention = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        assert_eq!(attention["counts"]["reconcile"], 0u64);
+    }
+
+    #[test]
+    fn followups_reject_a_task_that_differs_from_the_replied_instruction() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let first = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let second = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let first_id = first["id"].as_str().unwrap().to_owned();
+        let second_id = second["id"].as_str().unwrap().to_owned();
+        let parent = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Inspect the first task".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: Some(first_id.clone()), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let mismatched = Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Follow up on another task".into(), subject: None,
+            thread_id: None, reply_to: Some(parent["id"].as_str().unwrap().into()),
+            task_id: Some(second_id.clone()), request_id: Uuid::new_v4().to_string(),
+        };
+        assert_eq!(code(&store.execute(&issuer, "issuer-run", &mismatched).unwrap_err()), "invalid_input");
+        let matched = Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Follow up on the same task".into(), subject: None,
+            thread_id: None, reply_to: Some(parent["id"].as_str().unwrap().into()),
+            task_id: Some(first_id.clone()), request_id: Uuid::new_v4().to_string(),
+        };
+        let queued = store.execute(&issuer, "issuer-run", &matched).unwrap();
+        assert_eq!(queued["task_id"], first_id);
+        assert_eq!(queued["revision"], 1u32);
+    }
+
+    #[test]
+    fn current_revision_followups_cannot_be_reconciled_as_overtaken() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        let rejected = store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(rejected["revision"], 2);
+        let current = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Current revision instruction".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        assert_eq!(current["revision"], 2);
+        let attempt = Operation::TaskFollowupReconcile { task_id: id.clone(),
+            message_id: current["id"].as_str().unwrap().into(), note: "Should not apply".into(),
+            expected_version: store.operator_task("/project", &id).unwrap().version,
+            request_id: Uuid::new_v4().to_string() };
+        assert_eq!(code(&store.execute(&issuer, "issuer-run", &attempt).unwrap_err()), "invalid_state");
+        assert!(store.pending(&worker).unwrap().iter().any(|message| message.id == current["id"].as_str().unwrap()));
+    }
+
+    #[test]
+    fn reconciled_followups_are_terminal_and_retire_derived_questions() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let request = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: true,
+            to: worker.id.clone(), body: "Apply the bounded change".into(), subject: None,
+            thread_id: None, reply_to: None, task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let request_id = request["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        // Asking after the revision bump binds the question to the current revision,
+        // so revision retirement alone cannot close it.
+        let question = store.execute(&worker, "worker-run", &Operation::AgentAsk { task_id: Some(id.clone()),
+            reply_to: Some(request_id.clone()), question: "Does the old instruction still apply?".into(),
+            request_id: Uuid::new_v4().to_string() }).unwrap();
+        assert_eq!(question["revision"], 2u32);
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let receipt = store.execute(&issuer, "issuer-run", &reconcile(&id, &request_id, version, "Superseded by revision 2")).unwrap();
+        assert_eq!(receipt["acknowledged"], true);
+        assert!(receipt["result_message_id"].is_null());
+        assert!(store.pending(&issuer).unwrap().iter().all(|message| message.reply_to.as_deref() != Some(request_id.as_str())));
+        let history = store.task_history(&issuer, &id, None, None).unwrap();
+        let reconciled: Vec<&Value> = history["events"].as_array().unwrap().iter()
+            .filter(|event| event["kind"] == "followup_reconciled").collect();
+        assert_eq!(reconciled.len(), 1);
+        assert_eq!(reconciled[0]["payload"]["retired_questions"], 1u64);
+        assert!(reconciled[0]["payload"]["result_message_id"].is_null());
+        assert!(store.execute(&reviewer, "reviewer-run", &Operation::AgentQuestions { task_id: Some(id.clone()), cursor: None, limit: None })
+            .unwrap()["questions"].as_array().unwrap().is_empty());
+        assert_eq!(code(&store.execute(&reviewer, "reviewer-run", &Operation::AgentAnswer {
+            question_id: question["id"].as_str().unwrap().into(), answer: "Obsolete decision".into(),
+            request_id: Uuid::new_v4().to_string() }).unwrap_err()), "invalid_state");
+        assert_eq!(store.execute(&reviewer, "reviewer-run", &Operation::TaskGet { task_id: id.clone() })
+            .unwrap()["supervision"]["waiting_for_answer"], false);
+        for outcome in [crate::ReplyOutcome::Succeeded, crate::ReplyOutcome::Failed, crate::ReplyOutcome::Blocked] {
+            assert_eq!(code(&store.execute(&worker, "worker-run", &reply(&request_id, outcome, &Uuid::new_v4().to_string())).unwrap_err()),
+                "invalid_state");
+        }
+        assert!(store.pending(&issuer).unwrap().iter().all(|message| message.reply_to.as_deref() != Some(request_id.as_str())));
+        let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet { thread_id: request_id.clone(), cursor: None, limit: None }).unwrap();
+        let original = thread["messages"].as_array().unwrap().iter().find(|message| message["id"] == request_id.as_str()).unwrap();
+        assert_eq!(original["body"], "Apply the bounded change");
+        assert_eq!(original["revision"], 1u32);
+        let current = store.operator_task("/project", &id).unwrap();
+        assert_eq!(current.revision, 2);
+        assert_eq!(current.assignee, worker.id);
+        assert_eq!(code(&store.execute(&issuer, "issuer-run", &reconcile(&id, &request_id, version, "End it twice")).unwrap_err()), "invalid_state");
+    }
+
+    #[test]
+    fn read_messages_stay_replyable_while_reconciled_ones_refuse_results() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let plain = store.execute(&issuer, "issuer-run", &send(&issuer, &worker.id, "Check the logs", &Uuid::new_v4().to_string())).unwrap();
+        let plain_id = plain["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: plain_id.clone() }).unwrap();
+        let answered = store.execute(&worker, "worker-run", &reply(&plain_id, crate::ReplyOutcome::Succeeded, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(answered["kind"], "result_succeeded");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Old follow-up".into(), subject: Some("Next step".into()),
+            thread_id: None, reply_to: None, task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string(),
+        }).unwrap();
+        let message_id = message["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let receipt = store.execute(&reviewer, "reviewer-run", &reconcile(&id, &message_id, version, "Superseded")).unwrap();
+        assert!(receipt["result_message_id"].is_null());
+        assert!(store.pending(&issuer).unwrap().iter().all(|pending| pending.reply_to.as_deref() != Some(message_id.as_str())));
+        assert_eq!(code(&store.execute(&worker, "worker-run", &reply(&message_id, crate::ReplyOutcome::Failed, &Uuid::new_v4().to_string())).unwrap_err()),
+            "invalid_state");
+        assert_eq!(code(&store.execute(&worker, "worker-run", &reply(&message_id, crate::ReplyOutcome::Blocked, &Uuid::new_v4().to_string())).unwrap_err()),
+            "invalid_state");
+        assert_eq!(store.count(
+            "SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed','result_blocked')",
+            &[message_id.as_str()]).unwrap(), 0);
+    }
+
+    #[test]
+    fn reconcile_and_reply_compete_to_one_terminal_outcome() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let first = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: true,
+            to: worker.id.clone(), body: "First request".into(), subject: None, thread_id: None, reply_to: None,
+            task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string() }).unwrap();
+        let first_id = first["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        store.execute(&worker, "worker-run", &reply(&first_id, crate::ReplyOutcome::Failed, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(code(&store.execute(&reviewer, "reviewer-run", &reconcile(&id, &first_id, version, "Too late")).unwrap_err()),
+            "invalid_state");
+        assert_eq!(store.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[first_id.as_str()]).unwrap(), 1);
+        let second = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: true,
+            to: worker.id.clone(), body: "Second request".into(), subject: None, thread_id: None, reply_to: None,
+            task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string() }).unwrap();
+        let second_id = second["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 2, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&id, 2, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 2, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let receipt = store.execute(&reviewer, "reviewer-run", &reconcile(&id, &second_id, version, "Replaced at revision 3")).unwrap();
+        assert!(receipt["result_message_id"].is_string());
+        assert_eq!(store.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[second_id.as_str()]).unwrap(), 1);
+        assert_eq!(code(&store.execute(&worker, "worker-run", &reply(&second_id, crate::ReplyOutcome::Succeeded, &Uuid::new_v4().to_string())).unwrap_err()),
+            "invalid_state");
+        assert_eq!(store.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[second_id.as_str()]).unwrap(), 1);
+        let superseded = store.pending(&issuer).unwrap();
+        assert_eq!(superseded.iter().filter(|message| message.reply_to.as_deref() == Some(second_id.as_str())).count(), 1);
+    }
+
+    #[test]
+    fn followup_reconciliation_requires_current_task_authority() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let peer = actor(&store, "peer");
+        let foreign = store.register("foreign", "claude", "/foreign", "foreign").unwrap();
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: "Stale instruction".into(), subject: None, thread_id: None, reply_to: None,
+            task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string() }).unwrap();
+        let message_id = message["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        assert_eq!(code(&store.execute(&worker, "worker-run", &reconcile(&id, &message_id, version, "Recipient")).unwrap_err()), "unauthorized");
+        assert_eq!(code(&store.execute(&peer, "peer-run", &reconcile(&id, &message_id, version, "Unrelated peer")).unwrap_err()), "unauthorized");
+        assert_eq!(code(&store.execute(&foreign, "foreign-run", &reconcile(&id, &message_id, version, "Other project")).unwrap_err()), "scope_denied");
+        store.execute(&reviewer, "reviewer-run", &reconcile(&id, &message_id, version, "Reviewer")).unwrap();
+
+        let store = Store::open(":memory:").unwrap();
+        let operator = Store::operator("/project");
+        let worker = actor(&store, "worker");
+        let successor = actor(&store, "successor");
+        actor(&store, "reviewer");
+        let coordinator = actor(&store, "coordinator");
+        store.set_worktree_role(&worker, "worker-run", "worker").unwrap();
+        store.set_worktree_role(&successor, "successor-run", "worker").unwrap();
+        store.set_worktree_role(&coordinator, "coord-run", "coordinator").unwrap();
+        store.worktree_offline(&coordinator.id, "coord-run").unwrap();
+        assert!(!store.is_worktree_coordinator(&coordinator).unwrap());
+        let task = store.execute(&operator, OPERATOR_EPOCH, &assign(&operator, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let followup = |body: &str| Operation::AgentSend { content: None, expects_result: false,
+            to: worker.id.clone(), body: body.into(), subject: None, thread_id: None, reply_to: None,
+            task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string() };
+        let first = store.execute(&operator, OPERATOR_EPOCH, &followup("First stale")).unwrap();
+        let second = store.execute(&operator, OPERATOR_EPOCH, &followup("Second stale")).unwrap();
+        let reassign: Operation = serde_json::from_value(json!({"op":"task_reassign", "task_id":id.clone(),
+            "assignee":"successor", "reason":"Move the revision", "request_id":Uuid::new_v4().to_string()})).unwrap();
+        store.execute(&operator, OPERATOR_EPOCH, &reassign).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        assert_eq!(code(&store.execute(&coordinator, "coord-run", &reconcile(&id, first["id"].as_str().unwrap(), version, "Inactive Coordinator")).unwrap_err()),
+            "scope_denied");
+        store.set_worktree_role(&coordinator, "coord-run", "coordinator").unwrap();
+        assert!(store.is_worktree_coordinator(&coordinator).unwrap());
+        assert_eq!(store.execute(&coordinator, "coord-run", &reconcile(&id, first["id"].as_str().unwrap(), version, "Coordinator")).unwrap()["acknowledged"], true);
+        assert_eq!(store.execute(&coordinator, "coord-run", &reconcile(&id, second["id"].as_str().unwrap(), version, "Coordinator again")).unwrap()["acknowledged"], true);
+    }
+
+    #[test]
+    fn attention_previews_are_bounded_while_the_full_body_stays_readable() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let mut messages = Vec::new();
+        for index in 0..10 {
+            let body = if index == 0 { "x".repeat(600) } else { format!("stale instruction {index}") };
+            let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None, expects_result: false,
+                to: worker.id.clone(), body, subject: None, thread_id: None, reply_to: None,
+                task_id: Some(id.clone()), request_id: Uuid::new_v4().to_string() }).unwrap();
+            messages.push(message["id"].as_str().unwrap().to_owned());
+        }
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        let reviewer = actor(&store, "reviewer");
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let row = |page: &Value| page["tasks"].as_array().unwrap().iter()
+            .find(|row| row["task_id"] == id.as_str()).cloned();
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        let previews = row(&page).unwrap();
+        assert_eq!(previews["followup_count"], 10u64);
+        assert_eq!(previews["followups"].as_array().unwrap().len(), 8);
+        assert_eq!(previews["followups"][0]["truncated"], true);
+        assert_eq!(previews["followups"][0]["body"].as_str().unwrap().chars().count(), 512);
+        assert_eq!(previews["followups"][1]["truncated"], false);
+        let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet { thread_id: messages[0].clone(), cursor: None, limit: None }).unwrap();
+        assert_eq!(thread["messages"][0]["body"].as_str().unwrap().chars().count(), 600);
+        let version = store.operator_task("/project", &id).unwrap().version;
+        for message in &messages[..8] {
+            store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &reconcile(&id, message, version, "Ended")).unwrap();
+        }
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        let shortened = row(&page).unwrap();
+        assert_eq!(shortened["followup_count"], 2u64);
+        assert_eq!(shortened["followups"].as_array().unwrap().len(), 2);
+        for message in &messages[8..] {
+            store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &reconcile(&id, message, version, "Ended")).unwrap();
+        }
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        assert_eq!(page["total"], 0u64);
+        assert!(row(&page).is_none());
+    }
+
+    #[test]
+    fn attention_cursor_walks_a_dynamic_collection_beyond_one_page() {
+        let store = Store::open(":memory:").unwrap();
+        let worker = actor(&store, "worker");
+        let insert = |ids: &str| {
+            diesel::sql_query(format!(
+                "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<{ids})
+                 INSERT INTO tasks(id,project,issuer,assignee,reviewer,description,acceptance,state,revision,version,created_seq,archived)
+                 SELECT 'attention-'||x,'/project','','','','task '||x,'verified','submitted',1,3,x,0 FROM n"
+            )).execute(&mut *store.connection.borrow_mut()).unwrap();
+        };
+        insert("101");
+        let first = store.operator_attention_page("/project", None, None, false, None, Some(40)).unwrap();
+        assert_eq!(first["total"], 101u64);
+        assert_eq!(first["counts"]["review"], 101u64);
+        assert_eq!(first["tasks"].as_array().unwrap().len(), 40);
+        assert_eq!(first["truncated"], true);
+        diesel::sql_query("INSERT INTO tasks(id,project,issuer,assignee,reviewer,description,acceptance,state,revision,version,created_seq,archived) VALUES ('attention-102','/project','','','','task 102','verified','submitted',1,3,102,0)")
+            .execute(&mut *store.connection.borrow_mut()).unwrap();
+        let mut seen: Vec<String> = first["tasks"].as_array().unwrap().iter()
+            .map(|row| row["task_id"].as_str().unwrap().to_owned()).collect();
+        let mut cursor = first["cursor"].as_u64();
+        while let Some(after) = cursor {
+            let page = store.operator_attention_page("/project", None, None, false, Some(after), Some(40)).unwrap();
+            assert_eq!(page["total"], 102u64);
+            assert_eq!(page["counts"]["review"], 102u64);
+            seen.extend(page["tasks"].as_array().unwrap().iter()
+                .map(|row| row["task_id"].as_str().unwrap().to_owned()));
+            cursor = page["cursor"].as_u64();
+        }
+        assert_eq!(seen.len(), 102);
+        assert_eq!(seen.iter().collect::<std::collections::HashSet<_>>().len(), 102);
+        assert_eq!(seen.first().map(String::as_str), Some("attention-1"));
+        assert_eq!(seen.last().map(String::as_str), Some("attention-102"));
+        diesel::sql_query("UPDATE tasks SET archived=1 WHERE id='attention-102'")
+            .execute(&mut *store.connection.borrow_mut()).unwrap();
+        assert_eq!(store.operator_attention_page("/project", None, None, false, None, Some(40)).unwrap()["total"], 101u64);
+        assert_eq!(store.operator_attention_page("/project", None, None, true, None, Some(40)).unwrap()["total"], 102u64);
+        assert_eq!(store.operator_attention_page("/project", Some("queued"), None, false, None, Some(40)).unwrap()["total"], 0u64);
+        assert_eq!(store.operator_attention_page("/project", None, Some(&worker.id), false, None, Some(40)).unwrap()["total"], 0u64);
+    }
+
+    #[test]
+    fn stale_observations_do_not_mark_the_current_revision_unreachable() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", None, &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let started = store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        let attempt = started["attempt_id"].as_str().unwrap().to_owned();
+        store.record("/project", "task_observed", &worker.id, Some(&id), Some(&attempt),
+            json!({"revision":0,"run":"worker-run","observation":{"connected":false,"activity":"idle","source":"native"}})).unwrap();
+        let row = |page: &Value| page["tasks"].as_array().unwrap().iter()
+            .find(|row| row["task_id"] == id.as_str()).cloned().unwrap();
+        let stale = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        assert!(!row(&stale)["actions"].as_array().unwrap().iter().any(|action| action == "unreachable"));
+        assert_eq!(stale["counts"]["unreachable"], 0u64);
+        store.observe_tasks(&worker, "worker-run", json!({"connected":false,"activity":"idle","source":"native"})).unwrap();
+        let current = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        assert!(row(&current)["actions"].as_array().unwrap().iter().any(|action| action == "unreachable"));
+        assert_eq!(current["counts"]["unreachable"], 1u64);
+        let task = store.operator_task("/project", &id).unwrap();
+        assert_eq!(task.state, "running");
+        assert_eq!(task.attempts[0].certainty, "active");
     }
 
     #[test]

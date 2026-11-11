@@ -314,6 +314,13 @@ pub enum Operation {
     AgentAck {
         message_id: String,
     },
+    TaskFollowupReconcile {
+        task_id: String,
+        message_id: String,
+        note: String,
+        expected_version: u64,
+        request_id: String,
+    },
     AgentWait,
     AgentReady,
     TaskAssign {
@@ -583,6 +590,7 @@ impl Operation {
             | Self::AgentReply { request_id, .. }
             | Self::AgentAsk { request_id, .. }
             | Self::AgentAnswer { request_id, .. }
+            | Self::TaskFollowupReconcile { request_id, .. }
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }

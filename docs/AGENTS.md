@@ -18,6 +18,26 @@ Project participants can inspect and review project work; Worktree mode retains
 Coordinator, participant and designated-reviewer scope. Enqueuing work is distinct
 from delivery, acknowledgement, task start, submission and acceptance.
 
+Task-linked mail records the task revision when it is sent. When the task revision
+changes, an older message or request is overtaken: it stays in history, is not
+delivered as current work and must not be executed; the recipient reports it to the
+issuer. An authorized issuer, reviewer
+or Coordinator ends it with `warp_task_followup_reconcile` using a fresh
+`expected_version`, then sends the replacement instruction at the current revision.
+An overtaken result request is answered with a superseded result. A plain message
+or a request you sent yourself produces no result; the receipt and the recorded
+reconciliation are the terminal fact. A reconciled follow-up cannot later accept a
+succeeded, failed or blocked result, while a message that was only read remains
+answerable. Questions asked against the reconciled follow-up are retired with it.
+Reconciling preserves the original message and never restarts, reassigns or
+re-permissions the task.
+
+The **Needs attention** section shows at most eight follow-up previews per task
+with a shown/total count, and marks a preview that was truncated; open the
+follow-up thread (or the message when it has no thread) for the full body. Pages
+are re-read from current facts rather than a snapshot, so end the shown
+follow-ups and refresh to load later ones.
+
 ## Task handoff briefs
 
 A tracked task is the source of a handoff brief. `warp_task_submit` always saves
