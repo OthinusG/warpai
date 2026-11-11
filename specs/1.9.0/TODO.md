@@ -301,39 +301,53 @@ preview did not distinguish a bounded preview from the full body.
 
 ### Reproduced gaps (test written before the shared fix)
 
-- [ ] `agent_reply` accepted `succeeded`/`failed`/`blocked` for an already
+- [x] `agent_reply` accepted `succeeded`/`failed`/`blocked` for an already
       reconciled instruction, so an overtaken follow-up could reopen work.
-- [ ] Reconciling a `request` sent by the actor produced no result and no durable
+      Evidence: `reconciled_followups_are_terminal_and_retire_derived_questions`
+      asserts all three late outcomes fail; `read_messages_stay_replyable_`
+      proves a read but unreconciled message still replies.
+- [x] Reconciling a `request` sent by the actor produced no result and no durable
       terminal record beyond the receipt, leaving the supervisor's closure
-      implicit.
-- [ ] A `question` asked against a stale instruction after the revision bump is
+      implicit. Evidence: the self-issued case asserts a null
+      `result_message_id`, no self-addressed result, and the persisted event.
+- [x] A `question` asked against a stale instruction after the revision bump is
       bound to the current revision, so `save_task` did not retire it and the
-      task stayed `waiting_for_answer` after reconciliation.
-- [ ] Attention follow-up previews were silently truncated at 512 characters and
+      task stayed `waiting_for_answer` after reconciliation. Evidence:
+      `retired_questions: 1`, an empty question list and `waiting_for_answer:
+      false`.
+- [x] Attention follow-up previews were silently truncated at 512 characters and
       the panel did not state how many previews were shown out of the real count.
+      Evidence: `attention_previews_are_bounded_while_the_full_body_stays_readable`
+      and the panel parser/rendering assertions.
 
 ### Fix
 
-- [ ] `AgentReply` rejects any result for a follow-up with a persisted
+- [x] `AgentReply` rejects any result for a follow-up with a persisted
       `followup_reconciled` event (`invalid_state`). The check deliberately uses
       the event, not `acknowledged`, so a read but unreconciled message remains
       replyable.
-- [ ] Reconciliation retires unacknowledged questions whose `reply_to` is that
+- [x] Reconciliation retires unacknowledged questions whose `reply_to` is that
       message, records `retired_questions`, and leaves other instructions and
       revisions untouched. A self-issued request creates no self-addressed
       result; the receipt and event are the terminal record.
-- [ ] Attention previews return the decoded display text plus `truncated` when
+- [x] Attention previews return the decoded display text plus `truncated` when
       the text exceeds 512 characters. The panel shows `Showing X of Y`, a
       preview marker, and an open-thread control that falls back to the message
       ID when the follow-up has no thread.
-- [ ] No schema, protocol-major, retry daemon, model routing or permission
+- [x] No schema, protocol-major, retry daemon, model routing or permission
       change; no new message read scope for reviewers or Coordinators.
 
 ### Verification status
 
-- [ ] Rust tests: Agent Bus reconciliation/attention suites, panel parser and
-      control-binding tests, `cargo check -p warpai --bin warpai` and the
-      `warp_platform` build in GitHub CI.
+- [x] Rust tests: run 42957967068 at `7cf9b1437` — Protocol (macos-15)
+      `cargo test -p warp-agent-bus --lib` 193 passed / 0 failed / 1 ignored,
+      including every reconciliation and attention test named above; Protocol
+      (windows-latest) green; macOS job `cargo check -p warpai --bin warpai`,
+      `--features warp_platform`, and the named app tests (including
+      `attention_page_parses_scoped_counts_and_freshness` and
+      `reconcile_confirmation_binds_the_visible_followup_and_version`) passed;
+      Windows app job green. Remote companion run 42957976165 passed on
+      ubuntu-22.04, macos-15 and windows-latest at the same commit.
 - [ ] Native capture for the multilingual light/dark attention section and the
       confirmation form, via `validate-agent-communication.yml`.
 - [ ] Runtime acceptance and vendor structured-event acceptance remain external

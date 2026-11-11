@@ -11525,6 +11525,7 @@
     "正在更新選取 SSH 帳戶的 MCP 設定…"
   ],
   "End overtaken follow-up": ["结束已过期的后续消息", "結束已過期的後續訊息"],
+  "Why this follow-up no longer applies": ["为何此后续消息不再适用", "為何此後續訊息不再適用"],
   "Open follow-up thread": ["打开后续消息线程", "開啟後續訊息執行緒"],
   "Overtaken follow-up from {} · revision {} → {}": [
     "来自 {} 的过期后续消息 · 修订 {} → {}",
