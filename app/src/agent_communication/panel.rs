@@ -4614,7 +4614,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                                 .admission
                                 == "private"
                                 && snapshot.tasks.len() == 1
-                                && snapshot.tasks[0].revision == 2))
+                                && snapshot.tasks[0].revision == 3))
                             && checkpoint_draft(app, window) == "unsent collaboration draft"
                     )
                 })
