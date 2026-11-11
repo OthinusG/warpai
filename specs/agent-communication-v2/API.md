@@ -53,7 +53,8 @@ it participates in. Behaviour:
 
 `attention` rows add `version`, `created_seq`, `followup_count` and
 `followups:[{message_id,revision,kind,sender,thread_id,body,truncated}]` (at most
-8 per task, body a 512-character preview; `truncated` marks a longer original).
+8 per task, `body` the readable display text of the structured message truncated
+to 512 characters; `truncated` marks a longer original).
 The preview is never the only copy: `thread_get` with the follow-up's thread ID,
 or with the message ID when it has no thread, returns the full body to a sender,
 recipient or the operator. `tasks` is a page ordered by `created_seq`;

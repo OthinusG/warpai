@@ -28,8 +28,9 @@ reachability limit were fixed:
    replacement instruction remains a separate `agent_send`.
 3. Attention was capped at 100 rows with no way to reach later tasks.
    `operator_attention_page` builds a shared CTE, computes `total`/`counts` over
-   the entire filter, and pages rows by `created_seq` with per-task follow-up
-   previews aggregated in SQL (max 8, 512-character bodies). The panel passes
+   the entire filter, and pages rows by `created_seq`; SQL aggregates at most 8
+   raw follow-up bodies per task and the store decodes each structured body to
+   its display text, truncating to 512 characters. The panel passes
    `attention_after`, renders the current-vs-message revision and reuses the
    task thread/controls; filters and archive scope reset the cursor.
 
@@ -47,10 +48,11 @@ the fixes and are pending CI execution:
 6. Reconciliation retires unacknowledged `question` rows whose `reply_to` is the
    reconciled message and records `retired_questions`; questions bound to other
    instructions or revisions are unaffected.
-7. Attention previews expose `truncated`; the panel shows `Showing X of Y`,
-   labels a preview as truncated and opens the thread by message ID when the
-   follow-up has none. Rendering is still bounded at 8 previews — the full body
-   comes from `thread_get`, not a larger preview.
+7. Attention previews expose the decoded display text plus `truncated`; the
+   panel shows `Showing X of Y`, labels a preview as truncated and opens the
+   thread by message ID when the follow-up has none. Rendering is still bounded
+   at 8 previews — the full structured body comes from `thread_get`, not a
+   larger preview.
 
 Reply and reconciliation race inside one transaction: the loser observes the
 committed acknowledgement or event and returns `invalid_state`; no second

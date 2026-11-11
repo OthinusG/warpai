@@ -322,9 +322,10 @@ preview did not distinguish a bounded preview from the full body.
       message, records `retired_questions`, and leaves other instructions and
       revisions untouched. A self-issued request creates no self-addressed
       result; the receipt and event are the terminal record.
-- [ ] Attention previews add `truncated` (`length(body) > 512`). The panel shows
-      `Showing X of Y`, a preview marker, and an open-thread control that falls
-      back to the message ID when the follow-up has no thread.
+- [ ] Attention previews return the decoded display text plus `truncated` when
+      the text exceeds 512 characters. The panel shows `Showing X of Y`, a
+      preview marker, and an open-thread control that falls back to the message
+      ID when the follow-up has no thread.
 - [ ] No schema, protocol-major, retry daemon, model routing or permission
       change; no new message read scope for reviewers or Coordinators.
 

@@ -1721,10 +1721,8 @@ impl Store {
                 SELECT * FROM base WHERE created_seq > ? ORDER BY created_seq LIMIT ?)
             SELECT p.*, (SELECT COALESCE(json_group_array(json_object(
                     'message_id',m.id,'revision',m.revision,'kind',m.kind,'sender',m.sender,
-                    'recipient',m.recipient,'thread_id',m.thread_id,'body',m.body,
-                    'truncated',CASE WHEN m.truncated=1 THEN json('true') ELSE json('false') END)),'[]')
-                FROM (SELECT id,revision,kind,sender,recipient,thread_id,substr(body,1,512) AS body,
-                        length(body)>512 AS truncated
+                    'recipient',m.recipient,'thread_id',m.thread_id,'body',m.body)),'[]')
+                FROM (SELECT id,revision,kind,sender,recipient,thread_id,body
                     FROM messages WHERE task_id=p.id AND kind IN ('message','request') AND acknowledged=0
                         AND revision IS NOT NULL AND revision<>p.revision
                     ORDER BY sequence LIMIT 8) m) AS followups_json
@@ -1764,6 +1762,17 @@ impl Store {
             }
             let observation_age_ms = row.observed_at.map(|at| now.saturating_sub(at) as u64);
             let followups = serde_json::from_str::<Value>(&row.followups_json)?;
+            let followups: Vec<Value> = followups.as_array().cloned().unwrap_or_default().into_iter().map(|mut followup| {
+                let raw = followup["body"].as_str().unwrap_or_default();
+                let display = match crate::context::StructuredBody::decode(raw) {
+                    Some(crate::context::StructuredBody::Task { details, .. }) => details.instruction,
+                    Some(body) => body.display(),
+                    None => raw.to_owned(),
+                };
+                followup["body"] = Value::String(display.chars().take(512).collect());
+                followup["truncated"] = Value::Bool(display.chars().count() > 512);
+                followup
+            }).collect();
             tasks.push(json!({
                 "task_id": row.id, "description": row.description, "state": row.state,
                 "revision": row.revision as u32, "version": row.version as u64,
@@ -1771,7 +1780,7 @@ impl Store {
                 "assignee": row.assignee, "reviewer": row.reviewer,
                 "actions": actions, "observation_age_ms": observation_age_ms,
                 "followup_count": row.followups as u64,
-                "followups": followups.as_array().cloned().unwrap_or_default(),
+                "followups": followups,
             }));
         }
         let cursor = truncated.then(|| tasks.last().and_then(|task| task["created_seq"].as_u64())).flatten();
@@ -6209,7 +6218,7 @@ mod tests {
         let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet {
             thread_id: request_id.clone(), cursor: None, limit: None }).unwrap();
         assert!(thread["messages"].as_array().unwrap().iter().any(|message| message["id"].as_str() == Some(request_id.as_str())
-            && message["body"] == "Apply the bounded change"));
+            && crate::context::display_wire_body(&message["body"]) == "work\nevidence\nApply the bounded change"));
         assert!(store.task_history(&issuer, &id, None, None).unwrap()["events"].as_array().unwrap().iter()
             .any(|event| event["kind"] == "followup_reconciled" && event["payload"]["message_revision"] == 1
                 && event["payload"]["task_revision"] == 2));
@@ -6318,7 +6327,7 @@ mod tests {
         assert!(store.pending(&issuer).unwrap().iter().all(|message| message.reply_to.as_deref() != Some(request_id.as_str())));
         let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet { thread_id: request_id.clone(), cursor: None, limit: None }).unwrap();
         let original = thread["messages"].as_array().unwrap().iter().find(|message| message["id"] == request_id.as_str()).unwrap();
-        assert_eq!(original["body"], "Apply the bounded change");
+        assert_eq!(crate::context::display_wire_body(&original["body"]), "work\nevidence\nApply the bounded change");
         assert_eq!(original["revision"], 1u32);
         let current = store.operator_task("/project", &id).unwrap();
         assert_eq!(current.revision, 2);
@@ -6425,10 +6434,11 @@ mod tests {
         let operator = Store::operator("/project");
         let worker = actor(&store, "worker");
         let successor = actor(&store, "successor");
-        actor(&store, "reviewer");
+        let reviewer = actor(&store, "reviewer");
         let coordinator = actor(&store, "coordinator");
         store.set_worktree_role(&worker, "worker-run", "worker").unwrap();
         store.set_worktree_role(&successor, "successor-run", "worker").unwrap();
+        store.set_worktree_role(&reviewer, "reviewer-run", "worker").unwrap();
         store.set_worktree_role(&coordinator, "coord-run", "coordinator").unwrap();
         store.worktree_offline(&coordinator.id, "coord-run").unwrap();
         assert!(!store.is_worktree_coordinator(&coordinator).unwrap());
@@ -6480,7 +6490,7 @@ mod tests {
         assert_eq!(previews["followups"][0]["body"].as_str().unwrap().chars().count(), 512);
         assert_eq!(previews["followups"][1]["truncated"], false);
         let thread = store.execute(&issuer, "issuer-run", &Operation::ThreadGet { thread_id: messages[0].clone(), cursor: None, limit: None }).unwrap();
-        assert_eq!(thread["messages"][0]["body"].as_str().unwrap().chars().count(), 600);
+        assert_eq!(thread["messages"][0]["body"]["details"]["instruction"].as_str().unwrap().chars().count(), 600);
         let version = store.operator_task("/project", &id).unwrap().version;
         for message in &messages[..8] {
             store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &reconcile(&id, message, version, "Ended")).unwrap();
@@ -6553,7 +6563,7 @@ mod tests {
         let row = |page: &Value| page["tasks"].as_array().unwrap().iter()
             .find(|row| row["task_id"] == id.as_str()).cloned().unwrap();
         let stale = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
-        assert!(!row(&stale)["actions"].as_array().unwrap().iter().any(|action| action == "unreachable"));
+        assert!(stale["tasks"].as_array().unwrap().iter().all(|task| task["task_id"] != id.as_str()));
         assert_eq!(stale["counts"]["unreachable"], 0u64);
         store.observe_tasks(&worker, "worker-run", json!({"connected":false,"activity":"idle","source":"native"})).unwrap();
         let current = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
