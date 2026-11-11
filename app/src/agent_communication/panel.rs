@@ -1828,7 +1828,7 @@ impl TypedActionView for CollaborationPanel {
                 }
                 Action::FirstAttention => self.query.attention_after = None,
                 Action::OpenFollowupReconcile(target) => {
-                    self.pending_followup = Some(target);
+                    self.pending_followup = Some(target.clone());
                     self.open_control(controls::Kind::Reconcile, ctx);
                     self.pending_followup = None;
                     return;
