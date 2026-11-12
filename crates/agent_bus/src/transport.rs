@@ -1,8 +1,8 @@
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 use crate::{
     binding_inactive, capacity_exceeded, coordinator_unavailable, epoch_expired, invalid_input,
-    invalid_state, scope_denied, unauthorized, Agent, ControllerOperation, DomainError, Operation,
-    Store, Task, MAX_FRAME, MUTATION_EPOCH,
+    invalid_state, panel_budget::bound_panel, scope_denied, unauthorized, Agent, ControllerOperation,
+    DomainError, Operation, Store, Task, MAX_FRAME, MUTATION_EPOCH,
 };
 use anyhow::{anyhow, ensure, Result};
 use serde::{Deserialize, Serialize};
@@ -1716,7 +1716,7 @@ impl Broker {
         }
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
-        Ok(json!({"handoff_briefs_v1":true, "project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
+        let mut panel = json!({"handoff_briefs_v1":true, "project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
             "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,
@@ -1724,7 +1724,9 @@ impl Broker {
             "resources": contexts["resources"], "context_cursor": contexts["cursor"],
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
             "task": task, "task_runtime": runtime, "attention": attention, "events": events["events"],
-            "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))
+            "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]});
+        bound_panel(&mut panel, crate::MAX_PANEL_RESPONSE)?;
+        Ok(panel)
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {

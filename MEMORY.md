@@ -42,7 +42,8 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Task handoff contract: specs/agent-communication-v2/HANDOFF.md; immutable pins grant no execution or source-task access.
   1.9.0 plan: specs/1.9.0/TODO.md; process-mapping audit: specs/1.9.0/PROCESS-REVIEW.md.
   R2 prompt: AGENT-EXECUTION-1.9.0-R2.md; assume round one provisionally complete, work only the delta.
-  research: specs/SUPERAGENT-REVIEW-1.9.0.md. Owner excludes external event intake
+  research: specs/SUPERAGENT-REVIEW-1.9.0.md; Nov12 audit: specs/1.9.0/BRANCH-AUDIT-2026-11-12.md
+  (attention byte budget; ACK versus terminal follow-up closure). Owner excludes external event intake
   and danger-full-access remediation; retain native authority/guarded recovery.
 
 - Supervision dispatches anytime, retaining unresolved task/request IDs across
@@ -62,8 +63,15 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   retired. "Resend" is a new `agent_send`, never a task restart. Attention is
   cursor-paged with whole-set `total`/`counts`; previews stay bounded (8 per task,
   truncation marked) and the full body stays readable through its thread; never
-  derive totals from page length. Capability `followup_reconcile`. See API.md
-  (2026-11-11).
+  derive totals from page length. Acknowledgement is read state only: an ACKed
+  overtaken follow-up stays listed until the `followup_reconciled` event or a
+  succeeded/failed result, so late results stay refused without hiding unhandled
+  work. One panel response is bounded by an aggregate serialized UTF-8 budget
+  (`MAX_PANEL_RESPONSE`, 448 KiB, under Companion `MAX_RESULT` 512 KiB):
+  collections and attention previews shed tails, every cursor stays on the last
+  returned row, totals stay whole-filter, and an unfittable panel returns
+  `capacity_exceeded` instead of an oversized frame. Capability
+  `followup_reconcile`. See API.md (2026-11-11, 2026-11-12).
 - Vendor structured observation stays `existing_unverified`: only screen
   manifests exist; no adapter or whole-task retry wrapper. Keep unknown on
   missing identity, and never infer failure/health from idle, timeout, "429" or

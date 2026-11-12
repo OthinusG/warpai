@@ -18,6 +18,7 @@ pub mod ssh_remote;
 pub mod ssh_files;
 pub mod native_pty;
 pub(crate) mod worktrees;
+mod panel_budget;
 
 pub use storage::{Store, WorkspaceBinding};
 
@@ -29,6 +30,10 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub const MAX_FRAME: usize = 1024 * 1024;
+/// Serialized UTF-8 budget for one operator-panel response. It stays below the
+/// Companion `MAX_RESULT` (512 KiB) so the `{"value":…}` wrapper and remote
+/// envelope still fit, and leaves room for multibyte and escaped payloads.
+pub(crate) const MAX_PANEL_RESPONSE: usize = 448 * 1024;
 pub(crate) const MAX_TEXT: usize = 8192;
 pub(crate) const MAX_SUBJECT: usize = 256;
 pub(crate) const PAGE_DEFAULT: u32 = 50;

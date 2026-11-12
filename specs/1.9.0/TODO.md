@@ -582,6 +582,35 @@ excluded. The first-round prompt is retained at
 [its existing spec location](AGENT-EXECUTION-1.9.0.md); the R2 prompt is a separate
 root file and does not recreate or restart that first-round assignment.
 
+## 2026-11-12 attention byte budget and follow-up closure
+
+- [x] Bound one `operator_panel` response by an aggregate serialized UTF-8
+  budget (`MAX_PANEL_RESPONSE`, 448 KiB) with whole-row tail trimming of
+  resumable collections (never below one record, never removing a returned
+  row's previews); cursors stay on the last returned row, whole-filter totals
+  are preserved and an unfittable panel returns `capacity_exceeded`.
+  Implemented in `crates/agent_bus/src/panel_budget.rs`, applied in
+  `transport::Broker::operator_panel`. Reproduction test
+  `multibyte_attention_pages_stay_reachable_within_the_serialized_budget` seeds
+  50 tasks × 8 CJK/emoji previews, asserts the raw page exceeds the budget, then
+  bounds it and walks every task exactly once by cursor. Unit tests cover
+  multibyte row trimming, cursor resume for every trimmed collection including
+  `history.records`, and an unfittable panel reporting capacity instead of
+  losing rows.
+- [x] Treat acknowledgement as read state, not resolution. The attention
+  follow-up CTE and preview subquery exclude only ended (`followup_reconciled`)
+  and final-result follow-ups; `task_followup_reconcile` rejects an
+  already-reconciled follow-up or one with a succeeded/failed result. Tests
+  `read_followups_stay_actionable_until_explicit_closure_refuses_late_results`,
+  `read_messages_stay_replyable_and_a_final_result_is_terminal` and
+  `failed_reconciliation_leaves_no_partial_message_or_notification`.
+- [ ] CI evidence for this change: record the workflow run URL, inputs, OS
+  matrix and passed tests after the protocol and application jobs finish.
+- [ ] Remaining brief scope (independent per-task follow-up browsing, attention
+  previous-page navigation, persisted unfinished-supervision bootstrap and a
+  vendor structured-event adapter) is not implemented in this change; see the
+  report limitations rather than treating it as verified.
+
 ## Exclusions
 
 External event intake/connectors; danger-full-access remediation; new permission

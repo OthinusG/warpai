@@ -68,6 +68,32 @@ Vendor structured observation remains `existing_unverified` (screen manifests
 only); no adapter, retry wrapper or account/model switching was added. Rust
 tests, Companion builds and native captures are recorded in [TODO.md](TODO.md).
 
+## Panel response byte budget delta (2026-11-12)
+
+Audit P1: with 50 tasks × 8 follow-up previews of 512 CJK characters the panel
+reached 662,421 UTF-8 bytes, above the Companion `MAX_RESULT` (512 KiB). The
+local IPC frame (1 MiB) would accept it, so the failure was remote-only. Fix:
+`crates/agent_bus/src/panel_budget.rs` bounds the serialized panel to
+`MAX_PANEL_RESPONSE` (448 KiB) after it is built, inside the shared
+`operator_panel` path used by local, SSH and direct-WSL transports. It trims
+whole tail records from `messages`, `history.records`, `events`, `reservations`,
+`resources`, `spaces`, `tasks`, `agents` and `attention.tasks`, never below one
+record and never removing a returned row's previews, and rewrites the matching
+cursor to the last returned record. `attention.total`/`counts`/`followup_count`
+stay whole-filter. If the panel still does not fit, it returns
+`capacity_exceeded`; the panel keeps its previous snapshot, drafts and query.
+
+Audit P2: acknowledgement was treated as resolution in the attention CTE and
+preview subquery, so an ACKed-but-overtaken follow-up disappeared while it still
+accepted late results. Both queries now exclude only a `followup_reconciled`
+event or a `succeeded`/`failed` result, and `task_followup_reconcile` refuses an
+already-ended follow-up or one with a final result. `blocked` remains
+non-terminal. Existing rows follow the same rule without migration because the
+check reads persisted events/results; archival keeps those facts.
+
+No schema, protocol-major or Companion change: cursors, `truncated` and the
+existing error envelope are reused.
+
 Capability matrix (all rows: screen manifest present, structured-event adapter
 absent, vendor turn/permission/retry/session events `unknown`):
 

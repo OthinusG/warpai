@@ -1666,8 +1666,13 @@ impl Store {
                 WHERE project=? AND kind='question' AND acknowledged=0 GROUP BY task_id),
             followups AS (
                 SELECT m.task_id AS task_id,COUNT(*) AS count FROM messages m JOIN tasks t ON t.id=m.task_id
-                WHERE m.project=? AND m.kind IN ('message','request') AND m.acknowledged=0
-                    AND m.revision IS NOT NULL AND m.revision<>t.revision GROUP BY m.task_id),
+                WHERE m.project=? AND m.kind IN ('message','request')
+                    AND m.revision IS NOT NULL AND m.revision<>t.revision
+                    AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id
+                        AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id)
+                    AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
+                        AND r.kind IN ('result_succeeded','result_failed'))
+                GROUP BY m.task_id),
             uncertain AS (
                 SELECT a.task_id AS task_id,COUNT(*) AS count FROM attempts a JOIN tasks t ON t.id=a.task_id
                 WHERE a.certainty IN ('unknown','interrupted') AND a.finished_at IS NULL AND a.outcome IS NULL
@@ -1722,10 +1727,14 @@ impl Store {
             SELECT p.*, (SELECT COALESCE(json_group_array(json_object(
                     'message_id',m.id,'revision',m.revision,'kind',m.kind,'sender',m.sender,
                     'recipient',m.recipient,'thread_id',m.thread_id,'body',m.body)),'[]')
-                FROM (SELECT id,revision,kind,sender,recipient,thread_id,body
-                    FROM messages WHERE task_id=p.id AND kind IN ('message','request') AND acknowledged=0
-                        AND revision IS NOT NULL AND revision<>p.revision
-                    ORDER BY sequence LIMIT 8) m) AS followups_json
+                FROM (SELECT m.id,m.revision,m.kind,m.sender,m.recipient,m.thread_id,m.body
+                    FROM messages m WHERE m.task_id=p.id AND m.kind IN ('message','request')
+                        AND m.revision IS NOT NULL AND m.revision<>p.revision
+                        AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id
+                            AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id)
+                        AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
+                            AND r.kind IN ('result_succeeded','result_failed'))
+                    ORDER BY m.sequence LIMIT 8) m) AS followups_json
             FROM page p ORDER BY p.created_seq"
         ))
         .bind::<Text, _>(project)
@@ -2411,9 +2420,16 @@ impl Store {
                     matches!(message.kind.as_str(), "message" | "request"),
                     invalid_state("Only an instruction follow-up can be reconciled")
                 );
+                // Read acknowledgement is not resolution: an operationally read
+                // instruction still needs an explicit terminal fact before it
+                // stops accepting results.
                 ensure!(
-                    !message.acknowledged,
-                    invalid_state("Follow-up is already resolved")
+                    !self.followup_reconciled(&actor.project, &task.id, &message.id)?,
+                    invalid_state("Follow-up was already ended as overtaken")
+                );
+                ensure!(
+                    self.count("SELECT COUNT(*) AS count FROM messages WHERE reply_to=? AND kind IN ('result_succeeded','result_failed')", &[message.id.as_str()])? == 0,
+                    invalid_state("Follow-up already reached a final result")
                 );
                 let message_revision = message
                     .revision
@@ -6505,6 +6521,159 @@ mod tests {
         let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
         assert_eq!(page["total"], 0u64);
         assert!(row(&page).is_none());
+    }
+
+    #[test]
+    fn read_followups_stay_actionable_until_explicit_closure_refuses_late_results() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None,
+            expects_result: false, to: worker.id.clone(), body: "Revision one instruction".into(),
+            subject: None, thread_id: None, reply_to: None, task_id: Some(id.clone()),
+            request_id: Uuid::new_v4().to_string() }).unwrap();
+        let message_id = message["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: message_id.clone() }).unwrap();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let row = |page: &Value| page["tasks"].as_array().unwrap().iter()
+            .find(|row| row["task_id"] == id.as_str()).cloned();
+
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        let visible = row(&page).unwrap();
+        assert_eq!(visible["followup_count"], 1u64);
+        assert_eq!(visible["followups"][0]["message_id"], message_id.as_str());
+        assert!(visible["actions"].as_array().unwrap().iter().any(|action| action == "reconcile"));
+
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let request_id = Uuid::new_v4().to_string();
+        let closure = Operation::TaskFollowupReconcile {
+            task_id: id.clone(), message_id: message_id.clone(), note: "Overtaken".into(),
+            expected_version: version, request_id: request_id.clone(),
+        };
+        let receipt = store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &closure).unwrap();
+        assert_eq!(store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &closure).unwrap(), receipt);
+        let conflicting = Operation::TaskFollowupReconcile {
+            task_id: id.clone(), message_id: message_id.clone(), note: "Different".into(),
+            expected_version: version, request_id,
+        };
+        assert_eq!(code(&store.execute(&Store::operator("/project"), OPERATOR_EPOCH, &conflicting).unwrap_err()), "request_conflict");
+
+        for outcome in [crate::ReplyOutcome::Succeeded, crate::ReplyOutcome::Failed, crate::ReplyOutcome::Blocked] {
+            assert_eq!(code(&store.execute(&worker, "worker-run",
+                &reply(&message_id, outcome, &Uuid::new_v4().to_string())).unwrap_err()), "invalid_state");
+        }
+        assert_eq!(code(&store.execute(&Store::operator("/project"), OPERATOR_EPOCH,
+            &reconcile(&id, &message_id, version, "Again")).unwrap_err()), "invalid_state");
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        assert!(row(&page).is_none());
+    }
+
+    #[test]
+    fn read_messages_stay_replyable_and_a_final_result_is_terminal() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None,
+            expects_result: false, to: worker.id.clone(), body: "Current instruction".into(),
+            subject: None, thread_id: None, reply_to: None, task_id: Some(id.clone()),
+            request_id: Uuid::new_v4().to_string() }).unwrap();
+        let message_id = message["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: message_id.clone() }).unwrap();
+        let result = store.execute(&worker, "worker-run",
+            &reply(&message_id, crate::ReplyOutcome::Succeeded, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(result["kind"], "result_succeeded");
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        assert_eq!(code(&store.execute(&Store::operator("/project"), OPERATOR_EPOCH,
+            &reconcile(&id, &message_id, version, "Too late")).unwrap_err()), "invalid_state");
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
+        let row = page["tasks"].as_array().unwrap().iter().find(|row| row["task_id"] == id.as_str());
+        assert!(row.is_none_or(|row| row["followup_count"] == 0u64
+            && !row["actions"].as_array().unwrap().iter().any(|action| action == "reconcile")));
+    }
+
+    #[test]
+    fn failed_reconciliation_leaves_no_partial_message_or_notification() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let message = store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None,
+            expects_result: true, to: worker.id.clone(), body: "Stale request".into(),
+            subject: None, thread_id: None, reply_to: None, task_id: Some(id.clone()),
+            request_id: Uuid::new_v4().to_string() }).unwrap();
+        let message_id = message["id"].as_str().unwrap().to_owned();
+        store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let before = store.pending(&worker).unwrap().len();
+        assert_eq!(code(&store.execute(&Store::operator("/project"), OPERATOR_EPOCH,
+            &reconcile(&id, &message_id, version + 1, "Stale version")).unwrap_err()), "version_conflict");
+        assert_eq!(store.pending(&worker).unwrap().len(), before);
+        assert_eq!(store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap()["tasks"]
+            .as_array().unwrap().iter().find(|row| row["task_id"] == id.as_str()).unwrap()["followup_count"], 1u64);
+    }
+
+    #[test]
+    fn multibyte_attention_pages_stay_reachable_within_the_serialized_budget() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let body = "指示".repeat(256) + "👩‍🔬";
+        for _ in 0..50 {
+            let task = store.execute(&issuer, "issuer-run", &assign(&issuer, "worker", Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+            let id = task["id"].as_str().unwrap().to_owned();
+            for _ in 0..8 {
+                store.execute(&issuer, "issuer-run", &Operation::AgentSend { content: None,
+                    expects_result: false, to: worker.id.clone(), body: body.clone(), subject: None,
+                    thread_id: None, reply_to: None, task_id: Some(id.clone()),
+                    request_id: Uuid::new_v4().to_string() }).unwrap();
+            }
+            store.execute(&worker, "worker-run", &transition(&id, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
+        }
+        let page = store.operator_attention_page("/project", None, None, false, None, Some(50)).unwrap();
+        assert_eq!(page["total"], 50u64);
+        assert_eq!(page["tasks"].as_array().unwrap().len(), 50);
+        let mut panel = json!({"attention": page, "tasks": [], "events": [], "messages": [],
+            "reservations": [], "resources": [], "spaces": [], "agents": [],
+            "task_cursor": null, "event_cursor": null, "message_cursor": null,
+            "reservation_cursor": null, "context_cursor": null, "space_cursor": null,
+            "agent_cursor": null});
+        assert!(serde_json::to_vec(&panel).unwrap().len() > crate::MAX_PANEL_RESPONSE,
+            "the reproduced page must exceed the panel budget");
+        crate::panel_budget::bound_panel(&mut panel, crate::MAX_PANEL_RESPONSE).unwrap();
+        assert!(serde_json::to_vec(&panel).unwrap().len() <= crate::MAX_PANEL_RESPONSE);
+        assert_eq!(panel["attention"]["total"], 50u64);
+        let mut seen: Vec<u64> = panel["attention"]["tasks"].as_array().unwrap().iter()
+            .map(|row| row["created_seq"].as_u64().unwrap()).collect();
+        let mut cursor = panel["attention"]["cursor"].as_u64();
+        while let Some(after) = cursor {
+            let next = store.operator_attention_page("/project", None, None, false, Some(after), Some(50)).unwrap();
+            seen.extend(next["tasks"].as_array().unwrap().iter()
+                .map(|row| row["created_seq"].as_u64().unwrap()));
+            cursor = next["cursor"].as_u64();
+        }
+        seen.sort_unstable();
+        let mut unique = seen.clone();
+        unique.dedup();
+        assert_eq!(unique.len(), 50, "every task must stay reachable across trimmed pages");
+        assert_eq!(seen.len(), 50, "trimmed pages must not repeat a task");
     }
 
     #[test]

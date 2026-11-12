@@ -1,5 +1,49 @@
 # SSH Agent Communication API
 
+## Panel response byte budget and read-versus-terminal follow-ups (2026-11-12)
+
+One `operator_panel` response is bounded by an aggregate serialized UTF-8 budget
+(`MAX_PANEL_RESPONSE`, 448 KiB). It sits below the Companion `MAX_RESULT`
+(512 KiB) so the `{"value":…}` wrapper and remote envelope still fit, and below
+the local `MAX_FRAME` (1 MiB). Budgeting runs once, after the panel is built, so
+local, SSH and direct-WSL reads share identical semantics. Trimming sheds whole
+tails, one record at a time, in this order: `messages`, `history.records`,
+`events`, `reservations`, `resources`, `spaces`, `tasks`, `agents`, then
+`attention.tasks`. No collection is trimmed below one record and no preview is
+removed from a returned row, so every surviving record keeps its actions and
+previews and remains reachable.
+
+Every trimmed collection keeps its cursor on the last returned row
+(`message_cursor`, `history.cursor`, `event_cursor`, `reservation_cursor`,
+`context_cursor`, `space_cursor`, `task_cursor`, `agent_cursor`,
+`attention.cursor`). The next read therefore resumes exactly after the last
+returned row: no skipped or repeated rows and no empty-page loop.
+`attention.total`/`counts` and `followup_count` always describe the whole
+filtered set; a trimmed attention page sets `truncated` plus `cursor`. Full
+bodies remain reachable through `thread_get`. If the panel cannot fit even after
+trimming (for example one oversized fixed field), the operation returns
+`capacity_exceeded`; the panel keeps its previous snapshot, drafts and
+filter/cursor query and marks the state stale instead of rendering a partial
+view as current.
+
+Overtaken follow-ups are listed until a terminal fact exists, not until they are
+read. "Terminal" is the persisted `followup_reconciled` event or a
+`result_succeeded`/`result_failed` reply to the follow-up; an ordinary
+acknowledgement (`acknowledged=1`, read receipt) is not terminal. Consequences:
+
+- The attention `followups` count and previews exclude only ended follow-ups and
+  follow-ups that already reached a final result. An ACKed but
+  unreconciled, unfinalised overtaken `message`/`request` stays visible and
+  actionable.
+- `task_followup_reconcile` rejects an already-reconciled follow-up with
+  `invalid_state`, and rejects a follow-up that already has a succeeded/failed
+  result with `invalid_state`. Blocked results are not final; such a follow-up
+  stays reconcilable.
+- The retirement rule is unchanged for existing rows: the check reads persisted
+  events and results, so rows written before this change follow it without a
+  migration. Archival and purge keep the events/results that the closure
+  decision depends on.
+
 ## Follow-up reconciliation and attention paging (2026-11-11)
 
 An overtaken task-linked `message`/`request` stays unread until an authorized
