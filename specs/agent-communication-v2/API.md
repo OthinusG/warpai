@@ -7,11 +7,11 @@ One `operator_panel` response is bounded by an aggregate serialized UTF-8 budget
 (512 KiB) so the `{"value":…}` wrapper and remote envelope still fit, and below
 the local `MAX_FRAME` (1 MiB). Budgeting runs once, after the panel is built, so
 local, SSH and direct-WSL reads share identical semantics. Trimming sheds whole
-tails, one record at a time, in this order: `messages`, `history.records`,
-`events`, `reservations`, `resources`, `spaces`, `tasks`, `agents`, then
-`attention.tasks`. No collection is trimmed below one record and no preview is
-removed from a returned row, so every surviving record keeps its actions and
-previews and remains reachable.
+rows one record at a time, starting with the derived `attention.tasks` page,
+then `events`, `history.records`, `reservations`, `resources`, `spaces`,
+`agents`, `tasks` and `messages`. No collection is trimmed below one record and
+no preview is removed from a returned row, so every surviving record keeps its
+actions and previews and remains reachable.
 
 Every trimmed collection keeps its cursor on the last returned row
 (`message_cursor`, `history.cursor`, `event_cursor`, `reservation_cursor`,

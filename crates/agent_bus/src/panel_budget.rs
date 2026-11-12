@@ -12,25 +12,27 @@ pub(crate) fn bound_panel(panel: &mut Value, budget: usize) -> Result<()> {
     if serde_json::to_vec(panel)?.len() <= budget {
         return Ok(());
     }
+    // The derived attention page is the largest and already paginated, so it
+    // sheds rows before any list the operator navigates with.
+    while trim_attention(panel) {
+        if serde_json::to_vec(panel)?.len() <= budget {
+            return Ok(());
+        }
+    }
     for (container, cursor, key) in [
-        (&["messages"][..], &["message_cursor"][..], &["sequence"][..]),
-        (&["history", "records"][..], &["history", "cursor"][..], &["sequence"][..]),
         (&["events"][..], &["event_cursor"][..], &["sequence"][..]),
+        (&["history", "records"][..], &["history", "cursor"][..], &["sequence"][..]),
         (&["reservations"][..], &["reservation_cursor"][..], &["created_seq"][..]),
         (&["resources"][..], &["context_cursor"][..], &["created_seq"][..]),
         (&["spaces"][..], &["space_cursor"][..], &["name"][..]),
-        (&["tasks"][..], &["task_cursor"][..], &["created_seq"][..]),
         (&["agents"][..], &["agent_cursor"][..], &["agent", "name"][..]),
+        (&["tasks"][..], &["task_cursor"][..], &["created_seq"][..]),
+        (&["messages"][..], &["message_cursor"][..], &["sequence"][..]),
     ] {
         while trim_collection(panel, container, cursor, key) {
             if serde_json::to_vec(panel)?.len() <= budget {
                 return Ok(());
             }
-        }
-    }
-    while trim_attention(panel) {
-        if serde_json::to_vec(panel)?.len() <= budget {
-            return Ok(());
         }
     }
     ensure!(

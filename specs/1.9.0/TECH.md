@@ -76,10 +76,10 @@ local IPC frame (1 MiB) would accept it, so the failure was remote-only. Fix:
 `crates/agent_bus/src/panel_budget.rs` bounds the serialized panel to
 `MAX_PANEL_RESPONSE` (448 KiB) after it is built, inside the shared
 `operator_panel` path used by local, SSH and direct-WSL transports. It trims
-whole tail records from `messages`, `history.records`, `events`, `reservations`,
-`resources`, `spaces`, `tasks`, `agents` and `attention.tasks`, never below one
-record and never removing a returned row's previews, and rewrites the matching
-cursor to the last returned record. `attention.total`/`counts`/`followup_count`
+whole tail rows, starting with the derived `attention.tasks` page and then
+`events`, `history.records`, `reservations`, `resources`, `spaces`, `agents`,
+`tasks` and `messages`, never below one record and never removing a returned
+row's previews, and rewrites the matching cursor to the last returned record. `attention.total`/`counts`/`followup_count`
 stay whole-filter. If the panel still does not fit, it returns
 `capacity_exceeded`; the panel keeps its previous snapshot, drafts and query.
 
