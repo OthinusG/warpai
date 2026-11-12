@@ -604,8 +604,19 @@ root file and does not recreate or restart that first-round assignment.
   `read_followups_stay_actionable_until_explicit_closure_refuses_late_results`,
   `read_messages_stay_replyable_and_a_final_result_is_terminal` and
   `failed_reconciliation_leaves_no_partial_message_or_notification`.
-- [ ] CI evidence for this change: record the workflow run URL, inputs, OS
-  matrix and passed tests after the protocol and application jobs finish.
+- [x] CI evidence. Source `337e4a51b`: communication run
+  [43208425278](https://github.com/OthinusG/warpai/actions/runs/43208425278)
+  green on Protocol (macos-15, windows-latest: `cargo test -p warp-agent-bus`,
+  clippy, interface-locale gate, indexed history budget), macOS (default
+  `cargo check -p warpai`, `--features warp_platform`, remote_server and app
+  tests) and Windows (default+platform check, app tests). Artifact-only Linux
+  run [43202112972](https://github.com/OthinusG/warpai/actions/runs/43202112972)
+  built and smoke-verified x64/arm64 packages (`Warpai-linux-x64`,
+  `Warpai-linux-arm64`, `Warpai-desktop-smoke-linux-*`); the release-attach
+  step was skipped. Intermediate commit `dd08a1dd4` had the same green matrix
+  in run [43201869251](https://github.com/OthinusG/warpai/actions/runs/43201869251).
+  Native `capture_ui` was not run because no UI source or capture scenario
+  changed; screenshot-count assertions therefore stay unchanged.
 - [ ] Remaining brief scope (independent per-task follow-up browsing, attention
   previous-page navigation, persisted unfinished-supervision bootstrap and a
   vendor structured-event adapter) is not implemented in this change; see the
