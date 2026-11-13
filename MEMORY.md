@@ -45,6 +45,12 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   research: specs/SUPERAGENT-REVIEW-1.9.0.md; Nov12 audit: specs/1.9.0/BRANCH-AUDIT-2026-11-12.md
   (attention byte budget; ACK versus terminal follow-up closure). Nov13 review:
   specs/1.9.0/IMPLEMENTATION-REVIEW-2026-11-13.md (retention guards and synthetic space cursors).
+  Additional open finding: native Operator is synthetic; TaskReassign must not
+  require its default reviewer identity to exist in the registered agents table.
+  Owner authorized reviewer repair, independent follow-up browsing and supervision
+  recovery plus CI: specs/1.9.0/AGENT-EXECUTION-THREE-GAPS-2026-11-13.md.
+  Assigned to qoder-cn via task `7aba27fa-7b33-41b5-83fa-53d43fd86e4f`.
+  Implementation Agent reports directly to owner; sender must not monitor.
   Owner excludes external event intake
   and danger-full-access remediation; retain native authority/guarded recovery.
 
@@ -77,6 +83,16 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - TaskDelete/purge preview/HistoryPurge protect ACKed overtaken instructions
   until reconciliation/final result; read acknowledgement alone cannot release
   their history. Nov13 regression coverage: `storage::review_tests`.
+- Nov13 three execution gaps (commit `bc4cc52d9`, base `9441e9f79`): an omitted
+  reviewer on reassignment keeps the synthetic `warp:<project>` Operator rather
+  than the stored assignee (explicit reviewers still replace it). Follow-ups page
+  independently of the attention cursor via `warp_task_followups` /
+  `PanelQuery.followup_*` (task-scoped, nonmutating, 256 KiB page, resume
+  cursor); those request fields are omitted when idle so older Companions still
+  decode. `warp_project_bootstrap` adds a bounded `supervision` block
+  (`Operation::SupervisionIndex`, capability `project_supervision`) rebuilding
+  delegated tasks, outgoing requests without a final reply and unacknowledged
+  results without changing state. Evidence: specs/1.9.0/TODO.md.
 - Vendor structured observation stays `existing_unverified`: only screen
   manifests exist; no adapter or whole-task retry wrapper. Keep unknown on
   missing identity, and never infer failure/health from idle, timeout, "429" or
