@@ -6711,6 +6711,30 @@ mod tests {
     }
 
     #[test]
+    fn idle_panel_queries_omit_follow_up_fields_for_older_companions() {
+        let idle = crate::transport::PanelQuery {
+            project: "/project".into(),
+            ..Default::default()
+        };
+        let encoded = serde_json::to_value(&idle).unwrap();
+        for field in ["followup_task", "followup_after", "followup_limit"] {
+            assert!(encoded.get(field).is_none(), "{field} must stay absent");
+        }
+        let scoped = crate::transport::PanelQuery {
+            project: "/project".into(),
+            followup_task: Some("t1".into()),
+            followup_after: Some(4),
+            ..Default::default()
+        };
+        let encoded = serde_json::to_value(&scoped).unwrap();
+        assert_eq!(encoded["followup_task"], "t1");
+        assert_eq!(encoded["followup_after"], 4);
+        let legacy: crate::transport::PanelQuery =
+            serde_json::from_value(serde_json::json!({"project": "/project"})).unwrap();
+        assert!(legacy.followup_task.is_none());
+    }
+
+    #[test]
     fn a_returning_supervisor_rebuilds_unfinished_work_from_durable_facts() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("supervision.sqlite");

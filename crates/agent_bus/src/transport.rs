@@ -195,8 +195,11 @@ pub struct PanelQuery {
     pub history: bool,
     pub history_after: Option<u64>,
     /// Task-scoped unresolved follow-up page; independent of the attention cursor.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub followup_task: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub followup_after: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub followup_limit: Option<u32>,
 }
 impl RunningBroker {
