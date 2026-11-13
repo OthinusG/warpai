@@ -624,12 +624,35 @@ root file and does not recreate or restart that first-round assignment.
 
 ## 2026-11-13 review repairs
 
-- [ ] Preserve ACKed unresolved overtaken follow-ups in TaskDelete, purge preview
+- [x] Preserve ACKed unresolved overtaken follow-ups in TaskDelete, purge preview
   and HistoryPurge; allow cleanup after explicit terminal facts.
-- [ ] Resume a byte-trimmed Private-only space page with the existing empty
+- [x] Resume a byte-trimmed Private-only space page with the existing empty
   cursor, and verify actual SpaceList continuation without skipping real rows.
-- [ ] Execute focused regressions and existing communication/Companion CI on
+- [x] Execute focused regressions and existing communication/Companion CI on
   the final code commit; record OS, pass counts, run URLs and remaining limits.
+
+Evidence for code commit `e3339fa99` (`a53a93bdb` plus the reviewer fixture fix):
+
+- [Validate Warpai communication 43390214247](https://github.com/OthinusG/warpai/actions/runs/43390214247)
+  (`protocol_only=true`, `check_app=true`, no capture): macOS lib 203 passed /
+  1 ignored and Windows lib 196 passed / 3 ignored; every integration binary ok;
+  macOS and Windows application jobs ran `cargo check -p warpai --locked`,
+  `cargo check -p warpai --bin warpai --features warp_platform --locked` and the
+  focused app lib filters, all success; `system-network` skipped by input.
+- [Validate Warpai remote companion 43390218816](https://github.com/OthinusG/warpai/actions/runs/43390218816):
+  Remote wire on ubuntu-22.04, macos-15 and windows-latest all success. The
+  macOS lib run executed `storage::review_tests`: 3 passed / 0 failed, naming
+  `read_overtaken_followup_blocks_task_delete_until_reconciled`,
+  `read_overtaken_followup_survives_history_purge_until_final_result` and
+  `trimmed_space_pages_resume_after_private_without_skipping_real_spaces`.
+- [Release Warpai Linux 43390223511](https://github.com/OthinusG/warpai/actions/runs/43390223511)
+  (`artifact_only=true`, `release_tag=v1.9.0`): x64 and arm64 package jobs
+  success, attach skipped; artifacts `Warpai-linux-x64` 419,778,947 B,
+  `Warpai-linux-arm64` 404,182,586 B, `Warpai-desktop-smoke-linux-x64` 74,828 B,
+  `Warpai-desktop-smoke-linux-arm64` 72,473 B.
+- Not executed: `capture_ui` (no UI source or scenario changed), WSL acceptance
+  and live vendor sessions. The earlier `a53a93bdb` runs failed before this
+  fixture fix and are superseded, not evidence.
 
 ## Exclusions
 
