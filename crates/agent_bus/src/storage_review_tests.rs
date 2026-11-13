@@ -9,13 +9,18 @@ fn cancelled_read_followup(store: &Store) -> (Agent, String, String) {
     let worker = store
         .register("terminal-worker", "claude", "/project", "worker")
         .unwrap();
+    // A stored reviewer keeps the default reassignment lookup inside the agents
+    // table; the synthetic operator identity is not a registered agent.
+    store
+        .register("terminal-reviewer", "claude", "/project", "reviewer")
+        .unwrap();
     let operator = Store::operator("/project");
     let execute = |value| {
         store
             .execute(&operator, OPERATOR_EPOCH, &operation(value))
             .unwrap()
     };
-    let task = execute(json!({"op": "task_assign", "to": "worker",
+    let task = execute(json!({"op": "task_assign", "to": "worker", "reviewer": "reviewer",
         "description": "work", "acceptance": "evidence"}));
     let id = task["id"].as_str().unwrap().to_owned();
     let message = execute(json!({"op": "agent_send", "to": "worker",
