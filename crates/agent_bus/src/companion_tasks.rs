@@ -796,6 +796,7 @@ impl Projects {
                         | Operation::ExecutionThreadGet { .. }
                         | Operation::ProjectBootstrap { .. }
                         | Operation::ProjectMemoryUpdate { .. }
+                        | Operation::SupervisionIndex { .. }
                         | Operation::ContextGet { .. }
                         | Operation::ContextList { .. }
                         | Operation::AgentList

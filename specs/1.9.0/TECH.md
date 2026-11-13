@@ -119,6 +119,46 @@ check reads persisted events/results; archival keeps those facts.
 No schema, protocol-major or Companion change: cursors, `truncated` and the
 existing error envelope are reused.
 
+## Three execution gaps (2026-11-13)
+
+Owner authorized fixing three demonstrated gaps plus CI acceptance. Each change
+is additive and reuses existing authority; none grants a new principal access.
+
+1. **Synthetic default reviewer.** `TaskAssign` without `reviewer` stores the
+   project Operator identity (`warp:<project>`) although that identity is never
+   persisted in `agents`. `TaskReassign` without `reviewer` now reads the current
+   reviewer through `preserved_reviewer`: the Operator identity is returned
+   directly, every real reviewer is looked up as before. Reassignment keeps the
+   synthetic reviewer across reopen; an explicit reviewer still replaces it.
+2. **Independent follow-up browsing.** `task_followups_page` reads one task's
+   unresolved overtaken follow-ups using the same reconciliation/final-result
+   predicate as attention and cleanup. The panel exposes it through additive
+   `PanelQuery` fields (`followup_task`, `followup_after`, `followup_limit`) and a
+   `followups` response object; the page is byte-capped at 256 KiB, keeps at
+   least one whole row, and resumes from the last returned `sequence`. Reading
+   never acknowledges, reconciles or advances anything, and the native panel
+   renders it with First/Earlier/Next/Close. An older Companion rejects the
+   unknown request fields, so the app reports an explicit Companion upgrade
+   message instead of an empty page. `bound_panel` trims this page after
+   attention and rewrites its cursor, so the response budget still holds.
+3. **Supervision recovery index.** `Operation::SupervisionIndex` and the
+   `project_bootstrap.supervision` pointer derive unfinished work from durable
+   facts only: tasks the actor issues, executes or reviews (including delegated
+   work assigned elsewhere) while pending, plus its requests awaiting a result
+   and its unhandled final results. The projection counts open questions,
+   overtaken follow-ups, uncertain attempts and unmet dependencies per task,
+   lists per-row `actions`/`role`, pages by the shared project sequence and caps
+   a page at 192 KiB. The Operator sees every project task; other agents keep
+   the existing participant filter. The read mutates nothing and retires an entry
+   only when its durable facts become terminal. Companion allowlists include the
+   operation and advertise the new `project_supervision` capability, so the SSH
+   client gates the read on it; no protocol-major or schema changed.
+
+Compatibility: additive response objects and optional request fields; old
+Companions keep working for every pre-existing operation and refuse the two new
+reads with `invalid_input`/`feature_unavailable`, which callers already handle as
+unsupported.
+
 Capability matrix (all rows: screen manifest present, structured-event adapter
 absent, vendor turn/permission/retry/session events `unknown`):
 

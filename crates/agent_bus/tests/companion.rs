@@ -53,6 +53,7 @@ async fn standalone_companion_negotiates_clean_bounded_stdio_and_exits_on_discon
             "structured_task_messages",
             "execution_threads",
             "project_memory",
+            "project_supervision",
             "handoff_briefs_v1",
             "followup_reconcile",
             "project_mcp",

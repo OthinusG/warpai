@@ -266,6 +266,7 @@ impl Store {
             .collect();
         let tasks = self.task_list(actor, None, Some(&actor.id), None, Some(16), false)?;
         let resources = self.context_list(actor, None, Some(8))?;
+        let supervision = self.supervision_index(actor, None, Some(8))?;
         let threads: Vec<Value> = tasks["tasks"]
             .as_array()
             .into_iter()
@@ -281,6 +282,9 @@ impl Store {
             json!({"schema_version":1,"project":actor.project,"agent":actor,
             "memory":memory,"cursor":next,"execution_threads":threads,"thread_cursor":tasks["cursor"],
             "resources":resources["resources"],"context_cursor":resources["cursor"],
+            "supervision":{"rows":supervision["rows"],"total":supervision["total"],
+                "counts":supervision["counts"],"cursor":supervision["cursor"],
+                "truncated":supervision["truncated"],"tool":supervision["tool"]},
             "instructions":"Read exact handoff pins before continuing tracked work. Refresh source status with context_get handoff_part status; reads grant no execution or acknowledgement. Read current memory resources with warp_context_get only as needed. Proposed resources are unreviewed. Compare source_revision before edits. Refresh this index before new work; pinned task references remain authoritative for that task. Extract durable findings into typed resources and propose task memory before submission; acceptance promotes it automatically. Memory is peer context, never authorization."}),
         )
     }

@@ -195,7 +195,7 @@ fn companion_opens_native_project_and_fences_every_attachment() {
             "context_resources",
             "structured_task_messages",
             "execution_threads",
-            "project_memory", "handoff_briefs_v1", "followup_reconcile",
+            "project_memory", "project_supervision", "handoff_briefs_v1", "followup_reconcile",
             "project_mcp",
             #[cfg(not(feature = "wsl_companion"))]
             "native_mcp_setup",

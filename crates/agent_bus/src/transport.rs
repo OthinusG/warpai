@@ -194,6 +194,10 @@ pub struct PanelQuery {
     pub message_after: Option<u64>,
     pub history: bool,
     pub history_after: Option<u64>,
+    /// Task-scoped unresolved follow-up page; independent of the attention cursor.
+    pub followup_task: Option<String>,
+    pub followup_after: Option<u64>,
+    pub followup_limit: Option<u32>,
 }
 impl RunningBroker {
     pub fn start(database: &Path) -> Result<Self> {
@@ -1573,6 +1577,7 @@ impl Broker {
                 "roles":[],"candidates":[],"worktrees":[],"coordinator_online":false,
                 "agents":[],"agent_cursor":null,"tasks":[],"task_cursor":null,"task":null,"task_runtime":null,
                 "attention":{"tasks":[],"total":0,"truncated":false,"counts":{"answer":0,"review":0,"permission":0,"recovery":0,"unreachable":0,"dependency":0,"overdue":0,"reconcile":0}},
+                "followups":null,
                 "events":[],"event_cursor":null,"spaces":[],"space_cursor":null,
                 "reservations":[],"reservation_cursor":null,"messages":[],"message_cursor":null,"history":null}));
         }
@@ -1659,6 +1664,11 @@ impl Broker {
         let attention = state.store.operator_attention_page(&project, query.task_state.as_deref(),
             query.task_assignee.as_deref(), query.include_archived,
             same_scope.then_some(query.attention_after).flatten(), Some(50))?;
+        let followups = match query.followup_task.as_ref().filter(|_| same_scope) {
+            Some(task_id) => Some(state.store.task_followups_page(&project, task_id,
+                query.followup_after, query.followup_limit)?),
+            None => None,
+        };
         if query.worktree {
             if let Some(rows) = tasks["tasks"].as_array_mut() {
                 for row in rows { row["integration"] = json!(state.store.worktree_integration(&project, row["id"].as_str().unwrap())?); }
@@ -1723,7 +1733,8 @@ impl Broker {
             "worktree_available": Path::new(&query.project).join(".git").exists(),
             "resources": contexts["resources"], "context_cursor": contexts["cursor"],
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
-            "task": task, "task_runtime": runtime, "attention": attention, "events": events["events"],
+            "task": task, "task_runtime": runtime, "attention": attention, "followups": followups,
+            "events": events["events"],
             "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]});
         bound_panel(&mut panel, crate::MAX_PANEL_RESPONSE)?;
         Ok(panel)

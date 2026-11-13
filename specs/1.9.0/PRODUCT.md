@@ -40,11 +40,19 @@ to justify capacity work.
    changes no ownership or execution and notifies a waiting sender. Additional
    work after accepted completion uses a new authorized task with an exact source
    handoff reference. Failed/cancelled work uses existing retry rules, with
-   unresolved execution reconciled first. Topic similarity grants nothing.
+   unresolved execution reconciled first. Topic similarity grants nothing. The
+   Operator can page through every unresolved follow-up of one task, including
+   old entries that later work has overtaken; reading changes nothing and ending
+   one entry never hides or ends the others. Reassigning a task without naming a
+   reviewer keeps the reviewer it already has, including the panel Operator.
 3. **BI-03 — Continuous supervision.** Outstanding task/request IDs remain tracked
    across waits, yields and focus changes. New work can be dispatched while other
    tasks run. Pending questions, submitted reviews, cancellation requests and
-   execution uncertainty cannot disappear merely because the CLI turn ends.
+   execution uncertainty cannot disappear merely because the CLI turn ends. After
+   a restart or handover, a supervisor can rebuild the authorized unfinished set
+   from durable facts (including delegated tasks assigned elsewhere, requests
+   awaiting results and received results not yet handled) through a bounded,
+   paginated read; the read itself acknowledges and advances nothing.
 4. **BI-04 — Questions and results.** Structured questions require the existing
    answer operation. A plain message cannot resolve them. Final processing results
    use existing atomic result/acknowledgement behavior; blocked stays unresolved.
@@ -68,7 +76,10 @@ to justify capacity work.
    whole filtered set while rows are paged, so later tasks stay reachable and a
    page length is never a total; transient observations show freshness and a
    missing observation is neither healthy nor failed. No new dashboard or
-   replacement persisted lifecycle enum.
+   replacement persisted lifecycle enum. A task with unresolved follow-ups offers
+   a "View all" entry that pages the full list independently of the newest
+   previews, and the panel trims that page within its response budget while
+   keeping a resumable position.
 9. **BI-09 — Quiet, safe interaction.** Routine progress stays in history; repeated
    polling does not repeat notifications. New actionable changes remain visible.
    Mutating actions revalidate current state/version and retain drafts on failure.

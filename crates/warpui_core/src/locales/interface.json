@@ -11556,5 +11556,30 @@
     "這會結束原始後續訊息。來自其他傳送方的請求會收到已取代的結果；一般訊息或你自己送出的請求不會收到結果。不會停止執行，也不會變更任務歸屬。"
   ],
   "First attention page": ["首个待办页", "首個待辦頁"],
-  "Next attention page": ["下一页待办", "下一頁待辦"]
+  "Next attention page": ["下一页待办", "下一頁待辦"],
+  "Unresolved follow-ups": ["未解决的后续消息", "未解決的後續訊息"],
+  "Task {} · {} · revision {} · version {}": [
+    "任务 {} · {} · 修订 {} · 版本 {}",
+    "任務 {} · {} · 修訂 {} · 版本 {}"
+  ],
+  "Showing {} of {} unresolved follow-ups.": [
+    "显示 {} / {} 条未解决的后续消息。",
+    "顯示 {} / {} 條未解決的後續訊息。"
+  ],
+  "New entries can become unresolved after a revision change; refresh from the first page to see them.": [
+    "修订变更后可能出现新的未解决项；请从第一页刷新查看。",
+    "修訂變更後可能出現新的未解決項目；請從第一頁重新整理檢視。"
+  ],
+  "No unresolved follow-ups on this page.": [
+    "此页没有未解决的后续消息。",
+    "此頁沒有未解決的後續訊息。"
+  ],
+  "View all {} unresolved follow-ups": [
+    "查看全部 {} 条未解决的后续消息",
+    "檢視全部 {} 條未解決的後續訊息"
+  ],
+  "First follow-up page": ["首个后续消息页", "首個後續訊息頁"],
+  "Earlier follow-up page": ["上一页后续消息", "上一頁後續訊息"],
+  "Next follow-up page": ["下一页后续消息", "下一頁後續訊息"],
+  "Close follow-up view": ["关闭后续消息视图", "關閉後續訊息檢視"]
 }

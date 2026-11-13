@@ -125,6 +125,7 @@ impl Companion {
                         "structured_task_messages".into(),
                         "execution_threads".into(),
                         "project_memory".into(),
+                        "project_supervision".into(),
                         "handoff_briefs_v1".into(),
                         "followup_reconcile".into(),
                         "project_mcp".into(),

@@ -58,6 +58,11 @@ const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM meta WH
 const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.reply_to = messages.id) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.thread_id = messages.id)";
 
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
+/// One follow-up page stays well under the panel budget so the surrounding
+/// snapshot still fits; a single oversized row is still returned.
+const FOLLOWUP_PAGE_BYTES: usize = 256 * 1024;
+/// The recovery index is a compact projection: descriptors and IDs, not threads.
+const SUPERVISION_PAGE_BYTES: usize = 192 * 1024;
 /// The operator principal's deterministic identity; it is never stored in the agents table.
 pub(crate) const OPERATOR_EPOCH: &str = "operator";
 
@@ -1534,6 +1539,16 @@ impl Store {
             .ok_or_else(|| scope_denied("Agent not found in this project"))?)
     }
 
+    /// The same-project Operator has no agent row, so preserving it cannot go
+    /// through the persisted lookup; every other identity still must resolve.
+    fn preserved_reviewer(&self, project: &str, id: &str) -> Result<Agent> {
+        let operator = Self::operator(project);
+        if operator.id == id {
+            return Ok(operator);
+        }
+        self.agent(project, id)
+    }
+
     fn visible_thread(&self, actor: &Agent, thread_id: &str) -> Result<()> {
         let any = self.count(
             "SELECT COUNT(*) AS count FROM messages WHERE project = ? AND thread_id = ?",
@@ -1772,14 +1787,9 @@ impl Store {
             let observation_age_ms = row.observed_at.map(|at| now.saturating_sub(at) as u64);
             let followups = serde_json::from_str::<Value>(&row.followups_json)?;
             let followups: Vec<Value> = followups.as_array().cloned().unwrap_or_default().into_iter().map(|mut followup| {
-                let raw = followup["body"].as_str().unwrap_or_default();
-                let display = match crate::context::StructuredBody::decode(raw) {
-                    Some(crate::context::StructuredBody::Task { details, .. }) => details.instruction,
-                    Some(body) => body.display(),
-                    None => raw.to_owned(),
-                };
-                followup["body"] = Value::String(display.chars().take(512).collect());
-                followup["truncated"] = Value::Bool(display.chars().count() > 512);
+                let (display, truncated) = bounded_preview(followup["body"].as_str().unwrap_or_default());
+                followup["body"] = Value::String(display);
+                followup["truncated"] = Value::Bool(truncated);
                 followup
             }).collect();
             tasks.push(json!({
@@ -1807,6 +1817,196 @@ impl Store {
         .collect::<std::collections::BTreeMap<_, _>>();
         Ok(json!({"tasks": tasks, "total": totals.total as u64, "truncated": truncated,
             "counts": counts, "cursor": cursor}))
+    }
+
+    /// One task's unresolved overtaken follow-ups in message order. The filter is
+    /// the same reconciliation/result terminality attention and cleanup use, so
+    /// acknowledging a message never retires it here. Callers keep the whole body
+    /// readable through the existing thread/message reads.
+    pub(crate) fn task_followups_page(
+        &self,
+        project: &str,
+        task_id: &str,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let task = self.operator_task(project, task_id)?;
+        let filter = "FROM messages m JOIN tasks t ON t.id=m.task_id AND t.project=m.project
+            WHERE m.project=? AND m.task_id=? AND m.kind IN ('message','request')
+                AND m.revision IS NOT NULL AND m.revision<>t.revision
+                AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id
+                    AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id)
+                AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
+                    AND r.kind IN ('result_succeeded','result_failed'))";
+        let total = self.count(&format!("SELECT COUNT(*) AS count {filter}"), &[project, task_id])? as u64;
+        let rows = diesel::sql_query(format!(
+            "SELECT m.id,m.sequence,m.kind,m.sender,m.recipient,m.revision,m.thread_id,m.body {filter}
+                AND m.sequence > ? ORDER BY m.sequence LIMIT ?"))
+            .bind::<Text, _>(project)
+            .bind::<Text, _>(task_id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+            .bind::<BigInt, _>(limit as i64 + 1)
+            .load::<TaskFollowupRow>(&mut *self.connection.borrow_mut())?;
+        let mut more = rows.len() > limit as usize;
+        let mut items = Vec::new();
+        let mut used = 0;
+        let mut last = None;
+        for row in rows.into_iter().take(limit as usize) {
+            let (display, truncated) = bounded_preview(&row.body);
+            let item = json!({
+                "message_id": row.id, "sequence": row.sequence as u64, "kind": row.kind,
+                "sender": row.sender, "recipient": row.recipient,
+                "revision": row.revision.map(|revision| revision as u32),
+                "thread_id": row.thread_id, "status": "unresolved",
+                "body": display, "truncated": truncated,
+            });
+            let size = serde_json::to_vec(&item)?.len() + 1;
+            if !items.is_empty() && used + size > FOLLOWUP_PAGE_BYTES {
+                more = true;
+                break;
+            }
+            used += size;
+            last = item["sequence"].as_u64();
+            items.push(item);
+        }
+        Ok(json!({"task_id": task_id, "state": task.state, "revision": task.revision,
+            "version": task.version, "items": items, "total": total,
+            "truncated": more, "cursor": more.then_some(last).flatten()}))
+    }
+
+    /// Derived recovery index over durable facts: tasks this actor issues,
+    /// executes or reviews plus its outstanding requests and unhandled results.
+    /// Server clock only orders rows; late observations never retire newer work.
+    pub(crate) fn supervision_index(
+        &self,
+        actor: &Agent,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<Value> {
+        let limit = Self::page_limit(limit)?;
+        let now = now() as i64;
+        let task_scope = if actor.program == OPERATOR_PROGRAM {
+            "1=1"
+        } else {
+            "t.issuer=? OR t.assignee=? OR t.reviewer=?"
+        };
+        let base = format!("WITH questions AS (
+                SELECT task_id,COUNT(*) AS count FROM messages
+                WHERE project=? AND kind='question' AND acknowledged=0 GROUP BY task_id),
+            followups AS (
+                SELECT m.task_id AS task_id,COUNT(*) AS count FROM messages m JOIN tasks t ON t.id=m.task_id
+                WHERE m.project=? AND m.kind IN ('message','request')
+                    AND m.revision IS NOT NULL AND m.revision<>t.revision
+                    AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id
+                        AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id)
+                    AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
+                        AND r.kind IN ('result_succeeded','result_failed'))
+                GROUP BY m.task_id),
+            uncertain AS (
+                SELECT a.task_id AS task_id,COUNT(*) AS count FROM attempts a
+                WHERE a.certainty IN ('unknown','interrupted') AND a.finished_at IS NULL AND a.outcome IS NULL
+                GROUP BY a.task_id),
+            dependencies AS (
+                SELECT dependency.task_id AS task_id,COUNT(*) AS count FROM task_dependencies dependency
+                JOIN tasks prerequisite ON prerequisite.id=dependency.prerequisite_id
+                WHERE prerequisite.state NOT IN ('accepted','failed','cancelled','expired')
+                GROUP BY dependency.task_id),
+            unioned AS (
+                SELECT t.created_seq AS seq, 'task' AS kind, json_object(
+                    'key','task:'||t.id,'kind','task','task_id',t.id,'state',t.state,
+                    'revision',t.revision,'version',t.version,'issuer',t.issuer,
+                    'assignee',t.assignee,'reviewer',t.reviewer,
+                    'description',substr(t.description,1,512),
+                    'questions',COALESCE(q.count,0),'followups',COALESCE(f.count,0),
+                    'uncertain',COALESCE(u.count,0),'dependencies',COALESCE(d.count,0),
+                    'execution_deadline',t.execution_deadline,'review_deadline',t.review_deadline) AS payload
+                FROM tasks t LEFT JOIN questions q ON q.task_id=t.id
+                    LEFT JOIN followups f ON f.task_id=t.id LEFT JOIN uncertain u ON u.task_id=t.id
+                    LEFT JOIN dependencies d ON d.task_id=t.id
+                WHERE t.project=? AND t.archived=0 AND ({task_scope})
+                    AND (t.state IN ('queued','running','blocked','submitted','cancel_requested')
+                        OR COALESCE(q.count,0)>0 OR COALESCE(f.count,0)>0
+                        OR COALESCE(u.count,0)>0 OR COALESCE(d.count,0)>0)
+                UNION ALL
+                SELECT m.sequence, 'request', json_object('key','request:'||m.id,'kind','request',
+                    'message_id',m.id,'task_id',m.task_id,'sender',m.sender,'recipient',m.recipient,
+                    'revision',m.revision,'thread_id',m.thread_id,
+                    'body',CASE WHEN m.task_id IS NULL THEN substr(m.body,1,512)
+                        ELSE substr(COALESCE((SELECT description FROM tasks WHERE id=m.task_id AND project=m.project),''),1,512) END)
+                FROM messages m WHERE m.project=? AND m.sender=? AND m.kind='request'
+                    AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
+                        AND r.kind IN ('result_succeeded','result_failed'))
+                UNION ALL
+                SELECT m.sequence, 'result', json_object('key','result:'||m.id,'kind','result',
+                    'message_id',m.id,'task_id',m.task_id,'result_kind',m.kind,
+                    'sender',m.sender,'recipient',m.recipient,'thread_id',m.thread_id,
+                    'reply_to',m.reply_to,
+                    'body',CASE WHEN m.task_id IS NULL THEN substr(m.body,1,512)
+                        ELSE substr(COALESCE((SELECT description FROM tasks WHERE id=m.task_id AND project=m.project),''),1,512) END)
+                FROM messages m WHERE m.project=? AND m.recipient=? AND m.acknowledged=0
+                    AND m.kind IN ('result_succeeded','result_failed','result_blocked'))");
+        let mut counts_query = diesel::sql_query(format!(
+            "{base} SELECT COUNT(*) AS total, COALESCE(SUM(kind='task'),0) AS tasks,
+                COALESCE(SUM(kind='request'),0) AS requests, COALESCE(SUM(kind='result'),0) AS results
+            FROM unioned"))
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.project);
+        if actor.program != OPERATOR_PROGRAM {
+            counts_query = counts_query
+                .bind::<Text, _>(&actor.id)
+                .bind::<Text, _>(&actor.id)
+                .bind::<Text, _>(&actor.id);
+        }
+        let counts = counts_query
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
+            .get_result::<SupervisionCountsRow>(&mut *self.connection.borrow_mut())?;
+        let mut page_query = diesel::sql_query(format!(
+            "{base} SELECT seq,payload FROM unioned WHERE seq > ? ORDER BY seq LIMIT ?"))
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.project);
+        if actor.program != OPERATOR_PROGRAM {
+            page_query = page_query
+                .bind::<Text, _>(&actor.id)
+                .bind::<Text, _>(&actor.id)
+                .bind::<Text, _>(&actor.id);
+        }
+        let rows = page_query
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
+            .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
+            .bind::<BigInt, _>(limit as i64 + 1)
+            .load::<SupervisionRow>(&mut *self.connection.borrow_mut())?;
+        let mut more = rows.len() > limit as usize;
+        let mut entries = Vec::new();
+        let mut used = 0;
+        let mut last = None;
+        for row in rows.into_iter().take(limit as usize) {
+            let mut entry: Value = serde_json::from_str(&row.payload)?;
+            let actions = supervision_actions(&entry, actor, now);
+            entry["actions"] = json!(actions);
+            entry["role"] = json!(supervision_role(&entry, actor));
+            let size = serde_json::to_vec(&entry)?.len() + 1;
+            if !entries.is_empty() && used + size > SUPERVISION_PAGE_BYTES {
+                more = true;
+                break;
+            }
+            used += size;
+            last = Some(row.seq as u64);
+            entries.push(entry);
+        }
+        Ok(json!({"rows": entries, "total": counts.total as u64,
+            "counts": {"tasks": counts.tasks as u64, "requests": counts.requests as u64,
+                "results": counts.results as u64},
+            "truncated": more, "cursor": more.then_some(last).flatten(),
+            "tool": "warp_supervision_index"}))
     }
 
     pub fn events(&self, project: &str, after: Option<u64>, limit: Option<u32>) -> Result<Value> {
@@ -1882,6 +2082,7 @@ impl Store {
         match operation {
             Operation::ExecutionThreadGet { task_id } => return self.execution_thread(actor, task_id),
             Operation::ProjectBootstrap { cursor, limit } => return self.project_bootstrap(actor, *cursor, *limit),
+            Operation::SupervisionIndex { cursor, limit } => return self.supervision_index(actor, *cursor, *limit),
             Operation::ContextGet { reference, handoff_part } => return match handoff_part {
                 Some(part) => self.handoff_source(actor, reference, part),
                 None => Ok(json!(self.context_get(actor, reference)?)),
@@ -3374,7 +3575,7 @@ impl Store {
                 let new_assignee = self.resolve(actor, assignee)?;
                 let new_reviewer = match reviewer {
                     Some(name) => self.resolve(actor, name)?,
-                    None => self.agent(&task.project, &task.reviewer.clone())?,
+                    None => self.preserved_reviewer(&task.project, &task.reviewer.clone())?,
                 };
                 ensure!(
                     new_assignee.id != new_reviewer.id,
@@ -5160,6 +5361,72 @@ fn now() -> u64 {
         .unwrap_or(0)
 }
 
+/// One action per unresolved aspect; a task can carry several at once.
+fn supervision_actions(entry: &Value, actor: &Agent, now: i64) -> Vec<&'static str> {
+    match entry["kind"].as_str().unwrap_or("") {
+        "request" => return vec!["await_result"],
+        "result" => return vec!["process_result"],
+        _ => {}
+    }
+    let mut actions = Vec::new();
+    let state = entry["state"].as_str().unwrap_or("");
+    if entry["questions"].as_u64().unwrap_or(0) > 0 {
+        actions.push("answer");
+    }
+    if state == "submitted" {
+        actions.push("review");
+    }
+    if entry["uncertain"].as_u64().unwrap_or(0) > 0 {
+        actions.push("recovery");
+    }
+    if entry["dependencies"].as_u64().unwrap_or(0) > 0 || state == "blocked" {
+        actions.push("dependency");
+    }
+    if entry["followups"].as_u64().unwrap_or(0) > 0 {
+        actions.push("reconcile");
+    }
+    let execution_overdue = matches!(state, "running" | "cancel_requested")
+        && entry["execution_deadline"].as_i64().is_some_and(|at| at <= now);
+    let review_overdue =
+        state == "submitted" && entry["review_deadline"].as_i64().is_some_and(|at| at <= now);
+    if execution_overdue || review_overdue {
+        actions.push("overdue");
+    }
+    if actions.is_empty() {
+        actions.push(
+            if state != "submitted" && entry["assignee"].as_str() == Some(actor.id.as_str()) {
+                "execute"
+            } else {
+                "supervise"
+            },
+        );
+    }
+    actions
+}
+
+fn supervision_role(entry: &Value, actor: &Agent) -> &'static str {
+    match entry["kind"].as_str().unwrap_or("") {
+        "request" => "requester",
+        "result" => "recipient",
+        _ if entry["assignee"].as_str() == Some(actor.id.as_str()) => "assignee",
+        _ if entry["reviewer"].as_str() == Some(actor.id.as_str()) => "reviewer",
+        _ if entry["issuer"].as_str() == Some(actor.id.as_str()) => "issuer",
+        _ => "supervisor",
+    }
+}
+
+/// Structured instructions display only their instruction text; the marker tells
+/// the operator the preview is not the full body.
+fn bounded_preview(body: &str) -> (String, bool) {
+    let display = match crate::context::StructuredBody::decode(body) {
+        Some(crate::context::StructuredBody::Task { details, .. }) => details.instruction,
+        Some(body) => body.display(),
+        None => body.to_owned(),
+    };
+    let truncated = display.chars().count() > 512;
+    (display.chars().take(512).collect(), truncated)
+}
+
 fn task_summaries(rows: Vec<TaskSummaryRow>, limit: u32) -> Value {
     let tasks: Vec<Value> = rows
         .into_iter()
@@ -5507,6 +5774,46 @@ struct AttentionRow {
     observed_at: Option<i64>,
     #[diesel(sql_type = Text)]
     followups_json: String,
+}
+
+#[derive(QueryableByName)]
+struct SupervisionCountsRow {
+    #[diesel(sql_type = BigInt)]
+    total: i64,
+    #[diesel(sql_type = BigInt)]
+    tasks: i64,
+    #[diesel(sql_type = BigInt)]
+    requests: i64,
+    #[diesel(sql_type = BigInt)]
+    results: i64,
+}
+
+#[derive(QueryableByName)]
+struct SupervisionRow {
+    #[diesel(sql_type = BigInt)]
+    seq: i64,
+    #[diesel(sql_type = Text)]
+    payload: String,
+}
+
+#[derive(QueryableByName)]
+struct TaskFollowupRow {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = BigInt)]
+    sequence: i64,
+    #[diesel(sql_type = Text)]
+    kind: String,
+    #[diesel(sql_type = Text)]
+    sender: String,
+    #[diesel(sql_type = Text)]
+    recipient: String,
+    #[diesel(sql_type = Nullable<Integer>)]
+    revision: Option<i32>,
+    #[diesel(sql_type = Nullable<Text>)]
+    thread_id: Option<String>,
+    #[diesel(sql_type = Text)]
+    body: String,
 }
 
 #[derive(QueryableByName)]
@@ -5984,6 +6291,59 @@ mod tests {
         assert!(messages.iter().all(|m| m.kind == "result_failed"));
     }
 
+    #[test]
+    fn operator_default_reviewer_survives_reassignment_and_reopen() {
+        let path = std::env::temp_dir().join(format!("warpai-reviewer-{}.sqlite", Uuid::new_v4()));
+        let operator = Store::operator("/project");
+        let task_id;
+        {
+            let store = Store::open(path.to_str().unwrap()).unwrap();
+            let worker = store.register("terminal-worker", "claude", "/project", "worker").unwrap();
+            actor(&store, "replacement");
+            let task = store.execute(&operator, OPERATOR_EPOCH,
+                &assign(&operator, &worker.id, None, &Uuid::new_v4().to_string())).unwrap();
+            task_id = task["id"].as_str().unwrap().to_owned();
+            assert_eq!(task["reviewer"], operator.id, "omitted reviewer defaults to the Operator");
+            let reassign = |assignee: &str, reviewer: Option<&str>, version: u64| Operation::TaskReassign {
+                task_id: task_id.clone(),
+                assignee: assignee.into(),
+                reason: "Rotate the worker".into(),
+                reviewer: reviewer.map(str::to_owned),
+                start_deadline: None,
+                clear_start_deadline: false,
+                override_uncertain: false,
+                expected_version: Some(version),
+                request_id: Uuid::new_v4().to_string(),
+            };
+            let reassigned = store.execute(&operator, OPERATOR_EPOCH,
+                &reassign("replacement", None, 1)).unwrap();
+            assert_eq!(reassigned["reviewer"], operator.id);
+            assert_eq!(reassigned["revision"], 2);
+            assert_eq!(code(&store.execute(&operator, OPERATOR_EPOCH,
+                &reassign("worker", None, 1)).unwrap_err()), "version_conflict");
+            assert_eq!(code(&store.execute(&operator, OPERATOR_EPOCH,
+                &reassign("worker", Some("worker"), 2)).unwrap_err()), "invalid_state");
+            let explicit = store.execute(&operator, OPERATOR_EPOCH,
+                &reassign("worker", Some("replacement"), 2)).unwrap();
+            assert_eq!(explicit["reviewer"].as_str().unwrap(), "replacement");
+            let preserved = store.execute(&operator, OPERATOR_EPOCH,
+                &reassign("worker", None, 3)).unwrap();
+            assert_eq!(preserved["reviewer"].as_str().unwrap(), "replacement");
+        }
+        let store = Store::open(path.to_str().unwrap()).unwrap();
+        let task = store.operator_task("/project", &task_id).unwrap();
+        assert_eq!(task.reviewer, "replacement");
+        assert_eq!(task.version, 4);
+        let worker = store.agent("/project", "worker").unwrap();
+        store.execute(&worker, "worker-run",
+            &transition(&task_id, 4, &Uuid::new_v4().to_string())).unwrap();
+        store.execute(&worker, "worker-run",
+            &submit(&task_id, 4, None, &Uuid::new_v4().to_string())).unwrap();
+        let reviewed = store.execute(&operator, OPERATOR_EPOCH,
+            &review(&task_id, 4, true, &Uuid::new_v4().to_string())).unwrap();
+        assert_eq!(reviewed["state"], "accepted");
+    }
+
     fn assign(_from: &Agent, to: &str, reviewer: Option<&str>, request_id: &str) -> Operation {
         Operation::TaskAssign { context_refs: vec![],
             to: to.into(),
@@ -6244,6 +6604,257 @@ mod tests {
                 && event["payload"]["task_revision"] == 2));
         let attention = store.operator_attention_page("/project", None, None, false, None, Some(10)).unwrap();
         assert_eq!(attention["counts"]["reconcile"], 0u64);
+    }
+
+    #[test]
+    fn followup_pages_cover_every_entry_without_ending_earlier_ones() {
+        let store = Store::open(":memory:").unwrap();
+        let issuer = actor(&store, "issuer");
+        let worker = actor(&store, "worker");
+        let reviewer = actor(&store, "reviewer");
+        let operator = Store::operator("/project");
+        let task = store.execute(&issuer, "issuer-run",
+            &assign(&issuer, &worker.id, Some("reviewer"), &Uuid::new_v4().to_string())).unwrap();
+        let id = task["id"].as_str().unwrap().to_owned();
+        let total = 180u32;
+        let mut created = Vec::new();
+        for revision in 1..=total {
+            let followup = |content: Option<crate::context::Instruction>, body: String| Operation::AgentSend {
+                content, expects_result: false, to: worker.id.clone(), body, subject: None,
+                thread_id: None, reply_to: None, task_id: Some(id.clone()),
+                request_id: Uuid::new_v4().to_string(),
+            };
+            let message = if revision == 1 {
+                store.execute(&issuer, "issuer-run", &followup(Some(crate::context::Instruction {
+                    objective: "Structured follow-up".into(), context_refs: vec![],
+                }), String::new())).unwrap()
+            } else {
+                store.execute(&issuer, "issuer-run",
+                    &followup(None, format!("Follow-up {revision} {}", "工作".repeat(600)))).unwrap()
+            };
+            created.push(message["id"].as_str().unwrap().to_owned());
+            store.execute(&worker, "worker-run", &transition(&id, revision, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker, "worker-run", &submit(&id, revision, None, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&reviewer, "reviewer-run", &review(&id, revision, false, &Uuid::new_v4().to_string())).unwrap();
+        }
+        let read_all = |limit: Option<u32>| -> (Vec<Value>, usize) {
+            let mut items: Vec<Value> = Vec::new();
+            let mut cursor = None;
+            let mut pages = 0;
+            loop {
+                let page = store.task_followups_page("/project", &id, cursor, limit).unwrap();
+                items.extend(page["items"].as_array().unwrap().clone());
+                pages += 1;
+                let Some(next) = page["cursor"].as_u64() else { break };
+                cursor = Some(next);
+                assert!(pages < 64, "cursor must advance every page");
+            }
+            (items, pages)
+        };
+        let version = store.operator_task("/project", &id).unwrap().version;
+        let events = store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap();
+        let first = store.task_followups_page("/project", &id, None, Some(200)).unwrap();
+        assert_eq!(first["total"], total as u64);
+        // 512-character previews exceed the page byte budget before the row limit,
+        // and every returned row keeps a preview plus a resume cursor.
+        assert_eq!(first["truncated"], true);
+        assert!(first["items"].as_array().unwrap().len() < total as usize);
+        assert!(serde_json::to_vec(&first["items"]).unwrap().len() <= FOLLOWUP_PAGE_BYTES + 2);
+        assert_eq!(first["items"][0]["body"], "Structured follow-up");
+        assert_eq!(first["items"][0]["truncated"], false);
+        assert!(first["items"].as_array().unwrap()[1..].iter().all(|item| item["truncated"] == true));
+        let (items, pages) = read_all(Some(200));
+        assert!(pages > 1);
+        assert_eq!(items.iter().map(|item| item["message_id"].as_str().unwrap())
+            .collect::<Vec<_>>(), created.iter().map(String::as_str).collect::<Vec<_>>());
+        assert!(items.windows(2).all(|pair| pair[0]["sequence"].as_u64() < pair[1]["sequence"].as_u64()));
+        assert!(items.iter().all(|item| item["status"] == "unresolved" && item["kind"] == "message"));
+        let (small, pages) = read_all(Some(50));
+        assert!(pages >= 4);
+        assert_eq!(small, items);
+        // Browsing is a read: no event, version or acknowledgment changes.
+        assert_eq!(store.operator_task("/project", &id).unwrap().version, version);
+        assert_eq!(store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap(), events);
+        assert_eq!(store.task_followups_page("/project", &id, None, Some(200)).unwrap(), first);
+        assert_eq!(code(&store.task_followups_page("/target", &id, None, None).unwrap_err()), "scope_denied");
+        assert_eq!(code(&store.task_followups_page("/project", &id, None, Some(0)).unwrap_err()), "invalid_input");
+        // Acknowledging the copy that reached the worker never retires it.
+        store.execute(&worker, "worker-run", &Operation::AgentAck { message_id: created[0].clone() }).unwrap();
+        let (acknowledged, _) = read_all(Some(200));
+        assert!(acknowledged.iter().any(|item| item["message_id"] == created[0].as_str()));
+        assert_eq!(store.task_followups_page("/project", &id, None, Some(1)).unwrap()["total"], total as u64);
+        // Ending entry 9 leaves entries 1-8 and 10-180 untouched, including 101.
+        let receipt = store.execute(&operator, OPERATOR_EPOCH,
+            &reconcile(&id, &created[8], store.operator_task("/project", &id).unwrap().version, "Superseded")).unwrap();
+        assert_eq!(receipt["acknowledged"], true);
+        let (remaining, _) = read_all(Some(200));
+        assert_eq!(remaining.len(), total as usize - 1);
+        assert_eq!(store.task_followups_page("/project", &id, None, Some(1)).unwrap()["total"], total as u64 - 1);
+        assert!(!remaining.iter().any(|item| item["message_id"] == created[8].as_str()));
+        for index in [0, 7, 9, 100, 179] {
+            assert!(remaining.iter().any(|item| item["message_id"] == created[index].as_str()), "entry {}", index + 1);
+        }
+        let receipt = store.execute(&operator, OPERATOR_EPOCH,
+            &reconcile(&id, &created[100], store.operator_task("/project", &id).unwrap().version, "Superseded")).unwrap();
+        assert_eq!(receipt["acknowledged"], true);
+        let (remaining, _) = read_all(Some(200));
+        assert_eq!(remaining.len(), total as usize - 2);
+        assert!(!remaining.iter().any(|item| item["message_id"] == created[100].as_str()));
+        for index in 0..100 {
+            if index != 8 {
+                assert!(remaining.iter().any(|item| item["message_id"] == created[index].as_str()), "entry {}", index + 1);
+            }
+        }
+    }
+
+    #[test]
+    fn a_returning_supervisor_rebuilds_unfinished_work_from_durable_facts() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("supervision.sqlite");
+        let operator = Store::operator("/project");
+        let (t1, t2, t3, t4, t5, t7, r1, r3, result_id, t5_followup);
+        {
+            let store = Store::open(path.to_str().unwrap()).unwrap();
+            let worker = actor(&store, "worker");
+            let worker2 = actor(&store, "worker2");
+            let worker3 = actor(&store, "worker3");
+            let worker4 = actor(&store, "worker4");
+            let worker5 = actor(&store, "worker5");
+            let helper = actor(&store, "helper");
+            let bystander = actor(&store, "bystander");
+            let stranger = store.register("terminal-stranger", "claude", "/foreign", "stranger").unwrap();
+            let stranger2 = store.register("terminal-stranger2", "claude", "/foreign", "stranger2").unwrap();
+            store.execute(&stranger, "stranger-run",
+                &assign(&stranger, &stranger2.id, None, &Uuid::new_v4().to_string())).unwrap();
+            let issue = |assignee: &Agent| store.execute(&operator, OPERATOR_EPOCH,
+                &assign(&operator, &assignee.id, Some("helper"), &Uuid::new_v4().to_string())).unwrap();
+            let task_id = |task: &Value| task["id"].as_str().unwrap().to_owned();
+            let request = |to: &Agent| store.execute(&operator, OPERATOR_EPOCH, &Operation::AgentSend {
+                content: None, expects_result: true, to: to.id.clone(), body: "Report the bounded result".into(),
+                subject: None, thread_id: None, reply_to: None, task_id: None,
+                request_id: Uuid::new_v4().to_string(),
+            }).unwrap();
+            let t1_task = issue(&worker);
+            t1 = task_id(&t1_task);
+            store.execute(&worker, "worker-run", &transition(&t1, 1, &Uuid::new_v4().to_string())).unwrap();
+            r1 = request(&worker)["id"].as_str().unwrap().to_owned();
+            let t2_task = issue(&worker2);
+            t2 = task_id(&t2_task);
+            store.execute(&worker2, "w2-run", &transition(&t2, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker2, "w2-run", &Operation::AgentAsk { task_id: Some(t2.clone()), reply_to: None,
+                question: "Which contract applies?".into(), request_id: Uuid::new_v4().to_string() }).unwrap();
+            let t3_task = issue(&worker3);
+            t3 = task_id(&t3_task);
+            store.execute(&worker3, "w3-run", &transition(&t3, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker3, "w3-run", &submit(&t3, 1, None, &Uuid::new_v4().to_string())).unwrap();
+            let t4_task = issue(&worker4);
+            t4 = task_id(&t4_task);
+            store.execute(&worker4, "w4-run", &transition(&t4, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.recover(&worker4, "w4-restart").unwrap();
+            let t5_task = issue(&worker5);
+            t5 = task_id(&t5_task);
+            store.execute(&worker5, "w5-run", &transition(&t5, 1, &Uuid::new_v4().to_string())).unwrap();
+            t5_followup = store.execute(&operator, OPERATOR_EPOCH, &Operation::AgentSend {
+                content: None, expects_result: false, to: worker5.id.clone(), body: "Apply the bounded change".into(),
+                subject: None, thread_id: None, reply_to: None, task_id: Some(t5.clone()),
+                request_id: Uuid::new_v4().to_string(),
+            }).unwrap()["id"].as_str().unwrap().to_owned();
+            store.execute(&worker5, "w5-run", &submit(&t5, 1, None, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&helper, "helper-run", &review(&t5, 1, false, &Uuid::new_v4().to_string())).unwrap();
+            let t7_task = issue(&worker3);
+            t7 = task_id(&t7_task);
+            store.execute(&worker3, "w3-run", &transition(&t7, 1, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&worker3, "w3-run", &submit(&t7, 1, None, &Uuid::new_v4().to_string())).unwrap();
+            store.execute(&operator, OPERATOR_EPOCH, &review(&t7, 1, true, &Uuid::new_v4().to_string())).unwrap();
+            let r2 = request(&helper)["id"].as_str().unwrap().to_owned();
+            result_id = store.execute(&helper, "helper-run",
+                &reply(&r2, crate::ReplyOutcome::Succeeded, &Uuid::new_v4().to_string())).unwrap()["id"]
+                .as_str().unwrap().to_owned();
+            r3 = request(&worker2)["id"].as_str().unwrap().to_owned();
+            let events = store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap();
+            let before = store.supervision_index(&operator, None, Some(50)).unwrap();
+            assert_eq!(before["total"], 8);
+            assert_eq!(before["counts"], json!({"tasks": 5, "requests": 2, "results": 1}));
+            let row = |value: &Value, key: &str| value["rows"].as_array().unwrap().iter()
+                .find(|row| row["key"] == key).cloned().unwrap_or_else(|| panic!("missing {key}"));
+            assert_eq!(row(&before, &format!("task:{t1}"))["actions"], json!(["supervise"]));
+            assert_eq!(row(&before, &format!("task:{t1}"))["role"], "issuer");
+            assert_eq!(row(&before, &format!("task:{t2}"))["actions"], json!(["answer"]));
+            assert_eq!(row(&before, &format!("task:{t2}"))["questions"], 1);
+            assert_eq!(row(&before, &format!("task:{t3}"))["actions"], json!(["review"]));
+            assert_eq!(row(&before, &format!("task:{t4}"))["actions"], json!(["recovery"]));
+            assert_eq!(row(&before, &format!("task:{t4}"))["uncertain"], 1);
+            assert_eq!(row(&before, &format!("task:{t5}"))["actions"], json!(["reconcile"]));
+            assert_eq!(row(&before, &format!("task:{t5}"))["followups"], 1);
+            assert_eq!(row(&before, &format!("request:{r1}"))["actions"], json!(["await_result"]));
+            assert_eq!(row(&before, &format!("request:{r1}"))["role"], "requester");
+            assert_eq!(row(&before, &format!("request:{r3}"))["actions"], json!(["await_result"]));
+            assert_eq!(row(&before, &format!("result:{result_id}"))["actions"], json!(["process_result"]));
+            assert_eq!(row(&before, &format!("result:{result_id}"))["role"], "recipient");
+            assert!(before["rows"].as_array().unwrap().iter().all(|row| row["key"] != format!("task:{t7}")));
+            // A participant sees only its own unfinished work; an unrelated agent sees none.
+            let participant = store.supervision_index(&helper, None, Some(50)).unwrap();
+            // t1-t5 are unfinished and all name helper as reviewer; the accepted t7
+            // and the already-answered r2 are retired.
+            assert_eq!(participant["total"], 5);
+            assert!(participant["rows"].as_array().unwrap().iter().all(|row| row["role"] == "reviewer"));
+            assert_eq!(store.supervision_index(&bystander, None, Some(50)).unwrap()["total"], 0);
+            // Pages cover the whole set without duplicates even below the default limit.
+            let mut paged = Vec::new();
+            let mut cursor = None;
+            loop {
+                let page = store.supervision_index(&operator, cursor, Some(3)).unwrap();
+                assert!(page["rows"].as_array().unwrap().len() <= 3);
+                paged.extend(page["rows"].as_array().unwrap().iter().map(|row| row["key"].clone()));
+                let Some(next) = page["cursor"].as_u64() else { break };
+                cursor = Some(next);
+            }
+            assert_eq!(paged, before["rows"].as_array().unwrap().iter().map(|row| row["key"].clone()).collect::<Vec<_>>());
+            assert_eq!(store.project_bootstrap(&operator, None, Some(4)).unwrap()["supervision"]["total"], 8);
+            assert_eq!(store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap(), events);
+            assert_eq!(store.supervision_index(&operator, None, Some(50)).unwrap(), before);
+            // Only a terminal outcome retires an entry: acknowledging the unhandled
+            // result and answering the question remove exactly those aspects.
+            store.execute(&operator, OPERATOR_EPOCH,
+                &Operation::AgentAck { message_id: result_id.clone() }).unwrap();
+            let answered = store.supervision_index(&operator, None, Some(50)).unwrap();
+            assert_eq!(answered["total"], 7);
+            assert!(!answered["rows"].as_array().unwrap().iter().any(|row| row["key"] == format!("result:{result_id}")));
+            let t2_question = store.execute(&operator, OPERATOR_EPOCH, &Operation::AgentQuestions {
+                task_id: Some(t2.clone()), cursor: None, limit: None }).unwrap()["questions"][0]["id"]
+                .as_str().unwrap().to_owned();
+            store.execute(&operator, OPERATOR_EPOCH, &Operation::AgentAnswer {
+                question_id: t2_question, answer: "Use the v2 contract".into(),
+                request_id: Uuid::new_v4().to_string() }).unwrap();
+            let answered = store.supervision_index(&operator, None, Some(50)).unwrap();
+            assert_eq!(answered["total"], 7);
+            assert_eq!(row(&answered, &format!("task:{t2}"))["questions"], 0);
+            assert_eq!(row(&answered, &format!("task:{t2}"))["actions"], json!(["supervise"]));
+            // Reconciling the overtaken follow-up clears the aspect but keeps the
+            // queued task visible until the task itself reaches a terminal state.
+            store.execute(&operator, OPERATOR_EPOCH, &reconcile(&t5, &t5_followup,
+                store.operator_task("/project", &t5).unwrap().version, "Superseded")).unwrap();
+            let reconciled = store.supervision_index(&operator, None, Some(50)).unwrap();
+            assert_eq!(row(&reconciled, &format!("task:{t5}"))["followups"], 0);
+            assert_eq!(row(&reconciled, &format!("task:{t5}"))["actions"], json!(["supervise"]));
+            store.execute(&operator, OPERATOR_EPOCH, &Operation::TaskCancel { task_id: t5.clone(),
+                reason: "Superseded".into(), expected_version: None,
+                request_id: Uuid::new_v4().to_string() }).unwrap();
+            let cancelled = store.supervision_index(&operator, None, Some(50)).unwrap();
+            assert_eq!(cancelled["total"], 6);
+            assert!(!cancelled["rows"].as_array().unwrap().iter().any(|row| row["key"] == format!("task:{t5}")));
+        }
+        // A restart reconstructs the same authorized set from durable facts.
+        let store = Store::open(path.to_str().unwrap()).unwrap();
+        let operator = Store::operator("/project");
+        let reopened = store.supervision_index(&operator, None, Some(50)).unwrap();
+        assert_eq!(reopened["total"], 6);
+        let present = |key: &str| reopened["rows"].as_array().unwrap().iter().any(|row| row["key"] == key);
+        assert!(present(&format!("task:{t1}")));
+        assert!(present(&format!("task:{t4}")));
+        assert!(present(&format!("request:{r3}")));
+        assert!(!present(&format!("task:{t5}")));
+        assert!(!present(&format!("result:{result_id}")));
     }
 
     #[test]

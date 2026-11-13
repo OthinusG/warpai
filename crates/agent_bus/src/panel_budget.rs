@@ -19,6 +19,11 @@ pub(crate) fn bound_panel(panel: &mut Value, budget: usize) -> Result<()> {
             return Ok(());
         }
     }
+    while trim_followups(panel) {
+        if serde_json::to_vec(panel)?.len() <= budget {
+            return Ok(());
+        }
+    }
     for (container, cursor, key) in [
         (&["events"][..], &["event_cursor"][..], &["sequence"][..]),
         (&["history", "records"][..], &["history", "cursor"][..], &["sequence"][..]),
@@ -88,6 +93,28 @@ fn locate<'a>(mut value: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> 
         value = value.get_mut(*field)?;
     }
     Some(value)
+}
+
+/// A requested follow-up page keeps its last row and resumes from that sequence.
+fn trim_followups(panel: &mut Value) -> bool {
+    let Some(page) = panel.get_mut("followups").and_then(Value::as_object_mut) else {
+        return false;
+    };
+    let Some(items) = page.get_mut("items").and_then(Value::as_array_mut) else {
+        return false;
+    };
+    if items.len() <= 1 {
+        return false;
+    }
+    items.pop();
+    let last = items
+        .last()
+        .and_then(|item| item.get("sequence"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    page.insert("cursor".into(), last);
+    page.insert("truncated".into(), Value::Bool(true));
+    true
 }
 
 fn trim_attention(panel: &mut Value) -> bool {
@@ -214,6 +241,27 @@ mod tests {
                 None => assert!(current.is_null(), "{container:?} emptied with a stale cursor"),
             }
         }
+    }
+
+    #[test]
+    fn a_requested_followup_page_keeps_a_resume_cursor_when_trimmed() {
+        let mut value = panel();
+        value["followups"] = json!({
+            "task_id": "t1", "state": "queued", "revision": 2, "version": 4,
+            "items": (1..=40).map(|sequence| json!({
+                "message_id": format!("m{sequence}"), "sequence": sequence,
+                "kind": "message", "status": "unresolved", "body": "x".repeat(256),
+                "truncated": false,
+            })).collect::<Vec<_>>(),
+            "total": 40, "truncated": false, "cursor": null,
+        });
+        bound_panel(&mut value, 4096).unwrap();
+        assert!(serde_json::to_vec(&value).unwrap().len() <= 4096);
+        let page = value["followups"].as_object().unwrap();
+        assert_eq!(page["truncated"], true);
+        let items = page["items"].as_array().unwrap();
+        assert!(!items.is_empty() && items.len() < 40);
+        assert_eq!(page["cursor"], items.last().unwrap()["sequence"]);
     }
 
     #[test]

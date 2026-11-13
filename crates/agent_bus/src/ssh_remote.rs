@@ -551,6 +551,7 @@ impl HostClient {
                 TaskCommand::SshSetup(_) => Some("native_mcp_setup"),
                 TaskCommand::Operator(Operation::ExecutionThreadGet { .. }) => Some("execution_threads"),
                 TaskCommand::Operator(Operation::ProjectBootstrap { .. } | Operation::ProjectMemoryUpdate { .. }) => Some("project_memory"),
+                TaskCommand::Operator(Operation::SupervisionIndex { .. }) => Some("project_supervision"),
                 TaskCommand::Operator(Operation::TaskFollowupReconcile { .. }) => Some("followup_reconcile"),
                 _ => None,
             }

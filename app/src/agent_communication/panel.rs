@@ -270,6 +270,45 @@ struct AttentionFollowup {
     #[serde(default)]
     truncated: bool,
 }
+#[derive(Deserialize)]
+struct FollowupItem {
+    message_id: String,
+    #[serde(default)]
+    sequence: u64,
+    #[serde(default)]
+    kind: String,
+    #[serde(default)]
+    sender: String,
+    #[serde(default)]
+    recipient: String,
+    #[serde(default)]
+    revision: u32,
+    #[serde(default)]
+    thread_id: Option<String>,
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    truncated: bool,
+}
+#[derive(Default, Deserialize)]
+struct FollowupPage {
+    #[serde(default)]
+    task_id: String,
+    #[serde(default)]
+    state: String,
+    #[serde(default)]
+    revision: u32,
+    #[serde(default)]
+    version: u64,
+    #[serde(default)]
+    items: Vec<FollowupItem>,
+    #[serde(default)]
+    total: u64,
+    #[serde(default)]
+    truncated: bool,
+    #[serde(default)]
+    cursor: Option<u64>,
+}
 #[derive(Clone, Deserialize)]
 struct WorkspacePreview {
     id: String,
@@ -339,6 +378,8 @@ struct Snapshot {
     task_runtime: Option<TaskRuntime>,
     #[serde(default)]
     attention: Option<AttentionPage>,
+    #[serde(default)]
+    followups: Option<FollowupPage>,
     events: Vec<Event>,
     event_cursor: Option<u64>,
     admission: String,
@@ -423,8 +464,10 @@ pub(crate) struct CollaborationPanel {
     task_buttons: HashMap<String, MouseStateHandle>,
     followup_buttons: HashMap<String, MouseStateHandle>,
     followup_thread_buttons: HashMap<String, MouseStateHandle>,
+    view_followup_buttons: HashMap<String, MouseStateHandle>,
+    followup_history: Vec<Option<u64>>,
     pending_followup: Option<controls::FollowupTarget>,
-    page_buttons: [MouseStateHandle; 10],
+    page_buttons: [MouseStateHandle; 14],
     generation: u64,
     connected: bool,
     form: Option<controls::Form>,
@@ -477,6 +520,11 @@ pub(crate) enum Action {
     FirstTasks,
     NextAttention,
     FirstAttention,
+    ViewFollowups(String),
+    FirstFollowups,
+    EarlierFollowups,
+    NextFollowups,
+    CloseFollowups,
     OpenFollowupReconcile(controls::FollowupTarget),
     NextAgents,
     FirstAgents,
@@ -545,6 +593,8 @@ impl CollaborationPanel {
             task_buttons: Default::default(),
             followup_buttons: Default::default(),
             followup_thread_buttons: Default::default(),
+            view_followup_buttons: Default::default(),
+            followup_history: vec![None],
             pending_followup: None,
             page_buttons: Default::default(),
             generation: 0,
@@ -770,6 +820,7 @@ impl CollaborationPanel {
                 self.workspace_preview = None;
                 self.events.clear();
                 self.query = Default::default();
+                self.followup_history = vec![None];
                 self.scroll = Default::default();
             }
             self.context = context.clone();
@@ -852,6 +903,7 @@ impl CollaborationPanel {
                         if panel.worktree_mode != mode {
                             panel.worktree_mode = mode;
                             panel.query = PanelQuery { worktree:mode, ..Default::default() };
+                            panel.followup_history = vec![None];
                             panel.events.clear();
                             panel.expanded_worker = None;
                         }
@@ -861,6 +913,7 @@ impl CollaborationPanel {
                         panel.query = Default::default();
                         panel.query.worktree = panel.worktree_mode;
                         panel.query.spaces = panel.show_spaces;
+                        panel.followup_history = vec![None];
                     }
                     panel.query.scope = Some(snapshot.project.clone());
                     for event in snapshot.events.drain(..) {
@@ -881,8 +934,14 @@ impl CollaborationPanel {
                         panel.task_buttons.entry(task.id.clone()).or_default();
                     }
                     if let Some(page) = &snapshot.attention {
-                        for row in &page.tasks { panel.task_buttons.entry(row.task_id.clone()).or_default(); }
+                        for row in &page.tasks {
+                            panel.task_buttons.entry(row.task_id.clone()).or_default();
+                            if row.followup_count > 0 {
+                                panel.view_followup_buttons.entry(row.task_id.clone()).or_default();
+                            }
+                        }
                     }
+                    panel.view_followup_buttons.retain(|id, _| snapshot.attention.as_ref().is_some_and(|page| page.tasks.iter().any(|row| &row.task_id == id)));
                     panel.followup_buttons.retain(|id, _| snapshot.attention.as_ref().is_some_and(|page| page.tasks.iter()
                         .any(|row| row.followups.iter().any(|followup| &followup.message_id == id))));
                     panel.followup_thread_buttons.retain(|id, _| snapshot.attention.as_ref().is_some_and(|page| page.tasks.iter()
@@ -891,6 +950,12 @@ impl CollaborationPanel {
                         for followup in page.tasks.iter().flat_map(|row| &row.followups) {
                             panel.followup_buttons.entry(followup.message_id.clone()).or_default();
                             panel.followup_thread_buttons.entry(followup.thread_id.clone().unwrap_or_else(|| followup.message_id.clone())).or_default();
+                        }
+                    }
+                    if let Some(page) = &snapshot.followups {
+                        for item in &page.items {
+                            panel.followup_buttons.entry(item.message_id.clone()).or_default();
+                            panel.followup_thread_buttons.entry(item.thread_id.clone().unwrap_or_else(|| item.message_id.clone())).or_default();
                         }
                     }
                     panel.evidence_buttons.retain(|id, _| snapshot.task.as_ref().is_some_and(|task| task.evidence_records.iter().any(|evidence| &evidence.id == id)));
@@ -919,9 +984,17 @@ impl CollaborationPanel {
                     panel.sync_coordinator_dropdown(&snapshot, ctx);
                     let attention_page_emptied = panel.query.attention_after.is_some()
                         && snapshot.attention.as_ref().is_none_or(|page| page.tasks.is_empty());
+                    let followup_page_emptied = panel.query.followup_after.is_some()
+                        && snapshot.followups.as_ref().is_none_or(|page| page.items.is_empty());
                     panel.snapshot = Some(snapshot);
-                    if attention_page_emptied {
-                        panel.query.attention_after = None;
+                    if attention_page_emptied || followup_page_emptied {
+                        if attention_page_emptied {
+                            panel.query.attention_after = None;
+                        }
+                        if followup_page_emptied {
+                            panel.query.followup_after = None;
+                            panel.followup_history = vec![None];
+                        }
                         panel.refresh(ctx);
                     }
                 }
@@ -939,6 +1012,10 @@ impl CollaborationPanel {
                         .map(|error| error.code.as_str()).unwrap_or("coordinator_unavailable");
                     if code == "git_unavailable" {
                         panel.status = "Git is unavailable in this environment. Install Git, then restart Warpai to use Worktree collaboration and Git operations.".into();
+                    } else if panel.remote.is_some() && panel.query.followup_task.is_some()
+                        && matches!(code, "invalid_input" | "invalid_command" | "unsupported_command")
+                    {
+                        panel.status = "This remote Companion cannot browse follow-ups. Update Warpai Companion in the selected environment, then reconnect.".into();
                     } else if panel.remote.is_some() {
                         panel.remote_failed = error.downcast_ref::<warp_agent_bus::DomainError>().is_none();
                         panel.status = if panel.remote_failed {
@@ -970,10 +1047,13 @@ impl CollaborationPanel {
         let envelope = client
             .project_tasks(command, generation)
             .await
-            .map_err(|error| if error == warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable {
-                anyhow::Error::from(warp_agent_bus::DomainError { code:"feature_unavailable".into(),
-                    message:"Update the remote Companion to support structured messages and context resources".into(), retryable:false, version:None })
-            } else { anyhow::anyhow!("ssh_connection_lost") })?;
+            .map_err(|error| match error {
+                warp_agent_bus::ssh_remote::ConnectionError::FeatureUnavailable => anyhow::Error::from(warp_agent_bus::DomainError { code:"feature_unavailable".into(),
+                    message:"Update the remote Companion to support structured messages and context resources".into(), retryable:false, version:None }),
+                warp_agent_bus::ssh_remote::ConnectionError::InvalidInput => anyhow::Error::from(warp_agent_bus::DomainError { code:"invalid_input".into(),
+                    message:"The remote Companion refused this panel query".into(), retryable:false, version:None }),
+                _ => anyhow::anyhow!("ssh_connection_lost"),
+            })?;
         if let Some(error) = envelope.get("error") {
             return Err(
                 serde_json::from_value::<warp_agent_bus::DomainError>(error.clone())?.into(),
@@ -1827,6 +1907,35 @@ impl TypedActionView for CollaborationPanel {
                         .and_then(|attention| attention.cursor)
                 }
                 Action::FirstAttention => self.query.attention_after = None,
+                Action::ViewFollowups(id) => {
+                    self.query.followup_task = Some(id.clone());
+                    self.query.followup_after = None;
+                    self.followup_history = vec![None];
+                }
+                Action::NextFollowups => {
+                    if let Some(cursor) = self.snapshot.as_ref()
+                        .and_then(|snapshot| snapshot.followups.as_ref())
+                        .and_then(|page| page.cursor)
+                    {
+                        self.followup_history.push(self.query.followup_after);
+                        self.query.followup_after = Some(cursor);
+                    }
+                }
+                Action::EarlierFollowups => {
+                    if self.followup_history.len() > 1 {
+                        self.followup_history.pop();
+                    }
+                    self.query.followup_after = self.followup_history.last().copied().flatten();
+                }
+                Action::FirstFollowups => {
+                    self.followup_history = vec![None];
+                    self.query.followup_after = None;
+                }
+                Action::CloseFollowups => {
+                    self.query.followup_task = None;
+                    self.query.followup_after = None;
+                    self.followup_history = vec![None];
+                }
                 Action::OpenFollowupReconcile(target) => {
                     self.pending_followup = Some(target.clone());
                     self.open_control(controls::Kind::Reconcile, ctx);
@@ -2059,6 +2168,101 @@ impl View for CollaborationPanel {
                         );
                     }
                 } else {
+                    if let Some(page) = snapshot.followups.as_ref().filter(|_| self.query.followup_task.is_some()) {
+                        body.add_child(heading(appearance, warpui::localization::text("Unresolved follow-ups")));
+                        {
+                            let task_id = page.task_id.as_str();
+                            let state = page.state.as_str();
+                            let revision = format!("{}", page.revision);
+                            let version = format!("{}", page.version);
+                            body.add_child(note(appearance, warpui::localization::format_text(
+                                "Task {} · {} · revision {} · version {}",
+                                &[("0", task_id), ("1", state), ("2", revision.as_str()), ("3", version.as_str())],
+                            )));
+                        }
+                        {
+                            let shown = format!("{}", page.items.len());
+                            let total = format!("{}", page.total);
+                            body.add_child(note(appearance, warpui::localization::format_text(
+                                "Showing {} of {} unresolved follow-ups.",
+                                &[("0", shown.as_str()), ("1", total.as_str())],
+                            )));
+                        }
+                        if page.truncated {
+                            body.add_child(note(appearance, warpui::localization::text(
+                                "New entries can become unresolved after a revision change; refresh from the first page to see them."
+                            )));
+                        }
+                        if page.items.is_empty() {
+                            body.add_child(note(appearance, warpui::localization::text(
+                                "No unresolved follow-ups on this page."
+                            )));
+                        }
+                        for item in &page.items {
+                            {
+                                let sender = item.sender.as_str();
+                                let revision = format!("{}", item.revision);
+                                let current = format!("{}", page.revision);
+                                body.add_child(builder.span(warpui::localization::format_text(
+                                    "Overtaken follow-up from {} · revision {} → {}",
+                                    &[("0", sender), ("1", revision.as_str()), ("2", current.as_str())],
+                                )).with_soft_wrap().build().finish());
+                            }
+                            if !item.body.is_empty() {
+                                body.add_child(note(appearance, item.body.clone()));
+                            }
+                            if item.truncated {
+                                body.add_child(note(appearance, warpui::localization::text(
+                                    "Preview truncated · open the follow-up thread for the full message"
+                                )));
+                            }
+                            let mut controls = Vec::new();
+                            let thread = item.thread_id.clone().unwrap_or_else(|| item.message_id.clone());
+                            {
+                                let handle = self.followup_thread_buttons.get(&thread).cloned().unwrap_or_default();
+                                let id = thread.clone();
+                                controls.push(builder.button(ButtonVariant::Text, handle)
+                                    .with_text_label(warpui::localization::text("Open follow-up thread").into())
+                                    .build()
+                                    .on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::OpenThread(id.clone())))
+                                    .finish());
+                            }
+                            let handle = self.followup_buttons.get(&item.message_id).cloned().unwrap_or_default();
+                            let target = controls::FollowupTarget {
+                                task_id: page.task_id.clone(),
+                                message_id: item.message_id.clone(),
+                                sender: item.sender.clone(),
+                                kind: item.kind.clone(),
+                                revision: item.revision,
+                                current_revision: page.revision,
+                                version: page.version,
+                            };
+                            controls.push(builder.button(ButtonVariant::Text, handle)
+                                .with_text_label(warpui::localization::text("End overtaken follow-up").into())
+                                .build()
+                                .on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::OpenFollowupReconcile(target.clone())))
+                                .finish());
+                            if let Some(controls) = button_row(controls) { body.add_child(controls); }
+                        }
+                        let mut page_controls = Vec::new();
+                        page_controls.push(builder.button(ButtonVariant::Secondary, self.page_buttons[10].clone())
+                            .with_text_label(warpui::localization::text("First follow-up page").into()).build()
+                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::FirstFollowups)).finish());
+                        if self.followup_history.len() > 1 {
+                            page_controls.push(builder.button(ButtonVariant::Secondary, self.page_buttons[11].clone())
+                                .with_text_label(warpui::localization::text("Earlier follow-up page").into()).build()
+                                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::EarlierFollowups)).finish());
+                        }
+                        if page.cursor.is_some() {
+                            page_controls.push(builder.button(ButtonVariant::Secondary, self.page_buttons[12].clone())
+                                .with_text_label(warpui::localization::text("Next follow-up page").into()).build()
+                                .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::NextFollowups)).finish());
+                        }
+                        page_controls.push(builder.button(ButtonVariant::Secondary, self.page_buttons[13].clone())
+                            .with_text_label(warpui::localization::text("Close follow-up view").into()).build()
+                            .on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::CloseFollowups)).finish());
+                        if let Some(controls) = button_row(page_controls) { body.add_child(controls); }
+                    }
                     if let Some(attention) = &snapshot.attention {
                         if attention.total > 0 {
                             body.add_child(heading(appearance, warpui::localization::text("Needs attention")));
@@ -2138,9 +2342,19 @@ impl View for CollaborationPanel {
                                             ("1", format!("{__warpai_locale_argument_1}").as_str()),
                                         ],
                                     )));
-                                    body.add_child(note(appearance, warpui::localization::text(
-                                        "End the shown follow-ups and refresh to load later ones."
-                                    )));
+                                }
+                                if row.followup_count > 0 {
+                                    let handle = self.view_followup_buttons.get(&row.task_id).cloned().unwrap_or_default();
+                                    let id = row.task_id.clone();
+                                    let count = format!("{}", row.followup_count);
+                                    body.add_child(builder.button(ButtonVariant::Text, handle)
+                                        .with_text_label(warpui::localization::format_text(
+                                            "View all {} unresolved follow-ups",
+                                            &[("0", count.as_str())],
+                                        ).into())
+                                        .build()
+                                        .on_click(move |ctx, _, _| ctx.dispatch_typed_action(Action::ViewFollowups(id.clone())))
+                                        .finish());
                                 }
                                 for followup in &row.followups {
                                     let __warpai_locale_argument_0 = &(followup.sender);

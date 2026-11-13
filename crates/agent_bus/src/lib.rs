@@ -220,6 +220,13 @@ pub enum Operation {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         limit: Option<u32>,
     },
+    /// Bounded recovery index over durable facts for this actor's unfinished work.
+    SupervisionIndex {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     ProjectMemoryUpdate {
         key: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
