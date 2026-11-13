@@ -4085,6 +4085,72 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }),
     );
+    driver = driver
+        .with_step(TestStep::new("open the bounded follow-up page").with_action(|app, window, _| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            panel.update(app, |panel, ctx| {
+                let id = panel.snapshot.as_ref().and_then(|snapshot| snapshot.attention.as_ref())
+                    .and_then(|page| page.tasks.iter().find(|row| row.followup_count > 0))
+                    .map(|row| row.task_id.clone())
+                    .unwrap();
+                panel.handle_action(&Action::Back, ctx);
+                panel.handle_action(&Action::ViewFollowups(id), ctx);
+            });
+        }).add_named_assertion("every stale follow-up is on the first page", |app, window| {
+            let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+            warpui::async_assert!(panel.read(app, |panel, _| panel.query.followup_task.is_some()
+                && panel.snapshot.as_ref().and_then(|snapshot| snapshot.followups.as_ref()).is_some_and(
+                    |page| page.total == 9 && page.items.len() == 9 && !page.truncated))
+                && checkpoint_draft(app, window) == "unsent collaboration draft")
+        }));
+    for (theme_name, theme) in [("light", ThemeKind::Light), ("dark", ThemeKind::Dark)] {
+        for width in [320, 600] {
+            for zoom in [1.0, 1.25] {
+                let theme = theme.clone();
+                let filename = format!("live-followups-{theme_name}-{width}-{zoom}.png");
+                filenames.push(filename.clone());
+                driver = driver.with_step(
+                    TestStep::new(&filename)
+                        .with_action(move |app, window, _| {
+                            app.update(|ctx| {
+                                let colors = Settings::theme_for_theme_kind(&theme, ctx);
+                                Appearance::handle(ctx).update(ctx, |appearance, ctx| {
+                                    appearance.set_theme(colors, ctx)
+                                });
+                                ctx.set_zoom_factor(zoom);
+                                ResizableData::as_ref(ctx)
+                                    .get_all_handles(window)
+                                    .unwrap()
+                                    .left_panel_width
+                                    .lock()
+                                    .unwrap()
+                                    .set_size(width as f32);
+                            });
+                            let panel =
+                                app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                            panel.update(app, |panel, ctx| {
+                                panel.scroll = Default::default();
+                                ctx.notify();
+                            });
+                        })
+                        .with_take_screenshot(filename),
+                );
+            }
+        }
+    }
+    driver = driver.with_step(
+        TestStep::new("close the bounded follow-up page")
+            .with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.handle_action(&Action::CloseFollowups, ctx));
+            })
+            .add_named_assertion("closing the page restores the task list", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.query.followup_task.is_none()
+                    && panel.snapshot.as_ref().and_then(|snapshot| snapshot.followups.as_ref()).is_none())
+                    && checkpoint_draft(app, window) == "unsent collaboration draft")
+            }),
+    );
     let mut handoff_settle_started = None::<Instant>;
     driver = driver
         .with_step(TestStep::new("leave a pending handoff read").with_action(|app, window, _| {
