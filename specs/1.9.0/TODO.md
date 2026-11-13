@@ -617,10 +617,10 @@ root file and does not recreate or restart that first-round assignment.
   in run [43201869251](https://github.com/OthinusG/warpai/actions/runs/43201869251).
   Native `capture_ui` was not run because no UI source or capture scenario
   changed; screenshot-count assertions therefore stay unchanged.
-- [ ] Remaining brief scope (independent per-task follow-up browsing, attention
-  previous-page navigation, persisted unfinished-supervision bootstrap and a
-  vendor structured-event adapter) is not implemented in this change; see the
-  report limitations rather than treating it as verified.
+- [x] Follow-up browsing, persisted unfinished-supervision bootstrap and the
+  default reviewer repair are implemented in the "2026-11-13 three execution
+  gaps" section below. The vendor structured-event adapter stays excluded; see
+  the report limitations rather than treating it as verified.
 
 ## 2026-11-13 review repairs
 
@@ -674,6 +674,69 @@ stored attention panel, closing the review's large-payload regression finding):
 - Linux packaging was not rerun: this commit changes one `pub(crate)` re-export
   and test assertions only, so the `e3339fa99` Linux artifacts remain the
   packaging evidence.
+
+## 2026-11-13 three execution gaps
+
+- [x] Omitted reviewer on reassignment preserves the synthetic
+  `warp:<project>` Operator instead of falling back to the stored assignee;
+  explicit reviewers still replace it, self-review still fails and versions
+  still fence stale reassignments.
+  `storage::tests::operator_default_reviewer_survives_reassignment_and_reopen`
+  runs the real omitted-reviewer scenario through reassignment, reopen,
+  execution, submission and acceptance.
+- [x] `warp_task_followups`/panel `followups` return a task-scoped, paginated,
+  non-mutating page of every unresolved overtaken follow-up (ACK is not
+  terminal), so entries 9 and 101 stay reachable without ending earlier ones;
+  the native panel adds "View all N unresolved follow-ups", first/earlier/next
+  paging and per-entry thread/reconcile actions, and panel budget trimming
+  keeps a resume cursor.
+- [x] `Operation::SupervisionIndex` and the `supervision` block in
+  `warp_project_bootstrap` rebuild a returning supervisor's unfinished work from
+  durable rows (tasks by role, outgoing requests without a final reply,
+  unacknowledged results) with bounded previews, counts and per-row
+  actions/roles; the read changes no state and grants no access. The Companion
+  advertises `project_supervision` so the SSH client gates the operation.
+- [x] Idle panel queries stay decodable by older Companions: the follow-up
+  fields are only serialized when a page is requested.
+  `storage::tests::idle_panel_queries_omit_follow_up_fields_for_older_companions`.
+
+Evidence for commit `5e69f5e81` (base `9441e9f79`):
+
+- [Validate Warpai communication 43449498695](https://github.com/OthinusG/warpai/actions/runs/43449498695)
+  (`protocol_only=true`, `check_app=true`, `capture_ui=true`): macOS lib 208
+  passed / 1 ignored and Windows lib 201 passed / 3 ignored, each naming
+  `storage::tests::operator_default_reviewer_survives_reassignment_and_reopen`,
+  `followup_pages_cover_every_entry_without_ending_earlier_ones`,
+  `a_returning_supervisor_rebuilds_unfinished_work_from_durable_facts` and
+  `idle_panel_queries_omit_follow_up_fields_for_older_companions` as ok; every
+  integration binary ok; macOS and Windows application jobs success;
+  `system-network` skipped by input. The macOS run captured 1158 non-empty
+  PNGs (`(17 * 8 + 250) * 3`, 1159 uploaded files with `diagnostic.json`)
+  across en, zh-Hans and zh-Hant, so all eight new `live-followups-*`
+  checkpoints exist in every language; the redaction diagnostic passed with no
+  failed steps. Inspected `live-followups-light-320-1` and
+  `live-followups-light-600-1` (en), `live-followups-dark-320-1.25` (zh-Hans)
+  and `live-followups-light-320-1` (zh-Hant): the task state/revision/version
+  line, "Showing 9 of 9 unresolved follow-ups.", each entry's revision arrow,
+  preview-truncated note and the "Open follow-up thread" / "End overtaken
+  follow-up" actions render without overlap or clipping at 320 px; the pager
+  buttons sit below the nine entries and are outside these viewport captures.
+- [Validate Warpai remote companion 43449505426](https://github.com/OthinusG/warpai/actions/runs/43449505426):
+  Remote wire on ubuntu-22.04, macos-15 and windows-latest all success.
+- [Release Warpai Linux 43449512553](https://github.com/OthinusG/warpai/actions/runs/43449512553)
+  (`artifact_only=true`, `release_tag=v1.9.0`): x64 and arm64 package jobs
+  success, attach skipped; artifacts `Warpai-linux-x64` 419,904,206 B,
+  `Warpai-linux-arm64` 404,445,897 B, `Warpai-desktop-smoke-linux-x64`
+  72,114 B, `Warpai-desktop-smoke-linux-arm64` 72,797 B.
+- Superseded, not evidence: `43419610908`, `43419689707` and `43419701180`
+  failed on the two E0308 type errors in the supervision queries
+  (`dcce5e0b7`), fixed by boxing the queries (`7903d7a39`); `43442506456`
+  failed in the Windows and macOS capture jobs because the new follow-up step
+  left no selected task for the handoff checkpoint (`0d82f063e`), fixed by
+  reselecting the task (`0090409ca`).
+- Not executed: WSL acceptance and live vendor sessions. The supervision read
+  is covered by the store tests and the Companion wire run, not by a live
+  handover session.
 
 ## Exclusions
 
