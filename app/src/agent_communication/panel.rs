@@ -4142,12 +4142,23 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         TestStep::new("close the bounded follow-up page")
             .with_action(|app, window, _| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
-                panel.update(app, |panel, ctx| panel.handle_action(&Action::CloseFollowups, ctx));
+                panel.update(app, |panel, ctx| {
+                    panel.handle_action(&Action::CloseFollowups, ctx);
+                    let task = panel
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.tasks.first())
+                        .map(|task| task.id.clone())
+                        .unwrap();
+                    panel.handle_action(&Action::SelectTask(task), ctx);
+                });
             })
-            .add_named_assertion("closing the page restores the task list", |app, window| {
+            .add_named_assertion("closing the page restores the selected task", |app, window| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 warpui::async_assert!(panel.read(app, |panel, _| panel.query.followup_task.is_none()
-                    && panel.snapshot.as_ref().and_then(|snapshot| snapshot.followups.as_ref()).is_none())
+                    && panel.snapshot.as_ref().and_then(|snapshot| snapshot.followups.as_ref()).is_none()
+                    && panel.snapshot.as_ref().and_then(|snapshot| snapshot.task.as_ref())
+                        .is_some_and(|task| panel.query.selected_task.as_ref() == Some(&task.id)))
                     && checkpoint_draft(app, window) == "unsent collaboration draft")
             }),
     );
