@@ -654,6 +654,27 @@ Evidence for code commit `e3339fa99` (`a53a93bdb` plus the reviewer fixture fix)
   and live vendor sessions. The earlier `a53a93bdb` runs failed before this
   fixture fix and are superseded, not evidence.
 
+Evidence for follow-up commit `4391c6e85` (Companion envelope assertion on the
+stored attention panel, closing the review's large-payload regression finding):
+
+- [Validate Warpai communication 43402999734](https://github.com/OthinusG/warpai/actions/runs/43402999734)
+  (`protocol_only=true`, `check_app=true`, no capture): macOS lib 203 passed /
+  1 ignored and Windows lib 196 passed / 3 ignored, both naming
+  `storage::tests::multibyte_attention_pages_stay_reachable_within_the_serialized_budget`
+  as ok; every integration binary ok; macOS and Windows application jobs
+  success; `system-network` skipped by input.
+- [Validate Warpai remote companion 43403004720](https://github.com/OthinusG/warpai/actions/runs/43403004720):
+  Remote wire on ubuntu-22.04, macos-15 and windows-latest all success; the
+  macOS lib run still reports `storage::review_tests` 3 passed / 0 failed.
+- The assertion uses the real `operator_attention_page` output wrapped in the
+  Companion `{"value": ...}` envelope: the unbounded envelope is rejected by
+  `decode_result` and the bounded one decodes with `total` 50. It exercises the
+  same serialization shape as the Companion writer but not a live SSH/WSL
+  session.
+- Linux packaging was not rerun: this commit changes one `pub(crate)` re-export
+  and test assertions only, so the `e3339fa99` Linux artifacts remain the
+  packaging evidence.
+
 ## Exclusions
 
 External event intake/connectors; danger-full-access remediation; new permission
