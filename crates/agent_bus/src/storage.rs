@@ -1950,6 +1950,7 @@ impl Store {
             "{base} SELECT COUNT(*) AS total, COALESCE(SUM(kind='task'),0) AS tasks,
                 COALESCE(SUM(kind='request'),0) AS requests, COALESCE(SUM(kind='result'),0) AS results
             FROM unioned"))
+            .into_boxed::<diesel::sqlite::Sqlite>()
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project);
@@ -1967,6 +1968,7 @@ impl Store {
             .get_result::<SupervisionCountsRow>(&mut *self.connection.borrow_mut())?;
         let mut page_query = diesel::sql_query(format!(
             "{base} SELECT seq,payload FROM unioned WHERE seq > ? ORDER BY seq LIMIT ?"))
+            .into_boxed::<diesel::sqlite::Sqlite>()
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project);
@@ -6296,10 +6298,11 @@ mod tests {
         let path = std::env::temp_dir().join(format!("warpai-reviewer-{}.sqlite", Uuid::new_v4()));
         let operator = Store::operator("/project");
         let task_id;
+        let replacement_id;
         {
             let store = Store::open(path.to_str().unwrap()).unwrap();
             let worker = store.register("terminal-worker", "claude", "/project", "worker").unwrap();
-            actor(&store, "replacement");
+            replacement_id = actor(&store, "replacement").id;
             let task = store.execute(&operator, OPERATOR_EPOCH,
                 &assign(&operator, &worker.id, None, &Uuid::new_v4().to_string())).unwrap();
             task_id = task["id"].as_str().unwrap().to_owned();
@@ -6325,14 +6328,14 @@ mod tests {
                 &reassign("worker", Some("worker"), 2)).unwrap_err()), "invalid_state");
             let explicit = store.execute(&operator, OPERATOR_EPOCH,
                 &reassign("worker", Some("replacement"), 2)).unwrap();
-            assert_eq!(explicit["reviewer"].as_str().unwrap(), "replacement");
+            assert_eq!(explicit["reviewer"].as_str().unwrap(), replacement_id);
             let preserved = store.execute(&operator, OPERATOR_EPOCH,
                 &reassign("worker", None, 3)).unwrap();
-            assert_eq!(preserved["reviewer"].as_str().unwrap(), "replacement");
+            assert_eq!(preserved["reviewer"].as_str().unwrap(), replacement_id);
         }
         let store = Store::open(path.to_str().unwrap()).unwrap();
         let task = store.operator_task("/project", &task_id).unwrap();
-        assert_eq!(task.reviewer, "replacement");
+        assert_eq!(task.reviewer, replacement_id);
         assert_eq!(task.version, 4);
         let worker = store.agent("/project", "worker").unwrap();
         store.execute(&worker, "worker-run",
