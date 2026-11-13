@@ -6659,10 +6659,21 @@ mod tests {
             "task_cursor": null, "event_cursor": null, "message_cursor": null,
             "reservation_cursor": null, "context_cursor": null, "space_cursor": null,
             "agent_cursor": null});
+        let envelope = |panel: &Value| serde_json::to_vec(&json!({"value": panel})).unwrap();
         assert!(serde_json::to_vec(&panel).unwrap().len() > crate::MAX_PANEL_RESPONSE,
             "the reproduced page must exceed the panel budget");
+        assert!(envelope(&panel).len() > crate::companion::MAX_TASK_RESULT,
+            "the unbounded Companion envelope must exceed the wire budget");
+        assert!(crate::companion::decode_task_result(&envelope(&panel)).is_none(),
+            "the Companion decoder must reject an unbounded panel");
         crate::panel_budget::bound_panel(&mut panel, crate::MAX_PANEL_RESPONSE).unwrap();
         assert!(serde_json::to_vec(&panel).unwrap().len() <= crate::MAX_PANEL_RESPONSE);
+        assert!(envelope(&panel).len() <= crate::companion::MAX_TASK_RESULT);
+        assert_eq!(
+            crate::companion::decode_task_result(&envelope(&panel)).unwrap()["value"]
+                ["attention"]["total"],
+            50u64
+        );
         assert_eq!(panel["attention"]["total"], 50u64);
         let mut seen: Vec<u64> = panel["attention"]["tasks"].as_array().unwrap().iter()
             .map(|row| row["created_seq"].as_u64().unwrap()).collect();
