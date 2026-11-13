@@ -1,5 +1,21 @@
 # SSH Agent Communication API
 
+## Retention and synthetic space cursor correction (2026-11-13)
+
+Task deletion, purge preview and history purge must retain an overtaken
+task-linked `message`/`request` even after read acknowledgement, until a
+`followup_reconciled` event or a succeeded/failed result ends it. Existing
+unread-message, dependency, handoff and execution-uncertainty guards still apply.
+Archiving does not end the follow-up. Once it is explicitly ended, the task
+becomes eligible for cleanup only if all other guards also permit it.
+
+The synthetic Private space is not a real name-sorted record. If panel byte
+trimming leaves only that row, `space_cursor` is `""`, reusing SpaceList's
+existing continuation after Private: the next page omits Private and starts at
+the first real space. When a real row remains, its name is the cursor. Never
+use the synthetic display name `Private` as a scan position. There is no new
+field, capability, migration or permission change.
+
 ## Panel response byte budget and read-versus-terminal follow-ups (2026-11-12)
 
 One `operator_panel` response is bounded by an aggregate serialized UTF-8 budget
@@ -13,10 +29,10 @@ then `events`, `history.records`, `reservations`, `resources`, `spaces`,
 no preview is removed from a returned row, so every surviving record keeps its
 actions and previews and remains reachable.
 
-Every trimmed collection keeps its cursor on the last returned row
+Every trimmed collection keeps its cursor on the last returned real row
 (`message_cursor`, `history.cursor`, `event_cursor`, `reservation_cursor`,
 `context_cursor`, `space_cursor`, `task_cursor`, `agent_cursor`,
-`attention.cursor`). The next read therefore resumes exactly after the last
+`attention.cursor`), or the empty continuation after synthetic Private. The next read therefore resumes exactly after the last
 returned row: no skipped or repeated rows and no empty-page loop.
 `attention.total`/`counts` and `followup_count` always describe the whole
 filtered set; a trimmed attention page sets `truncated` plus `cursor`. Full

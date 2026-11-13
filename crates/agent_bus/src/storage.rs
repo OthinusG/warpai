@@ -54,7 +54,7 @@ const MAX_REQUESTS: i64 = 10_000;
 const MAX_EVIDENCE_PER_TASK: i64 = 32;
 // Overrides preserve uncertainty across revisions; history cleanup cannot imply execution stopped.
 const CERTAIN_TASK: &str = "NOT EXISTS (SELECT 1 FROM attempts WHERE task_id = tasks.id AND (finished_at IS NULL OR certainty = 'unknown'))";
-const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM meta WHERE key >= 'handoff/retain/' || tasks.id || '/' AND key < 'handoff/retain/' || tasks.id || '0' AND json_extract(value,'$.source_task') = tasks.id AND (EXISTS (SELECT 1 FROM tasks AS target WHERE target.id=json_extract(value,'$.target_task')) OR EXISTS (SELECT 1 FROM messages AS target WHERE target.id=json_extract(value,'$.message') AND (target.task_id IS NULL OR target.task_id != tasks.id)))) AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages AS parent WHERE parent.task_id = tasks.id AND (EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.reply_to = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id)) OR EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.thread_id = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))))";
+const PURGEABLE_TASK: &str = "archived = 1 AND NOT EXISTS (SELECT 1 FROM meta WHERE key >= 'handoff/retain/' || tasks.id || '/' AND key < 'handoff/retain/' || tasks.id || '0' AND json_extract(value,'$.source_task') = tasks.id AND (EXISTS (SELECT 1 FROM tasks AS target WHERE target.id=json_extract(value,'$.target_task')) OR EXISTS (SELECT 1 FROM messages AS target WHERE target.id=json_extract(value,'$.message') AND (target.task_id IS NULL OR target.task_id != tasks.id)))) AND NOT EXISTS (SELECT 1 FROM task_dependencies WHERE prerequisite_id = tasks.id) AND NOT EXISTS (SELECT 1 FROM messages WHERE task_id = tasks.id AND acknowledged = 0) AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.project=tasks.project AND m.task_id=tasks.id AND m.kind IN ('message','request') AND m.revision IS NOT NULL AND m.revision<>tasks.revision AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id) AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id AND r.kind IN ('result_succeeded','result_failed'))) AND NOT EXISTS (SELECT 1 FROM messages AS parent WHERE parent.task_id = tasks.id AND (EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.reply_to = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id)) OR EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = parent.project AND reply.thread_id = parent.id AND (reply.task_id IS NULL OR reply.task_id != tasks.id))))";
 const PURGEABLE_MESSAGE: &str = "acknowledged = 1 AND (task_id IS NULL OR task_id NOT IN (SELECT id FROM tasks)) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.reply_to = messages.id) AND NOT EXISTS (SELECT 1 FROM messages AS reply WHERE reply.project = messages.project AND reply.thread_id = messages.id)";
 
 const MAX_RESERVATIONS_PER_WORKSPACE: i64 = 1000;
@@ -4259,7 +4259,7 @@ impl Store {
                 ensure!(task.version == *expected_version, version_conflict("Task changed since deletion was confirmed", task.version));
                 self.task_archive(project, actor, task_id)?;
                 ensure!(self.count(&format!("SELECT COUNT(*) AS count FROM tasks WHERE id = ? AND {PURGEABLE_TASK} AND {CERTAIN_TASK}"), &[task_id])? == 1,
-                    invalid_state("Referenced tasks and unread messages must remain in history"));
+                    invalid_state("Referenced tasks and unresolved messages must remain in history"));
                 self.purge_task_record(project, actor, &task)?;
                 Ok(json!({"deleted_task": task_id}))
             }
@@ -5867,6 +5867,10 @@ struct LegacyRetry {
     operation: String,
     result: Value,
 }
+
+#[cfg(test)]
+#[path = "storage_review_tests.rs"]
+mod review_tests;
 
 #[cfg(test)]
 mod tests {

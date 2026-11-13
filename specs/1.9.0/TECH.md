@@ -8,6 +8,31 @@ Owner exclusions: no external event intake/connectors and no danger-full-access
 remediation, permission-flow changes or sandbox work. Existing identity and
 credential safeguards remain. This plan does not authorize implementation by itself.
 
+## Retention and space continuation repair (2026-11-13)
+
+Owner authorized fixing the two Nov13 review findings and running CI. Scope is
+the shared cleanup eligibility predicate, sentinel-aware budget trimming and
+focused regression tests; other A–G feature gaps remain outside this repair.
+
+- Extend `PURGEABLE_TASK`, shared by TaskDelete, purge preview and HistoryPurge,
+  to protect read but unresolved overtaken instructions using the existing
+  final-result/reconciliation facts. Preserve all existing cleanup guards.
+- When trimming spaces down to the synthetic Private row, return the already
+  supported empty-string continuation instead of its display name. Retain space
+  byte trimming and the aggregate response limit.
+- Add operation-level regressions for rejected deletion, safe purge preview,
+  preservation across bulk purge and cleanup after reconcile/final reply. Use
+  the real SpaceList projection and production response budget to prove that
+  Private-only and real-row continuations preserve all real spaces.
+- Verify source SQL locally, then run existing communication and three-platform
+  Companion CI with the new tests. Rust execution is cloud-only per MEMORY.md.
+  No UI layout, localization, schema, permission or protocol-major change.
+
+Acceptance: no actionable ACKed old follow-up is removed by cleanup; explicitly
+ended work can still be cleaned; space pagination under aggregate byte pressure
+has no omissions, duplicate real rows or repeated Private page. Record exact
+code SHA and executed CI evidence in TODO.md before reporting completion.
+
 ## Closed-loop follow-up and attention delta (2026-11-11)
 
 Audit result: revision-pinned follow-ups, stale skipping in native wake/wait/

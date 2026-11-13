@@ -622,6 +622,15 @@ root file and does not recreate or restart that first-round assignment.
   vendor structured-event adapter) is not implemented in this change; see the
   report limitations rather than treating it as verified.
 
+## 2026-11-13 review repairs
+
+- [ ] Preserve ACKed unresolved overtaken follow-ups in TaskDelete, purge preview
+  and HistoryPurge; allow cleanup after explicit terminal facts.
+- [ ] Resume a byte-trimmed Private-only space page with the existing empty
+  cursor, and verify actual SpaceList continuation without skipping real rows.
+- [ ] Execute focused regressions and existing communication/Companion CI on
+  the final code commit; record OS, pass counts, run URLs and remaining limits.
+
 ## Exclusions
 
 External event intake/connectors; danger-full-access remediation; new permission

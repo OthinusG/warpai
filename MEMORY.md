@@ -43,7 +43,9 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   1.9.0 plan: specs/1.9.0/TODO.md; process-mapping audit: specs/1.9.0/PROCESS-REVIEW.md.
   R2 prompt: AGENT-EXECUTION-1.9.0-R2.md; assume round one provisionally complete, work only the delta.
   research: specs/SUPERAGENT-REVIEW-1.9.0.md; Nov12 audit: specs/1.9.0/BRANCH-AUDIT-2026-11-12.md
-  (attention byte budget; ACK versus terminal follow-up closure). Owner excludes external event intake
+  (attention byte budget; ACK versus terminal follow-up closure). Nov13 review:
+  specs/1.9.0/IMPLEMENTATION-REVIEW-2026-11-13.md (retention guards and synthetic space cursors).
+  Owner excludes external event intake
   and danger-full-access remediation; retain native authority/guarded recovery.
 
 - Supervision dispatches anytime, retaining unresolved task/request IDs across
@@ -69,9 +71,12 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   work. One panel response is bounded by an aggregate serialized UTF-8 budget
   (`MAX_PANEL_RESPONSE`, 448 KiB, under Companion `MAX_RESULT` 512 KiB):
   collections and attention previews shed tails, every cursor stays on the last
-  returned row, totals stay whole-filter, and an unfittable panel returns
+  real row (Private-only spaces resume with `""`), totals stay whole-filter, and an unfittable panel returns
   `capacity_exceeded` instead of an oversized frame. Capability
   `followup_reconcile`. See API.md (2026-11-11, 2026-11-12).
+- TaskDelete/purge preview/HistoryPurge protect ACKed overtaken instructions
+  until reconciliation/final result; read acknowledgement alone cannot release
+  their history. Nov13 regression coverage: `storage::review_tests`.
 - Vendor structured observation stays `existing_unverified`: only screen
   manifests exist; no adapter or whole-task retry wrapper. Keep unknown on
   missing identity, and never infer failure/health from idle, timeout, "429" or

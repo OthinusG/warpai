@@ -1,7 +1,7 @@
 //! Aggregate serialized-byte budget for one operator-panel response.
 //!
 //! Every resumable collection can shed its tail down to one row; a trimmed page
-//! keeps its cursor on the last returned record, so the next read resumes
+//! keeps its cursor on the last real record (or just after Private), so the next read resumes
 //! without skipping or repeating rows. When even that cannot fit, the operation
 //! reports `capacity_exceeded` instead of dropping unreachable rows.
 use crate::capacity_exceeded;
@@ -65,6 +65,10 @@ fn trim_collection(panel: &mut Value, container: &[&str], cursor: &[&str], key: 
         items
             .last()
             .map(|item| {
+                // Private precedes name-sorted spaces; the empty cursor skips only that synthetic row.
+                if container == ["spaces"] && item["private"] == true {
+                    return Value::String(String::new());
+                }
                 key.iter()
                     .try_fold(item, |value, field| value.get(*field))
                     .cloned()
