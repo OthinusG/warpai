@@ -25,7 +25,7 @@ The issuer becomes the coordinator when it delegates. It polls every outstanding
 | Empty input after completed turn | Poll pending work and submit once after readiness/output settle | Every-program dormant and app PTY regression |
 | Rich input draft, saved draft or image attachment | Keep ready true while idle; preserve user input through a separate automatic-submission guard | Shared view guard and rich draft regression |
 | Native input editing | Keep idle readiness unchanged; invalidate a scheduled Enter and protect the draft independently | Every-program real stdio readiness matrix |
-| Native input cancellation | Pause automatic delivery until a new user submission; expose the pause separately from lifecycle readiness | Every-program cancellation regression |
+| Native input cancellation | Fence pending Enter immediately; a subsequent valid native idle observation or accepted ready operation clears the transient pause without another user submission | Every-program cancellation/idle recovery regression |
 | Read-only MCP query, inbox read, message send or ACK | Does not start a task and does not revoke readiness | Every-program real stdio readiness matrix |
 | Queued task claimed | Preserve readiness until execution starts | Task execution readiness regression |
 | Assigned task started | Set ready false only after successful transition; failures preserve prior state | Task execution readiness regression |

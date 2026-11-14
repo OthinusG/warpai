@@ -746,6 +746,8 @@ Evidence for commit `5e69f5e81` (base `9441e9f79`):
 - [ ] Verify three-page follow-up backward/forward navigation in the native harness.
 - [ ] Correct the unsupported Agent follow-up tool claim; preserve native reads.
 - [ ] Record source-matched focused tests, application checks and Companion CI.
+- [ ] Paused receivers resume on valid idle/ready evidence without another user
+  submission; test local/screen/native/MCP paths and delayed-Enter fencing.
 
 ## Exclusions
 

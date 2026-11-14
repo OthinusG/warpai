@@ -115,6 +115,7 @@ fn active_coordinator_recovers_inherited_tasks_without_granting_worker_scope() {
     store
         .set_worktree_role(&previous, "run", "coordinator")
         .unwrap();
+    store.set_worktree_role(&worker, "run", "worker").unwrap();
     let task = execute(
         &store,
         &previous,

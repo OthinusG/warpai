@@ -1,5 +1,15 @@
 # SSH Agent Communication API
 
+## Paused receiver returns to idle (2026-11-14)
+
+The owner clarified that a paused Agent at an idle prompt can receive tasks.
+`paused` is a transient cancellation hold, not a permanent dispatch opt-out.
+Cancellation immediately invalidates delayed Enter and does not prove readiness.
+A subsequent accepted native idle event, fenced screen-idle sample, authenticated
+native-idle report or accepted `agent_ready` clears the hold. No extra user
+submission is required. Draft/permission/settling/run and execution-ownership
+guards remain independent. Idle never submits, retries or completes a task.
+
 ## Supervision recovery corrections (2026-11-14)
 
 `warp_supervision_index` uses the active Worktree Coordinator's existing project

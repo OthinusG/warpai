@@ -189,6 +189,9 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
 - Input/cancel/run replacement fences Enter; closing invalidates its run.
+- A cancellation pause is transient: confirmed native/screen idle or accepted
+  AgentReady restores receiving without another user submit. Keep input/run,
+  settling, permission and execution-ownership guards; idle never retries a task.
 - Back up schema migrations consistently; no downgrade or automatic legacy
   identity migration. Preserve read-only legacy metadata, uncertainty and receipts.
   macOS sockets require short private /tmp paths; Windows uses bounded asynchronous

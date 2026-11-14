@@ -626,11 +626,14 @@ impl Broker {
             return live.activity == activity;
         }
         // Stable samples must preserve the idle lease and any in-flight wake.
-        if live.activity == activity && live.native_activity == Some(activity) { return true; }
+        if live.activity == activity && live.native_activity == Some(activity)
+            && !(activity.is_idle() && live.paused) { return true; }
         if activity.is_idle() && context.quiet() < Duration::from_millis(700) { return false; }
         live.generation += 1;
         live.activity = activity;
         live.native_activity = Some(activity);
+        // A confirmed idle prompt ends the transient cancellation hold.
+        if activity.is_idle() { live.paused = false; }
         live.readiness_source = "native_screen";
         live.observed = Instant::now();
         live.ready = activity.is_idle().then(Instant::now);
@@ -668,6 +671,7 @@ impl Broker {
                 live.activity = activity;
                 live.readiness_source = "native"; live.observed = Instant::now();
                 live.ready = activity.is_idle().then(Instant::now);
+                if activity.is_idle() { live.paused = false; }
                 if !activity.is_idle() {
                     live.initial_prompt = false;
                     if let Some(wake) = live.wake.take() {
@@ -1100,6 +1104,7 @@ impl Broker {
             let observation = (live.native_activity != Some(activity)).then(|| live.agent.clone().map(|actor| (actor, live.run.clone(), live.blocked))).flatten();
             live.native_activity = Some(activity);
             live.activity = activity;
+            if activity.is_idle() { live.paused = false; }
             live.readiness_source = "native"; live.observed = Instant::now();
             live.ready = activity.is_idle().then(Instant::now);
             live.generation += 1;
@@ -1262,6 +1267,7 @@ impl Broker {
             live.ready = Some(Instant::now());
             live.activity = Activity::Idle;
             live.readiness_source = "model"; live.observed = Instant::now();
+            live.paused = false;
             live.generation += 1;
             if let Some(wake) = live.wake.take() {
                 live.delivered.remove(&wake.message_id);
