@@ -1,5 +1,29 @@
 # SSH Agent Communication API
 
+## Supervision recovery corrections (2026-11-14)
+
+`warp_supervision_index` uses the active Worktree Coordinator's existing project
+task authority; other Agents retain issuer/assignee/reviewer scope. Archived
+tasks remain in recovery when unresolved questions, overtaken follow-ups or
+uncertain executions require action. Archival alone is not terminal handling.
+
+Outgoing requests retire on a final succeeded/failed reply or their explicit
+`followup_reconciled` event. Real result messages remain `process_result` rows
+until acknowledged, including when another actor reconciled the request. An
+issuer's self-reconciliation requires no synthetic self-result.
+
+Unanswered questions addressed to the caller also have distinct `question:<id>`
+rows with `message_id`, task/thread/reply references, bounded display preview,
+`answer` action and recipient role. This includes questions without tasks.
+`counts.questions` counts these rows; `total` counts all task/request/result/
+question rows, not distinct tasks or actions. Task rows still summarize their
+question count. Reading grants no new access and changes no acknowledgement.
+
+Native follow-up pagination retains the current page cursor in its history so
+Earlier returns to the immediate prior page. Follow-up browsing remains an
+Operator Panel projection (`PanelQuery.followup_*`); there is no
+`warp_task_followups` MCP tool. Agents use existing authorized inbox/thread reads.
+
 ## Retention and synthetic space cursor correction (2026-11-13)
 
 Task deletion, purge preview and history purge must retain an overtaken

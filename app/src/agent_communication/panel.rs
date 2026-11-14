@@ -1917,8 +1917,10 @@ impl TypedActionView for CollaborationPanel {
                         .and_then(|snapshot| snapshot.followups.as_ref())
                         .and_then(|page| page.cursor)
                     {
-                        self.followup_history.push(self.query.followup_after);
-                        self.query.followup_after = Some(cursor);
+                        if self.query.followup_after != Some(cursor) {
+                            self.followup_history.push(Some(cursor));
+                            self.query.followup_after = Some(cursor);
+                        }
                     }
                 }
                 Action::EarlierFollowups => {
@@ -4139,10 +4141,59 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         }
     }
     driver = driver.with_step(
+        TestStep::new("split the live follow-ups into three pages")
+            .with_action(|app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| {
+                    panel.query.followup_limit = Some(4);
+                    panel.handle_action(&Action::FirstFollowups, ctx);
+                });
+            })
+            .add_named_assertion("first page holds four of nine entries", |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref()
+                    .and_then(|snapshot| snapshot.followups.as_ref())
+                    .is_some_and(|page| page.total == 9 && page.items.len() == 4
+                        && page.items.first().is_some_and(|item| item.truncated))))
+            }),
+    );
+    for (index, (action, start, count)) in [
+        (Action::NextFollowups, 5, 4),
+        (Action::NextFollowups, 9, 1),
+        (Action::EarlierFollowups, 5, 4),
+        (Action::EarlierFollowups, 1, 4),
+        (Action::NextFollowups, 5, 4),
+        (Action::FirstFollowups, 1, 4),
+    ].into_iter().enumerate() {
+        let mut step = TestStep::new(&format!("follow-up paging action {index} starts at row {start}"))
+            .with_action(move |app, window, _| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                panel.update(app, |panel, ctx| panel.handle_action(&action, ctx));
+            })
+            .add_named_assertion("the immediate page and draft are retained", move |app, window| {
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                warpui::async_assert!(panel.read(app, |panel, _| panel.snapshot.as_ref()
+                    .and_then(|snapshot| snapshot.followups.as_ref())
+                    .is_some_and(|page| page.total == 9 && page.items.len() == count
+                        && page.items.first().is_some_and(|item| if start == 1 {
+                            item.truncated
+                        } else {
+                            item.body == format!("Overtaken follow-up {start}")
+                        }))) && checkpoint_draft(app, window) == "unsent collaboration draft")
+            });
+        if start == 9 {
+            let filename = "live-followups-third-page.png";
+            filenames.push(filename.into());
+            step = step.with_take_screenshot(filename);
+        }
+        driver = driver.with_step(step);
+    }
+    driver = driver.with_step(
         TestStep::new("close the bounded follow-up page")
             .with_action(|app, window, _| {
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| {
+                    panel.query.followup_limit = None;
                     panel.handle_action(&Action::CloseFollowups, ctx);
                     let task = panel
                         .snapshot

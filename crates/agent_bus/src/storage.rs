@@ -1886,7 +1886,8 @@ impl Store {
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
         let now = now() as i64;
-        let task_scope = if actor.program == OPERATOR_PROGRAM {
+        let all_tasks = actor.program == OPERATOR_PROGRAM || self.is_worktree_coordinator(actor)?;
+        let task_scope = if all_tasks {
             "1=1"
         } else {
             "t.issuer=? OR t.assignee=? OR t.reviewer=?"
@@ -1924,10 +1925,10 @@ impl Store {
                 FROM tasks t LEFT JOIN questions q ON q.task_id=t.id
                     LEFT JOIN followups f ON f.task_id=t.id LEFT JOIN uncertain u ON u.task_id=t.id
                     LEFT JOIN dependencies d ON d.task_id=t.id
-                WHERE t.project=? AND t.archived=0 AND ({task_scope})
-                    AND (t.state IN ('queued','running','blocked','submitted','cancel_requested')
-                        OR COALESCE(q.count,0)>0 OR COALESCE(f.count,0)>0
-                        OR COALESCE(u.count,0)>0 OR COALESCE(d.count,0)>0)
+                WHERE t.project=? AND ({task_scope})
+                    AND ((t.archived=0 AND (t.state IN ('queued','running','blocked','submitted','cancel_requested')
+                            OR COALESCE(d.count,0)>0))
+                        OR COALESCE(q.count,0)>0 OR COALESCE(f.count,0)>0 OR COALESCE(u.count,0)>0)
                 UNION ALL
                 SELECT m.sequence, 'request', json_object('key','request:'||m.id,'kind','request',
                     'message_id',m.id,'task_id',m.task_id,'sender',m.sender,'recipient',m.recipient,
@@ -1937,6 +1938,8 @@ impl Store {
                 FROM messages m WHERE m.project=? AND m.sender=? AND m.kind='request'
                     AND NOT EXISTS (SELECT 1 FROM messages r WHERE r.project=m.project AND r.reply_to=m.id
                         AND r.kind IN ('result_succeeded','result_failed'))
+                    AND NOT EXISTS (SELECT 1 FROM events e WHERE e.project=m.project AND e.resource=m.task_id
+                        AND e.kind='followup_reconciled' AND json_extract(e.payload,'$.message_id')=m.id)
                 UNION ALL
                 SELECT m.sequence, 'result', json_object('key','result:'||m.id,'kind','result',
                     'message_id',m.id,'task_id',m.task_id,'result_kind',m.kind,
@@ -1945,22 +1948,31 @@ impl Store {
                     'body',CASE WHEN m.task_id IS NULL THEN substr(m.body,1,512)
                         ELSE substr(COALESCE((SELECT description FROM tasks WHERE id=m.task_id AND project=m.project),''),1,512) END)
                 FROM messages m WHERE m.project=? AND m.recipient=? AND m.acknowledged=0
-                    AND m.kind IN ('result_succeeded','result_failed','result_blocked'))");
+                    AND m.kind IN ('result_succeeded','result_failed','result_blocked')
+                UNION ALL
+                SELECT m.sequence, 'question', json_object('key','question:'||m.id,'kind','question',
+                    'message_id',m.id,'task_id',m.task_id,'sender',m.sender,'recipient',m.recipient,
+                    'revision',m.revision,'thread_id',m.thread_id,'reply_to',m.reply_to,'body',m.body)
+                FROM messages m WHERE m.project=? AND m.recipient=? AND m.acknowledged=0
+                    AND m.kind='question')");
         let mut counts_query = diesel::sql_query(format!(
             "{base} SELECT COUNT(*) AS total, COALESCE(SUM(kind='task'),0) AS tasks,
-                COALESCE(SUM(kind='request'),0) AS requests, COALESCE(SUM(kind='result'),0) AS results
+                COALESCE(SUM(kind='request'),0) AS requests, COALESCE(SUM(kind='result'),0) AS results,
+                COALESCE(SUM(kind='question'),0) AS questions
             FROM unioned"))
             .into_boxed::<diesel::sqlite::Sqlite>()
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project);
-        if actor.program != OPERATOR_PROGRAM {
+        if !all_tasks {
             counts_query = counts_query
                 .bind::<Text, _>(&actor.id)
                 .bind::<Text, _>(&actor.id)
                 .bind::<Text, _>(&actor.id);
         }
         let counts = counts_query
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.project)
@@ -1972,13 +1984,15 @@ impl Store {
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.project);
-        if actor.program != OPERATOR_PROGRAM {
+        if !all_tasks {
             page_query = page_query
                 .bind::<Text, _>(&actor.id)
                 .bind::<Text, _>(&actor.id)
                 .bind::<Text, _>(&actor.id);
         }
         let rows = page_query
+            .bind::<Text, _>(&actor.project)
+            .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.project)
             .bind::<Text, _>(&actor.id)
             .bind::<Text, _>(&actor.project)
@@ -1992,6 +2006,11 @@ impl Store {
         let mut last = None;
         for row in rows.into_iter().take(limit as usize) {
             let mut entry: Value = serde_json::from_str(&row.payload)?;
+            if entry["kind"] == "question" {
+                let (body, truncated) = bounded_preview(entry["body"].as_str().unwrap_or_default());
+                entry["body"] = Value::String(body);
+                entry["truncated"] = json!(truncated);
+            }
             let actions = supervision_actions(&entry, actor, now);
             entry["actions"] = json!(actions);
             entry["role"] = json!(supervision_role(&entry, actor));
@@ -2006,7 +2025,7 @@ impl Store {
         }
         Ok(json!({"rows": entries, "total": counts.total as u64,
             "counts": {"tasks": counts.tasks as u64, "requests": counts.requests as u64,
-                "results": counts.results as u64},
+                "results": counts.results as u64, "questions": counts.questions as u64},
             "truncated": more, "cursor": more.then_some(last).flatten(),
             "tool": "warp_supervision_index"}))
     }
@@ -5368,6 +5387,7 @@ fn supervision_actions(entry: &Value, actor: &Agent, now: i64) -> Vec<&'static s
     match entry["kind"].as_str().unwrap_or("") {
         "request" => return vec!["await_result"],
         "result" => return vec!["process_result"],
+        "question" => return vec!["answer"],
         _ => {}
     }
     let mut actions = Vec::new();
@@ -5409,7 +5429,7 @@ fn supervision_actions(entry: &Value, actor: &Agent, now: i64) -> Vec<&'static s
 fn supervision_role(entry: &Value, actor: &Agent) -> &'static str {
     match entry["kind"].as_str().unwrap_or("") {
         "request" => "requester",
-        "result" => "recipient",
+        "result" | "question" => "recipient",
         _ if entry["assignee"].as_str() == Some(actor.id.as_str()) => "assignee",
         _ if entry["reviewer"].as_str() == Some(actor.id.as_str()) => "reviewer",
         _ if entry["issuer"].as_str() == Some(actor.id.as_str()) => "issuer",
@@ -5788,6 +5808,8 @@ struct SupervisionCountsRow {
     requests: i64,
     #[diesel(sql_type = BigInt)]
     results: i64,
+    #[diesel(sql_type = BigInt)]
+    questions: i64,
 }
 
 #[derive(QueryableByName)]
@@ -6180,6 +6202,10 @@ struct LegacyRetry {
 #[cfg(test)]
 #[path = "storage_review_tests.rs"]
 mod review_tests;
+
+#[cfg(test)]
+#[path = "storage_supervision_tests.rs"]
+mod supervision_tests;
 
 #[cfg(test)]
 mod tests {
@@ -6800,8 +6826,8 @@ mod tests {
             r3 = request(&worker2)["id"].as_str().unwrap().to_owned();
             let events = store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap();
             let before = store.supervision_index(&operator, None, Some(50)).unwrap();
-            assert_eq!(before["total"], 8);
-            assert_eq!(before["counts"], json!({"tasks": 5, "requests": 2, "results": 1}));
+            assert_eq!(before["total"], 9);
+            assert_eq!(before["counts"], json!({"tasks": 5, "requests": 2, "results": 1, "questions": 1}));
             let row = |value: &Value, key: &str| value["rows"].as_array().unwrap().iter()
                 .find(|row| row["key"] == key).cloned().unwrap_or_else(|| panic!("missing {key}"));
             assert_eq!(row(&before, &format!("task:{t1}"))["actions"], json!(["supervise"]));
@@ -6837,7 +6863,7 @@ mod tests {
                 cursor = Some(next);
             }
             assert_eq!(paged, before["rows"].as_array().unwrap().iter().map(|row| row["key"].clone()).collect::<Vec<_>>());
-            assert_eq!(store.project_bootstrap(&operator, None, Some(4)).unwrap()["supervision"]["total"], 8);
+            assert_eq!(store.project_bootstrap(&operator, None, Some(4)).unwrap()["supervision"]["total"], 9);
             assert_eq!(store.count("SELECT COUNT(*) AS count FROM events", &[]).unwrap(), events);
             assert_eq!(store.supervision_index(&operator, None, Some(50)).unwrap(), before);
             // Only a terminal outcome retires an entry: acknowledging the unhandled
@@ -6845,7 +6871,7 @@ mod tests {
             store.execute(&operator, OPERATOR_EPOCH,
                 &Operation::AgentAck { message_id: result_id.clone() }).unwrap();
             let answered = store.supervision_index(&operator, None, Some(50)).unwrap();
-            assert_eq!(answered["total"], 7);
+            assert_eq!(answered["total"], 8);
             assert!(!answered["rows"].as_array().unwrap().iter().any(|row| row["key"] == format!("result:{result_id}")));
             let t2_question = store.execute(&operator, OPERATOR_EPOCH, &Operation::AgentQuestions {
                 task_id: Some(t2.clone()), cursor: None, limit: None }).unwrap()["questions"][0]["id"]

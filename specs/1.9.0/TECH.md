@@ -10,6 +10,15 @@ credential safeguards remain. This plan does not authorize implementation by its
 
 ## Retention and space continuation repair (2026-11-13)
 
+Nov14 correction scope: repair supervision request terminality, inherited
+Coordinator visibility, archived pending work and directly addressed questions;
+repair follow-up backward navigation and align interface declarations. Keep
+all current authority, byte budgets, result handling and immutable records.
+The API correction is specified in `../agent-communication-v2/API.md`. Verify each
+boundary through focused Store/reopen/role tests and a real three-page native
+capture interaction, then execute communication and Companion cloud CI. Do not
+claim a new Agent follow-up tool or add an unrequested permission surface.
+
 Owner authorized fixing the two Nov13 review findings and running CI. Scope is
 the shared cleanup eligibility predicate, sentinel-aware budget trimming and
 focused regression tests; other A–G feature gaps remain outside this repair.

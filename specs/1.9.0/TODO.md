@@ -684,7 +684,7 @@ stored attention panel, closing the review's large-payload regression finding):
   `storage::tests::operator_default_reviewer_survives_reassignment_and_reopen`
   runs the real omitted-reviewer scenario through reassignment, reopen,
   execution, submission and acceptance.
-- [x] `warp_task_followups`/panel `followups` return a task-scoped, paginated,
+- [x] Native panel `followups` returns a task-scoped, paginated,
   non-mutating page of every unresolved overtaken follow-up (ACK is not
   terminal), so entries 9 and 101 stay reachable without ending earlier ones;
   the native panel adds "View all N unresolved follow-ups", first/earlier/next
@@ -737,6 +737,15 @@ Evidence for commit `5e69f5e81` (base `9441e9f79`):
 - Not executed: WSL acceptance and live vendor sessions. The supervision read
   is covered by the store tests and the Companion wire run, not by a live
   handover session.
+
+## 2026-11-14 recovery boundary repairs
+
+- [ ] Retire explicitly reconciled requests without dropping unhandled results.
+- [ ] Reconstruct inherited Coordinator work and archived unresolved tasks.
+- [ ] Include directly addressed unanswered questions and permission-scoped counts.
+- [ ] Verify three-page follow-up backward/forward navigation in the native harness.
+- [ ] Correct the unsupported Agent follow-up tool claim; preserve native reads.
+- [ ] Record source-matched focused tests, application checks and Companion CI.
 
 ## Exclusions
 
