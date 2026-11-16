@@ -8,6 +8,8 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
+- Owner's CI monitoring preference: remain in the active working turn, poll every
+  30 minutes, and merge only after required checks pass; do not detach a monitor.
 - Capture baseline: `fixtures * 8 + 251` PNGs/language, including the third-page
   follow-up navigation frame and prior icon/reconcile/follow-up captures;
   update both workflows. macOS 14 GB runner: incremental off, clean warpai before relink.
@@ -134,8 +136,9 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Resolve the usage API through CFNetwork PAC / WinHTTP / GIO, apply proxy
   variables only to the usage child, and keep loopback direct. CLI environment
   supports one route per invocation, not arbitrary per-host PAC or failover.
-  Native static/PAC/CONNECT/loopback acceptance passed on all three desktop
-  runners in run 43859471781; the same run tracks full app checks. Owner authorized
+  Native static/PAC/CONNECT/loopback acceptance, default/warp_platform app checks,
+  agent_usage and release_updates regressions passed on all three desktop
+  runners in run 43859471781. Owner authorized
   checking every 30 minutes and merging PR #12 into main once all checks pass.
 - Antigravity timeout diagnosis (2026-11-16, installed Warpai 1.9.0,
   agy 1.5.9): the exact free `/usage` invocation succeeded in 3.72s with

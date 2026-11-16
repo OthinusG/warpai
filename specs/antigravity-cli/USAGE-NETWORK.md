@@ -53,8 +53,9 @@ References: [CFNetwork PAC](https://developer.apple.com/documentation/cfnetwork/
 
 [Run 43859471781](https://github.com/OthinusG/warpai/actions/runs/43859471781)
 at `dfbccc9`: all three native networking suites passed, including real child
-static/PAC routes, HTTPS CONNECT and loopback bypass. Full application checks
-are tracked in the same run. Local Objective-C syntax, Rust formatting, Python syntax, fixture
+static/PAC routes, HTTPS CONNECT and loopback bypass. Default and warp_platform
+application checks, agent_usage tests and release_updates tests also passed on
+all three desktops. Local Objective-C syntax, Rust formatting, Python syntax, fixture
 HTTP and the personal-machine mutation guard passed.
 
 The owner authorized 30-minute CI polling followed by merging PR #12 into main
