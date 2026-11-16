@@ -1603,7 +1603,7 @@ impl Store {
             None => None,
         };
         if !self.worktree_mode(&actor.project)? {
-            return self.operator_tasks(&actor.project, state, assignee.as_deref(), cursor, Some(limit), include_archived);
+            return self.operator_tasks(&actor.project, state, assignee.as_deref(), cursor, Some(limit), include_archived, false);
         }
         let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND (issuer = ? OR assignee = ? OR reviewer = ? OR (assignee = '' AND EXISTS (SELECT 1 FROM task_eligibles WHERE task_eligibles.task_id = tasks.id AND task_eligibles.agent = ?))) AND state = COALESCE(?, state) AND assignee = COALESCE(?, assignee) AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(&actor.project)
@@ -1629,14 +1629,16 @@ impl Store {
         cursor: Option<u64>,
         limit: Option<u32>,
         include_archived: bool,
+        hide_cancelled: bool,
     ) -> Result<Value> {
         let limit = Self::page_limit(limit)?;
-        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND state = COALESCE(?, state) AND (assignee = COALESCE(?, assignee) OR ? = '') AND (archived = 0 OR ?) AND created_seq > ? ORDER BY created_seq LIMIT ?")
+        let rows = diesel::sql_query("SELECT id, state, revision, version, assignee, reviewer, created_seq, substr(description, 1, 512) AS description FROM tasks WHERE project = ? AND state = COALESCE(?, state) AND (assignee = COALESCE(?, assignee) OR ? = '') AND (archived = 0 OR ?) AND (? = 0 OR state != 'cancelled') AND created_seq > ? ORDER BY created_seq LIMIT ?")
             .bind::<Text, _>(project)
             .bind::<Nullable<Text>, _>(state)
             .bind::<Nullable<Text>, _>(assignee)
             .bind::<Text, _>(assignee.unwrap_or(""))
             .bind::<Integer, _>(i32::from(include_archived))
+            .bind::<Integer, _>(i32::from(hide_cancelled))
             .bind::<BigInt, _>(cursor.unwrap_or(0) as i64)
             .bind::<BigInt, _>(limit as i64 + 1)
             .load::<TaskSummaryRow>(&mut *self.connection.borrow_mut())?;
@@ -2134,6 +2136,7 @@ impl Store {
                         *cursor,
                         *limit,
                         *include_archived,
+                        false,
                     );
                 }
                 return self.task_list(
@@ -9781,6 +9784,39 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(code(&empty), "invalid_input");
+    }
+
+    #[test]
+    fn panel_home_filters_cancelled_before_pagination_and_retains_history() {
+        let store = Store::open(":memory:").unwrap();
+        let request = || Uuid::new_v4().to_string();
+        let issuer = actor(&store, "issuer");
+        actor(&store, "worker");
+        let create = || store.execute(&issuer, "run", &assign(&issuer, "worker", None, &request())).unwrap();
+        let cancelled = create();
+        let cancelled_id = cancelled["id"].as_str().unwrap();
+        store.execute(&issuer, "run", &Operation::TaskCancel {
+            task_id: cancelled_id.into(), reason: "Stop queued work".into(),
+            expected_version: None, request_id: request(),
+        }).unwrap();
+        let first = create();
+        let second = create();
+        let home = store.operator_tasks("/project", None, None, None, Some(1), false, true).unwrap();
+        assert_eq!(home["tasks"][0]["id"], first["id"]);
+        let next = store.operator_tasks("/project", None, None, home["cursor"].as_u64(), Some(1), false, true).unwrap();
+        assert_eq!(next["tasks"][0]["id"], second["id"]);
+        let explicit = store.operator_tasks("/project", Some("cancelled"), None, None, None, false, false).unwrap();
+        assert_eq!(explicit["tasks"][0]["id"], cancelled["id"]);
+        let agent_list = store.execute(&issuer, "run", &Operation::TaskList {
+            state: None, assignee: None, cursor: None, limit: None, include_archived: false,
+        }).unwrap();
+        assert_eq!(agent_list["tasks"].as_array().unwrap().len(), 3);
+        store.execute_controller("/project", &ControllerOperation::TaskArchive {
+            task_id: cancelled_id.into(), request_id: request(),
+        }).unwrap();
+        assert_eq!(store.operator_tasks("/project", None, None, None, None, false, true).unwrap()["tasks"].as_array().unwrap().len(), 2);
+        assert_eq!(store.operator_tasks("/project", None, None, None, None, true, false).unwrap()["tasks"].as_array().unwrap().len(), 3);
+        assert!(store.operator_task("/project", cancelled_id).unwrap().archived);
     }
 
     #[test]

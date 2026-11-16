@@ -1433,6 +1433,24 @@ impl CollaborationPanel {
 mod tests {
     use super::*;
     #[test]
+    fn collaboration_archive_accepts_no_reason() {
+        let task: Task = serde_json::from_value(serde_json::json!({
+            "id": "task-1", "project": "/project", "issuer": "issuer",
+            "assignee": "worker", "reviewer": "issuer", "description": "work",
+            "acceptance": "evidence", "state": "cancelled", "revision": 1,
+            "version": 2, "feedback": [], "attempts": [], "evidence_records": [],
+            "created_seq": 1, "archived": false, "dependencies": [], "eligible": [],
+            "review_overdue": false
+        })).unwrap();
+        assert!(Kind::Archive.labels().is_empty());
+        assert!(matches!(
+            command(Kind::Archive, "/project", Some(&task), None, &[], "archive-intent".into()).unwrap(),
+            Command::Controller(ControllerOperation::TaskArchive { task_id, request_id })
+                if task_id == task.id && request_id == "archive-intent"
+        ));
+    }
+
+    #[test]
     fn reconcile_confirmation_binds_the_visible_followup_and_version() {
         let target = FollowupTarget {
             task_id: "task-1".into(),

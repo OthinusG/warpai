@@ -1560,6 +1560,7 @@ impl Broker {
             cursor,
             limit,
             include_archived,
+            false,
         )
     }
     pub fn operator_task(&self, project: &str, task_id: &str) -> Result<Value> {
@@ -1669,7 +1670,7 @@ impl Broker {
                 "ready": live.is_some_and(|live| live.ready.is_some()),
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
-        let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
+        let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived, !query.history && !query.include_archived && query.task_state.is_none())?;
         let attention = state.store.operator_attention_page(&project, query.task_state.as_deref(),
             query.task_assignee.as_deref(), query.include_archived,
             same_scope.then_some(query.attention_after).flatten(), Some(50))?;

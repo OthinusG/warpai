@@ -1881,6 +1881,10 @@ impl TypedActionView for CollaborationPanel {
                     self.handoff = None;
                     self.handoff_history = None;
                     self.handoff_buttons.borrow_mut().clear();
+                    self.query.include_archived = false;
+                    self.query.task_state = None;
+                    self.query.task_after = None;
+                    self.query.attention_after = None;
                     self.query.history = false;
                     self.query.history_after = None;
                     self.query.selected_task = None;
@@ -5346,6 +5350,12 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 panel.update(app, |panel, ctx| {
                     panel.cancel_control(ctx);
+                    panel.handle_action(&Action::Back, ctx);
+                    assert!(!panel.query.include_archived);
+                    assert!(panel.query.task_state.is_none());
+                    assert!(panel.query.task_after.is_none());
+                    assert!(panel.query.attention_after.is_none());
+                    panel.handle_action(&Action::History, ctx);
                     panel.open_control(controls::Kind::ArchiveAged, ctx);
                     panel.fill_control_checkpoint(&["1"], ctx);
                     panel.confirm_control(ctx);

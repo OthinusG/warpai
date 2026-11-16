@@ -233,6 +233,9 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px. Column shadows use matching centered halos.
   History Archive is idempotent and visibly labeled; task Delete is versioned,
   scoped and retains existing certainty/reference/unread-message guards.
+  Archive requires no reason. Home excludes cancelled tasks before pagination;
+  Back clears archive/state/page filters. History and recovery retain records.
+  Acceptance: specs/1.9.0/TASK-ARCHIVE-VISIBILITY.md (2026-11-16).
   Agent executable detection ignores ASCII case; argv stays verbatim. Shell override lookup
   follows shell semantics: PowerShell ignores ASCII case; POSIX shells retain it.
   Warpui shadow spread is drawable blur padding; zero clips the outer shadow.
