@@ -48,3 +48,15 @@ represents SOCKS4, which agy cannot use; reject it instead of relabeling it SOCK
 References: [CFNetwork PAC](https://developer.apple.com/documentation/cfnetwork/cfnetworkexecuteproxyautoconfigurationurl(_:_:_:_:)),
 [WinHTTP resolver](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpgetproxyforurlex),
 [GIO resolver](https://docs.gtk.org/gio/method.ProxyResolver.lookup.html).
+
+## Verification receipt
+
+[Run 43859471781](https://github.com/OthinusG/warpai/actions/runs/43859471781)
+at `dfbccc9`: all three native networking suites passed, including real child
+static/PAC routes, HTTPS CONNECT and loopback bypass. Full application checks
+are tracked in the same run. Local Objective-C syntax, Rust formatting, Python syntax, fixture
+HTTP and the personal-machine mutation guard passed.
+
+The owner authorized 30-minute CI polling followed by merging PR #12 into main
+after successful application checks. Subsequent edits contain documentation
+and comments only; executable logic remains identical to the tested revision.

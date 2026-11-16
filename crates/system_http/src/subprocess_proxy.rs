@@ -31,7 +31,7 @@ const PROXY_VARIABLES: [&str; 8] = [
 pub struct SubprocessProxy(Option<String>);
 
 impl SubprocessProxy {
-    /// Resolve off the caller's executor; no credentials or response bodies cross this API.
+    /// Resolve off the caller's executor without reading provider credentials or response bodies.
     pub async fn resolve(target: &str) -> Result<Self, &'static str> {
         let target = reqwest::Url::parse(target).map_err(|_| FAILURE)?;
         if !matches!(target.scheme(), "http" | "https")

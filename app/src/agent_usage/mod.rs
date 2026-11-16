@@ -688,7 +688,7 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
         if !providers::safe_agy_version(&String::from_utf8_lossy(&version)) {
             return Err("Requires agy 1.1.11 or newer for a free usage query");
         }
-        // shortcut: agy accepts one proxy route for the entire invocation; per-host PAC needs vendor support.
+        // shortcut: one route covers this invocation; revisit if auxiliary hosts need different PAC routes.
         let proxy = system_http::subprocess_proxy::SubprocessProxy::resolve(
             "https://cloudcode-pa.googleapis.com/",
         ).await?;
