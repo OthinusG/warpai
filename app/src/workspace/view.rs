@@ -21196,30 +21196,33 @@ impl Workspace {
         let left = self.render_vertical_column(PanelPosition::Left, app);
         let right = self.render_vertical_column(PanelPosition::Right, app);
         let mut center = Flex::column().with_main_axis_size(MainAxisSize::Max);
-        // Closed columns leave their controls in the center so every panel can be reopened.
-        if left.is_none() || right.is_none() {
-            let mut controls = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
-            if left.is_none() {
-                controls.add_child(
-                    Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Left, app))
-                        .finish(),
-                );
-            }
-            controls.add_child(Expanded::new(1., Empty::new().finish()).finish());
-            if right.is_none() {
-                controls.add_child(
-                    Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Right, app))
-                        .finish(),
-                );
-            }
-            center.add_child(
-                Container::new(controls.finish())
-                    .with_padding_top(6.)
-                    .with_padding_bottom(8.)
-                    .with_horizontal_padding(18.)
-                    .finish(),
+        // Keep the terminal top fixed when toolbar controls move into open columns.
+        let mut controls = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
+        if left.is_none() {
+            controls.add_child(
+                Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Left, app)).finish(),
             );
         }
+        controls.add_child(Expanded::new(1., Empty::new().finish()).finish());
+        if right.is_none() {
+            controls.add_child(
+                Shrinkable::new(1., self.render_column_toolbar(PanelPosition::Right, app)).finish(),
+            );
+        }
+        center.add_child(
+            Container::new(
+                ConstrainedBox::new(controls.finish())
+                    .with_height(
+                        self.column_toolbar_height(PanelPosition::Left, app)
+                            .max(self.column_toolbar_height(PanelPosition::Right, app)),
+                    )
+                    .finish(),
+            )
+            .with_padding_top(6.)
+            .with_padding_bottom(8.)
+            .with_horizontal_padding(18.)
+            .finish(),
+        );
         center.add_child(Shrinkable::new(1., Container::new(terminal).with_padding_top(6.).finish()).finish());
         let mut row = Flex::row();
         if let Some(left) = left {
