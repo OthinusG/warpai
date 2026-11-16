@@ -107,9 +107,9 @@ static void CALLBACK proxyCallback(HINTERNET resolver, DWORD_PTR context, DWORD 
                 auto &entry = result.pEntries[0];
                 if (!entry.fProxy || entry.fBypass) route = "direct://";
                 else {
+                    // WinHTTP's generic SOCKS result is SOCKS4; agy only supports SOCKS5.
                     const char *scheme = entry.ProxyScheme == INTERNET_SCHEME_HTTP ? "http://"
-                        : entry.ProxyScheme == INTERNET_SCHEME_HTTPS ? "https://"
-                        : entry.ProxyScheme == INTERNET_SCHEME_SOCKS ? "socks5://" : nullptr;
+                        : entry.ProxyScheme == INTERNET_SCHEME_HTTPS ? "https://" : nullptr;
                     if (scheme && entry.pwszProxy && entry.ProxyPort) {
                         auto host = utf8(entry.pwszProxy);
                         if (host.find(':') != std::string::npos && host.front() != '[') host = "[" + host + "]";
@@ -124,6 +124,15 @@ static void CALLBACK proxyCallback(HINTERNET resolver, DWORD_PTR context, DWORD 
     lookup->route = route; lookup->done = true; lookup->changed.notify_all();
 }
 extern "C" int warpai_proxy_for_url(const char *url, char *output, size_t capacity) {
+    struct Config {
+        WINHTTP_CURRENT_USER_IE_PROXY_CONFIG value = {};
+        ~Config() {
+            GlobalFree(value.lpszAutoConfigUrl);
+            GlobalFree(value.lpszProxy);
+            GlobalFree(value.lpszProxyBypass);
+        }
+    } config;
+    if (!WinHttpGetIEProxyConfigForCurrentUser(&config.value)) return -1;
     InternetHandle session { WinHttpOpen(L"Warpai usage", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC) };
     if (!session.value) return -1;
@@ -140,9 +149,15 @@ extern "C" int warpai_proxy_for_url(const char *url, char *output, size_t capaci
         delete owner; return -1;
     }
     WINHTTP_AUTOPROXY_OPTIONS options = {};
-    options.dwFlags = WINHTTP_AUTOPROXY_AUTO_DETECT | WINHTTP_AUTOPROXY_ALLOW_STATIC
-        | WINHTTP_AUTOPROXY_ALLOW_AUTOCONFIG | WINHTTP_AUTOPROXY_ALLOW_CM;
-    options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
+    options.dwFlags = WINHTTP_AUTOPROXY_ALLOW_STATIC | WINHTTP_AUTOPROXY_ALLOW_CM;
+    if (config.value.lpszAutoConfigUrl) {
+        options.dwFlags |= WINHTTP_AUTOPROXY_CONFIG_URL;
+        options.lpszAutoConfigUrl = config.value.lpszAutoConfigUrl;
+    }
+    if (config.value.fAutoDetect) {
+        options.dwFlags |= WINHTTP_AUTOPROXY_AUTO_DETECT;
+        options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
+    }
     auto target = wide(url);
     if (WinHttpGetProxyForUrlEx(raw, target.c_str(), &options, context) != ERROR_IO_PENDING) return -1;
     std::unique_lock<std::mutex> lock(lookup->mutex);

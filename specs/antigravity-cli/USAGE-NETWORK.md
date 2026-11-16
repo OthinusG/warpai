@@ -41,6 +41,10 @@ PAC results mistaken for proxy addresses; bypass behavior; accidentally logging
 credentials; vendor CLI proxy behavior changing between versions. Keep all
 network and environment changes local to this query.
 
+Linux PAC requires the distribution's libproxy PAC backend in addition to
+glib-networking (Debian/Ubuntu: libproxy1-plugin-webkit). WinHTTP's SOCKS result
+represents SOCKS4, which agy cannot use; reject it instead of relabeling it SOCKS5.
+
 References: [CFNetwork PAC](https://developer.apple.com/documentation/cfnetwork/cfnetworkexecuteproxyautoconfigurationurl(_:_:_:_:)),
 [WinHTTP resolver](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpgetproxyforurlex),
 [GIO resolver](https://docs.gtk.org/gio/method.ProxyResolver.lookup.html).

@@ -148,22 +148,28 @@ mod tests {
         }
         let proxy = SubprocessProxy::parse("http://localhost:8080").unwrap();
         proxy.apply(&mut command);
-        let vars: std::collections::HashMap<_, _> = command.get_envs().collect();
+        let vars: std::collections::HashMap<_, _> = command
+            .get_envs()
+            .map(|(name, value)| (name.to_string_lossy().to_ascii_lowercase(), value))
+            .collect();
         for name in &PROXY_VARIABLES[..6] {
             assert_eq!(
-                vars[std::ffi::OsStr::new(name)],
+                vars[&name.to_ascii_lowercase()],
                 Some(std::ffi::OsStr::new("http://localhost:8080/"))
             );
         }
         SubprocessProxy::parse("direct://")
             .unwrap()
             .apply(&mut command);
-        let vars: std::collections::HashMap<_, _> = command.get_envs().collect();
+        let vars: std::collections::HashMap<_, _> = command
+            .get_envs()
+            .map(|(name, value)| (name.to_string_lossy().to_ascii_lowercase(), value))
+            .collect();
         for name in &PROXY_VARIABLES[..6] {
-            assert!(vars[std::ffi::OsStr::new(name)].is_none());
+            assert!(vars[&name.to_ascii_lowercase()].is_none());
         }
         assert_eq!(
-            vars[std::ffi::OsStr::new("NO_PROXY")],
+            vars["no_proxy"],
             Some(std::ffi::OsStr::new("localhost,127.0.0.1,::1"))
         );
         assert!(Command::new("unaffected").get_envs().next().is_none());

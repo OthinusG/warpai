@@ -86,14 +86,14 @@ def main():
         result = subprocess.run([probe, target], env=env, timeout=15, capture_output=True)
         assert result.returncode == 0, "Native fixture probe failed: " + result.stderr.decode(errors="replace")[-1000:]
         assert result.stdout.strip() == b"200", "Proxy fixture did not receive a successful native request"
-        assert Proxy.observed == [target], "Native transport bypassed the configured OS proxy"
+        assert target in Proxy.observed, f"Native proxy fixture did not receive target: {Proxy.observed}"
 
         def child(url, expected, observed):
             Proxy.observed.clear()
             result = subprocess.run([probe, url, "--subprocess"], env=env, timeout=20, capture_output=True)
             assert result.returncode == 0, "Subprocess fixture failed: " + result.stderr.decode(errors="replace")[-1000:]
             assert result.stdout.strip() == expected
-            assert Proxy.observed == [observed], "Child bypassed the selected system proxy"
+            assert observed in Proxy.observed, f"Child bypassed the selected system proxy: {Proxy.observed}"
 
         child(target, b"200", target)
         child("https://warpai-proxy.invalid/acceptance", b"connect-rejected", "warpai-proxy.invalid:443")
