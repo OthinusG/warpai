@@ -1,5 +1,196 @@
 # SSH Agent Communication API
 
+## Paused receiver returns to idle (2026-11-14)
+
+The owner clarified that a paused Agent at an idle prompt can receive tasks.
+`paused` is a transient cancellation hold, not a permanent dispatch opt-out.
+Cancellation immediately invalidates delayed Enter and does not prove readiness.
+A subsequent accepted native idle event, fenced screen-idle sample, authenticated
+native-idle report or accepted `agent_ready` clears the hold. No extra user
+submission is required. Draft/permission/settling/run and execution-ownership
+guards remain independent. Idle never submits, retries or completes a task.
+
+## Supervision recovery corrections (2026-11-14)
+
+`warp_supervision_index` uses the active Worktree Coordinator's existing project
+task authority; other Agents retain issuer/assignee/reviewer scope. Archived
+tasks remain in recovery when unresolved questions, overtaken follow-ups or
+uncertain executions require action. Archival alone is not terminal handling.
+
+Outgoing requests retire on a final succeeded/failed reply or their explicit
+`followup_reconciled` event. Real result messages remain `process_result` rows
+until acknowledged, including when another actor reconciled the request. An
+issuer's self-reconciliation requires no synthetic self-result.
+
+Unanswered questions addressed to the caller also have distinct `question:<id>`
+rows with `message_id`, task/thread/reply references, bounded display preview,
+`answer` action and recipient role. This includes questions without tasks.
+`counts.questions` counts these rows; `total` counts all task/request/result/
+question rows, not distinct tasks or actions. Task rows still summarize their
+question count. Reading grants no new access and changes no acknowledgement.
+
+Native follow-up pagination retains the current page cursor in its history so
+Earlier returns to the immediate prior page. Follow-up browsing remains an
+Operator Panel projection (`PanelQuery.followup_*`); there is no
+`warp_task_followups` MCP tool. Agents use existing authorized inbox/thread reads.
+
+## Retention and synthetic space cursor correction (2026-11-13)
+
+Task deletion, purge preview and history purge must retain an overtaken
+task-linked `message`/`request` even after read acknowledgement, until a
+`followup_reconciled` event or a succeeded/failed result ends it. Existing
+unread-message, dependency, handoff and execution-uncertainty guards still apply.
+Archiving does not end the follow-up. Once it is explicitly ended, the task
+becomes eligible for cleanup only if all other guards also permit it.
+
+The synthetic Private space is not a real name-sorted record. If panel byte
+trimming leaves only that row, `space_cursor` is `""`, reusing SpaceList's
+existing continuation after Private: the next page omits Private and starts at
+the first real space. When a real row remains, its name is the cursor. Never
+use the synthetic display name `Private` as a scan position. There is no new
+field, capability, migration or permission change.
+
+## Panel response byte budget and read-versus-terminal follow-ups (2026-11-12)
+
+One `operator_panel` response is bounded by an aggregate serialized UTF-8 budget
+(`MAX_PANEL_RESPONSE`, 448 KiB). It sits below the Companion `MAX_RESULT`
+(512 KiB) so the `{"value":…}` wrapper and remote envelope still fit, and below
+the local `MAX_FRAME` (1 MiB). Budgeting runs once, after the panel is built, so
+local, SSH and direct-WSL reads share identical semantics. Trimming sheds whole
+rows one record at a time, starting with the derived `attention.tasks` page,
+then `events`, `history.records`, `reservations`, `resources`, `spaces`,
+`agents`, `tasks` and `messages`. No collection is trimmed below one record and
+no preview is removed from a returned row, so every surviving record keeps its
+actions and previews and remains reachable.
+
+Every trimmed collection keeps its cursor on the last returned real row
+(`message_cursor`, `history.cursor`, `event_cursor`, `reservation_cursor`,
+`context_cursor`, `space_cursor`, `task_cursor`, `agent_cursor`,
+`attention.cursor`), or the empty continuation after synthetic Private. The next read therefore resumes exactly after the last
+returned row: no skipped or repeated rows and no empty-page loop.
+`attention.total`/`counts` and `followup_count` always describe the whole
+filtered set; a trimmed attention page sets `truncated` plus `cursor`. Full
+bodies remain reachable through `thread_get`. If the panel cannot fit even after
+trimming (for example one oversized fixed field), the operation returns
+`capacity_exceeded`; the panel keeps its previous snapshot, drafts and
+filter/cursor query and marks the state stale instead of rendering a partial
+view as current.
+
+Overtaken follow-ups are listed until a terminal fact exists, not until they are
+read. "Terminal" is the persisted `followup_reconciled` event or a
+`result_succeeded`/`result_failed` reply to the follow-up; an ordinary
+acknowledgement (`acknowledged=1`, read receipt) is not terminal. Consequences:
+
+- The attention `followups` count and previews exclude only ended follow-ups and
+  follow-ups that already reached a final result. An ACKed but
+  unreconciled, unfinalised overtaken `message`/`request` stays visible and
+  actionable.
+- `task_followup_reconcile` rejects an already-reconciled follow-up with
+  `invalid_state`, and rejects a follow-up that already has a succeeded/failed
+  result with `invalid_state`. Blocked results are not final; such a follow-up
+  stays reconcilable.
+- The retirement rule is unchanged for existing rows: the check reads persisted
+  events and results, so rows written before this change follow it without a
+  migration. Archival and purge keep the events/results that the closure
+  decision depends on.
+
+## Follow-up reconciliation and attention paging (2026-11-11)
+
+An overtaken task-linked `message`/`request` stays unread until an authorized
+actor ends it explicitly with `task_followup_reconcile`, exposed to Agents as the
+MCP tool `warp_task_followup_reconcile`
+(`{task_id,message_id,note,expected_version,request_id}`). Authority is the
+operator, task issuer, reviewer or selected Worktree Coordinator. The operation
+returns only the receipt, never a message body, so it grants no message read
+access; an authorized actor still obtains the body through its inbox or a thread
+it participates in. Behaviour:
+
+- `expected_version` must equal the task's current version and the message must
+  belong to that task and project; a stale version returns `version_conflict`.
+- Only an unacknowledged `message`/`request` whose recorded revision differs from
+  the current task revision can be reconciled; a current-revision instruction is
+  `invalid_state` and must be delivered normally.
+- Reconciliation acknowledges the original message without rewriting its body,
+  revision, thread or sender. Task ownership, assignment and execution are
+  unchanged; no retry, cancel or permission change is implied.
+- When the actor is not the message sender, a `result_failed` with subject
+  `Superseded follow-up` is queued to the original sender, tagged with the
+  current task revision and `reply_to` the original message, so a waiting
+  `expects_result` sender is released. Sending the new instruction remains a
+  separate `warp_agent_send` against the current revision.
+- Reconciliation is terminal for the follow-up. A later `agent_reply` with
+  `succeeded`, `failed` or `blocked` returns `invalid_state`; the check uses the
+  persisted `followup_reconciled` event, not `acknowledged`, because an ordinary
+  read message that was never reconciled can still be answered.
+- A reconciled `message` never requested a result and produces none. A reconciled
+  `request` from another sender produces the superseded `result_failed` above. A
+  request reconciled by its own sender produces no self-addressed result: the
+  receipt (`result_message_id: null`) and the `followup_reconciled` event are the
+  durable terminal record, so the issuer's inbox and unresolved-work sets close
+  without a self-wake or a reply loop.
+- Unacknowledged `question` messages whose `reply_to` is the reconciled follow-up
+  are retired in the same transaction; questions belonging to other instructions
+  or revisions are untouched. The `followup_reconciled` payload adds
+  `retired_questions`, and `waiting_for_answer` reflects the retirement.
+- A reply and a reconciliation race resolves inside one transaction: whichever
+  commits first wins and the other returns `invalid_state`. No second terminal
+  result is created.
+- The receipt is `{message_id,acknowledged,task_id,revision,version,result_message_id}`
+  and is idempotent under `request_id`; the same `request_id` with a different
+  note returns `request_conflict`, and a different `request_id` after
+  reconciliation returns `invalid_state`. History records `followup_reconciled`
+  with task revision, message revision, kind, thread, note and result message ID.
+- Capability name `followup_reconcile`. Companions without it do not expose the
+  operation; an older panel payload without the new accounting fields stays
+  readable, and absent `followups`/`cursor` simply render no previews or next
+  page.
+
+`attention` rows add `version`, `created_seq`, `followup_count` and
+`followups:[{message_id,revision,kind,sender,thread_id,body,truncated}]` (at most
+8 per task, `body` the readable display text of the structured message truncated
+to 512 characters; `truncated` marks a longer original).
+The preview is never the only copy: `thread_get` with the follow-up's thread ID,
+or with the message ID when it has no thread, returns the full body to a sender,
+recipient or the operator. `tasks` is a page ordered by `created_seq`;
+`operator_panel` accepts `attention_after` and returns `cursor` only when another
+row exists. `total` and `counts` always describe the whole filtered set, not the
+page, so a page length is never a total and the sum of action counts may exceed
+`total`. Changing the task state/assignee filter or archive scope resets the
+cursor; resolution of the last row on a page may empty it and the panel reloads
+the first page.
+
+The collection is dynamic, not a cross-request snapshot: each page re-evaluates
+the filter, newly created tasks have higher `created_seq` and appear on a later
+page, and rows that stop matching disappear. A task whose pending work shrinks
+below the current page start is reached again from the first page. The panel
+shows the loaded row count against `total` rather than claiming completeness.
+
+## Task-linked follow-ups and attention projection (2026-11-08)
+
+`warp_agent_send` with `task_id` (explicit or inherited through `reply_to`) records
+the task revision at queue time on the `message`/`request`. Native wake,
+`agent_wait` and panel pending work skip a task-linked `message`/`request` whose
+recorded revision differs from the current task revision: a review rejection or
+other revision bump must not drive work with an overtaken instruction. The
+message remains in the inbox/history, is not rewritten, retargeted, acknowledged
+or deleted, and the operator sends a fresh follow-up against the current
+revision. State notifications (`assignment`, `review`, `observation`,
+`cancel_requested`, `interrupted`) keep their existing transition semantics.
+No schema or protocol-major change is required.
+
+`operator_panel` adds a derived `attention` projection for the same project and
+task filters as the Tasks list:
+`{tasks:[{task_id,description,state,revision,assignee,reviewer,actions,observation_age_ms}],total,truncated,counts}`.
+Actions are `answer`, `review`, `permission`, `recovery`, `unreachable`,
+`dependency`, `overdue` and `reconcile`; each task appears once with every
+pending action. `total` and `counts` cover the whole filtered set while `tasks`
+is paged (see 2026-11-11). The projection derives from
+current tasks, unfinished uncertain attempts, unread questions/follow-ups,
+dependencies, deadlines and the latest current-revision native observation; it
+stores no new lifecycle state. Companions that predate the field omit it and the
+panel hides the section. This is additive: no new operation, automatic retry,
+automatic approval or capability/version bump.
+
 ## Task dispatch and panel projection (2026-11-03)
 
 Use `warp_task_assign` when delegating execution or when the user explicitly

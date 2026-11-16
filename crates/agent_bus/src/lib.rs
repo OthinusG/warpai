@@ -18,6 +18,7 @@ pub mod ssh_remote;
 pub mod ssh_files;
 pub mod native_pty;
 pub(crate) mod worktrees;
+mod panel_budget;
 
 pub use storage::{Store, WorkspaceBinding};
 
@@ -29,6 +30,10 @@ use serde_json::Value;
 use uuid::Uuid;
 
 pub const MAX_FRAME: usize = 1024 * 1024;
+/// Serialized UTF-8 budget for one operator-panel response. It stays below the
+/// Companion `MAX_RESULT` (512 KiB) so the `{"value":…}` wrapper and remote
+/// envelope still fit, and leaves room for multibyte and escaped payloads.
+pub(crate) const MAX_PANEL_RESPONSE: usize = 448 * 1024;
 pub(crate) const MAX_TEXT: usize = 8192;
 pub(crate) const MAX_SUBJECT: usize = 256;
 pub(crate) const PAGE_DEFAULT: u32 = 50;
@@ -215,6 +220,13 @@ pub enum Operation {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         limit: Option<u32>,
     },
+    /// Bounded recovery index over durable facts for this actor's unfinished work.
+    SupervisionIndex {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cursor: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        limit: Option<u32>,
+    },
     ProjectMemoryUpdate {
         key: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -313,6 +325,13 @@ pub enum Operation {
     },
     AgentAck {
         message_id: String,
+    },
+    TaskFollowupReconcile {
+        task_id: String,
+        message_id: String,
+        note: String,
+        expected_version: u64,
+        request_id: String,
     },
     AgentWait,
     AgentReady,
@@ -583,6 +602,7 @@ impl Operation {
             | Self::AgentReply { request_id, .. }
             | Self::AgentAsk { request_id, .. }
             | Self::AgentAnswer { request_id, .. }
+            | Self::TaskFollowupReconcile { request_id, .. }
             | Self::TaskAssign { request_id, .. }
             | Self::TaskStart { request_id, .. }
             | Self::TaskSubmit { request_id, .. }

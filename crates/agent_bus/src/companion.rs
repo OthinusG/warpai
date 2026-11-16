@@ -28,7 +28,7 @@ mod tasks;
 mod terminals;
 #[path = "companion_guests.rs"]
 pub(crate) mod guests;
-pub(crate) use tasks::decode_result as decode_task_result;
+pub(crate) use tasks::{decode_result as decode_task_result, MAX_RESULT as MAX_TASK_RESULT};
 pub use tasks::Command as TaskCommand;
 
 struct Project {
@@ -125,7 +125,9 @@ impl Companion {
                         "structured_task_messages".into(),
                         "execution_threads".into(),
                         "project_memory".into(),
+                        "project_supervision".into(),
                         "handoff_briefs_v1".into(),
+                        "followup_reconcile".into(),
                         "project_mcp".into(),
                         #[cfg(not(feature = "wsl_companion"))]
                         "native_mcp_setup".into(),

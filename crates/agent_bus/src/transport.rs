@@ -1,8 +1,8 @@
 //! Authenticated, bounded local IPC. Warp alone creates and activates terminal bindings.
 use crate::{
     binding_inactive, capacity_exceeded, coordinator_unavailable, epoch_expired, invalid_input,
-    invalid_state, scope_denied, unauthorized, Agent, ControllerOperation, DomainError, Operation,
-    Store, Task, MAX_FRAME, MUTATION_EPOCH,
+    invalid_state, panel_budget::bound_panel, scope_denied, unauthorized, Agent, ControllerOperation,
+    DomainError, Operation, Store, Task, MAX_FRAME, MUTATION_EPOCH,
 };
 use anyhow::{anyhow, ensure, Result};
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ pub const CAPABILITY: &str = "WARP_AGENT_CAPABILITY";
 pub const TERMINAL: &str = "WARP_TERMINAL_SESSION_UUID";
 pub const PROTOCOL_MAJOR: u16 = 2;
 pub const LOCAL_FEATURES: &[&str] = &[
-    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history", "correlated_results", "decision_questions", "project_supervision", "context_resources", "structured_task_messages", "execution_threads", "project_memory", "handoff_briefs_v1",
+    "task_control", "dependencies", "threads", "reservations", "evidence_refs", "event_resume", "task_history", "correlated_results", "decision_questions", "project_supervision", "context_resources", "structured_task_messages", "execution_threads", "project_memory", "handoff_briefs_v1", "followup_reconcile",
 ];
 const WAIT: Duration = Duration::from_secs(20);
 #[derive(Clone, Serialize, Deserialize)]
@@ -176,6 +176,8 @@ pub struct PanelQuery {
     pub terminal: Option<String>,
     pub agent_after: Option<String>,
     pub task_after: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attention_after: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_after: Option<u64>,
     pub selected_task: Option<String>,
@@ -192,6 +194,13 @@ pub struct PanelQuery {
     pub message_after: Option<u64>,
     pub history: bool,
     pub history_after: Option<u64>,
+    /// Task-scoped unresolved follow-up page; independent of the attention cursor.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub followup_task: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub followup_after: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub followup_limit: Option<u32>,
 }
 impl RunningBroker {
     pub fn start(database: &Path) -> Result<Self> {
@@ -617,11 +626,14 @@ impl Broker {
             return live.activity == activity;
         }
         // Stable samples must preserve the idle lease and any in-flight wake.
-        if live.activity == activity && live.native_activity == Some(activity) { return true; }
+        if live.activity == activity && live.native_activity == Some(activity)
+            && !(activity.is_idle() && live.paused) { return true; }
         if activity.is_idle() && context.quiet() < Duration::from_millis(700) { return false; }
         live.generation += 1;
         live.activity = activity;
         live.native_activity = Some(activity);
+        // A confirmed idle prompt ends the transient cancellation hold.
+        if activity.is_idle() { live.paused = false; }
         live.readiness_source = "native_screen";
         live.observed = Instant::now();
         live.ready = activity.is_idle().then(Instant::now);
@@ -659,6 +671,7 @@ impl Broker {
                 live.activity = activity;
                 live.readiness_source = "native"; live.observed = Instant::now();
                 live.ready = activity.is_idle().then(Instant::now);
+                if activity.is_idle() { live.paused = false; }
                 if !activity.is_idle() {
                     live.initial_prompt = false;
                     if let Some(wake) = live.wake.take() {
@@ -879,7 +892,7 @@ impl Broker {
                 let live = binding.live.as_ref()?;
                 let message = state
                     .store
-                    .first_pending(live.agent.as_ref()?, false)
+                    .first_deliverable(live.agent.as_ref()?, false)
                     .ok()??;
                 Some(Wake {
                     terminal: terminal.clone(),
@@ -1091,6 +1104,7 @@ impl Broker {
             let observation = (live.native_activity != Some(activity)).then(|| live.agent.clone().map(|actor| (actor, live.run.clone(), live.blocked))).flatten();
             live.native_activity = Some(activity);
             live.activity = activity;
+            if activity.is_idle() { live.paused = false; }
             live.readiness_source = "native"; live.observed = Instant::now();
             live.ready = activity.is_idle().then(Instant::now);
             live.generation += 1;
@@ -1253,6 +1267,7 @@ impl Broker {
             live.ready = Some(Instant::now());
             live.activity = Activity::Idle;
             live.readiness_source = "model"; live.observed = Instant::now();
+            live.paused = false;
             live.generation += 1;
             if let Some(wake) = live.wake.take() {
                 live.delivered.remove(&wake.message_id);
@@ -1545,6 +1560,7 @@ impl Broker {
             cursor,
             limit,
             include_archived,
+            false,
         )
     }
     pub fn operator_task(&self, project: &str, task_id: &str) -> Result<Value> {
@@ -1570,6 +1586,8 @@ impl Broker {
                 "worktree_joined":false,"worktree_root":query.project,"worktree_branch":null,
                 "roles":[],"candidates":[],"worktrees":[],"coordinator_online":false,
                 "agents":[],"agent_cursor":null,"tasks":[],"task_cursor":null,"task":null,"task_runtime":null,
+                "attention":{"tasks":[],"total":0,"truncated":false,"counts":{"answer":0,"review":0,"permission":0,"recovery":0,"unreachable":0,"dependency":0,"overdue":0,"reconcile":0}},
+                "followups":null,
                 "events":[],"event_cursor":null,"spaces":[],"space_cursor":null,
                 "reservations":[],"reservation_cursor":null,"messages":[],"message_cursor":null,"history":null}));
         }
@@ -1652,7 +1670,15 @@ impl Broker {
                 "ready": live.is_some_and(|live| live.ready.is_some()),
                 "readiness_source": live.map(|live| live.readiness_source)})
         }).collect();
-        let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived)?;
+        let mut tasks = state.store.operator_tasks(&project, query.task_state.as_deref(), query.task_assignee.as_deref(), same_scope.then_some(query.task_after).flatten(), Some(50), query.include_archived, !query.history && !query.include_archived && query.task_state.is_none())?;
+        let attention = state.store.operator_attention_page(&project, query.task_state.as_deref(),
+            query.task_assignee.as_deref(), query.include_archived,
+            same_scope.then_some(query.attention_after).flatten(), Some(50))?;
+        let followups = match query.followup_task.as_ref().filter(|_| same_scope) {
+            Some(task_id) => Some(state.store.task_followups_page(&project, task_id,
+                query.followup_after, query.followup_limit)?),
+            None => None,
+        };
         if query.worktree {
             if let Some(rows) = tasks["tasks"].as_array_mut() {
                 for row in rows { row["integration"] = json!(state.store.worktree_integration(&project, row["id"].as_str().unwrap())?); }
@@ -1710,15 +1736,18 @@ impl Broker {
         }
         let candidates = if query.worktree { self.worktree_candidates(&query.project).unwrap_or_default() } else { vec![] };
         let worktrees = if query.worktree { crate::worktrees::list(&query.project).unwrap_or_default() } else { vec![] };
-        Ok(json!({"handoff_briefs_v1":true, "project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
+        let mut panel = json!({"handoff_briefs_v1":true, "project": project, "worktree_mode":worktree_mode, "admission": admission, "agents": agents, "agent_cursor": agent_cursor, "participant_names":participant_names,
             "roles": roles, "coordinator_online":coordinator_online, "candidates":candidates, "worktrees":worktrees,
             "worktree_joined": joined.is_some(), "worktree_root": query.project,
             "worktree_branch": worktree_branch,
             "worktree_available": Path::new(&query.project).join(".git").exists(),
             "resources": contexts["resources"], "context_cursor": contexts["cursor"],
             "tasks": tasks["tasks"], "task_cursor": tasks["cursor"],
-            "task": task, "task_runtime": runtime, "events": events["events"],
-            "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]}))
+            "task": task, "task_runtime": runtime, "attention": attention, "followups": followups,
+            "events": events["events"],
+            "event_cursor": events["cursor"], "history": history, "spaces": spaces["spaces"], "space_cursor": spaces["cursor"], "reservations": reservations["reservations"], "reservation_cursor": reservations["cursor"], "messages": messages["messages"], "message_cursor": messages["cursor"]});
+        bound_panel(&mut panel, crate::MAX_PANEL_RESPONSE)?;
+        Ok(panel)
     }
 }
 fn registration_result(agent: &Agent, run: &str) -> Value {

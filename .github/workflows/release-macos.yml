@@ -153,6 +153,8 @@ jobs:
           git diff --check
       - name: Prepare build tools
         run: |
+          sh -n script/macos/create-dmg.sh
+          python3 script/macos/test-create-dmg.py
           rustup toolchain install 1.92.0 --profile minimal
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcrun --find metal

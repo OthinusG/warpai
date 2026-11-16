@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -8,7 +8,8 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 ## Working and delivery rules
 
 - Rust builds/native acceptance: GitHub with caches. Local syntax/scripts only; no personal install/config changes.
-- Capture baseline: `fixtures * 8 + 234` PNGs/language, including two icon frames;
+- Capture baseline: `fixtures * 8 + 251` PNGs/language, including the third-page
+  follow-up navigation frame and prior icon/reconcile/follow-up captures;
   update both workflows. macOS 14 GB runner: incremental off, clean warpai before relink.
 - Windows fixtures must retain the real disposable KnownFolder profile; spoofing USERPROFILE can make LocalAppData unavailable.
 - Peer wake cancellation fixtures end on captured paste; scheduling all agents
@@ -20,6 +21,7 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   command-line `-c` and runner workspace aliases do not work.
 - Immutable tagged releases: accept UI, create draft, then attach Windows/Linux.
   See specs/RELEASE.md gates/HTTP 500 recovery. SSH major 1; Agent Bus 2.
+- Fork LFS quota exhausted: pull `*.pdb` via temporary upstream `lfs.url`, then unset and `git reset`.
 
 ## Published releases and maintenance
 
@@ -32,15 +34,79 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   See SSH-POWERSHELL-AUDIT.md; preserve SSH evidence and drafts.
 - Artifact-only macOS must not publish Windows. Windows CI/release pins official
   protoc 36.2 + SHA-256; Chocolatey NuGet 503/504 blocked builds. See specs/RELEASE.md.
+- macOS DMG creation retries normal detach on temporary busy mounts; never
+  convert before successful detach or delete a still-mounted workspace.
+  Failure evidence and acceptance: specs/RELEASE.md (2026-11-16).
 - `warpdotdev` mirrors `warpdotdev/warp` `master` fast-forward only; it is reference,
   never merged into `main`. Daily sync: `.github/workflows/sync-warpdotdev.yml` (03:17 UTC).
 
 ## Project, worktree and Agent ownership
 
 - Task handoff contract: specs/agent-communication-v2/HANDOFF.md; immutable pins grant no execution or source-task access.
+  1.9.0 plan: specs/1.9.0/TODO.md; process-mapping audit: specs/1.9.0/PROCESS-REVIEW.md.
+  R2 prompt: AGENT-EXECUTION-1.9.0-R2.md; assume round one provisionally complete, work only the delta.
+  research: specs/SUPERAGENT-REVIEW-1.9.0.md; Nov12 audit: specs/1.9.0/BRANCH-AUDIT-2026-11-12.md
+  (attention byte budget; ACK versus terminal follow-up closure). Nov13 review:
+  specs/1.9.0/IMPLEMENTATION-REVIEW-2026-11-13.md (retention guards and synthetic space cursors).
+  Owner authorized reviewer repair, independent follow-up browsing and supervision
+  recovery plus CI: specs/1.9.0/AGENT-EXECUTION-THREE-GAPS-2026-11-13.md.
+  Assigned to qoder-cn via task `7aba27fa-7b33-41b5-83fa-53d43fd86e4f`.
+  Implementation Agent reports directly to owner; sender must not monitor.
+  Owner excludes external event intake
+  and danger-full-access remediation; retain native authority/guarded recovery.
 
 - Supervision dispatches anytime, retaining unresolved task/request IDs across
   waits/yields and retiring only handled outcomes. No batch/exclusive watch.
+- Task-linked follow-ups pin the task revision at send; wake/wait delivery skips
+  overtaken `message`/`request` entries (kept unread in inbox/history), and the
+  panel derives a bounded, filter-scoped `attention` projection with
+  reconcile/answer/review/recovery/permission/unreachable/dependency/overdue
+  actions. Additive only: no lifecycle/schema/protocol change, and older
+  Companions omit the field. See specs/agent-communication-v2/API.md (2026-11-08).
+- Overtaken follow-ups end only via `task_followup_reconcile` (operator/issuer/
+  reviewer/active Coordinator; version+revision checked; acknowledges without
+  rewriting; releases a waiting sender with `result_failed`). A durable
+  `followup_reconciled` event is the terminal fact: late results are refused
+  without treating every acknowledged message as resolved, a self-ended request
+  closes with no self-result, and questions derived from the ended follow-up are
+  retired. "Resend" is a new `agent_send`, never a task restart. Attention is
+  cursor-paged with whole-set `total`/`counts`; previews stay bounded (8 per task,
+  truncation marked) and the full body stays readable through its thread; never
+  derive totals from page length. Acknowledgement is read state only: an ACKed
+  overtaken follow-up stays listed until the `followup_reconciled` event or a
+  succeeded/failed result, so late results stay refused without hiding unhandled
+  work. One panel response is bounded by an aggregate serialized UTF-8 budget
+  (`MAX_PANEL_RESPONSE`, 448 KiB, under Companion `MAX_RESULT` 512 KiB):
+  collections and attention previews shed tails, every cursor stays on the last
+  real row (Private-only spaces resume with `""`), totals stay whole-filter, and an unfittable panel returns
+  `capacity_exceeded` instead of an oversized frame. Capability
+  `followup_reconcile`. See API.md (2026-11-11, 2026-11-12).
+- TaskDelete/purge preview/HistoryPurge protect ACKed overtaken instructions
+  until reconciliation/final result; read acknowledgement alone cannot release
+  their history. Nov13 regression coverage: `storage::review_tests`.
+- Nov13 three execution gaps (code `5e69f5e81`, base `9441e9f79`): an omitted
+  reviewer on reassignment keeps the exact synthetic `warp:<project>` Operator
+  without a persisted Agent lookup (explicit reviewers still replace it). Follow-ups page
+  independently of the attention cursor via native `PanelQuery.followup_*`
+  (task-scoped, nonmutating, 256 KiB page, resume
+  cursor); those request fields are omitted when idle so older Companions still
+  decode. `warp_project_bootstrap` adds a bounded `supervision` block
+  (`Operation::SupervisionIndex`, capability `project_supervision`) rebuilding
+  delegated tasks, outgoing requests without a final reply and unacknowledged
+  results without changing state. Evidence: specs/1.9.0/TODO.md.
+- Nov14 recovery repair: specs/1.9.0/COMMUNICATION-AUDIT-2026-11-14.md. Recovery
+  retires self-reconciled requests, retains real unhandled results, uses active
+  Coordinator scope and keeps archived pending facts. Questions addressed to the
+  caller have distinct answer rows (`counts.questions`); totals count entities.
+  Follow-up history stores current page cursors. Browsing uses the native Panel;
+  no `warp_task_followups` MCP tool or broader message read permission was added.
+- Vendor structured observation stays `existing_unverified`: only screen
+  manifests exist; no adapter or whole-task retry wrapper. Keep unknown on
+  missing identity, and never infer failure/health from idle, timeout, "429" or
+  disconnect. See specs/1.9.0/TODO.md P0-07.
+- Expired advisory reservations tied to `active` or unresolved `unknown` attempts
+  keep their row and `abandoned` warning until execution resolves; TTL still
+  permits new writes because reservations are not OS locks. See specs/1.9.0/TECH.md.
 - Native worktrees own creation/catalog/tabs; creation never launches an Agent.
 - Membership uses canonical Git common-directory identity across registered
   checkouts/subdirectories, including empty tabs. Never infer it from names,
@@ -126,6 +192,9 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - WSL setup hardens owned real namespaces to 0700; preserve SSH/account data.
   Restore saved live accounts with one deferred rescan, never a failure retry loop.
 - Input/cancel/run replacement fences Enter; closing invalidates its run.
+- A cancellation pause is transient: confirmed native/screen idle or accepted
+  AgentReady restores receiving without another user submit. Keep input/run,
+  settling, permission and execution-ownership guards; idle never retries a task.
 - Back up schema migrations consistently; no downgrade or automatic legacy
   identity migration. Preserve read-only legacy metadata, uncertainty and receipts.
   macOS sockets require short private /tmp paths; Windows uses bounded asynchronous
@@ -155,12 +224,18 @@ Updated 2026-11-05. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   English/zh-Hans/zh-Hant need restart; localize outcomes, preserve IDs.
 - Native capture: each locale owns/closes an SSH master; close dropdowns; preserve
   UTF-8/POSIX tooling and PROTOC. Test real Windows glyph fallback/font rendering.
+- The live collaboration seed sends nine revision-pinned follow-ups, then
+  cancels/retries so the task continues at revision 3; later capture assertions
+  on the private/retry state must track that revision.
 - Preserve saved themes, Claude Warm Light/Latte/Dark and approved SVG branding.
 - Vertical chrome: side toolbars live inside inset floating columns; no title
   search setting/config override. Closed columns retain reopening controls.
   Field correction contract: specs/macos-bugcheck-2026-11/TECH.md. Left inset: 6px; right: 12px. Column shadows use matching centered halos.
   History Archive is idempotent and visibly labeled; task Delete is versioned,
   scoped and retains existing certainty/reference/unread-message guards.
+  Archive requires no reason. Home excludes cancelled tasks before pagination;
+  Back clears archive/state/page filters. History and recovery retain records.
+  Acceptance: specs/1.9.0/TASK-ARCHIVE-VISIBILITY.md (2026-11-16).
   Agent executable detection ignores ASCII case; argv stays verbatim. Shell override lookup
   follows shell semantics: PowerShell ignores ASCII case; POSIX shells retain it.
   Warpui shadow spread is drawable blur padding; zero clips the outer shadow.

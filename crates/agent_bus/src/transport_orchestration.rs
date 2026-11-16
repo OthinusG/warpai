@@ -408,15 +408,32 @@ mod tests {
                 broker.input_bytes(&terminal, b"changed during delayed Enter");
                 assert!(!broker.wake_valid(&wake), "new input fences delayed submission");
                 broker.input_bytes(&terminal, b"\x03");
+                assert!(!broker.wake_valid(&wake), "cancellation fences delayed Enter immediately");
+                assert!(broker.wakeups().iter().all(|wake| wake.terminal != terminal));
                 age();
                 broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle);
-                assert!(broker.wakeups().iter().all(|wake| wake.terminal != terminal), "cancel does not auto-retry");
-                broker.input_bytes(&terminal, b"resumed\r");
                 age();
-                broker.observe_screen(&terminal, &broker.screen_context(&terminal).unwrap(), Activity::Idle);
+                let mut retry = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+                assert_eq!(retry.message_id, wake.message_id, "idle recovery retains the original queued notification");
+                for native_hook in [true, false] {
+                    broker.native_input(&terminal, false, true);
+                    assert!(!broker.wake_valid(&retry), "remote cancellation fences the previous wake");
+                    assert!(broker.wakeups().iter().all(|wake| wake.terminal != terminal));
+                    if native_hook {
+                        broker.readiness(&terminal, true);
+                    } else {
+                        assert_eq!(call(broker, &worker, Operation::AgentReady).unwrap()["ready"], true);
+                    }
+                    age();
+                    retry = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+                    assert_eq!(retry.message_id, wake.message_id);
+                }
+                broker.input_guard(&terminal, false, true);
+                assert!(!broker.wake_valid(&retry), "idle recovery does not bypass permission guards");
+                assert!(broker.wakeups().iter().all(|wake| wake.terminal != terminal));
+                broker.input_guard(&terminal, false, false);
                 age();
                 let retry = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
-                assert_eq!(retry.message_id, wake.message_id, "retry retains the original task message");
                 assert!(broker.claim_wake(&retry));
                 broker.finish_wake(&retry, true);
                 let inbox = call(broker, &worker, Operation::AgentInbox { cursor:None, limit:None }).unwrap();

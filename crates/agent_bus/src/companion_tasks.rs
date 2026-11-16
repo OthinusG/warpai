@@ -796,6 +796,7 @@ impl Projects {
                         | Operation::ExecutionThreadGet { .. }
                         | Operation::ProjectBootstrap { .. }
                         | Operation::ProjectMemoryUpdate { .. }
+                        | Operation::SupervisionIndex { .. }
                         | Operation::ContextGet { .. }
                         | Operation::ContextList { .. }
                         | Operation::AgentList
@@ -803,6 +804,7 @@ impl Projects {
                         | Operation::AgentReply { .. }
                         | Operation::AgentQuestions { .. }
                         | Operation::AgentAnswer { .. }
+                        | Operation::TaskFollowupReconcile { .. }
                         | Operation::TaskAssign { .. }
                         | Operation::TaskList { .. }
                         | Operation::TaskGet { .. }

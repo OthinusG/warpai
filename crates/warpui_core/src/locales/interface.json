@@ -6053,6 +6053,58 @@
     "此页没有任务。",
     "此頁沒有工作。"
   ],
+  "Needs attention": [
+    "需要处理",
+    "需要處理"
+  ],
+  "{} tasks need action.": [
+    "{} 个任务需要处理。",
+    "{} 個任務需要處理。"
+  ],
+  "Showing {} of {} tasks that need action.": [
+    "显示 {} 个需要处理的任务，共 {} 个。",
+    "顯示 {} 個需要處理的任務，共 {} 個。"
+  ],
+  "Answer question": [
+    "回答问题",
+    "回答問題"
+  ],
+  "Review result": [
+    "审核结果",
+    "審核結果"
+  ],
+  "Permission or input": [
+    "权限或输入",
+    "權限或輸入"
+  ],
+  "Unknown execution": [
+    "执行状态未知",
+    "執行狀態未知"
+  ],
+  "Delivery trouble": [
+    "投递异常",
+    "投遞異常"
+  ],
+  "Dependency wait": [
+    "等待依赖",
+    "等待依賴"
+  ],
+  "Overdue": [
+    "已逾期",
+    "已逾期"
+  ],
+  "Follow-up needs reconciliation": [
+    "后续消息需要协调",
+    "後續訊息需要協調"
+  ],
+  "Action required": [
+    "需要操作",
+    "需要操作"
+  ],
+  "Last observed {}s ago": [
+    "上次观测于 {} 秒前",
+    "上次觀測於 {} 秒前"
+  ],
   "No terminal pane open. Open a new pane to attach as context.": [
     "没有打开的终端面板。请打开新面板以附加为上下文。",
     "沒有開啟的終端面板。請開啟新面板以附加為上下文。"
@@ -11471,5 +11523,63 @@
   "Updating MCP settings on the selected SSH account…": [
     "正在更新选中 SSH 账户的 MCP 设置…",
     "正在更新選取 SSH 帳戶的 MCP 設定…"
-  ]
+  ],
+  "End overtaken follow-up": ["结束已过期的后续消息", "結束已過期的後續訊息"],
+  "Why this follow-up no longer applies": ["为何此后续消息不再适用", "為何此後續訊息不再適用"],
+  "Open follow-up thread": ["打开后续消息线程", "開啟後續訊息執行緒"],
+  "Overtaken follow-up from {} · revision {} → {}": [
+    "来自 {} 的过期后续消息 · 修订 {} → {}",
+    "來自 {} 的過期後續訊息 · 修訂 {} → {}"
+  ],
+  "Task {} · follow-up revision {} · current revision {} · version {}": [
+    "任务 {} · 后续消息修订 {} · 当前修订 {} · 版本 {}",
+    "任務 {} · 後續訊息修訂 {} · 目前修訂 {} · 版本 {}"
+  ],
+  "Follow-up {} · {} from {}": [
+    "后续消息 {} · {} · 来自 {}",
+    "後續訊息 {} · {} · 來自 {}"
+  ],
+  "Showing {} of {} overtaken follow-ups.": [
+    "显示 {} / {} 条过期后续消息。",
+    "顯示 {} / {} 條過期後續訊息。"
+  ],
+  "End the shown follow-ups and refresh to load later ones.": [
+    "结束已显示的后续消息并刷新，以加载后续项。",
+    "結束已顯示的後續訊息並重新整理，以載入後續項目。"
+  ],
+  "Preview truncated · open the follow-up thread for the full message": [
+    "预览已截断 · 打开后续消息线程查看完整内容",
+    "預覽已截斷 · 開啟後續訊息執行緒查看完整內容"
+  ],
+  "This ends the original follow-up. A request from another sender receives a superseded result; a message or your own request receives none. It does not stop execution or change task ownership.": [
+    "这会结束原始后续消息。来自其他发送方的请求会收到已取代的结果；普通消息或你自己发出的请求不会收到结果。不会停止执行，也不会更改任务归属。",
+    "這會結束原始後續訊息。來自其他傳送方的請求會收到已取代的結果；一般訊息或你自己送出的請求不會收到結果。不會停止執行，也不會變更任務歸屬。"
+  ],
+  "First attention page": ["首个待办页", "首個待辦頁"],
+  "Next attention page": ["下一页待办", "下一頁待辦"],
+  "Unresolved follow-ups": ["未解决的后续消息", "未解決的後續訊息"],
+  "Task {} · {} · revision {} · version {}": [
+    "任务 {} · {} · 修订 {} · 版本 {}",
+    "任務 {} · {} · 修訂 {} · 版本 {}"
+  ],
+  "Showing {} of {} unresolved follow-ups.": [
+    "显示 {} / {} 条未解决的后续消息。",
+    "顯示 {} / {} 條未解決的後續訊息。"
+  ],
+  "New entries can become unresolved after a revision change; refresh from the first page to see them.": [
+    "修订变更后可能出现新的未解决项；请从第一页刷新查看。",
+    "修訂變更後可能出現新的未解決項目；請從第一頁重新整理檢視。"
+  ],
+  "No unresolved follow-ups on this page.": [
+    "此页没有未解决的后续消息。",
+    "此頁沒有未解決的後續訊息。"
+  ],
+  "View all {} unresolved follow-ups": [
+    "查看全部 {} 条未解决的后续消息",
+    "檢視全部 {} 條未解決的後續訊息"
+  ],
+  "First follow-up page": ["首个后续消息页", "首個後續訊息頁"],
+  "Earlier follow-up page": ["上一页后续消息", "上一頁後續訊息"],
+  "Next follow-up page": ["下一页后续消息", "下一頁後續訊息"],
+  "Close follow-up view": ["关闭后续消息视图", "關閉後續訊息檢視"]
 }

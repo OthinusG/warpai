@@ -320,10 +320,14 @@ async fn every_program_keeps_queries_and_drafts_ready_and_recovers_after_work() 
         assert_eq!(status(&server, &observer, &terminal).await["ready"], true);
         server.broker.input_guard(&terminal, false, false);
         server.broker.input_bytes(&terminal, b"\x03");
-        call(&server, &worker).await;
         let paused = status(&server, &observer, &terminal).await;
         assert_eq!(paused["paused"], true);
         assert_eq!(paused["can_auto_submit"], false);
+        call(&server, &worker).await;
+        let resumed = status(&server, &observer, &terminal).await;
+        assert_eq!(resumed["activity"], "idle");
+        assert_eq!(resumed["paused"], false, "native idle clears the pause on {program}");
+        assert!(!resumed["delivery_blockers"].as_array().unwrap().contains(&json!("cancelled")));
         server.broker.input_bytes(&terminal, b"resume\r");
         call(&server, &worker).await;
         assert_eq!(status(&server, &observer, &terminal).await["paused"], false);
