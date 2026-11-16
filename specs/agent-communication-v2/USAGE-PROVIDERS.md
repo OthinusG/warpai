@@ -47,6 +47,9 @@ Qoder reference: [official CLI usage](https://docs.qoder.com/cli/usage).
 Antigravity provenance: Orca `antigravity-usage-command.ts` protects versions
 before 1.1.11 and explicitly forbids disabling slash commands. Every query
 probes the plain executable first, has a timeout and bounds captured output.
+Antigravity usage subprocesses resolve the usage API's OS proxy route on all
+three desktops and receive child-only proxy variables with loopback bypass;
+see [network scope and acceptance](../antigravity-cli/USAGE-NETWORK.md).
 No personal provider credentials or real usage queries are used in development
 or fixtures. Synthetic parser/account tests and native light/dark captures gate
 desktop acceptance; authenticated provider service availability remains account

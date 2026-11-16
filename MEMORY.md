@@ -130,6 +130,17 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Usage accounts and native Orca port
 
+- Antigravity child routing: specs/antigravity-cli/USAGE-NETWORK.md.
+  Resolve the usage API through CFNetwork PAC / WinHTTP / GIO, apply proxy
+  variables only to the usage child, and keep loopback direct. CLI environment
+  supports one route per invocation, not arbitrary per-host PAC or failover.
+- Antigravity timeout diagnosis (2026-11-16, installed Warpai 1.9.0,
+  agy 1.5.9): the exact free `/usage` invocation succeeded in 3.72s with
+  shell HTTP(S) proxy variables (SUCCESS, zero model turns); removing proxy
+  variables exceeded 35s despite `--print-timeout 20s`. The macOS launch
+  environment had no proxy variables while system networking used PAC.
+  CLI child networking does not inherit Warpai's native HTTP PAC transport;
+  distinguish this path from desktop-owned HTTP before increasing timeouts.
 - Native Orca: https://github.com/stablyai/orca at
   3e0b82835856dde57f43a47661cf736e3e3dd90d; preserve MIT notices. Native UI/TLS,
   no new runtime. Contract: specs/agent-communication-v2/USAGE-PROVIDERS.md.

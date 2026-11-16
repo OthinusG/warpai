@@ -53,6 +53,10 @@ download or install packages itself.
   sockets, terminal subprocesses and browser-opened installer links keep their
   existing transports. Retained built-in cloud AI/MCP scaffolding remains disabled
   in the local-first product; this change does not restore that product surface.
+- Antigravity usage now resolves the OS route before starting its child and
+  supplies child-only proxy variables; the desktop HTTP transport is unchanged.
+  Platform mapping, single-route CLI limits and acceptance are recorded in
+  [USAGE-NETWORK.md](antigravity-cli/USAGE-NETWORK.md).
 - macOS local credential-free Foundation probe: Codex endpoint HTTP 401 through
   the existing PAC; GitHub endpoint HTTP 403 (reachable; no API authentication).
 - Disposable GitHub runners test request/body/status/header preservation,
