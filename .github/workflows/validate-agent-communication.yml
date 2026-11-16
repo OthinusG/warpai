@@ -233,6 +233,7 @@ jobs:
       - name: Verify Windows legacy metadata and credential cleanup
         if: ${{ !inputs.native_windows_only && (!inputs.protocol_only || inputs.capture_ui || inputs.check_app) }}
         run: |
+          cargo test -p warpui_core --lib elements::resizable::tests --locked
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpui --lib windows_interface_chinese_text_uses_native_fallbacks --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
@@ -478,6 +479,7 @@ jobs:
           cargo test -p warp_terminal remote_powershell_completions_follow_host_os --locked
           python script/test-ssh-shell-routing.py
           python script/test-ssh-fixture-supervisor.py
+          cargo test -p warpui_core --lib elements::resizable::tests --locked
           cargo test -p warpui_core --lib localization::tests --locked
           cargo test -p warpai --lib owner_defaults_match_registered_typed_file_defaults --locked
           cargo test -p warpai --lib localization_search_tests --locked

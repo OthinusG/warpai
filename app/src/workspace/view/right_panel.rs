@@ -1939,6 +1939,7 @@ impl View for RightPanelView {
         };
         Resizable::new(self.resizable_state_handle.clone(), panel_content)
             .with_dragbar_side(drag_side)
+            .with_dragbar_offset(super::panel_resize_dragbar_offset(self.panel_position, app))
             .on_resize(move |ctx, _| {
                 ctx.notify();
             })

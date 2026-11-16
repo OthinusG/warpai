@@ -37,7 +37,6 @@ pub struct Resizable {
     resize_handler: Option<Handler>,
     start_resize_handler: Option<Handler>,
     end_resize_handler: Option<Handler>,
-    hovering_dragbar: bool,
     direction: ResizeDirection,
     origin_delta: Vector2F,
     dragbar_offset: f32,
@@ -55,6 +54,7 @@ pub fn resizable_state_handle(size: f32) -> ResizableStateHandle {
 
 pub struct ResizableState {
     size: f32,
+    hovering_dragbar: bool,
     bounds: Option<(f32, f32)>,
     mode: ResizableMode,
 }
@@ -72,6 +72,7 @@ impl ResizableState {
     pub fn new(size: f32) -> Self {
         Self {
             size,
+            hovering_dragbar: false,
             bounds: None,
             mode: Default::default(),
         }
@@ -112,7 +113,7 @@ impl ResizableState {
     ) -> Option<Vector2F> {
         let mut resized = false;
 
-        if let Some(origin) = origin {
+        if origin.is_some() {
             let delta = match dragbar_side {
                 DragBarSide::Right => new_position.x() - old_position.x(),
                 DragBarSide::Left => old_position.x() - new_position.x(),
@@ -128,21 +129,15 @@ impl ResizableState {
             }
             let size = self.size;
 
-            // The last position should reflect the latest position of the dragbar.
-            let last_position = match dragbar_side {
-                // With a right-side dragbar, the latest position of the dragbar will
-                // be the old origin of the element plus the new width/height.
-                DragBarSide::Right => origin + vec2f(size, 0.),
-                // With a left-side dragbar, the latest position of the dragbar will
-                // be the old origin of the element minus the bounded delta of the drag.
-                DragBarSide::Left => origin - vec2f(size - old_size, 0.),
-                // With a bottom-side dragbar, the latest position of the dragbar will
-                // be the old origin of the element plus the new height.
-                DragBarSide::Bottom => origin + vec2f(0., size),
-                // With a top-side dragbar, the latest position of the dragbar will
-                // be the old origin of the element minus the bounded delta of the drag.
-                DragBarSide::Top => origin - vec2f(0., size - old_size),
-            };
+            // Preserve the initial grab offset, including when size bounds clamp movement.
+            let applied_delta = size - old_size;
+            let last_position = old_position
+                + match dragbar_side {
+                    DragBarSide::Right => vec2f(applied_delta, 0.),
+                    DragBarSide::Left => vec2f(-applied_delta, 0.),
+                    DragBarSide::Bottom => vec2f(0., applied_delta),
+                    DragBarSide::Top => vec2f(0., -applied_delta),
+                };
 
             let origin_delta = match dragbar_side {
                 DragBarSide::Right => Vector2F::zero(),
@@ -179,7 +174,6 @@ impl ResizableState {
 }
 
 struct Dragbar {
-    bounds: Option<RectF>,
     origin: Option<Point>,
     size: Option<Vector2F>,
     z_index: Option<ZIndex>,
@@ -207,7 +201,6 @@ impl Dragbar {
     pub fn new() -> Self {
         let color = Fill::Solid(ColorU::transparent_black());
         Self {
-            bounds: None,
             origin: None,
             size: None,
             z_index: None,
@@ -229,7 +222,6 @@ impl Resizable {
             start_resize_handler: None,
             end_resize_handler: None,
             dragbar: Dragbar::new(),
-            hovering_dragbar: false,
             direction: ResizeDirection::Horizontal,
             origin_delta: Vector2F::zero(),
             dragbar_offset: 0.0,
@@ -407,7 +399,6 @@ impl Element for Resizable {
             .draw_rect_with_hit_recording(RectF::new(dragbar_origin, dragbar_size))
             .with_background(self.dragbar.color);
 
-        self.dragbar.bounds = Some(RectF::new(dragbar_origin, dragbar_size));
         self.dragbar.origin = Some(Point::from_vec2f(dragbar_origin, ctx.scene.z_index()));
         self.dragbar.size = Some(dragbar_size);
         self.dragbar.z_index = Some(ctx.scene.max_active_z_index());
@@ -422,22 +413,16 @@ impl Element for Resizable {
         ctx: &mut EventContext,
         app: &AppContext,
     ) -> bool {
+        if let crate::Event::LeftMouseDown { position, .. } = event.raw_event() {
+            if self.is_mouse_hovering_dragbar(ctx, *position) {
+                self.state().begin_resizing(*position);
+                dispatch_callback(self.resize_handler.as_mut(), ctx, app);
+                return true;
+            }
+        }
         let child_handled = self.child.dispatch_event(event, ctx, app);
 
         match event.raw_event() {
-            crate::Event::LeftMouseDown { position, .. } => {
-                // If a mouse-down on the dragbar element occurred, put the view into resizing mode
-                if self
-                    .dragbar
-                    .bounds
-                    .is_some_and(|bounds| bounds.contains_point(*position))
-                {
-                    self.state().begin_resizing(*position);
-                    dispatch_callback(self.resize_handler.as_mut(), ctx, app);
-                    return true;
-                }
-            }
-
             crate::Event::LeftMouseUp { .. } => {
                 // If a mouse-up occurs, take the view out of resizing mode
                 if self.state().is_resizing() {
@@ -464,15 +449,15 @@ impl Element for Resizable {
             }
             crate::Event::MouseMoved { position, .. } => {
                 // A mouse event over the dragbar should set the cursor
-                let Some(z_index) = self.z_index() else {
+                let Some(z_index) = self.dragbar.z_index else {
                     log::warn!("self.z_index() was None in `Resizable`");
                     return false;
                 };
                 let hovering_dragbar = self.is_mouse_hovering_dragbar(ctx, *position);
                 let was_already_hovering =
-                    mem::replace(&mut self.hovering_dragbar, hovering_dragbar);
+                    mem::replace(&mut self.state().hovering_dragbar, hovering_dragbar);
 
-                if hovering_dragbar && !was_already_hovering {
+                if hovering_dragbar || self.state().is_resizing() {
                     let cursor = match self.direction {
                         ResizeDirection::Horizontal => Cursor::ResizeLeftRight,
                         ResizeDirection::Vertical => Cursor::ResizeUpDown,
@@ -501,5 +486,219 @@ impl Element for Resizable {
 fn dispatch_callback(callback: Option<&mut Handler>, ctx: &mut EventContext, app: &AppContext) {
     if let Some(callback) = callback {
         callback(ctx, app);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::elements::{
+        ConstrainedBox, Container, DispatchEventResult, EventHandler, ParentElement, Rect,
+    };
+    use crate::{
+        platform::WindowStyle, App, Entity, Event, Presenter, TypedActionView, WindowInvalidation,
+    };
+    use std::{cell::RefCell, rc::Rc};
+
+    struct ResizeView {
+        state: ResizableStateHandle,
+        side: DragBarSide,
+        offset: f32,
+    }
+
+    impl Entity for ResizeView {
+        type Event = ();
+    }
+
+    impl crate::core::View for ResizeView {
+        fn ui_name() -> &'static str {
+            "resize_test"
+        }
+
+        fn render(&self, _: &AppContext) -> Box<dyn Element> {
+            let child = EventHandler::new(
+                ConstrainedBox::new(Rect::new().finish())
+                    .with_height(100.)
+                    .finish(),
+            )
+            .on_mouse_in(
+                |ctx, _, _| {
+                    ctx.reset_cursor();
+                    DispatchEventResult::PropagateToParent
+                },
+                None,
+            )
+            .finish();
+            Container::new(
+                Resizable::new(self.state.clone(), child)
+                    .with_dragbar_side(self.side)
+                    .with_dragbar_offset(self.offset)
+                    .finish(),
+            )
+            .with_horizontal_padding(self.offset)
+            .finish()
+        }
+    }
+
+    impl TypedActionView for ResizeView {
+        type Action = ();
+    }
+
+    #[test]
+    fn padded_edges_keep_resize_cursor_and_accept_repeated_drags() {
+        App::test((), |mut app| async move {
+            for offset in [0., 6., 12.] {
+                for side in [DragBarSide::Left, DragBarSide::Right] {
+                    let state = resizable_state_handle(100.);
+                    let handle = state.clone();
+                    let (window, _) =
+                        app.add_window(WindowStyle::NotStealFocus, move |_| ResizeView {
+                            state: handle,
+                            side,
+                            offset,
+                        });
+                    let mut presenter = Presenter::new(window);
+                    let root = app.root_view_id(window).unwrap();
+                    let invalidation = WindowInvalidation {
+                        updated: [root].into_iter().collect(),
+                        ..Default::default()
+                    };
+                    app.update(|ctx| {
+                        presenter.invalidate(invalidation, ctx);
+                        presenter.build_scene(vec2f(200., 100.), 1., None, ctx);
+                        let presenter = Rc::new(RefCell::new(presenter));
+                        let (position, outward) = match side {
+                            DragBarSide::Left => (vec2f(1., 50.), vec2f(-1., 0.)),
+                            _ => (vec2f(99. + 2. * offset, 50.), vec2f(1., 0.)),
+                        };
+                        for _ in 0..3 {
+                            ctx.simulate_window_event(
+                                Event::MouseMoved {
+                                    position,
+                                    cmd: false,
+                                    shift: false,
+                                    is_synthetic: false,
+                                },
+                                window,
+                                presenter.clone(),
+                            );
+                            assert_eq!(ctx.get_cursor_shape(), Cursor::ResizeLeftRight);
+                        }
+                        presenter.borrow_mut().invalidate(
+                            WindowInvalidation {
+                                updated: [root].into_iter().collect(),
+                                ..Default::default()
+                            },
+                            ctx,
+                        );
+                        presenter
+                            .borrow_mut()
+                            .build_scene(vec2f(200., 100.), 1., None, ctx);
+                        for (position, expected) in [
+                            (vec2f(180., 50.), Cursor::Arrow),
+                            (position, Cursor::ResizeLeftRight),
+                        ] {
+                            ctx.simulate_window_event(
+                                Event::MouseMoved {
+                                    position,
+                                    cmd: false,
+                                    shift: false,
+                                    is_synthetic: false,
+                                },
+                                window,
+                                presenter.clone(),
+                            );
+                            assert_eq!(ctx.get_cursor_shape(), expected);
+                        }
+                        ctx.simulate_window_event(
+                            Event::LeftMouseDown {
+                                position,
+                                modifiers: Default::default(),
+                                click_count: 1,
+                                is_first_mouse: false,
+                            },
+                            window,
+                            presenter.clone(),
+                        );
+                        assert!(state.lock().unwrap().is_resizing());
+                        for distance in [10., 20., 30.] {
+                            ctx.simulate_window_event(
+                                Event::LeftMouseDragged {
+                                    position: position + outward * distance,
+                                    modifiers: Default::default(),
+                                },
+                                window,
+                                presenter.clone(),
+                            );
+                            assert_eq!(state.lock().unwrap().size(), 100. + distance);
+                        }
+                        ctx.simulate_window_event(
+                            Event::LeftMouseUp {
+                                position: position + outward * 30.,
+                                modifiers: Default::default(),
+                            },
+                            window,
+                            presenter,
+                        );
+                        assert!(!state.lock().unwrap().is_resizing());
+                    });
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn repeated_drags_preserve_grab_offset_on_every_side() {
+        for (side, outward, grab) in [
+            (DragBarSide::Right, vec2f(1., 0.), vec2f(404., 200.)),
+            (DragBarSide::Left, vec2f(-1., 0.), vec2f(90., 200.)),
+            (DragBarSide::Bottom, vec2f(0., 1.), vec2f(200., 404.)),
+            (DragBarSide::Top, vec2f(0., -1.), vec2f(200., 90.)),
+        ] {
+            let mut state = ResizableState::new(300.);
+            let mut origin = vec2f(100., 100.);
+            state.begin_resizing(grab);
+            for distance in [10., 20., 35., 15.] {
+                let pointer = grab + outward * distance;
+                origin += state.check_for_resize(pointer, Some(origin), side).unwrap();
+                assert_eq!(state.size(), 300. + distance);
+                assert!(state
+                    .check_for_resize(pointer, Some(origin), side)
+                    .is_none());
+                assert_eq!(state.size(), 300. + distance);
+            }
+            state.end_resizing();
+            assert!(state.check_for_resize(grab, Some(origin), side).is_none());
+        }
+    }
+
+    #[test]
+    fn clamped_drags_keep_the_grab_offset_when_reversing() {
+        for (side, outward) in [
+            (DragBarSide::Right, vec2f(1., 0.)),
+            (DragBarSide::Left, vec2f(-1., 0.)),
+            (DragBarSide::Bottom, vec2f(0., 1.)),
+            (DragBarSide::Top, vec2f(0., -1.)),
+        ] {
+            let mut state = ResizableState::new(300.);
+            state.bounds = Some((150., 320.));
+            let grab = vec2f(404., 404.);
+            let mut origin = vec2f(100., 100.);
+            state.begin_resizing(grab);
+            for (distance, expected) in [
+                (60., 320.),
+                (80., 320.),
+                (10., 310.),
+                (-200., 150.),
+                (-140., 160.),
+            ] {
+                if let Some(delta) =
+                    state.check_for_resize(grab + outward * distance, Some(origin), side)
+                {
+                    origin += delta;
+                }
+                assert_eq!(state.size(), expected);
+            }
+        }
     }
 }

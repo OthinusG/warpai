@@ -1699,6 +1699,7 @@ fn render_vertical_tabs_panel(
 
     Resizable::new(state.resizable_state.clone(), inner)
         .with_dragbar_side(drag_side)
+        .with_dragbar_offset(super::panel_resize_dragbar_offset(side, app))
         .on_resize(|ctx, _| {
             ctx.notify();
         })

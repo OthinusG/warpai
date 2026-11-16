@@ -774,6 +774,21 @@ pub enum PanelPosition {
     Right,
 }
 
+fn side_column_horizontal_padding(side: PanelPosition) -> f32 {
+    match side {
+        PanelPosition::Left => 6.,
+        PanelPosition::Right => 12.,
+    }
+}
+
+fn panel_resize_dragbar_offset(side: PanelPosition, app: &AppContext) -> f32 {
+    if uses_vertical_tabs(app) {
+        side_column_horizontal_padding(side)
+    } else {
+        0.
+    }
+}
+
 pub struct TabPaneGroupIdentifiers {
     pub tab_idx: usize,
     pub pane_group_id: EntityId,
@@ -21180,7 +21195,7 @@ impl Workspace {
                     // The renderer uses spread as drawable padding for the blur.
                     spread_radius: 36.,
                 })
-                .with_horizontal_padding(if side == PanelPosition::Left { 6. } else { 12. })
+                .with_horizontal_padding(side_column_horizontal_padding(side))
                 .with_padding_top(0.)
                 .with_padding_bottom(8.)
                 .with_uniform_margin(6.)
