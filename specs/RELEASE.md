@@ -984,3 +984,14 @@ tags or change publication state. Successful Windows packaging triggers this
 independent workflow with the same tag/source/test mode; communication validation
 does not invoke Linux. Existing macOS/Windows/Companion release rules continue
 to apply. Linux test builds are not full distribution/desktop acceptance.
+
+## macOS test DMG detach recovery (2026-11-16)
+
+Run 43591772463 built and signed the desktop successfully, then failed in
+`create-dmg.sh` because `hdiutil detach` reported `Resource busy`. The shared
+desktop/Companion helper retries normal detach at most five times, two seconds
+apart, including cleanup. Conversion requires successful detach; persistent
+failure remains an error and cleanup retains the mounted workspace. No forced
+eject or release publication is added. Acceptance: shell syntax and mocked
+immediate/transient/persistent detach checks, then a branch artifact-only macOS
+build with `release_tag=v1.9.0`, `artifact_only=true`, `auto_publish=false`.
