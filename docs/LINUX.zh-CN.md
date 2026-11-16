@@ -30,6 +30,10 @@ Ubuntu 20.04+、Debian 11+、Fedora 32+、Arch，以及 OpenSUSE/SLE 等兼容 R
 精简桌面还需具备图形驱动、字体、`xdg-utils`、文件对话框支持和桌面 D-Bus 服务。
 Keep awake 通过 systemd-logind 阻止空闲和挂起；需要系统正在运行 logind 服务。
 
+系统代理需要 `glib-networking`；PAC 还需要发行版提供的 libproxy PAC 后端。
+Debian/Ubuntu 精简环境可能需要安装 `libproxy1-plugin-webkit`（DEB 包已列为推荐依赖）。
+原生 Data usage HTTP 请求和 Antigravity 后台用量查询子进程均依赖这套系统能力。
+
 切换语言后会等待旧进程退出，再启动新实例。AppImage 会重新执行原始安装包，
 因此该文件必须保留在原路径。更新检查会选择对应架构已发布的 AppImage；原生包
 用户可在同一 Release 页面选择所需格式。

@@ -407,10 +407,18 @@ fn bounded_json(path: PathBuf) -> Result<serde_json::Value, &'static str> {
     }
     serde_json::from_slice(&bytes).map_err(|_| "CLI login data unavailable")
 }
-async fn output(program: &str, args: &[&str], seconds: u64) -> Result<Vec<u8>, &'static str> {
+async fn output(
+    program: &str,
+    args: &[&str],
+    seconds: u64,
+    proxy: Option<&system_http::subprocess_proxy::SubprocessProxy>,
+) -> Result<Vec<u8>, &'static str> {
     use tokio::io::AsyncReadExt as _;
     let operation = async {
         let mut command = tokio::process::Command::new(program);
+        if let Some(proxy) = proxy {
+            proxy.apply(command.as_std_mut());
+        }
         #[cfg(windows)]
         command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
         let path = std::env::join_paths(
@@ -676,10 +684,14 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
         let executable = executable
             .to_str()
             .ok_or("CLI executable path unavailable")?;
-        let version = output(executable, &["--version"], 5).await?;
+        let version = output(executable, &["--version"], 5, None).await?;
         if !providers::safe_agy_version(&String::from_utf8_lossy(&version)) {
             return Err("Requires agy 1.1.11 or newer for a free usage query");
         }
+        // shortcut: one route covers this invocation; revisit if auxiliary hosts need different PAC routes.
+        let proxy = system_http::subprocess_proxy::SubprocessProxy::resolve(
+            "https://cloudcode-pa.googleapis.com/",
+        ).await?;
         let bytes = output(
             executable,
             &[
@@ -691,6 +703,7 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
                 "20s",
             ],
             30,
+            Some(&proxy),
         )
         .await?;
         return providers::parse_agy_stdout(&bytes);
@@ -721,6 +734,7 @@ async fn query(account: &Account, token: Option<String>) -> Result<Reading, &'st
                                 "-w",
                             ],
                             5,
+                            None,
                         )
                         .await?,
                     )

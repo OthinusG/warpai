@@ -6,6 +6,7 @@ fn main() {
             .flag("-fblocks")
             .compile("warpai_system_http");
         println!("cargo:rustc-link-lib=framework=Foundation");
+        println!("cargo:rustc-link-lib=framework=CFNetwork");
         println!("cargo:rerun-if-changed=src/session.m");
     } else if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         cc::Build::new()

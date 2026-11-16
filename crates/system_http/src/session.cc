@@ -3,6 +3,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <mutex>
@@ -84,6 +85,87 @@ struct InternetHandle {
     HINTERNET value;
     ~InternetHandle() { if (value) WinHttpCloseHandle(value); }
 };
+
+struct ProxyLookup {
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool done = false;
+    std::string route;
+};
+static void CALLBACK proxyCallback(HINTERNET resolver, DWORD_PTR context, DWORD status, void *, DWORD) {
+    auto owner = reinterpret_cast<std::shared_ptr<ProxyLookup> *>(context);
+    if (!owner) return;
+    if (status == WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING) { delete owner; return; }
+    if (status != WINHTTP_CALLBACK_STATUS_GETPROXYFORURL_COMPLETE
+        && status != WINHTTP_CALLBACK_STATUS_REQUEST_ERROR) return;
+    auto lookup = *owner;
+    std::string route;
+    if (status == WINHTTP_CALLBACK_STATUS_GETPROXYFORURL_COMPLETE) {
+        WINHTTP_PROXY_RESULT result = {};
+        if (WinHttpGetProxyResult(resolver, &result) == ERROR_SUCCESS) {
+            if (result.cEntries) {
+                auto &entry = result.pEntries[0];
+                if (!entry.fProxy || entry.fBypass) route = "direct://";
+                else {
+                    // WinHTTP's generic SOCKS result is SOCKS4; agy only supports SOCKS5.
+                    const char *scheme = entry.ProxyScheme == INTERNET_SCHEME_HTTP ? "http://"
+                        : entry.ProxyScheme == INTERNET_SCHEME_HTTPS ? "https://" : nullptr;
+                    if (scheme && entry.pwszProxy && entry.ProxyPort) {
+                        auto host = utf8(entry.pwszProxy);
+                        if (host.find(':') != std::string::npos && host.front() != '[') host = "[" + host + "]";
+                        route = scheme + host + ":" + std::to_string(entry.ProxyPort);
+                    }
+                }
+            }
+            WinHttpFreeProxyResult(&result);
+        }
+    }
+    std::lock_guard<std::mutex> lock(lookup->mutex);
+    lookup->route = route; lookup->done = true; lookup->changed.notify_all();
+}
+extern "C" int warpai_proxy_for_url(const char *url, char *output, size_t capacity) {
+    struct Config {
+        WINHTTP_CURRENT_USER_IE_PROXY_CONFIG value = {};
+        ~Config() {
+            GlobalFree(value.lpszAutoConfigUrl);
+            GlobalFree(value.lpszProxy);
+            GlobalFree(value.lpszProxyBypass);
+        }
+    } config;
+    if (!WinHttpGetIEProxyConfigForCurrentUser(&config.value)) return -1;
+    InternetHandle session { WinHttpOpen(L"Warpai usage", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC) };
+    if (!session.value) return -1;
+    if (WinHttpSetStatusCallback(session.value, proxyCallback,
+        WINHTTP_CALLBACK_FLAG_GETPROXYFORURL_COMPLETE | WINHTTP_CALLBACK_FLAG_REQUEST_ERROR
+        | WINHTTP_CALLBACK_FLAG_HANDLES, 0) == WINHTTP_INVALID_STATUS_CALLBACK) return -1;
+    HINTERNET raw = nullptr;
+    if (WinHttpCreateProxyResolver(session.value, &raw) != ERROR_SUCCESS) return -1;
+    InternetHandle resolver { raw };
+    auto lookup = std::make_shared<ProxyLookup>();
+    auto owner = new std::shared_ptr<ProxyLookup>(lookup);
+    DWORD_PTR context = reinterpret_cast<DWORD_PTR>(owner);
+    if (!WinHttpSetOption(raw, WINHTTP_OPTION_CONTEXT_VALUE, &context, sizeof(context))) {
+        delete owner; return -1;
+    }
+    WINHTTP_AUTOPROXY_OPTIONS options = {};
+    options.dwFlags = WINHTTP_AUTOPROXY_ALLOW_STATIC | WINHTTP_AUTOPROXY_ALLOW_CM;
+    if (config.value.lpszAutoConfigUrl) {
+        options.dwFlags |= WINHTTP_AUTOPROXY_CONFIG_URL;
+        options.lpszAutoConfigUrl = config.value.lpszAutoConfigUrl;
+    }
+    if (config.value.fAutoDetect) {
+        options.dwFlags |= WINHTTP_AUTOPROXY_AUTO_DETECT;
+        options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
+    }
+    auto target = wide(url);
+    if (WinHttpGetProxyForUrlEx(raw, target.c_str(), &options, context) != ERROR_IO_PENDING) return -1;
+    std::unique_lock<std::mutex> lock(lookup->mutex);
+    if (!lookup->changed.wait_for(lock, std::chrono::seconds(5), [&] { return lookup->done; })
+        || lookup->route.empty() || lookup->route.size() >= capacity) return -1;
+    memcpy(output, lookup->route.c_str(), lookup->route.size() + 1);
+    return 0;
+}
 static void run(const std::shared_ptr<Task> &task, const std::string &url,
     const std::string &method, const std::string &headers,
     const std::vector<unsigned char> &body, const std::string &path) {
@@ -171,6 +253,41 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
     task->finish(error);
 }
 #else
+static void ensureMainLoop() {
+    static std::once_flag mainLoop;
+    std::call_once(mainLoop, [] {
+        // GSettings proxy changes need the GLib main context to keep dispatching.
+        std::thread([] { g_main_loop_run(g_main_loop_new(nullptr, false)); }).detach();
+    });
+}
+extern "C" int warpai_proxy_for_url(const char *url, char *output, size_t capacity) {
+    ensureMainLoop();
+    GCancellable *cancel = g_cancellable_new();
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool done = false;
+    std::thread deadline([&] {
+        std::unique_lock<std::mutex> lock(mutex);
+        if (!changed.wait_for(lock, std::chrono::seconds(5), [&] { return done; }))
+            g_cancellable_cancel(cancel);
+    });
+    GError *error = nullptr;
+    gchar **proxies = g_proxy_resolver_lookup(g_proxy_resolver_get_default(), url, cancel, &error);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        done = true; changed.notify_all();
+    }
+    deadline.join();
+    int result = -1;
+    if (!error && proxies && proxies[0] && strlen(proxies[0]) < capacity) {
+        memcpy(output, proxies[0], strlen(proxies[0]) + 1);
+        result = 0;
+    }
+    if (error) g_error_free(error);
+    g_strfreev(proxies);
+    g_object_unref(cancel);
+    return result;
+}
 static void header(const char *name, const char *value, gpointer context) {
     // Native header octets become UTF-8 for the FFI boundary, matching Foundation.
     gchar *text = g_convert(value, -1, "UTF-8", "ISO-8859-1", nullptr, nullptr, nullptr);
@@ -182,11 +299,7 @@ static void run(const std::shared_ptr<Task> &task, const std::string &url,
     const std::string &method, const std::string &headers,
     const std::vector<unsigned char> &body, const std::string &path) {
     if (!task->wait()) { task->finish(-1); return; }
-    static std::once_flag mainLoop;
-    std::call_once(mainLoop, [] {
-        // GSettings proxy changes need the GLib main context to keep dispatching.
-        std::thread([] { g_main_loop_run(g_main_loop_new(nullptr, false)); }).detach();
-    });
+    ensureMainLoop();
     SoupSession *session = soup_session_new_with_options(SOUP_SESSION_PROXY_RESOLVER,
         g_proxy_resolver_get_default(), SOUP_SESSION_ADD_FEATURE_BY_TYPE,
         SOUP_TYPE_CONTENT_DECODER, nullptr);

@@ -14,6 +14,9 @@ use serde::Serialize;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 mod native;
 
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub mod subprocess_proxy;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]

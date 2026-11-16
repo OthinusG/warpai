@@ -34,6 +34,11 @@ graphics drivers, fonts, `xdg-utils`, file-dialog support and desktop D-Bus serv
 Keep awake requests use systemd-logind's idle and suspend inhibitor; this feature
 requires a running logind service.
 
+System proxy routing needs `glib-networking`. PAC additionally needs your
+distribution's libproxy PAC backend; Debian/Ubuntu minimal installations may
+need `libproxy1-plugin-webkit` (recommended by the DEB package). This applies
+to both native data usage HTTP and Antigravity's background usage subprocess.
+
 Language changes wait for the old application to exit before restarting. AppImage
 restarts use the original AppImage file, which must remain at its original path.
 The update checker selects the matching published Linux AppImage; native package
