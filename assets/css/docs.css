@@ -5,6 +5,7 @@
 
 /* Layout Container */
 .docs-page {
+  --docs-header-height: 54px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -18,7 +19,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 54px;
+  height: var(--docs-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -187,8 +188,8 @@
   width: 280px;
   flex-shrink: 0;
   position: sticky;
-  top: 54px;
-  height: calc(100vh - 54px);
+  top: var(--docs-header-height);
+  height: calc(100vh - var(--docs-header-height));
   overflow-y: auto;
   padding: 28px 16px 48px;
   border-right: 1px solid var(--line);
@@ -438,6 +439,10 @@
   color: var(--spot, var(--accent));
 }
 
+.docs-article :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
 .docs-article pre {
   margin: 20px 0;
   padding: 16px 20px;
@@ -656,10 +661,10 @@
   }
   .docs-sidebar {
     position: fixed;
-    top: 54px;
+    top: var(--docs-header-height);
     left: 0;
     width: 280px;
-    height: calc(100vh - 54px);
+    height: calc(100vh - var(--docs-header-height));
     background: var(--bg);
     z-index: 99;
     transform: translateX(-100%);
@@ -681,5 +686,54 @@
   .docs-pag-btn.next {
     margin-left: 0;
     text-align: left;
+  }
+}
+
+@media (max-width: 700px) {
+  .docs-page {
+    --docs-header-height: 100px;
+  }
+  .docs-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 16px;
+  }
+  .docs-header-left {
+    gap: 12px;
+  }
+  .docs-sidebar-toggle {
+    min-height: 32px;
+    white-space: nowrap;
+  }
+  .docs-header-right {
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .docs-header-right > * {
+    flex-shrink: 0;
+  }
+  .docs-nav-link,
+  .docs-github-btn,
+  .docs-lang-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    white-space: nowrap;
+  }
+  .docs-nav-link {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+  .docs-github-btn {
+    gap: 4px;
+    padding: 5px 6px;
+  }
+  .docs-lang-btn {
+    padding: 5px 6px;
+  }
+  .docs-header .mode button {
+    min-height: 32px;
+    padding: 5px 6px;
   }
 }
