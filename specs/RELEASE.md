@@ -1,5 +1,49 @@
 # Warpai releases
 
+## 1.9.0 release preparation
+
+Owner request: 2026-11-17. Enter the release workflow after fixing the bilingual
+website's narrow-screen documentation header. Prepare reviewed installers before
+public publication; retain immutable tags, the existing draft/asset checks and
+the active-turn 30-minute CI monitoring cadence.
+
+### Scope and version decision
+
+- Desktop target: 1.9.0. Companion target: 6.1.0, with SSH major 1 and Agent Bus
+  major 2 unchanged. Shared Companion source since v1.8.6.1 adds follow-up closure,
+  attention paging and supervision recovery. The new minor package version makes
+  those additive features distinguishable from the published Companion 6.0.0;
+  this is not a database or protocol-major migration.
+- Update the release constant, exact-version installation test, WSL package check,
+  WSL installer fixtures and native guest acceptance expectations together.
+- Retain published download links until matching public assets actually exist.
+  Release notes describe user-visible supervision, handoff, recovery and terminal
+  improvements; product documentation remains ordinary capability/usage prose.
+- Do not modify personal installations, credentials or configuration.
+
+### Tasks and acceptance
+
+1. Verify mobile header controls, sidebar offset and unchanged desktop geometry
+   on the static bilingual website; deploy and inspect the production result.
+2. Run existing cloud communication validation with application checks, native
+   captures and real disposable WSL acceptance; require all three Companion wire
+   targets. Inspect source-matched capture diagnostics and representative frames.
+3. Only after acceptance, create immutable v1.9.0 on the reviewed main source.
+   Run release-macos.yml with artifact_only=false and auto_publish=false to
+   prepare a draft; Windows follows through the existing release handoff.
+4. Build/attach Linux x64 and ARM64 through the existing workflow. Prevent
+   duplicate Linux attachment if a manual build overlaps the automatic follow-up.
+5. Verify all 13 installers and six checksum/provenance files, exact source/tag,
+   package versions, signatures/runtime checks and native package acceptance.
+   Publish only after the concrete draft passes these gates and applicable
+   owner acceptance is satisfied; never move a published/accepted tag.
+6. After public URLs resolve, synchronize bilingual README/source guides and
+   website download surfaces, verify Pages and update Homebrew last using an
+   independently downloaded public macOS DMG SHA-256.
+
+Record source SHAs, run URLs, screenshots, package evidence and pending gates in
+specs/1.9.0/RELEASE.md. A submitted build is not a successful release.
+
 ## 1.8.6.1 / Companion 6.0.0 delivery contract
 
 Owner accepted the macOS 1.8.1.2 branch test package and authorized the 1.8.6

@@ -27,6 +27,12 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Published releases and maintenance
 
+- Owner requested 1.9.0 release preparation on 2026-11-17. Contract/ledger:
+  specs/RELEASE.md and specs/1.9.0/RELEASE.md. Target Companion 6.1.0 distinguishes
+  additive shared supervision/follow-up features from published 6.0.0; protocol
+  majors stay unchanged. Prepare source-matched native/WSL acceptance and draft
+  installers with auto_publish=false before the publication gate.
+
 - Public: Warpai 1.8.6.1 / Companion 6.0.0. All 19 assets verified; match README links.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
 - Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
