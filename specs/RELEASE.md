@@ -44,6 +44,17 @@ the active-turn 30-minute CI monitoring cadence.
 Record source SHAs, run URLs, screenshots, package evidence and pending gates in
 specs/1.9.0/RELEASE.md. A submitted build is not a successful release.
 
+### Completed 1.9.0 delivery
+
+Published latest stable v1.9.0 / Companion 6.1.0 on 2026-11-17T13:05:23Z from
+f2542163. Formal macOS 44046076338, Windows 44059180202 and Linux 44070174083
+all passed. All 19 files were fully downloaded and hashed; every canonical public
+URL resolves. Read-only macOS bundle/signature/icon checks and Companion payload
+checks passed. Bilingual current download docs and gh-pages f615f39a are deployed;
+Homebrew PR #3 merged as 3599d7f7 after independent public DMG verification and
+Homebrew checks. Detailed gates/receipts: [1.9.0 release ledger](1.9.0/RELEASE.md).
+No personal application installation or configuration changed.
+
 ## 1.8.6.1 / Companion 6.0.0 delivery contract
 
 Owner accepted the macOS 1.8.1.2 branch test package and authorized the 1.8.6

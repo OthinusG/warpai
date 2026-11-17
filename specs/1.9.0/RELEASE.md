@@ -18,7 +18,7 @@ acceptance runs in GitHub Actions. No personal installation/configuration change
 - [x] Immutable v1.9.0 tag and draft macOS/Companion build, auto_publish=false.
 - [x] Windows x64 and Linux x64/ARM64 packages attached and verified.
 - [x] Thirteen installers, checksum/provenance inventories and public-release gate.
-- [ ] Public download surfaces, production Pages and final Homebrew synchronization.
+- [x] Public download surfaces, production Pages and final Homebrew synchronization.
 
 ## Existing evidence
 
@@ -184,8 +184,9 @@ and all 15 payload checksums passed. Both inspection mounts detached normally;
 no app or installer was launched locally.
 
 Windows native logs confirm checkout f25421630, application ProductVersion and
-FileVersion 1.9.0, and installer ProductVersion (trimmed) 1.9.0. Windows signature/
-installer provenance acceptance comes from its native CI, not a local installation.
+FileVersion 1.9.0, and installer ProductVersion (trimmed) 1.9.0. Windows PE version/icon/archive and
+installer provenance acceptance comes from its native CI, not a local installation;
+the Windows installer remains unsigned.
 
 Verified desktop macOS DMG SHA-256:
 `28cc631b10b0fdb31038541bc2568853102deed1a486645c9f617b399d53de92`.
@@ -203,3 +204,27 @@ URL acceptance and a before-content SHA-256 check for every target file. Current
 Companion instructions describe matching 6.1.0 features with unchanged protocol
 majors rather than inventing a new compatibility break. Production Pages and
 Homebrew delivery are the remaining steps.
+
+## Completed public surfaces and Homebrew
+
+Default-source download synchronization: da89a7e5. Website source:
+`f615f39ac760f09f1ea8667fd07bfdc63ea85265`; Pages reports built at that source.
+The final Jekyll build passed all 34 pages and 1,096 internal links/assets/anchors;
+all 13 installer names match the public inventory. All 34 production pages return
+HTTP 200; pages carrying versions match 1.9.0/6.1.0, and none retain stale current
+1.8.6.1 strings. The verified mobile header CSS is retained.
+
+Homebrew PR https://github.com/OthinusG/homebrew-tap/pull/3 merged at
+2026-11-17T13:17:04Z as `3599d7f73f63453d30d4625e083aaaacd34b1db9`.
+The cask version and public DMG SHA-256 match the independently downloaded file.
+Ruby syntax, metadata parsing, Homebrew style (only the existing
+Homebrew/OSDependsOn exception for the macOS11 floor), strict online audit,
+fetch/checksum and install dry-run passed. ARM64 and quarantine behavior remain.
+The temporary tap and isolated trust configuration were removed; the existing
+personal tap and original developer setting were preserved. No application was
+installed or launched, and no personal installation/configuration was changed.
+
+All release delivery gates above are complete. Runtime and native acceptance
+refer to the immutable tagged f2542163 source; subsequent main changes are
+release documentation/receipts only. Live paid vendor model calls were not part
+of deterministic fixture/native acceptance.

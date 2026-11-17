@@ -31,7 +31,9 @@ Updated 2026-11-17. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Companion 6.1.0 confirmed by owner; protocol majors unchanged. All 19 release
   files fully downloaded and hashed; canonical public URLs return HTTP 200.
   Acceptance, native captures and release run receipts: specs/1.9.0/RELEASE.md.
-  DMG independent public SHA-256 is recorded there for final Homebrew delivery.
+  DMG independent public SHA-256 is recorded there. Homebrew PR #3 merged as
+  3599d7f7 after parsing/style/audit/fetch/dry-run checks; website source f615f39a
+  is deployed with 34 live pages checked. Mobile header acceptance is retained.
 
 - Owner requested 1.9.0 release preparation on 2026-11-17. Contract/ledger:
   specs/RELEASE.md and specs/1.9.0/RELEASE.md. Target Companion 6.1.0 distinguishes
