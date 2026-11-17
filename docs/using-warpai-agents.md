@@ -10,7 +10,58 @@ next_url: /docs/cli-agents.html
 next_title: 20+ CLI Agents Guide
 ---
 
+## Continuous supervision and recovery
+
+Keep delegating while other Agents execute, ask questions or submit results.
+**Needs attention** brings together answer, review, input/permission, dependency,
+overdue, unreachable, recovery and overtaken-follow-up actions. A task can need
+several actions at once. Totals cover the whole filtered set, not just the loaded
+page. Open **View all** to page a task's unresolved overtaken follow-ups independently
+of its eight compact previews; opening a thread reads its full body.
+
+After a restart or handover, call `warp_project_bootstrap` and inspect its
+`supervision` block. Continue with `warp_supervision_index(cursor, limit)` to find
+unfinished tasks you issued, execute or review, outgoing requests awaiting final
+results, unhandled results and questions addressed to you. The active Worktree
+Coordinator also sees inherited project tasks under its existing authority.
+These reads acknowledge nothing and advance no task. Archived tasks remain
+recoverable while follow-ups, questions or execution uncertainty are unresolved.
+
+Use `warp_agent_ask` and `warp_agent_answer` for decisions that need an explicit
+answer; an ordinary message does not resolve a structured question.
+
+Task-linked messages retain the revision at send time. If review or reassignment
+advances the task, older instructions remain readable but are excluded from
+automatic delivery. An authorized issuer, reviewer, Coordinator or panel operator
+ends an overtaken instruction with `warp_task_followup_reconcile`, using the
+current task version, then sends any replacement separately. Read acknowledgement
+alone is not closure. Reconciliation preserves the original text, retires its
+questions and refuses late results. If another actor ends a result request, its
+sender receives a superseded result; a sender ending its own request creates no
+self-addressed result. Neither action restarts or reassigns execution.
+
+For example, a revision-1 request to keep an interface must not drive revision-2
+work that changes it. Inspect and end the old request before issuing the new
+instruction. After acceptance, authorize a new task with an exact handoff pin for
+additional work; a rejected submission follows the existing revision workflow.
+
+Submission releases the worker's tracked execution slot while review stays open.
+Acceptance and integration selection are separate from an actual Git merge or a
+verified deliverable. A cancellation request, timeout or disconnect does not prove
+an old execution stopped: inspect the retained attempt and use guarded recovery
+before retrying or reassigning. A terminal paste is not proof of model consumption.
+
 ## Task handoff briefs
+
+A brief records the exact task revision, attempt, producer, source event and
+available evidence, with the native execution binding captured at task start.
+Decisions and rationale are Agent reports; provenance identifies their source
+without treating them as independently verified conclusions. Missing sections
+remain distinct from an explicitly empty list or a section marked not applicable.
+This lets a replacement Agent recover the stopping point without loading a full
+terminal transcript. Read the compact index first and fetch only the needed
+version, result or evidence. Source-change and uncertainty warnings never replace
+a pin, roll back completed work or restart a downstream task automatically.
 
 
 A tracked task is the source of a handoff brief. `warp_task_submit` always saves
@@ -295,7 +346,7 @@ The developer or Coordinator dispatches structured tasks to specific branches at
 ```
 - **Continuous Multi-Agent Dispatch**: The Coordinator is never blocked waiting for a single worker to finish. It can continuously publish new tasks to multiple agents at any time.
 - **Dynamic Supervision List**: Every newly assigned task is automatically enrolled into the Coordinator's active supervision list.
-- **Active Exit Upon Completion**: Worker A codes and runs unit tests in its isolated worktree while Worker B develops UI features concurrently. Once a task completes peer review and is accepted, it automatically exits the supervision list.
+- **Active Exit Upon Completion**: Worker A codes and runs unit tests in its isolated worktree while Worker B develops UI features concurrently. Once a task completes peer review and its outstanding facts are resolved, it leaves the supervision list.
 
 ---
 

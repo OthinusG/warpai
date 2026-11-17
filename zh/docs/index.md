@@ -13,6 +13,11 @@ next_title: 安装指南
 
 Warpai 将独立的 CLI Agent 会话提升为第一公民工作单元。针对代码工程，Warpai 提供严格的 **Git Worktree 并发编码模式**，支持在物理隔离的分支中并行开发不同功能并执行自动化对等评审；针对泛行业与非 Coding 场景，重磅提供 **Project 全向协同模式**，打破单一指挥链，让所有 Agent 自由互通消息与任务，在科研论文、视觉设计、量化金融、专利法务等场景中高效攻坚。
 
+持久任务将委派、问答、提交和评审连接为可跨会话接续的工作流。**Needs attention**
+集中呈现待处理决定，返回的监督者可从保留的事实重建未完成工作。不可变交接简报把
+准确的结果或检查点交给下一位 Agent，并提供源变化提示和按需证据读取。参见
+[督办与交接流程]({{ site.baseurl }}/zh/docs/using-warpai-agents.html#持续督办与恢复)。
+
 <figure class="docs-figure">
   <img class="workspace-shot-light" src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板" width="4032" height="2304">
   <img class="workspace-shot-dark" src="{{ '/assets/images/warpai-hero-showcase-dark.png' | relative_url }}" alt="Warpai 工作空间：垂直标签栏、Spotify 与 btop 分屏终端，以及 Agent 协同面板" width="4032" height="2304">

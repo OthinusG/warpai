@@ -10,6 +10,16 @@
 
 ## Decisions & Context
 
+- Supervision and handoff explanations live in bilingual overview, features,
+  workflow and MCP pages, aligned with main's READMEs and source Agent guides.
+  Use current capability prose, not version comparisons or release summaries.
+  Recovery reads acknowledge nothing; archive does not resolve outstanding facts.
+  Follow-up browsing uses native View all; Agent recovery uses
+  warp_project_bootstrap/warp_supervision_index, not a warp_task_followups tool.
+- Existing mobile docs header overflows at 390 px: EN scroll width 605 px, ZH
+  539 px, unchanged against gh-pages baseline fb64ac5e. Keep new tables inside
+  the existing table-wrapper; a separate header layout fix remains outstanding.
+
 - Current documentation targets Warpai 1.8.6.1 / Companion 6.0.0. Companion is
   only required for SSH remote hosts and local WSL; ordinary native local
   terminals need no Companion installation/update. Keep the current Companion

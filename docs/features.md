@@ -14,15 +14,38 @@ Warpai is the local-first, privacy-focused modern terminal built around autonomo
 
 ---
 
+## Supervision that survives handovers
+
+Coordinate parallel work through durable tasks and explicit outcomes. The
+collaboration panel highlights what needs an answer, review or recovery, while
+revision-aware follow-ups prevent outdated instructions from driving current work.
+
+<div class="table-wrapper" markdown="1">
+
+| Capability | What it gives your team |
+| --- | --- |
+| Actionable attention | One task can carry several pending actions; whole-filter totals and pagination keep later work reachable. |
+| Durable recovery index | A returning supervisor finds delegated tasks, unanswered requests, unhandled results and addressed questions; the active Coordinator can recover inherited task duties. |
+| Explicit follow-up closure | Read state stays separate from resolution; ending an overtaken instruction preserves its history and prevents late results. |
+| Guarded recovery | Cancellation requests and disconnects retain execution uncertainty until reconciled, reducing the risk of duplicate writes. |
+| Reviewed delivery | Submission, acceptance, integration selection and actual delivery remain distinct, for code and non-code work. |
+
+</div>
+
 ## Task handoff briefs
 
-Tracked tasks preserve immutable, versioned handoffs for continuation across Agents.
-Submission, failure and confirmed cancellation retain source-bound snapshots;
-explicit progress checkpoints can add decisions, unresolved issues and next steps.
-Browse and load exact versions from task detail, pin them to follow-up tasks or
-share a specific version. Current source status/review remains separate, and pins
-grant no execution or filesystem authority. Live references protect retained
-sources. See the [handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#task-handoff-briefs).
+Continue from a specific result or checkpoint with an immutable handoff. Each
+brief identifies its task revision, execution attempt, producer, source event and
+available evidence, alongside reported decisions, unresolved issues and next steps.
+Failure and confirmed cancellation retain partial work; missing sections stay
+explicit. A replacement Agent can locate the stopping point without a transcript dump.
+
+Browse exact versions on demand and pin one to a follow-up task or explicitly
+share it with a recipient. Current source status, review and uncertainty are
+checked separately; warnings never silently replace the pin or restart downstream
+work. Live references protect source records from cleanup. Briefs grant no
+execution or filesystem authority. Local, SSH and direct WSL share these semantics.
+See the [supervision and handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#continuous-supervision-and-recovery).
 
 ## 1. Developer Ecosystem Positioning at a Glance
 

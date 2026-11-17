@@ -119,7 +119,7 @@ Warpai implements an asynchronous, queue-backed multi-agent task supervision arc
 2. **Continuous Non-Blocking Dispatch**: The Coordinator / supervising agent does not operate in rigid upfront batches. It can dispatch tasks to one or multiple agents at any time. Sending only queues work, allowing the supervisor to keep the pipeline full without waiting for workers to finish.
 3. **Dynamic Enrolment in Supervision List**: Every newly enqueued task immediately joins the supervisor's active supervision list (`dynamic supervision set`), tracking progress, blocking questions, and verification states across turn yields (`warp_agent_ready`).
 4. **Automatic Dependency & Rework Transitions**: Tasks blocked by prerequisite dependencies (`state: "blocked"`) automatically unblock and enter `queued` when prerequisites are accepted. Tasks rejected in review (`accepted: false`) automatically increment revision and re-enter `queued` for rework.
-5. **Active Queue Exit Upon Completion**: Tasks can enter the queue and supervision list at any time, and actively/automatically leave the list as soon as their terminal outcome is handled and accepted, keeping the active queue clean without stale polling loops.
+5. **Retirement After Resolution**: Terminal work leaves the relevant supervision set when outstanding follow-ups, questions, execution uncertainty and related results are handled. Archiving alone does not resolve those facts. Submission releases the execution slot; acceptance and actual integration are checked separately.
 
 <div class="docs-shot-placeholder" data-shot="SHOT-26">
   <div class="shot-header">
@@ -175,12 +175,56 @@ Retrieves pending notifications and unacknowledged messages from the agent's pri
 
 ---
 
+## Supervision recovery and task-linked follow-ups
+
+### `warp_project_bootstrap` / `warp_supervision_index`
+
+Bootstrap includes a bounded `supervision` block with `rows`, `total`, `counts`,
+`cursor` and `truncated`. Pass that cursor to `warp_supervision_index` to continue;
+its optional `limit` controls page size. Rows identify tasks by your issuer,
+assignee or reviewer role, requests awaiting final results, unhandled result
+messages and unanswered questions addressed to you, with per-row `actions`.
+The active Worktree Coordinator can recover inherited task duties. Reads do not
+acknowledge messages, advance tasks or transfer authority. Archived tasks remain
+included when unresolved follow-ups, questions or attempts require handling.
+
+### `warp_task_followup_reconcile`
+
+Ends one overtaken task-linked instruction. Required fields are `task_id`,
+`message_id`, `note`, `expected_version` and `request_id`. Refresh the task first:
+`expected_version` must match its current version, and the message must belong to
+an older task revision. The issuer, reviewer, current Coordinator or panel operator
+must have the existing authority to perform this action.
+
+The operation retains the original body and records `followup_reconciled`.
+Acknowledgement alone is not terminal. Reconciliation retires questions derived
+from that instruction and rejects late succeeded, failed or blocked replies. A
+request ended by another actor returns a superseded failure result to its sender;
+self-reconciliation creates no self-addressed result. The receipt is idempotent
+for the same `request_id` and payload; changed payload reuse is rejected. Send any
+replacement as a separate `warp_agent_send`. This is not task retry or restart.
+
+`warp_agent_send` binds an explicit or inherited task association to the current
+task revision; conflicting `task_id` and `reply_to` associations are rejected.
+Overtaken instructions stay in inbox/history but are skipped by automatic delivery.
+The native panel's **View all** pages unresolved overtaken follow-ups separately
+from its eight previews per task. Agents use the recovery index for supervision.
+Panel pages retain whole-filter totals and resumable cursors within a serialized
+response budget, including multibyte text. Unsupported remote operations report a
+capability error rather than silently succeeding.
+
 ## Task handoff resources
 
 Task lifecycle calls accept optional `handoff` sections. `warp_task_submit` always
 creates a baseline brief; `warp_task_progress` only creates one with explicit
 `handoff`. Failure and confirmed cancellation retain partial/stopped snapshots.
 The Broker reserves the handoff kind; `warp_context_publish` cannot create it.
+Each snapshot binds the task revision, exact attempt, producer, source event and
+available evidence to a resource reference containing its ID, revision and SHA-256.
+`TaskGet`/execution-thread reads expose `handoff_inputs`; bootstrap task entries
+include `handoff_warning_count`. Refresh source status before continuation: these
+projections warn about stale or uncertain inputs without replacing pins or restarting
+work. Read indexes first, then fetch only the required source parts.
 Each section uses `provided` with `items`, `not_provided` or `not_applicable`.
 The entire encoded submission is limited to 8 KiB, including UTF-8/JSON escaping.
 
@@ -212,7 +256,7 @@ Review is separate from the snapshot; reported tests are not proof of verificati
 A pin on an assigned/pool task grants only that version to authorized target
 readers. Ordinary messages need an explicit version-scoped context share. Neither
 path grants source-task/history, recursive context, filesystem or execution
-access. Live pins protect source retention. Handoffs require Companion 6.0.0 and
+access. Live pins protect source retention. Remote handoffs require Companion 6.0.0 and
 `handoff_briefs_v1`; unsupported remote requests are rejected before transmission.
 See the [handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#task-handoff-briefs).
 

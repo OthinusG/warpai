@@ -120,7 +120,7 @@ Warpai 依托底层轻量 SQLite 状态总线，构建了高并发、强秩序�
 2. **随时动态派发与无阻塞入队**：Coordinator 或主 Agent 不必在启动前预设固定批次，可在项目推进的任意时刻随时向一个或多个同伴派发任务。派发只负责入队（`delivery: "queued"`），派发方无需等待即可持续下发后续工作，保持生产流水线高饱和运转。
 3. **全队列动态生命周期追踪**：所有新入队任务自动进入主 Agent 的动态监督列表（Dynamic Supervision Set）。主 Agent 即使通过 `warp_agent_ready` 出让控制轮次，也能通过 `warp_task_list` 和 `warp_task_get` 实时掌控队列深度、阻塞提问与运行进展。
 4. **依赖自动解封与返工重排队**：带前置依赖的任务在依赖未完备时处于 `blocked`，一旦前置通过立即自动解封为 `queued`；审阅打回（`needs_changes`）的任务自动版本升级并重回 `queued`，平滑衔接下一轮执行。
-5. **终态主动出队归档**：任务一旦通过验收（`accepted`）或终态归档，便主动从在途监督列表中退出，无需繁复的僵尸轮询，确保监控面板始终精准聚焦核心活跃事项。
+5. **待办解决后退出督办**：终态任务的追问、问题、执行不确定性及相关结果全部处理后，才退出相应督办；归档本身不结束这些事实。提交先释放执行位置，验收和实际集成分别核对。
 
 <div class="docs-shot-placeholder" data-shot="SHOT-26">
   <div class="shot-header">
@@ -176,11 +176,45 @@ Warpai 依托底层轻量 SQLite 状态总线，构建了高并发、强秩序�
 
 ---
 
+## 督办恢复与任务关联追问
+
+### `warp_project_bootstrap` / `warp_supervision_index`
+
+Bootstrap 的有界 `supervision` 包含 `rows`、`total`、`counts`、`cursor` 和
+`truncated`；将该游标传给 `warp_supervision_index` 续读，可选 `limit` 控制页大小。
+条目覆盖自己发起、执行或评审的任务，等待最终结果的请求，未处理结果消息及直接
+发给自己的未回答问题，并提供逐条 `actions`。当前 Worktree Coordinator 可接续
+历史任务职责。读取不确认已读、不推进任务、不转移权限；归档任务仍有未结束追问、
+问题或执行尝试时，继续纳入恢复范围。
+
+### `warp_task_followup_reconcile`
+
+结束一条过时的任务关联指令，必填字段为 `task_id`、`message_id`、`note`、
+`expected_version` 和 `request_id`。先刷新任务：`expected_version` 必须匹配当前
+version，消息必须属于较旧的任务 revision。发起人、评审人、当前 Coordinator 或
+面板操作者须具备既有操作权限。
+
+操作保留原文并记录 `followup_reconciled`，确认已读本身不构成终结。结束追问会
+结束由它派生的问题，拒绝迟到的 succeeded、failed 或 blocked 回复。其他操作者
+结束结果请求时，发送方收到一条被取代的失败结果；自行结束不产生自发自收的结果。
+同一 `request_id` 与相同内容重放返回原回执，改换内容复用会被拒绝。替代要求需
+单独调用 `warp_agent_send`；本操作不等于任务重试或重启。
+
+`warp_agent_send` 将显式或继承的任务关联绑定到当前 revision；`task_id` 与
+`reply_to` 的任务关联冲突时拒绝请求。过时指令保留在收件箱和历史中，但跳过自动
+投递。原生面板 **View all** 可独立分页读取全部未结束的过时追问，不受每任务 8 条
+预览限制；Agent 通过恢复索引重建督办。面板在序列化字节预算内保留
+完整筛选总数和续读游标，也适用于多字节文本。不支持的远端操作明确报告能力错误。
+
 ## 任务交接资源（handoff）
 
 任务生命周期接口接受可选 `handoff`。`warp_task_submit` 总会生成基础简报；
 `warp_task_progress` 仅在显式提供 `handoff` 时生成检查点。失败与确认取消时保留
 部分成果或停止点。handoff 类型由 Broker 保留，`warp_context_publish` 不可伪造。
+快照将任务版本、具体执行尝试、生产者、源事件和已有证据绑定到含 ID、revision 与
+SHA-256 的资源引用。任务与执行线程读取提供 `handoff_inputs`，bootstrap 任务条目
+包含 `handoff_warning_count`。接续前刷新源状态；这些投影提示过时或执行不确定的
+输入，不替换固定引用或重启工作。先读索引，再按需读取源记录的具体部分。
 各部分使用带 `items` 的 `provided`、`not_provided` 或 `not_applicable` 状态。
 整份提交编码后上限为 8 KiB，包括 UTF-8 和 JSON 转义。
 

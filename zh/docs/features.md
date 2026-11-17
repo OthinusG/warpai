@@ -15,13 +15,33 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
 
 ---
 
+## 可跨交接延续的任务督办
+
+通过持久任务与明确结果组织并行工作。协作面板集中呈现待回答、待评审和待恢复事项，
+追问绑定任务版本，避免旧要求驱动当前工作。
+
+<div class="table-wrapper" markdown="1">
+
+| 能力 | 对团队的价值 |
+| --- | --- |
+| 按行动组织的待办 | 同一任务可有多个行动；完整筛选总数与分页确保后续任务可达。 |
+| 持久恢复索引 | 返回的监督者可找回委派任务、未获答复的请求、未处理结果和发给自己的问题；当前 Coordinator 可接续历史任务职责。 |
+| 明确结束追问 | 已读与解决分开；结束过时指令保留历史并拒绝迟到结果。 |
+| 受保护的恢复 | 请求取消或断线后保留执行不确定性，核对后再恢复，降低重复写入风险。 |
+| 经评审的交付 | 提交、验收、集成选择和实际交付分开，适用于代码和非代码成果。 |
+
+</div>
+
 ## 任务交接简报（handoff）
 
-受跟踪任务保存不可变、带版本的简报，便于跨 Agent 继续工作。提交、失败和确认取消
-保留关联源记录的快照；显式进度检查点可包含决策、未解决问题和后续步骤。在任务详情
-按需加载具体版本，将固定引用附到后续任务，或显式共享指定版本。当前源状态与评审
-独立检查，简报不授予执行或文件系统权限；活跃引用保护源记录。参见
-[交接使用流程]({{ site.baseurl }}/zh/docs/using-warpai-agents.html#任务交接简报handoff)。
+用不可变简报从指定结果或检查点继续。简报关联任务版本、执行尝试、生产者、源事件
+和已有证据，同时保留报告的决策、未解决问题和后续步骤。失败和确认取消也能保存
+部分成果；未提供的内容明确标记。接手者无需加载完整终端记录即可定位停止点。
+
+按需浏览具体版本，将固定引用附到后续任务或向接收者显式共享。当前源状态、评审和
+执行不确定性单独核对；提示不会悄然替换引用或重启下游工作。活跃引用保护源记录免遭
+清理，简报不授予执行或文件系统权限。本地、SSH 与直接 WSL 使用同样的语义。参见
+[督办与交接流程]({{ site.baseurl }}/zh/docs/using-warpai-agents.html#持续督办与恢复)。
 
 ## 1. 行业主流 Agent 管理体系全景速览
 
@@ -438,7 +458,7 @@ Warpai 是一款专为自主 Coding Agent 协作打造的本地优先、零隐�
 - **守护式 PTY 交付**：排队任务在 Agent 恢复就绪且提示符安全时自动投递。检测到用户未提交草稿或敏感等待审批时自动暂停，杜绝命令冲撞。
 
 #### 4. 38+ 原生 MCP 协同工具（`warpai-local-com`）
-- 完整任务生命周期控制、排队与动态监督（`warp_task_assign`、`warp_task_start`、`warp_task_list`、`warp_task_claim`、`warp_task_progress`、`warp_task_submit`、`warp_task_review`、`warp_task_integrate`）。新任务持久化入队（`queued`），执行方单任务独占串行推进（`running`），支持随时向多个 Agent 动态派发任务，新发布任务自动入队监督任务列表，完成验收后主动退出。
+- 完整任务生命周期控制、排队与动态监督（`warp_task_assign`、`warp_task_start`、`warp_task_list`、`warp_task_claim`、`warp_task_progress`、`warp_task_submit`、`warp_task_review`、`warp_task_integrate`）。新任务持久化入队（`queued`），执行方单任务独占串行推进（`running`），支持随时向多个 Agent 动态派发任务，新发布任务进入监督任务列表，终态及相关待办解决后退出。
 - 智能体点对点通信（`warp_agent_send`、`warp_agent_ask`、`warp_agent_reply`、`warp_agent_inbox`、`warp_agent_ready`）。
 - 项目全局上下文与长期记忆（`warp_context_publish`、`warp_project_bootstrap`）。
 - 协同开发文件独占锁预定（`warp_file_reserve`、`warp_file_release`）。

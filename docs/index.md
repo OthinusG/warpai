@@ -12,6 +12,13 @@ Welcome to the official documentation for **Warpai** — the local-first, privac
 
 Warpai elevates independent CLI Agent sessions into first-class units of work. For software engineering, Warpai provides a disciplined **Git Worktree Coding Mode** to develop features concurrently in isolated branches with automated peer reviews. For cross-domain and non-coding workflows, Warpai delivers an omnidirectional **Project Mode**, breaking rigid hierarchies so all agents freely exchange messages and tasks across scientific research, visual design, quant finance, and patent compliance.
 
+Durable tasks keep delegation, questions, submission and review connected across
+sessions. **Needs attention** exposes pending decisions, and a returning supervisor
+can rebuild unfinished work from retained facts. Immutable handoff briefs carry an
+exact result or checkpoint to the next Agent, with source-change warnings and
+on-demand evidence reads. Start with the
+[supervision and handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#continuous-supervision-and-recovery).
+
 <figure class="docs-figure">
   <img class="workspace-shot-light" src="{{ '/docs/images/warpai-hero-showcase.png' | relative_url }}" alt="Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel" width="4032" height="2304">
   <img class="workspace-shot-dark" src="{{ '/assets/images/warpai-hero-showcase-dark.png' | relative_url }}" alt="Warpai workspace with vertical tabs, Spotify and btop split terminals, and the Agent collaboration panel" width="4032" height="2304">
