@@ -708,7 +708,7 @@
   }
   .docs-header-right {
     justify-content: space-between;
-    gap: 6px;
+    gap: 4px;
   }
   .docs-header-right > * {
     flex-shrink: 0;
@@ -722,7 +722,7 @@
     white-space: nowrap;
   }
   .docs-nav-link {
-    padding: 6px 4px;
+    padding: 6px 2px;
     font-size: 11px;
   }
   .docs-github-btn {

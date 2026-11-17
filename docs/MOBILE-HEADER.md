@@ -29,7 +29,7 @@ horizontal page scrolling, including while the mobile sidebar is open.
   text and nonwrapping labels. Long inline commands wrap within the article;
   preformatted command blocks retain their independent scrolling.
 - Palette: existing ink/paper tokens and pressed-button styling are unchanged.
-- Spacing: 16-px narrow header padding and 6/8/12-px gaps retain every control;
+- Spacing: 16-px narrow header padding and 4/8/12-px gaps retain every control;
   navigation/theme hit areas are at least 32 px high. No clipping or overlap.
 - Assets and copy: existing logo, icons, labels, language targets and navigation
   remain intact. No replacement assets, hidden controls or new dependencies.
@@ -37,5 +37,10 @@ horizontal page scrolling, including while the mobile sidebar is open.
   overlap, sidebar-offset and language-target assertions. Real pointer clicks
   open the drawer; outside clicks close it. Both theme buttons work. English
   ink and Chinese paper screenshots were inspected at 320 px.
-- Local Jekyll build and focused whitespace review passed. Production deployment
-  is the remaining verification step.
+- Local Jekyll build and focused whitespace review passed. Production source
+  8eb59796 deployed successfully. Eight live bilingual 320/390-px theme checks,
+  language targets and real-pointer drawer interactions passed on the public site.
+
+The final 320-px check also constrains controls to the header content box, not
+merely the viewport. A 4-px second-row gap and 2-px navigation-label side padding
+preserve the full 16-px outer padding in English and Chinese; all 112 checks pass.
