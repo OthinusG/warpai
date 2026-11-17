@@ -101,7 +101,7 @@ promoted to project memory. The Broker owns creation; public context publication
 cannot forge a handoff.
 
 Local, SSH and direct WSL share this workflow. Remote handoffs require the matching
-Companion 6.0.0 and `handoff_briefs_v1` capability. Unsupported requests are rejected
+Companion 6.1.0 and `handoff_briefs_v1` capability. Unsupported requests are rejected
 without flattening briefs into ordinary message text. See
 [remote installation]({{ site.baseurl }}/docs/ssh-installation.html) and [WSL installation]({{ site.baseurl }}/docs/wsl-installation.html).
 

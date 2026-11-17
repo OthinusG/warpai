@@ -256,7 +256,7 @@ Review is separate from the snapshot; reported tests are not proof of verificati
 A pin on an assigned/pool task grants only that version to authorized target
 readers. Ordinary messages need an explicit version-scoped context share. Neither
 path grants source-task/history, recursive context, filesystem or execution
-access. Live pins protect source retention. Remote handoffs require Companion 6.0.0 and
+access. Live pins protect source retention. Remote handoffs require Companion 6.1.0 and
 `handoff_briefs_v1`; unsupported remote requests are rejected before transmission.
 See the [handoff workflow]({{ site.baseurl }}/docs/using-warpai-agents.html#task-handoff-briefs).
 

@@ -244,7 +244,7 @@ SHA-256 的资源引用。任务与执行线程读取提供 `handoff_inputs`，b
 
 分配任务或任务池条目中的固定引用只向目标任务的授权读者开放指定版本；普通消息
 需要显式的版本级 context 共享。两者均不授予源任务历史、递归上下文、文件系统或
-执行权限。活跃引用会保护源记录的保留。远端需 Companion 6.0.0 和
+执行权限。活跃引用会保护源记录的保留。远端需 Companion 6.1.0 和
 `handoff_briefs_v1`，不支持的请求会在传输前被拒绝。参见
 [交接使用流程]({{ site.baseurl }}/zh/docs/using-warpai-agents.html#任务交接简报handoff)。
 

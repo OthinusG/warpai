@@ -12,7 +12,7 @@ next_title: 20+ CLI Agents Guide
 
 
 
-This guide covers Warpai 1.8.6.1 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
+This guide covers Warpai 1.9.0 with WSL 2 on Windows: enabling the required Windows features, installing a Linux distribution, opening the WSL session in Warpai, installing the dedicated WSL Companion, configuring per-Agent MCP inside the distribution, and running the same multi-Agent workflow as a local project.
 
 Related documentation:
 - [OpenSSH Server Installation & Setup]({{ '/docs/ssh-installation.html' | relative_url }})
@@ -27,7 +27,7 @@ Related documentation:
 | :--- | :--- |
 | Windows | Windows 10 version 2004 (build 19041) or later, or Windows 11. |
 | Virtualization | Hardware virtualization enabled in BIOS/UEFI. |
-| Warpai | Warpai 1.8.6.1 for Windows. WSL integration is a Windows-only feature. |
+| Warpai | Warpai 1.9.0 for Windows. WSL integration is a Windows-only feature. |
 | Distribution | A WSL 2 distribution, preferably Ubuntu 22.04 LTS or 24.04 LTS. The bundled WSL Companion supports x86_64 guests. |
 | Account | A Linux user inside the distribution. The Companion installs into that user's home directory. |
 
@@ -134,7 +134,7 @@ Unchecking **Install WSL Companion** removes the installation for that account. 
 
 <div class="docs-callout note">
   <div class="docs-callout-title">WSL Uses Its Own Companion Payload</div>
-  <p>The Linux <code>WarpaiCompanion-6.0.0-linux-x64.run</code> package published on GitHub is for <strong>SSH remote hosts</strong>. It installs <code>~/.config/warpai/bin/warpai-companion</code> and does not install the dedicated WSL service at <code>~/.config/warpai/wsl/bin/warpai-wsl-companion</code>. Use the WSL settings installer for local WSL.</p>
+  <p>The Linux <code>WarpaiCompanion-6.1.0-linux-x64.run</code> package published on GitHub is for <strong>SSH remote hosts</strong>. It installs <code>~/.config/warpai/bin/warpai-companion</code> and does not install the dedicated WSL service at <code>~/.config/warpai/wsl/bin/warpai-wsl-companion</code>. Use the WSL settings installer for local WSL.</p>
 </div>
 
 ### Installation paths
@@ -265,7 +265,7 @@ With WSL configured as above, Warpai provides the same core experience as a loca
 | :--- | :--- |
 | `wsl --install` fails or WSL will not start | Virtualization is enabled in BIOS/UEFI; the Windows features are enabled; reboot after enabling them. |
 | The distribution is not listed in Warpai's WSL account dropdown | Open a WSL terminal in Warpai first; confirm the distribution and user with `wsl --list --verbose`. |
-| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.8.6.1. |
+| `wsl` opens but command blocks or `cd` tracking do not activate | Run `wsl --shutdown`, reopen the session, and confirm you are on Warpai 1.9.0. |
 | WSL Companion install fails | The guest must be x86_64; check free disk space and the selected distribution/user. Rescan before retrying. |
 | WSL Companion is missing after install | Verify `~/.config/warpai/wsl/bin/warpai-wsl-companion --check-runtime` in the same Linux account. |
 | Agent checkbox is disabled | Companion is not installed or is incompatible, the CLI was not discovered, or the account is not selected. |

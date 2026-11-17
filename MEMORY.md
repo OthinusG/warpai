@@ -22,7 +22,7 @@
   wrap; preformatted blocks/tables retain scoped scrolling. Acceptance and
   visual decisions: docs/MOBILE-HEADER.md (112 bilingual/width/theme checks).
 
-- Current documentation targets Warpai 1.8.6.1 / Companion 6.0.0. Companion is
+- Current documentation targets Warpai 1.9.0 / Companion 6.1.0. Companion is
   only required for SSH remote hosts and local WSL; ordinary native local
   terminals need no Companion installation/update. Keep the current Companion
   version in setup instructions; the owner removed the repeated
