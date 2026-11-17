@@ -3,7 +3,7 @@
 [English](REMOTE-INSTALLATION.md) | [简体中文](REMOTE-INSTALLATION.zh-CN.md)
 
 
-Warpai 1.8.6.1 uses the remote component installed for the SSH account. Install it
+Warpai 1.9.0 uses the remote component installed for the SSH account. Install it
 once on each remote machine, then connect from an ordinary Warpai terminal:
 
 ```sh
@@ -25,9 +25,9 @@ Choose the installer for the **remote** operating system and architecture.
 
 | Remote system | Package | Installation |
 | --- | --- | --- |
-| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-linux-x64.run) | Run `sh WarpaiCompanion-6.0.0-linux-x64.run`. |
-| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
-| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
+| Linux x64 | [Self-contained installer](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-linux-x64.run) | Run `sh WarpaiCompanion-6.1.0-linux-x64.run`. |
+| macOS Apple silicon | [DMG](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-macos-arm64.dmg) | Open the image and double-click **Install Warpai Companion.command**. |
+| Windows x64 | [EXE installer](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-windows-x64-setup.exe) | Run the installer under the remote SSH account. |
 
 The packages contain the correct executable, checksum, version/source manifest and
 license notices. No manual extraction or executable-path entry is required. Unix
@@ -43,7 +43,7 @@ from the same release; protocol compatibility is checked before project binding.
 
 ## Connect and troubleshoot
 
-Companion 6.0.0 bundles a private Git runtime. Explorer/file operations,
+Companion 6.1.0 bundles a private Git runtime. Explorer/file operations,
 Agent coordination and the MCP bridge run
 inside Companion; code/text and Markdown preview render in the desktop app.
 These features do not require a separate Git, Python, Node, tmux or socat

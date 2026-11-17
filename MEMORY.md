@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-17. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -27,13 +27,19 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Published releases and maintenance
 
+- Warpai 1.9.0 published 2026-11-17 from immutable tag source f2542163.
+  Companion 6.1.0 confirmed by owner; protocol majors unchanged. All 19 release
+  files fully downloaded and hashed; canonical public URLs return HTTP 200.
+  Acceptance, native captures and release run receipts: specs/1.9.0/RELEASE.md.
+  DMG independent public SHA-256 is recorded there for final Homebrew delivery.
+
 - Owner requested 1.9.0 release preparation on 2026-11-17. Contract/ledger:
   specs/RELEASE.md and specs/1.9.0/RELEASE.md. Target Companion 6.1.0 distinguishes
   additive shared supervision/follow-up features from published 6.0.0; protocol
   majors stay unchanged. Prepare source-matched native/WSL acceptance and draft
   installers with auto_publish=false before the publication gate.
 
-- Public: Warpai 1.8.6.1 / Companion 6.0.0. All 19 assets verified; match README links.
+- Public: Warpai 1.9.0 / Companion 6.1.0. All 19 assets verified; match README links.
   Linux x64/ARM64: AppImage/DEB/RPM/Arch, glibc >=2.31. Changes go in Release notes.
 - Preserve unpublished v1.7.2, immutable v1.7.6 and unpublished v1.8.0 tags/drafts.
   Pane icons passed both desktops (41053972438); immutable release source 8ff0c00f.

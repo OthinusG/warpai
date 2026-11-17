@@ -14,12 +14,12 @@
 
 **一个项目 · 多个 Agent · 一条协作工作流**
 
-[下载 1.8.6.1](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
+[下载 1.9.0](#get-warpai) · [Agent 如何协作](#agents-as-the-unit-of-work) ·
 [支持的 Agent](docs/AGENTS.zh-CN.md) ·
 [官方文档](https://othinusg.github.io/warpai/zh/) ·
 [反馈问题](https://github.com/OthinusG/warpai/issues)
 
-[![版本](https://img.shields.io/badge/release-1.8.6.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.8.6.1)
+[![版本](https://img.shields.io/badge/release-1.9.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.9.0)
 [![许可证：AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![桌面平台](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
 [![远端平台](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-workflow)
@@ -183,40 +183,39 @@ Warpai 是一款使用 **Rust** 编写的高性能原生桌面应用，采用自
 
 ## 下载与安装
 
-### **Companion 兼容性：必须覆盖安装 6.0.0**
+### **SSH/WSL：安装配套 Companion 6.1.0**
 
-**Companion 只用于 SSH 远端和本地 WSL 环境；普通本地终端（非 WSL）无需安装或更新
-Companion。Warpai 1.8.6.1 前后的 Companion 不通用。Warpai 1.8.6.1 的 SSH/WSL 必须配套
-Companion 6.0.0。请在每台远程主机上以原 SSH 账号覆盖安装新版 Companion，然后
-重新连接。本地 WSL 请通过设置中的安装器更新专用组件。旧版桌面端继续配套旧版
-Companion，不支持降级已更新的数据存储。**
+**Companion 只用于 SSH 远端和本地 WSL；普通本地终端无需安装或更新 Companion。
+Warpai 1.9.0 请配套 Companion 6.1.0，以使用督办恢复和追问处理能力。在远端以原
+SSH 账号覆盖安装后重新连接；本地 WSL 通过设置中的安装器更新。保留设置与数据，
+不支持数据存储降级。SSH 协议主版本仍为 1，Agent Bus 主版本仍为 2。**
 
-**[Warpai 1.8.6.1](https://github.com/OthinusG/warpai/releases/tag/v1.8.6.1)** 提供 macOS、Windows 与 Linux 桌面端安装包。
+**[Warpai 1.9.0](https://github.com/OthinusG/warpai/releases/tag/v1.9.0)** 提供 macOS、Windows 与 Linux 桌面端安装包。
 
 在 **Settings > Appearance > Language** 中选择 English、简体中文或繁體中文，重启即可生效。应用配置和持久数据存储在本地 `~/.config/warpai`。
 
-### 桌面端安装包（v1.8.6.1）
+### 桌面端安装包（v1.9.0）
 
 | 平台 | 下载地址 | 安装方式 |
 | --- | --- | --- |
-| **macOS 11.0+（Big Sur+）· Apple 芯片** | [DMG 镜像](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications 目录。 |
-| **Windows 10/11 · x64** | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiSetup-1.8.6.1-windows-x64.exe) | 运行安装向导即可。 |
-| **Linux · x86_64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.pkg.tar.zst) | AppImage：`chmod +x Warpai-1.8.6.1-linux-x64.AppImage && ./Warpai-1.8.6.1-linux-x64.AppImage`<br>DEB：`sudo apt install ./Warpai-1.8.6.1-linux-x64.deb`<br>RPM：`sudo dnf install ./Warpai-1.8.6.1-linux-x64.rpm`<br>Arch：`sudo pacman -U ./Warpai-1.8.6.1-linux-x64.pkg.tar.zst` |
-| **Linux · ARM64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.pkg.tar.zst) | AppImage：`chmod +x Warpai-1.8.6.1-linux-arm64.AppImage && ./Warpai-1.8.6.1-linux-arm64.AppImage`<br>DEB：`sudo apt install ./Warpai-1.8.6.1-linux-arm64.deb`<br>RPM：`sudo dnf install ./Warpai-1.8.6.1-linux-arm64.rpm`<br>Arch：`sudo pacman -U ./Warpai-1.8.6.1-linux-arm64.pkg.tar.zst` |
+| **macOS 11.0+（Big Sur+）· Apple 芯片** | [DMG 镜像](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-macos-arm64.dmg) | 将 **Warpai.app** 拖入 Applications 目录。 |
+| **Windows 10/11 · x64** | [EXE 安装器](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiSetup-1.9.0-windows-x64.exe) | 运行安装向导即可。 |
+| **Linux · x86_64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.pkg.tar.zst) | AppImage：`chmod +x Warpai-1.9.0-linux-x64.AppImage && ./Warpai-1.9.0-linux-x64.AppImage`<br>DEB：`sudo apt install ./Warpai-1.9.0-linux-x64.deb`<br>RPM：`sudo dnf install ./Warpai-1.9.0-linux-x64.rpm`<br>Arch：`sudo pacman -U ./Warpai-1.9.0-linux-x64.pkg.tar.zst` |
+| **Linux · ARM64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.pkg.tar.zst) | AppImage：`chmod +x Warpai-1.9.0-linux-arm64.AppImage && ./Warpai-1.9.0-linux-arm64.AppImage`<br>DEB：`sudo apt install ./Warpai-1.9.0-linux-arm64.deb`<br>RPM：`sudo dnf install ./Warpai-1.9.0-linux-arm64.rpm`<br>Arch：`sudo pacman -U ./Warpai-1.9.0-linux-arm64.pkg.tar.zst` |
 
 Linux 桌面包支持 x86_64 与 ARM64，要求 glibc 2.31 或更高版本。发行版安装细节请参阅 [Linux 安装指南](https://othinusg.github.io/warpai/zh/docs/install.html)。
 
 *macOS 说明：应用采用临时签名。若首次打开被拦截，请前往“系统设置 > 隐私与安全性”点击“仍要打开”，或在终端执行 `xattr -d com.apple.quarantine /Applications/Warpai.app`。*
 
-### 远程 Companion（v6.0.0）
+### 远程 Companion（v6.1.0）
 
 Warpai Companion 为远程 Linux、macOS 和 Windows 主机提供轻量项目环境：
 
 | 远程主机 | 下载包 | 安装命令 |
 | --- | --- | --- |
-| **Linux x64**（Ubuntu 20.04+, Debian, RHEL） | [独立运行包](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
-| **macOS Apple 芯片** | [DMG 安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-macos-arm64.dmg) | 打开 DMG 并运行 **Install Warpai Companion.command** |
-| **Windows x64** | [EXE 安装包](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-windows-x64-setup.exe) | 在远程主机运行安装程序。 |
+| **Linux x64**（Ubuntu 20.04+, Debian, RHEL） | [独立运行包](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
+| **macOS Apple 芯片** | [DMG 安装镜像](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-macos-arm64.dmg) | 打开 DMG 并运行 **Install Warpai Companion.command** |
+| **Windows x64** | [EXE 安装包](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-windows-x64-setup.exe) | 在远程主机运行安装程序。 |
 
 ## 本地优先与隐私安全
 

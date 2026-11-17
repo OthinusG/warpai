@@ -16,12 +16,12 @@ Linux, macOS, and Windows machines.
 
 **One project · Many agents · One coordinated workflow**
 
-[Download 1.8.6.1](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
+[Download 1.9.0](#get-warpai) · [How teams work](#agents-as-the-unit-of-work) ·
 [Supported agents](specs/agent-communication/COVERAGE.md) ·
 [Documentation](https://othinusg.github.io/warpai/) ·
 [Report an issue](https://github.com/OthinusG/warpai/issues)
 
-[![Release](https://img.shields.io/badge/release-1.8.6.1-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.8.6.1)
+[![Release](https://img.shields.io/badge/release-1.9.0-blue)](https://github.com/OthinusG/warpai/releases/tag/v1.9.0)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE-AGPL)
 [![Desktop](https://img.shields.io/badge/desktop-macOS%20%7C%20Windows%20%7C%20Linux-24292f.svg)](#get-warpai)
 [![Remote](https://img.shields.io/badge/remote-Linux%20%7C%20macOS%20%7C%20Windows-24292f.svg)](#remote-work-is-part-of-the-same-workflow)
@@ -197,42 +197,41 @@ Warpai is a native desktop application written in **Rust**, utilizing the `warpu
 
 ## Get Warpai
 
-### **Companion compatibility: overwrite-install 6.0.0**
+### **SSH/WSL: install matching Companion 6.1.0**
 
 **Companion is only for SSH remote hosts and local WSL environments. Ordinary
-local terminals outside WSL do not require Companion installation or updates.
-Companion versions used before and from Warpai 1.8.6.1 are not interchangeable.
-Warpai 1.8.6.1 requires Companion 6.0.0 for SSH/WSL. Overwrite-install the matching
-new Companion on each remote host under the same SSH account, then reconnect.
-Update local WSL through its settings installer. Keep old desktops paired with
-their matching older Companion; do not downgrade an updated data store.**
+local terminals require no Companion installation or update. Use Companion 6.1.0
+with Warpai 1.9.0 for supervision recovery and follow-up handling. Overwrite-install
+under the same remote SSH account, then reconnect; update local WSL through its
+settings installer. Retain settings and data; do not downgrade the data store.
+SSH protocol major 1 and Agent Bus major 2 remain unchanged.**
 
-**[Warpai 1.8.6.1](https://github.com/OthinusG/warpai/releases/tag/v1.8.6.1)** is available for macOS, Windows, and Linux.
+**[Warpai 1.9.0](https://github.com/OthinusG/warpai/releases/tag/v1.9.0)** is available for macOS, Windows, and Linux.
 
 Choose English, 简体中文, or 繁體中文 in **Settings > Appearance > Language** and restart to apply. Desktop settings and application data are stored locally in `~/.config/warpai`.
 
-### Desktop downloads (v1.8.6.1)
+### Desktop downloads (v1.9.0)
 
 | Platform | Download | Installation |
 | --- | --- | --- |
-| **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
-| **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiSetup-1.8.6.1-windows-x64.exe) | Run the setup wizard. |
-| **Linux · x86_64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-x64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.8.6.1-linux-x64.AppImage && ./Warpai-1.8.6.1-linux-x64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.8.6.1-linux-x64.deb`<br>RPM: `sudo dnf install ./Warpai-1.8.6.1-linux-x64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.8.6.1-linux-x64.pkg.tar.zst` |
-| **Linux · ARM64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/Warpai-1.8.6.1-linux-arm64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.8.6.1-linux-arm64.AppImage && ./Warpai-1.8.6.1-linux-arm64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.8.6.1-linux-arm64.deb`<br>RPM: `sudo dnf install ./Warpai-1.8.6.1-linux-arm64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.8.6.1-linux-arm64.pkg.tar.zst` |
+| **macOS 11.0+ (Big Sur+) · Apple Silicon** | [DMG Installer](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-macos-arm64.dmg) | Drag **Warpai.app** into `/Applications`. |
+| **Windows 10/11 · x64** | [EXE Installer](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiSetup-1.9.0-windows-x64.exe) | Run the setup wizard. |
+| **Linux · x86_64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-x64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.9.0-linux-x64.AppImage && ./Warpai-1.9.0-linux-x64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.9.0-linux-x64.deb`<br>RPM: `sudo dnf install ./Warpai-1.9.0-linux-x64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.9.0-linux-x64.pkg.tar.zst` |
+| **Linux · ARM64** | [AppImage](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.AppImage) · [DEB](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.deb) · [RPM](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.rpm) · [Arch](https://github.com/OthinusG/warpai/releases/download/v1.9.0/Warpai-1.9.0-linux-arm64.pkg.tar.zst) | AppImage: `chmod +x Warpai-1.9.0-linux-arm64.AppImage && ./Warpai-1.9.0-linux-arm64.AppImage`<br>DEB: `sudo apt install ./Warpai-1.9.0-linux-arm64.deb`<br>RPM: `sudo dnf install ./Warpai-1.9.0-linux-arm64.rpm`<br>Arch: `sudo pacman -U ./Warpai-1.9.0-linux-arm64.pkg.tar.zst` |
 
 Linux desktop packages target x86_64 and ARM64 with glibc 2.31 or later. See the [Linux installation guide](https://othinusg.github.io/warpai/docs/install.html) for distribution-specific details.
 
 *macOS Note: Builds are ad-hoc signed. If blocked on first run, click **Open Anyway** under System Settings > Privacy & Security, or run `xattr -d com.apple.quarantine /Applications/Warpai.app`.*
 
-### Remote companion (v6.0.0)
+### Remote companion (v6.1.0)
 
 Warpai Companion provides the remote server workspace for Linux, macOS, and Windows machines over SSH:
 
 | Remote Host | Package | Installation |
 | --- | --- | --- |
-| **Linux x64** (Ubuntu 20.04+, Debian, RHEL) | [Standalone Installer](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
-| **macOS Apple Silicon** | [DMG Image](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-macos-arm64.dmg) | Open the DMG and run **Install Warpai Companion.command** |
-| **Windows x64** | [Setup EXE](https://github.com/OthinusG/warpai/releases/download/v1.8.6.1/WarpaiCompanion-6.0.0-windows-x64-setup.exe) | Run installer on remote host. |
+| **Linux x64** (Ubuntu 20.04+, Debian, RHEL) | [Standalone Installer](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-linux-x64.run) | `chmod +x WarpaiCompanion-*.run && ./WarpaiCompanion-*.run` |
+| **macOS Apple Silicon** | [DMG Image](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-macos-arm64.dmg) | Open the DMG and run **Install Warpai Companion.command** |
+| **Windows x64** | [Setup EXE](https://github.com/OthinusG/warpai/releases/download/v1.9.0/WarpaiCompanion-6.1.0-windows-x64-setup.exe) | Run installer on remote host. |
 
 ## Local by design
 
