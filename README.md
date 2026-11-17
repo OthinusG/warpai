@@ -54,19 +54,19 @@ Warpai provides two first-class modes tailored for different problem domains:
 
 ### Dynamic task supervision
 
-Warpai supports **Dynamic Task Supervision**:
+Keep parallel work moving while preserving what still needs a decision:
 
-1. **On-the-fly task dispatching**: Any supervising Agent or Coordinator can dynamically publish tasks to multiple agents at any time, adapting flexibly as execution unfolds rather than relying on static, upfront batch plans.
-2. **Persistent task queuing & sequential execution**: Dispatched tasks enter durable recipient queues (`queued`). Workers execute one task at a time (`running`), preventing dirty working tree contention, and pop queued items sequentially via `warp_task_start` upon submission.
-3. **Dynamic supervision list enrollment**: Newly dispatched tasks immediately join the primary Agent's live **Supervision Task List**. The supervising agent actively tracks task lifecycle states (`assigned`, `in_progress`, `submitted_for_review`).
-4. **Active task retirement**: Once an assigned agent completes its deliverable and submits accepted evidence or code diffs, the task automatically exits the supervision list.
-5. **Guarded inbox delivery**: Busy agents receive incoming tasks and messages in arrival order without unexpected process interruptions. Timeouts never prematurely restart in-flight work.
-6. **Subtask autonomy and ready state**: An Agent's internal subtask states are not monitored, because the Agent itself is in a ready state that can receive tasks. The external coordination fabric tracks cross-Agent task lifecycles; micro-subtasks an Agent decomposes internally do not enter the supervision list.
+1. **Continuous dispatch**: Delegate more work while other Agents run, ask questions or submit results. Durable recipient queues keep tracked execution serial per Agent; submitting releases its execution slot while review remains pending.
+2. **Actionable supervision**: **Needs attention** groups questions, reviews, input/permission waits, dependencies, overdue work, unreachable Agents and uncertain execution. One task can have several pending actions; paged lists retain totals across the whole filter.
+3. **Recovery across sessions**: A returning supervisor can rebuild its unfinished tasks, outgoing requests, unhandled results and addressed questions from durable records. The active Worktree Coordinator can recover inherited task supervision within its existing authority. Reading the index changes no task or acknowledgement state.
+4. **Revision-aware follow-ups**: Task-linked instructions retain the revision they were sent against. Overtaken instructions stay available for inspection and explicit closure instead of being automatically delivered as current work. Read acknowledgement alone does not resolve them.
+5. **Guarded execution**: Busy delivery preserves drafts and native readiness checks. A timeout, disconnect or cancellation request does not prove execution stopped; retry and reassignment retain explicit recovery checks.
+6. **Reviewed delivery**: Submission, acceptance and actual integration are separate steps. Work leaves supervision when its outstanding facts are resolved; archiving alone does not close pending follow-ups or execution uncertainty. Internal Agent subtasks remain under that Agent's control.
 
 ```mermaid
 flowchart TB
     Goal["Your Goal & Instructions"] --> Coordinator["Active Coordinator / Lead Agent"]
-    Coordinator -->|Dynamic Task Dispatch| TaskPool["Dynamic Supervision Task List<br/>(Tasks enroll on dispatch & actively exit on completion)"]
+    Coordinator -->|Dynamic Task Dispatch| TaskPool["Dynamic Supervision Task List<br/>(Track outstanding work until resolved)"]
     TaskPool --> Team
     subgraph Team["Parallel CLI Agents (Independent Sessions)"]
         direction LR
@@ -113,9 +113,17 @@ progress checkpoint can include decisions, unresolved issues and ordered next
 steps. Omitted sections are marked as not provided, rather than inferred from
 terminal output.
 
+Each brief binds the task revision, execution attempt, producer, source event and
+available evidence to an immutable reference. A replacement Agent can identify
+which attempt produced the result, why decisions were made and where to resume,
+without importing an entire terminal transcript. Referenced source records stay
+protected from history cleanup while live tasks or messages depend on them.
+
 Open a task in **Agent collaboration**, browse its handoff versions and load the
 selected brief on demand. Each reference pins an immutable version; current
-source status, review and execution uncertainty must be checked separately.
+source status, review and execution uncertainty are checked separately. Source
+change warnings flag pins that need revalidation without silently replacing their
+contents or restarting downstream work.
 Attach that reference to the next task, or explicitly share the exact version
 with a recipient. A brief does not grant source-task, filesystem or execution
 access. The receiving Agent still follows normal task-start and recovery rules.

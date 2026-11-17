@@ -11,34 +11,65 @@ requirements and [acceptance evidence](../specs/agent-communication-v2/QUALITY.m
 
 ## Messages and tracked tasks
 
-Use `warp_agent_send` for peer messages and questions. Delegate supervised work
+Use `warp_agent_send` for peer messages and `warp_agent_ask` for structured questions. Delegate supervised work
 with `warp_task_assign`, or publish pool work with `warp_task_create_pool`.
 Sending text, including a request for a result, does not create a tracked task.
 Project participants can inspect and review project work; Worktree mode retains
 Coordinator, participant and designated-reviewer scope. Enqueuing work is distinct
 from delivery, acknowledgement, task start, submission and acceptance.
 
-Task-linked mail records the task revision when it is sent. When the task revision
-changes, an older message or request is overtaken: it stays in history, is not
-delivered as current work and must not be executed; the recipient reports it to the
-issuer. An authorized issuer, reviewer
-or Coordinator ends it with `warp_task_followup_reconcile` using a fresh
-`expected_version`, then sends the replacement instruction at the current revision.
-An overtaken result request is answered with a superseded result. A plain message
-or a request you sent yourself produces no result; the receipt and the recorded
-reconciliation are the terminal fact. A reconciled follow-up cannot later accept a
-succeeded, failed or blocked result, while a message that was only read remains
-answerable. Questions asked against the reconciled follow-up are retired with it.
-Reconciling preserves the original message and never restarts, reassigns or
-re-permissions the task.
+## Continuous supervision and recovery
 
-The **Needs attention** section shows at most eight follow-up previews per task
-with a shown/total count, and marks a preview that was truncated; open the
-follow-up thread (or the message when it has no thread) for the full body. Pages
-are re-read from current facts rather than a snapshot, so end the shown
-follow-ups and refresh to load later ones.
+Keep delegating while other Agents execute, ask questions or submit results.
+**Needs attention** brings together answer, review, input/permission, dependency,
+overdue, unreachable, recovery and overtaken-follow-up actions. A task can need
+several actions at once. Totals cover the whole filtered set, not just the loaded
+page. Open **View all** to page a task's unresolved overtaken follow-ups independently
+of its eight compact previews; opening a thread reads its full body.
+
+After a restart or handover, call `warp_project_bootstrap` and inspect its
+`supervision` block. Continue with `warp_supervision_index(cursor, limit)` to find
+unfinished tasks you issued, execute or review, outgoing requests awaiting final
+results, unhandled results and questions addressed to you. The active Worktree
+Coordinator also sees inherited project tasks under its existing authority.
+These reads acknowledge nothing and advance no task. Archived tasks remain
+recoverable while follow-ups, questions or execution uncertainty are unresolved.
+
+Use `warp_agent_ask` and `warp_agent_answer` for decisions that need an explicit
+answer; an ordinary message does not resolve a structured question.
+
+Task-linked messages retain the revision at send time. If review or reassignment
+advances the task, older instructions remain readable but are excluded from
+automatic delivery. An authorized issuer, reviewer, Coordinator or panel operator
+ends an overtaken instruction with `warp_task_followup_reconcile`, using the
+current task version, then sends any replacement separately. Read acknowledgement
+alone is not closure. Reconciliation preserves the original text, retires its
+questions and refuses late results. If another actor ends a result request, its
+sender receives a superseded result; a sender ending its own request creates no
+self-addressed result. Neither action restarts or reassigns execution.
+
+For example, a revision-1 request to keep an interface must not drive revision-2
+work that changes it. Inspect and end the old request before issuing the new
+instruction. After acceptance, authorize a new task with an exact handoff pin for
+additional work; a rejected submission follows the existing revision workflow.
+
+Submission releases the worker's tracked execution slot while review stays open.
+Acceptance and integration selection are separate from an actual Git merge or a
+verified deliverable. A cancellation request, timeout or disconnect does not prove
+an old execution stopped: inspect the retained attempt and use guarded recovery
+before retrying or reassigning. A terminal paste is not proof of model consumption.
 
 ## Task handoff briefs
+
+A brief records the exact task revision, attempt, producer, source event and
+available evidence, with the native execution binding captured at task start.
+Decisions and rationale are Agent reports; provenance identifies their source
+without treating them as independently verified conclusions. Missing sections
+remain distinct from an explicitly empty list or a section marked not applicable.
+This lets a replacement Agent recover the stopping point without loading a full
+terminal transcript. Read the compact index first and fetch only the needed
+version, result or evidence. Source-change and uncertainty warnings never replace
+a pin, roll back completed work or restart a downstream task automatically.
 
 A tracked task is the source of a handoff brief. `warp_task_submit` always saves
 one. `warp_task_fail` and `warp_task_finish_cancel` retain partial/stopped briefs;

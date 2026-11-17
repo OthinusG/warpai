@@ -219,6 +219,12 @@ Updated 2026-11-11. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 ## Product defaults, CLI integration and website
 
+- Product documentation describes supervision and handoff as current workflows,
+  without version comparisons or changelog framing. Keep bilingual READMEs,
+  source Agent guides and gh-pages overview/features/workflow/MCP pages aligned.
+  Distinguish read acknowledgement from explicit follow-up closure and submission
+  from acceptance/integration; recovery includes unresolved archived facts.
+
 - Hero screenshots: owner-approved locally edited light/dark PNGs (Nov6), both
   4032x2304, shared byte-for-byte by bilingual READMEs/gh-pages Overviews and
   homepage CTA previews. Preserve resolution; do not regenerate whole images.
