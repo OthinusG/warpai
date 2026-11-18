@@ -28,7 +28,7 @@ pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
             && receipt.input_sequence > 0
             && receipt.written_bytes <= 4096
             && InputDisposition::try_from(receipt.disposition).is_ok_and(|disposition| {
-                disposition != InputDisposition::InputDispositionUnspecified
+                disposition != InputDisposition::Unspecified
             })
             && state.guarded == Some(true)
             && receipt.attachment_generation == state.attachment_generation

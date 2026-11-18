@@ -1368,8 +1368,8 @@ mod tests {
             calls > 1
         });
         assert_eq!(result.unwrap(), WriteEnd::Cancelled);
-        assert_eq!(written, 1);
-        assert_eq!(cancelled.written, 1);
+        assert_eq!(written, 2);
+        assert_eq!(cancelled.written, 2);
     }
 
     #[test]

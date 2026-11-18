@@ -452,11 +452,21 @@ async fn managed_agent_fences_input_project_and_owned_stop() {
     input.input = "Unicode 空格;$(never-execute)\r".as_bytes().to_vec();
     input.input_sequence = 1;
     first.command(input.clone()).await;
+    // A retry of the accepted tail is idempotent only for identical bytes.
     assert!(matches!(
         first
-            .call(managed_request::Operation::TerminalControl(input))
+            .call(managed_request::Operation::TerminalControl(input.clone()))
             .await,
-        managed_response::Result::Error(_)
+        managed_response::Result::TerminalState(_)
+    ));
+    let mut conflicting = input.clone();
+    conflicting.input = "Unicode 空格;$(different)\r".as_bytes().to_vec();
+    assert!(matches!(
+        first
+            .call(managed_request::Operation::TerminalControl(conflicting))
+            .await,
+        managed_response::Result::Error(ManagedError { code })
+            if code == ManagedErrorCode::ManagedInputConflict as i32
     ));
     first.wait_output(&state, "UNICODE_INPUT_VERIFIED").await;
     let mut second = Attachment::open(&root).await;

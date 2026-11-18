@@ -26,11 +26,12 @@ connection, and unconfirmed input delivery is reported explicitly. A pure
 bounded catalog index prototype (stable descending pages, revision-scoped watch
 ring with explicit gap, MRU resume selection, bounded entries/events) now exists
 with passing isolated tests, but it is not wired to the terminal registry and
-grants no client access. Unit coverage
-and two Unix integration tests are written but not compiled or run.
-No unified SSH/WSL election, runtime catalog/list/inspect/watch surface,
-snapshot, CLI, desktop opt-in,
-scheduler, packaging/version change or release is implemented. V01-V30 runtime
+grants no client access. The `warp-agent-bus` and `remote_protocol` crates now
+compile and their full test suites pass on macOS arm64, including the real
+Companion PTY integration tests; this is host evidence, not remote SSH/WSL
+evidence. No unified SSH/WSL election, runtime catalog/list/inspect/watch surface,
+snapshot, CLI, desktop opt-in, scheduler, packaging/version change or release is
+implemented. V01-V30 runtime
 acceptance is NOT RUN. No guard client can reach the slice because
 `guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
 baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
@@ -58,9 +59,9 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch ring prototype is tested in isolation but not on the wire; storage schema pending |
-| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is unverified; unified SSH/WSL election, registry-backed catalog and native proof pending |
+| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is unverified; unified SSH/WSL election, registry-backed catalog and native proof pending. `cargo check -p warp-agent-bus` and its full test suite pass on macOS arm64 |
 | S2 compact terminal restoration | not_started | None |
-| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, and bounded ended-output retention; snapshots, reconnect transport and operator stop pending |
+| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, and bounded ended-output retention; host tests cover idempotent tail replay versus conflicting bytes; snapshots, reconnect transport and operator stop pending |
 | S4 SSH optional UI/CLI | not_started | None |
 | S5 mandatory WSL guardian | not_started | None |
 | S6 failure/feature restoration | not_started | None |
@@ -848,6 +849,85 @@ Follow-up tasks / affected gates: S1 unified account guardian election and
 MEMORY update or reason no durable fact changed: MEMORY records the bounded
   catalog prototype and that it remains unwired/unexposed; no scope or capability
   decision changed.
+Verification superseded by: S1-g (the workspace crate now compiles with the
+  catalog module linked; its isolated tests still pass).
+```
+
+## S1/S3: real build restoration and host verification
+
+```text
+Record ID / date: S1-g / 2026-11-18
+Work item and PRD requirements: replace source-only inspection with an actual
+  compile and test receipt for the guarded slice (FR-01, FR-03, FR-05, FR-09)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: every earlier slice claimed `implemented_unverified` because
+  `cargo check --offline` could not resolve dependencies and `protoc` was absent;
+  two test expectations had never executed, and `remote_protocol` did not compile.
+  After: dependencies were fetched online, `protoc` 36.2 was installed via
+  Homebrew, a real compile error was fixed, stale test expectations were corrected,
+  and the full `warp-agent-bus` and `remote_protocol` suites pass on macOS arm64.
+
+Scope: crates/remote_protocol/src/managed.rs,
+  crates/agent_bus/src/companion_terminals.rs,
+  crates/agent_bus/tests/managed_agent.rs; toolchain only otherwise.
+
+Files and symbols changed:
+  managed.rs: corrected generated-enum reference to
+    InputDisposition::Unspecified in valid_terminal_state
+  companion_terminals.rs: counted write cancellation test expectation changed to
+    the two bytes the short writer actually transfers before the next check
+  managed_agent.rs: identical-tail input replay now expects success; a separate
+    different-bytes replay asserts ManagedInputConflict
+
+Implementation method:
+  - Ran `cargo check -p warp-agent-bus` online. The build failed inside
+    `remote_protocol` with E0599: a stale prost enum variant name. The generated
+    enum uses `Unspecified`, not `InputDispositionUnspecified`; fixed the
+    validation predicate.
+  - `protoc` was missing, so `brew install protobuf` (36.2) was used. This is a
+    local developer tool; it is not added to the repository or release scripts.
+  - `cargo test -p warp-agent-bus` exposed one failing unit test and one failing
+    integration test, both expectations rather than logic:
+      * The short writer transfers a 2-byte chunk before cancellation is observed,
+        so the correct byte count is 2.
+      * Input retry with the same sequence and identical bytes is defined as
+        idempotent by the API contract, so the integration test now asserts a
+        successful TerminalState for the retry and uses changed bytes for the
+        conflict case.
+  - Transient Cargo.lock reordering produced by dependency resolution was
+    reverted; no dependency versions were changed.
+
+Decision and rationale: keep the contract (idempotent same-byte tail retry,
+  conflicting bytes rejected) and correct the stale tests, rather than weakening
+  the implementation to satisfy old expectations.
+
+Verification:
+  - `cargo check -p warp-agent-bus`: finished successfully (warnings only).
+  - `cargo test -p warp-agent-bus -p remote_protocol`: all executed tests passed:
+    16 remote_protocol unit tests; 231 agent_bus library tests (1 ignored);
+    integration suites 20, 7, 6, 2 and 6 passed with 11 ignored child fixtures;
+    zero failures.
+  - The ignored tests require the owned Companion PTY child, real WSL or another
+    platform and remain NOT RUN.
+  - Failures found, fixes applied and rerun receipts: both test corrections and
+    the E0599 fix were rerun; the final full run reported zero failures.
+  - Host: macOS 24.6 arm64. SSH remote hosts, Windows, Linux and WSL were not
+    exercised; V01-V30 remain NOT RUN.
+
+Unverified behavior and remaining risks: passing host tests do not prove remote
+  SSH/WSL lifetime, Windows admission, 300s retention timing, resource ceilings,
+  snapshot import or reconnect transport. The application binary compile result
+  is recorded separately when it completes. `guarded_remote_sessions_v1` remains
+  unadvertised, so no client path reaches these operations.
+
+Follow-up tasks / affected gates: Windows/Linux CI at a fixed SHA; real SSH and
+  WSL acceptance; then account election, snapshot and CLI slices.
+MEMORY update or reason no durable fact changed: MEMORY records that the guarded
+  slice now compiles and passes host tests, while remote acceptance remains unrun.
 ```
 
 ## Evidence index
@@ -858,6 +938,7 @@ MEMORY update or reason no durable fact changed: MEMORY records the bounded
 | S1-d retention/admission | `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Unix peer UID check, ended-output TTL and capacity eviction, exact tuple echo; no workspace build, native test or resource measurement |
 | S1-e review closure | `efe9fd12` on `feat/2.0.0` | implemented_unverified | Generation-keyed ledger, non-evictable Unknown, between-write cancellation, guarded-only retention, fail-closed Unix credentials, Windows client SID recheck, explicit DeliveryUnknown and no connection-wide close for session stale; rustfmt parse and diff check only, no build/test |
 | S1-f catalog prototype | Source commit after this record on `feat/2.0.0` | implemented_unverified | Bounded stable pages, boot/filter-bound cursors, revision-scoped watch ring with explicit gap, MRU resume excluding ended runs, state-age tracking, 32/64 ceilings; 7 isolated `rustc --test` cases passed with a uuid stub; not linked into the workspace crate and not wired to any session |
+| S1-g build restoration | `e220a5c9` plus the follow-up fix commit on `feat/2.0.0` | verified_host_only | `remote_protocol` E0599 fixed, `protoc` 36.2 installed, stale write-count and idempotent-input test expectations corrected; `cargo check -p warp-agent-bus` and the full `warp-agent-bus` + `remote_protocol` test suites pass on macOS arm64; remote SSH/WSL and ignored fixture tests remain NOT RUN |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |

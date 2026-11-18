@@ -214,7 +214,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   ended-output retention; session-level stale or unknown delivery does not close
   the shared connection; a pure bounded catalog prototype (stable pages,
   revision-scoped watch gap, MRU resume, state age) is isolated-tested but not
-  wired to sessions or exposed; guarded_remote_sessions_v1 stays unadvertised
+  wired to sessions or exposed; warp-agent-bus and remote_protocol compile and
+  their full host test suites pass on macOS arm64 (remote SSH/WSL still unrun);
+  guarded_remote_sessions_v1 stays unadvertised
   until native proof; unified election, CLI and WSL lifetime remain pending.
   No desktop auto-deployment.
   Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
