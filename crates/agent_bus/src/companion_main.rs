@@ -144,6 +144,17 @@ pub(crate) async fn run() {
         );
         return;
     }
+    #[cfg(unix)]
+    if std::env::args_os().len() == 2
+        && std::env::args_os().nth(1).as_deref()
+            == Some(std::ffi::OsStr::new("--guardian-service"))
+    {
+        if warp_agent_bus::companion::serve_guardian().await.is_err() {
+            eprintln!("Guardian service unavailable");
+            std::process::exit(1);
+        }
+        return;
+    }
     let service = std::env::args_os().len() == 2
         && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--service"));
     if std::env::args_os().count() != 1 && !service {

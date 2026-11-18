@@ -256,6 +256,46 @@ fn companion_opens_native_project_and_fences_every_attachment() {
 }
 
 #[test]
+fn ssh_route_hides_wsl_capabilities_and_rejects_guest_binding() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let mut companion = Companion::new(&state.path().join("remote-data")).unwrap();
+    companion.route = Some(Route::Ssh);
+    let managed_response::Result::Initialized(initialized) = result(companion.handle(request(
+        managed_request::Operation::Initialize(ManagedInitialize {
+            protocol_major: PROTOCOL_MAJOR,
+        }),
+    ))) else {
+        panic!("Expected handshake")
+    };
+    assert!(!initialized
+        .capabilities
+        .iter()
+        .any(|cap| cap == "managed_launch_cwd" || cap == "project_file_chunks"));
+    let managed_response::Result::ProjectOpened(opened) = result(companion.handle(request(
+        managed_request::Operation::ProjectOpen(ProjectOpen {
+            fence: initialized.fence,
+            root: root.path().to_str().unwrap().into(),
+        }),
+    ))) else {
+        panic!("Expected project")
+    };
+    let fence = opened.fence.unwrap();
+    let bind = |fence| {
+        request(managed_request::Operation::GuestMcpBind(GuestMcpBind {
+            fence: Some(fence),
+            agent_pid: std::process::id(),
+            program: "codex".into(),
+        }))
+    };
+    assert!(matches!(
+        result(companion.handle(bind(fence.clone()))),
+        managed_response::Result::Error(ManagedError { code })
+            if code == i32::from(ManagedErrorCode::ManagedFeatureUnavailable)
+    ));
+}
+
+#[test]
 fn project_tasks_require_current_native_project_before_any_store_access() {
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();

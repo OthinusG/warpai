@@ -535,6 +535,7 @@ impl Terminals {
         fence: &ManagedFence,
         root: &Path,
         tasks: &tasks::Projects,
+        allow_working_directory: bool,
     ) -> Result<TerminalState, Error> {
         if !valid_id(&request.session_id) {
             return Err(Error::ManagedInvalidInput);
@@ -594,11 +595,9 @@ impl Terminals {
             prune_sessions(&mut sessions, Instant::now(), evict);
             if let Some(state) = reconcile(&sessions)? { return Ok(state); }
         }
-        #[cfg(not(feature = "wsl_companion"))]
-        if request.working_directory.is_some() { return Err(Error::ManagedFeatureUnavailable); }
-        #[cfg(not(feature = "wsl_companion"))]
-        let working_directory = root.to_owned();
-        #[cfg(feature = "wsl_companion")]
+        if request.working_directory.is_some() && !allow_working_directory {
+            return Err(Error::ManagedFeatureUnavailable);
+        }
         let working_directory = match request.working_directory.as_deref() {
             Some(directory) if directory.len() <= 4096 && !directory.contains('\0')
                 && Path::new(directory).is_absolute() => {

@@ -30,8 +30,21 @@ mod tasks;
 mod terminals;
 #[path = "companion_guests.rs"]
 pub(crate) mod guests;
+#[cfg(unix)]
+#[path = "companion_guardian.rs"]
+pub mod guardian;
+#[cfg(unix)]
+#[path = "companion_guardian_catalog.rs"]
+pub(crate) mod guardian_catalog;
 pub(crate) use tasks::{decode_result as decode_task_result, MAX_RESULT as MAX_TASK_RESULT};
 pub use tasks::Command as TaskCommand;
+
+/// Admitted transport route for an account-global guardian connection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Route {
+    Ssh,
+    Wsl,
+}
 
 struct Project {
     root: PathBuf,
@@ -48,6 +61,7 @@ pub struct Companion {
     tasks: std::sync::Arc<tasks::Projects>,
     files: files::Files,
     peer_pid: Option<u32>,
+    route: Option<Route>,
 }
 
 impl Companion {
@@ -66,8 +80,54 @@ impl Companion {
             tasks: std::sync::Arc::new(tasks::Projects::new(data_directory)),
             files: files::Files::new(data_directory),
             peer_pid: None,
+            route: None,
             identity,
         })
+    }
+
+    /// True only for an admitted WSL route; legacy builds keep their compile-time behavior.
+    fn wsl_route(&self) -> bool {
+        cfg!(feature = "wsl_companion")
+            && self
+                .route
+                .map_or(true, |route| route == Route::Wsl)
+    }
+
+    fn capabilities(&self) -> Vec<String> {
+        let mut capabilities = vec!["project_open".into(), "managed_agent".into()];
+        if self.wsl_route() {
+            capabilities.push("managed_launch_cwd".into());
+        }
+        capabilities.extend(
+            [
+                "project_tasks",
+                "context_resources",
+                "structured_task_messages",
+                "execution_threads",
+                "project_memory",
+                "project_supervision",
+                "handoff_briefs_v1",
+                "followup_reconcile",
+                "project_mcp",
+            ]
+            .map(str::to_owned),
+        );
+        #[cfg(not(feature = "wsl_companion"))]
+        capabilities.push("native_mcp_setup".into());
+        capabilities.push("project_files".into());
+        if self.wsl_route() {
+            capabilities.push("project_file_chunks".into());
+        }
+        capabilities.extend(
+            [
+                "native_screen_activity",
+                "project_git_review",
+                "worktree_collaboration",
+                "worktree_orchestration",
+            ]
+            .map(str::to_owned),
+        );
+        capabilities
     }
 }
 
@@ -117,30 +177,7 @@ impl Companion {
                     fence: Some(self.fence.clone()),
                     os: std::env::consts::OS.into(),
                     architecture: std::env::consts::ARCH.into(),
-                    capabilities: vec![
-                        "project_open".into(),
-                        "managed_agent".into(),
-                        #[cfg(feature = "wsl_companion")]
-                        "managed_launch_cwd".into(),
-                        "project_tasks".into(),
-                        "context_resources".into(),
-                        "structured_task_messages".into(),
-                        "execution_threads".into(),
-                        "project_memory".into(),
-                        "project_supervision".into(),
-                        "handoff_briefs_v1".into(),
-                        "followup_reconcile".into(),
-                        "project_mcp".into(),
-                        #[cfg(not(feature = "wsl_companion"))]
-                        "native_mcp_setup".into(),
-                        "project_files".into(),
-                        #[cfg(feature = "wsl_companion")]
-                        "project_file_chunks".into(),
-                        "native_screen_activity".into(),
-                        "project_git_review".into(),
-                        "worktree_collaboration".into(),
-                        "worktree_orchestration".into(),
-                    ],
+                    capabilities: self.capabilities(),
                     account_id: self.identity.account_id.clone(),
                 }))
             }
@@ -180,6 +217,7 @@ impl Companion {
                         &self.fence,
                         &self.project.as_ref().unwrap().root,
                         &self.tasks,
+                        self.wsl_route(),
                     )
                     .map(managed_response::Result::TerminalState)
             }
@@ -197,12 +235,24 @@ impl Companion {
             }
             Some(managed_request::Operation::ProjectFiles(request)) => {
                 self.check_project(request.fence.as_ref())?;
+                if self.route == Some(Route::Ssh)
+                    && matches!(
+                        ProjectFileAction::try_from(request.action),
+                        Ok(ProjectFileAction::ProjectFileReadChunk)
+                            | Ok(ProjectFileAction::ProjectFileWriteChunk)
+                    )
+                {
+                    return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+                }
                 self.files
                     .execute(request, self.project.as_ref().unwrap())
                     .map(|result| managed_response::Result::ProjectFiles(Box::new(result)))
             }
             Some(managed_request::Operation::GuestMcpBind(request)) => {
                 self.check_project(request.fence.as_ref())?;
+                if self.route == Some(Route::Ssh) {
+                    return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+                }
                 {
                     self.tasks.guests.bind(&self.tasks, &self.fence, &self.project.as_ref().unwrap().root,
                         self.peer_pid, request.agent_pid, &request.program)
@@ -317,6 +367,11 @@ pub async fn serve_account_service() -> Result<(), ProtocolError> {
     service::serve().await
 }
 
+#[cfg(unix)]
+pub async fn serve_guardian() -> Result<(), ProtocolError> {
+    guardian::serve().await
+}
+
 pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {
     guests::serve_mcp(program).await
 }
@@ -347,6 +402,7 @@ async fn serve_channel<S>(
     terminals: std::sync::Arc<terminals::Terminals>,
     tasks: std::sync::Arc<tasks::Projects>,
     peer_pid: Option<u32>,
+    route: Option<Route>,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -359,6 +415,7 @@ where
     companion.terminals = terminals;
     companion.tasks = tasks;
     companion.peer_pid = peer_pid;
+    companion.route = route;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

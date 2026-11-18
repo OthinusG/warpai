@@ -25,13 +25,17 @@ session-level stale reply no longer closes other sessions on the multiplexed
 connection, and unconfirmed input delivery is reported explicitly. A pure
 bounded catalog index prototype (stable descending pages, revision-scoped watch
 ring with explicit gap, MRU resume selection, bounded entries/events) now exists
-with passing isolated tests, but it is not wired to the terminal registry and
-grants no client access. The `warp-agent-bus` and `remote_protocol` crates now
-compile and their full test suites pass on macOS arm64, including the real
-Companion PTY integration tests; this is host evidence, not remote SSH/WSL
-evidence. No unified SSH/WSL election, runtime catalog/list/inspect/watch surface,
-snapshot, CLI, desktop opt-in, scheduler, packaging/version change or release is
-implemented. V01-V30 runtime
+with passing isolated tests. A Unix account-global guardian election now exists:
+passwd-home root, one account lock, private per-route sockets, peer-UID-checked
+`WAG1` preface, shared boot identity and route-derived capabilities, backed by
+`guardian/catalog.sqlite3` with identity `0x57474341`/v1 and boot interruption
+marking. These are host-verified components; the catalog is not yet wired to
+terminal transitions, no production client calls `guardian::connect`, and the
+guardian grants no external access. The `warp-agent-bus` and `remote_protocol`
+crates now compile and their full test suites pass on macOS arm64, including the
+real Companion PTY integration tests; this is host evidence, not remote SSH/WSL
+evidence. No runtime list/inspect/watch surface, snapshot, CLI, desktop opt-in,
+scheduler, packaging/version change or release is implemented. V01-V30 runtime
 acceptance is NOT RUN. No guard client can reach the slice because
 `guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
 baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
@@ -1008,6 +1012,139 @@ MEMORY update or reason no durable fact changed: MEMORY records the frozen kind
   field and pre-spawn validation; scope and capability gating are unchanged.
 ```
 
+Record ID / date: S1-i / 2026-11-18
+Work item and PRD requirements: one account-global Unix guardian with route-scoped
+  admission and logical scope isolation (FR-04, FR-05, FR-11, FR-12)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: `companion_service` bound one legacy per-scope socket and had no
+  account-level election, no private IPC identity preface and no route-derived
+  capabilities. A process could not prove it was talking to the account guardian.
+  After: a `--guardian-service` process derives its root from the passwd home
+  (never HOME/XDG), holds one `service.lock` for the account, binds private
+  per-route sockets (`ssh.sock`, and `wsl.sock` on WSL Linux builds) under
+  `/tmp/warpai-guardian-<euid>/`, and exchanges a bounded `WAG1` preface carrying
+  IPC major, route, guardian UUID and non-nil boot UUID after a fail-closed peer
+  UID check. A losing or already-served candidate exits without binding; a
+  responsive incompatible owner is never unlinked; a legacy scope lock makes only
+  that route unavailable. Each connection resolves its route from the accepting
+  listener, so an SSH connection cannot use WSL-only capabilities or guest
+  binding.
+
+Scope: crates/agent_bus/src/companion_guardian.rs,
+  crates/agent_bus/src/companion.rs, companion_service.rs,
+  companion_terminals.rs, companion_main.rs, companion_tests.rs,
+  companion_files_tests.rs.
+
+Files and symbols changed:
+  companion_guardian.rs (new): root/runtime/scope paths, passwd-home lookup,
+    preface encode/verify, `probe_route`, `connect`, `serve`, `serve_at`,
+    per-route scope locks, shared `Terminals`, per-route `Projects`
+  companion.rs: `Route`, `Companion::route`, `wsl_route`, `capabilities`,
+    route-derived Initialize, chunk/GuestMcpBind admission, `serve_guardian`,
+    `serve_channel(..., route)`
+  companion_terminals.rs: launch takes `allow_working_directory` instead of a
+    compile-time WSL branch
+  companion_main.rs: hidden `--guardian-service` entry
+  companion_tests.rs: SSH route hides WSL capabilities and rejects GuestMcpBind
+  companion_service.rs, companion_files_tests.rs: legacy `route = None`
+
+Implementation method:
+  - Election is lock-first: account lock, then scope locks, then catalog, then
+    listeners. A would-block account lock is a clean candidate exit; a would-block
+    scope lock skips that route and leaves the legacy owner untouched.
+  - Existing endpoint handling probes before replacement and removes only an
+    owned Unix socket that refuses connections; handshake failure or timeout is
+    treated as an incompatible live owner and fails closed.
+  - Route is a server-side property of the accepting listener; no protocol field
+    can switch it after admission, and legacy stdio/service paths pass `None`.
+
+Decision and rationale: a single account process with separate logical scopes
+  keeps one native owner without merging SSH/WSL Stores or capabilities.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guardian`: 8 passed (guardian and catalog
+    modules), including simultaneous candidates, shared boot identity across
+    routes, stale owned socket reclaim, legacy scope contention, invalid peer
+    preface and SSH route admission.
+  - `cargo test -p warp-agent-bus --lib`: 241 passed, 1 ignored.
+  - `cargo check -p warp-agent-bus` and `cargo check -p warpai --bin warpai`:
+    finished successfully on macOS arm64.
+  - Failures found, fixes applied and rerun receipt: the invalid-preface test
+    initially left the client write side open, so the server correctly waited for
+    the full preface; the test now shuts down its write half and passes. An
+    accidental workspace-wide `cargo fmt` was fully reverted and only the six
+    intentionally edited files were reapplied and retested.
+
+Unverified behavior and remaining risks: no client connects through the guardian
+  sockets yet, so `guardian::connect` has no production caller; guardian sockets
+  are not exercised through real SSH/WSL; Windows has no election implementation
+  and must fail closed; capability stays unadvertised.
+
+Follow-up tasks / affected gates: wire guarded launches to `guardian::connect`
+  and session transitions to the durable catalog; S5 WSL lifetime and S8 native
+  acceptance remain open.
+MEMORY update or reason no durable fact changed: MEMORY records the account
+  election and route isolation as host-verified design only.
+
+Record ID / date: S1-j / 2026-11-18
+Work item and PRD requirements: durable bounded catalog under the guardian lock
+  with explicit identity validation and no auto-resume (FR-16, FR-17)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: the catalog prototype was in-memory only; there was no durable session
+  evidence across guardian restarts and no schema identity check.
+  After: `guardian/catalog.sqlite3` is opened only while holding `service.lock`,
+  created with `application_id=0x57474341` and `user_version=1`, and stores only
+  bounded nonsecret metadata in `guardian_catalog_sessions`. A pre-existing file
+  with a different identity or missing table is refused without modification.
+  Startup marks prior `live` rows `unknown` in one statement, inserts evict only
+  resolved `ended` rows, and unresolved capacity refuses admission.
+
+Scope: crates/agent_bus/src/companion_guardian_catalog.rs (new),
+  crates/agent_bus/src/companion.rs, companion_guardian.rs.
+
+Files and symbols changed:
+  companion_guardian_catalog.rs: `Catalog::{open,begin_boot,insert,update_state,
+    touch_mru,remove,list}`, `Record`, `State`
+  companion_guardian.rs: opens the catalog after the account lock and records the
+    current boot observation
+  companion.rs: module declaration
+
+Implementation method:
+  - Diesel raw SQL over the existing bundled SQLite; no ORM schema or migration.
+  - Validation runs before any write; creation sets identity and the single v1
+    table. Label and sequence values are bounded and control characters refused.
+  - MRU updates are a separate explicit call so list/observation never reorder
+    resume targets. No argv, environment, screen, output or token is stored.
+
+Decision and rationale: durable metadata is required for external list/inspect
+  after reconnect, while terminal bytes and drafts remain memory-only.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guardian_catalog`: 3 passed (create/boot
+    marking/MRU ordering, refuse unknown identity without overwrite, bounded
+    eviction and unresolved capacity refusal).
+  - Covered by the full 241-test host suite and both `cargo check` receipts above.
+  - Failures found, fixes applied and rerun receipt: missing Diesel trait imports
+    and two type-inference errors were corrected, then the suite passed.
+
+Unverified behavior and remaining risks: the store is not yet called by terminal
+  create/attach/detach/exit transitions, so no session row is produced in
+  production; no concurrency test exercises two writers because the account lock
+  is the concurrency boundary; no migration exists by design.
+
+Follow-up tasks / affected gates: wire transitions with launch-before-ack and
+  MRU only on foreground acquisition; then account-fenced pages and CLI.
+MEMORY update or reason no durable fact changed: MEMORY records the catalog file,
+  identity and boot-marking rule.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
@@ -1018,7 +1155,8 @@ MEMORY update or reason no durable fact changed: MEMORY records the frozen kind
 | S1-f catalog prototype | Source commit after this record on `feat/2.0.0` | implemented_unverified | Bounded stable pages, boot/filter-bound cursors, revision-scoped watch ring with explicit gap, MRU resume excluding ended runs, state-age tracking, 32/64 ceilings; 7 isolated `rustc --test` cases passed with a uuid stub; not linked into the workspace crate and not wired to any session |
 | S1-g build restoration | `e220a5c9` plus the follow-up fix commit on `feat/2.0.0` | verified_host_only | `remote_protocol` E0599 fixed, `protoc` 36.2 installed, stale write-count and idempotent-input test expectations corrected; `cargo check -p warp-agent-bus`, `cargo check -p warpai --bin warpai` and the full `warp-agent-bus` + `remote_protocol` test suites pass on macOS arm64; remote SSH/WSL and ignored fixture tests remain NOT RUN |
 | S1-h session kind | Source commit after this record on `feat/2.0.0` | verified_host_only | Additive `session_kind=11`, pre-spawn policy/kind matrix, replay conflict on kind change, client capability gate; full host suites pass; capability unadvertised, no remote launch tested |
-| S1-i account election/storage | Pending | not_started | Unix guardian election, route-scoped runtime and durable catalog per Codex decision; stop at gated Unix fixtures before native proof |
+| S1-i account election/routes | Source commit after this record on `feat/2.0.0` | verified_host_only | Passwd-home root, account/scope locks, private route sockets, `WAG1` preface with peer-UID check, stale-only reclaim, shared boot identity, route-derived capabilities and guest/chunk denial; 8 focused lib tests and full 241-test host suite pass; no production client and no real SSH/WSL run |
+| S1-j durable catalog | Source commit after this record on `feat/2.0.0` | verified_host_only | `catalog.sqlite3` identity `0x57474341`/v1, refuse-without-overwrite on mismatch, boot live→unknown marking, bounded ended eviction, unresolved capacity refusal, explicit MRU update; 3 focused tests plus full host suite; not yet wired to session transitions |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |
