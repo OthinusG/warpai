@@ -1917,6 +1917,17 @@ The existing multi-Agent test compares the exact candidate from both paths
 before verifying single-claim and draft/cancellation fencing. No wire or Store
 changes. MEMORY.md records the direct lookup boundary.
 
+Record ID / date: S8-a / 2026-11-18
+Scope: V02/V04 controlled macOS OpenSSH acceptance.
+
+The macOS remote validation job now runs the same explicit guarded bridge
+loss/reconnect case against the existing owned, host-key-pinned loopback
+fixture. It runs before legacy project tests so a connection-owned service
+cannot hold the fixture scope first. The launcher option is restricted to
+disposable Unix CI accounts because macOS uses account application support
+paths. The Rust fixture compiles and the Python supervisor checks pass on
+macOS. Native cloud results are tracked separately.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

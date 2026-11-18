@@ -847,7 +847,7 @@ mod guarded_reconnect;
 
 #[cfg(unix)]
 #[tokio::test]
-#[ignore = "requires the disposable Linux OpenSSH fixture"]
+#[ignore = "requires a disposable Unix OpenSSH fixture"]
 async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     fn quote(value: &str) -> String {
         format!("'{}'", value.replace('\'', "'\\''"))
@@ -864,7 +864,7 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     );
     guarded_reconnect::verify_guarded_reconnect(
         &root,
-        std::time::Duration::ZERO,
+        std::time::Duration::from_secs(12),
         || {
             let mut command = tokio::process::Command::new("ssh");
             command.arg("-F").arg(&config)

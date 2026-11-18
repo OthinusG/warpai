@@ -57,8 +57,11 @@ def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--capture", type=Path)
     parser.add_argument("--languages", nargs="+", choices=["en", "zh-Hans", "zh-Hant"], default=["en"])
+    parser.add_argument("--guardian", action="store_true", help="Run guarded SSH in a disposable Unix CI account")
     args = parser.parse_args()
     windows = os.name == "nt"
+    if args.guardian and (windows or os.environ.get("GITHUB_ACTIONS") != "true"):
+        parser.error("Guardian SSH acceptance requires a disposable Unix CI account")
     server = "C:/Windows/System32/OpenSSH/sshd.exe" if windows else (shutil.which("sshd") or "/usr/sbin/sshd")
     if windows:
         os.environ["PATH"] = str(Path(server).parent) + os.pathsep + os.environ.get("PATH", "")
@@ -135,6 +138,12 @@ def main():
                 assert (fixture / "sftp-preview.md").read_bytes() == (root / "preview.md").read_bytes()
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
+                if args.guardian:
+                    print("Owned SSH fixture stage: guarded reconnect", flush=True)
+                    checked_run(["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion",
+                                 "--locked", "--", "--ignored", "--exact",
+                                 "controlled_ssh_guardian_retains_exact_run_across_bridge_exit"],
+                                env=env, timeout=180)
                 test = ["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion", "native_ssh_file_tools_", "--locked", "--", "--ignored", "--test-threads=1"]
                 print("Owned SSH fixture stage: direct-tests", flush=True)
                 checked_run(test, env=env, timeout=120)

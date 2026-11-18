@@ -109,7 +109,12 @@ jobs:
           cargo test -p warp-agent-bus --test local_spaces --locked
       - name: Verify native SSH and SFTP file tools
         if: runner.os != 'Linux'
-        run: python script/verify-ssh-file-tools.py
+        run: |
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            python script/verify-ssh-file-tools.py --guardian
+          else
+            python script/verify-ssh-file-tools.py
+          fi
       - name: Verify real controlled SSH companion on Linux
         if: runner.os == 'Linux'
         env:
