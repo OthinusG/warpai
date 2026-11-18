@@ -1800,12 +1800,10 @@ fn registration_result(agent: &Agent, run: &str) -> Value {
 fn dispatched_pools(state: &State) -> HashSet<String> {
     state.terminals.values()
         .filter_map(|binding| binding.live.as_ref())
-        .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
-        .filter_map(|live| {
-            let message = state.store.first_pending_notice(live.agent.as_ref()?).ok()??;
-            (message.kind == "available" && live.delivered.contains(&message.id))
-                .then_some(message.task_id).flatten()
-        }).collect()
+        .filter(|live| !live.delivered.is_empty() && !live.expired && live.started.elapsed() < MUTATION_EPOCH)
+        .filter_map(|live| state.store.delivered_pool_tasks(live.agent.as_ref()?, &live.delivered).ok())
+        .flatten()
+        .collect()
 }
 fn task_runtime(state: &State, task: &Task) -> (bool, bool) {
     let live = state

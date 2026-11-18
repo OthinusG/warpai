@@ -364,6 +364,56 @@ mod tests {
     }
 
     #[test]
+    fn older_unacknowledged_mail_cannot_hide_a_claimed_pool_wake() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let owner = RunningBroker::start(&root.join("pool-wake.sqlite")).unwrap();
+        let broker = &owner.broker;
+        let issuer = client(broker, &root, "issuer");
+        let first = client(broker, &root, "first");
+        let second = client(broker, &root, "second");
+        let age = |request: &Request| {
+            let mut state = broker.store().unwrap();
+            let live = state.terminals.get_mut(&request.terminal).unwrap().live.as_mut().unwrap();
+            let quiet = Instant::now() - Duration::from_secs(2);
+            live.last_input = quiet;
+            live.last_output = quiet;
+            live.ready = Some(quiet);
+        };
+        for (name, target) in [("first", &first), ("second", &second)] {
+            call(broker, &issuer, Operation::AgentSend { to: name.into(),
+                body: "Earlier message remains unacknowledged".into(), expects_result: false,
+                content: None, subject: None, thread_id: None, reply_to: None, task_id: None,
+                request_id: id() }).unwrap();
+            age(target);
+            let direct = broker.native_wake(&target.terminal).unwrap();
+            assert!(broker.claim_wake(&direct));
+            broker.finish_wake(&direct, true);
+            call(broker, target, Operation::AgentReady).unwrap();
+            age(target);
+        }
+        let pool = call(broker, &issuer, Operation::TaskCreatePool {
+            description: "One pool notice across eligible runs".into(), acceptance: "One native wake".into(),
+            context_refs: vec![], eligible: vec!["first".into(), "second".into()], reviewer: None,
+            dependencies: vec![], start_deadline: None, execution_timeout_seconds: None,
+            review_timeout_seconds: None, request_id: id(),
+        }).unwrap();
+        let winner = broker.wakeups().pop().unwrap();
+        let other = if winner.terminal == first.terminal { &second } else { &first };
+        let raced_wake = {
+            let state = broker.store().unwrap();
+            state.wake_candidate(&other.terminal, state.terminals[&other.terminal].live.as_ref().unwrap()).unwrap().2
+        };
+        assert_eq!(winner.task_id.as_deref(), pool["id"].as_str());
+        assert_eq!(winner.task_id, raced_wake.task_id);
+        assert!(broker.claim_wake(&winner));
+        assert!(broker.native_wake(&other.terminal).is_none());
+        assert!(!broker.claim_wake(&raced_wake));
+        broker.finish_wake(&winner, false);
+        assert!(broker.claim_wake(&raced_wake), "Cancelled native delivery releases the pool reservation");
+    }
+
+    #[test]
     fn every_agent_dispatches_idle_drafts_once_and_fences_cancelled_or_changed_runs() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap();

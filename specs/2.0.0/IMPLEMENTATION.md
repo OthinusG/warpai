@@ -2040,8 +2040,7 @@ Scope: bounded SQLite routing projection for native PTY wakes.
 
 Wake selection and claim read message identity, task revision, ordering and kind
 through the recipient index. The cursor stops at the first eligible undelivered
-notice, so a large mailbox need not load message bodies or all rows. Pool checks
-read only the first pending routing row. The native projection excludes the
+notice, so a large mailbox need not load message bodies or all rows. The native projection excludes the
 same stale follow-ups and active-run delegation as cooperative wait, and leaves
 fetching and acknowledgement of full messages to the existing Agent tools.
 The storage regression compares the native and cooperative correlation before
@@ -2056,7 +2055,7 @@ case, the receiver announces readiness and releases its writer. The issuer
 queues one tracked task, then both owned SSH transports exit. The receiver
 starts and submits through the original native run and writes a task/attempt
 receipt. A new bridge verifies the same attempt is submitted in the Store.
-Linux passed on `38d31b4f` in [run 44344251976](https://github.com/OthinusG/warpai/actions/runs/44344251976).
+Linux and macOS passed on `38d31b4f` in [run 44344251976](https://github.com/OthinusG/warpai/actions/runs/44344251976).
 The wider Coordinator, approvals, questions, WSL and multi-project matrix stays open.
 
 Record ID / date: S7-h / 2026-11-19
@@ -2067,6 +2066,17 @@ executor. The current-thread Unix socket regression holds a native session
 lock while one channel closes and confirms another channel initializes before
 that lock is released. This covers a blocked cleanup without teardown of the
 sibling channel or its transport.
+
+Record ID / date: S7-i / 2026-11-19
+Scope: prevent duplicate native wakes for a shared pool task behind earlier mail.
+
+The existing single-winner guard inspected only the first pending notice for
+each recipient. A consumed but unacknowledged direct message could hide a
+subsequent pool notice and let a racing eligible run also claim its wake. The
+guard now checks the delivered IDs against pending pool routing rows only.
+The Broker regression claims one of two precomputed candidates, rejects the
+other even with earlier unacknowledged mail, and allows the remaining candidate
+after the first delivery is cancelled.
 
 ## Evidence index
 

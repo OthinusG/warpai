@@ -165,7 +165,8 @@ coalesces Store changes. Each run signals its own input and committed PTY
 output so unrelated redraws leave sibling workers asleep.
 Ordinary peer notifications resolve through the terminal's indexed Broker
 binding. Broadcast pool notices still use the existing project-wide winner
-selection and claim validation.
+selection and claim validation. A delivered pool notice reserves its wake even
+when earlier unread mail remains ahead of it in the recipient's inbox.
 The worker uses the existing quiet/ready gates as deadlines and spaces
 draft cancellation, paste and Enter by at least 300 ms. A periodic safety
 check handles external Stores and checks that the native run still exists.

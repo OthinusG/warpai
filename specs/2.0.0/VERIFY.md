@@ -2,8 +2,8 @@
 
 Status: The complete V01–V30 release matrix remains open. The implementation
 ledger records native Linux/macOS OpenSSH reconnect, allocated-TTY CLI and
-caller-owned stop, Windows-to-WSL bridge survival, and Linux task submission
-with both SSH bridges closed. Use exact source, runner OS and architecture,
+caller-owned stop, Windows-to-WSL bridge survival, and Linux/macOS task
+submission with both SSH bridges closed. Use exact source, runner OS and architecture,
 helper/app version, workflow job/artifact, expected/actual result and redacted
 receipts. Submitted tests are not passed tests.
 

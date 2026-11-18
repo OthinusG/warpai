@@ -1249,11 +1249,20 @@ impl Store {
         Ok(None)
     }
 
-    pub(crate) fn first_pending_notice(&self, actor: &Agent) -> Result<Option<WakeNotice>> {
+    pub(crate) fn delivered_pool_tasks(&self, actor: &Agent, delivered: &HashSet<String>) -> Result<HashSet<String>> {
         self.authorize(actor)?;
-        Ok(diesel::sql_query("SELECT id, task_id, revision, kind, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 ORDER BY sequence LIMIT 1")
+        let mut connection = self.connection.borrow_mut();
+        let rows = diesel::sql_query("SELECT id, task_id FROM messages WHERE recipient = ? AND acknowledged = 0 AND kind = 'available'")
             .bind::<Text, _>(&actor.id)
-            .get_result::<WakeNotice>(&mut *self.connection.borrow_mut()).optional()?)
+            .load_iter::<PoolNotice, diesel::connection::DefaultLoadingMode>(&mut *connection)?;
+        let mut tasks = HashSet::new();
+        for row in rows {
+            let row = row?;
+            if delivered.contains(&row.id) {
+                tasks.extend(row.task_id);
+            }
+        }
+        Ok(tasks)
     }
 
     pub(crate) fn inbox_count(&self, agent: &str) -> Result<i64> {
@@ -5867,6 +5876,14 @@ struct TaskFollowupRow {
     thread_id: Option<String>,
     #[diesel(sql_type = Text)]
     body: String,
+}
+
+#[derive(QueryableByName)]
+struct PoolNotice {
+    #[diesel(sql_type = Text)]
+    id: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    task_id: Option<String>,
 }
 
 #[derive(QueryableByName)]

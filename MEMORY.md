@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -428,6 +428,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   current content confirmed. The editor owns the receipt for its lifetime.
 - Managed channels initialize native identity and clean up PTY leases/staging in
   the blocking pool. EOF holding a session lock must not stall other channels.
+- Controlled Linux/macOS OpenSSH on `38d31b4f` proved a tracked task submitted by
+  the same Agent after both SSH bridges exited (run 44344251976).
+- Pool-wake dedup checks every pending pool notice already delivered in the
+  current run. Earlier unacknowledged direct mail cannot hide a reservation.
 
 ## Memory maintenance
 

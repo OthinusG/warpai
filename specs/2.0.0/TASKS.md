@@ -11,8 +11,8 @@ and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
 | S1, S5 | Native Windows account guardian for SSH targets | Retain the same ConPTY/Job across Windows SSH bridge loss and verify installation/upgrade |
 | S2, S3 | Complete parser/shell-block snapshot, paging, validation and gap recovery | Import active/alternate screens and split sequences without replaying OSC side effects |
 | S4, S5 | Desktop per-launch choice, guarded launch/detach, catalog/watch, safe previous-view reattach and native Windows shell entry | Native EN/ZH static and live views, real CLI TTY and Bash/Zsh bootstrap integration on release artifacts |
-| S6 | Restore remote workspace context and reconcile uncertain writes; complete failure/stop semantics | Caller loss, host loss, permissions, descendants, retention and task/file recovery |
-| S7 | Shared pool dispatch, bulk fairness and resource accounting | Prove guarded delivery and benchmark actual CPU/RSS/threads with noisy, quiet and blocked sessions |
+| S6 | Restore remote workspace context and uncertain-write receipts across desktop restarts; complete failure/stop semantics | Host loss, permission waits, descendants, retention and native editor interruption |
+| S7 | Shared pool dispatch, bulk fairness and resource accounting | Multi-project load and actual CPU/RSS/thread measurements with noisy, quiet and blocked sessions |
 | S8, S9 | Release gates, artifact integration and bilingual product documentation | Complete V01–V30 on matched artifacts, mixed-version upgrades and release review |
 
 The controlled Unix SSH fixture exercises the actual installed-style `ctl`
@@ -158,7 +158,7 @@ before opening a replacement bridge to inspect the submitted task.
 
 ## S7: low-overhead scheduling and multitasking
 
-- [ ] Replace guarded per-Agent 300 ms polling with shared event notifications,
+- [x] Replace guarded per-Agent 300 ms polling with shared event notifications,
   indexed session/run wakes and nearest-deadline scheduling.
 - [ ] Prove coalescing preserves idle, paste/Enter, draft and permission guards;
   protect against lost notifications and maintain bounded safety reconciliation.
