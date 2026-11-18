@@ -35,7 +35,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}-${{ inputs.native_windows_only }}
+  group: agent-communication-${{ github.ref }}-${{ inputs.protocol_only }}-${{ inputs.check_app }}-${{ inputs.capture_ui }}-${{ inputs.native_windows_only }}-${{ inputs.network_only }}-${{ inputs.windows_only }}-${{ inputs.wsl_acceptance }}
   cancel-in-progress: true
 jobs:
   system-network:

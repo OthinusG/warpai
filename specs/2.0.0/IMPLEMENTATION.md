@@ -1851,6 +1851,9 @@ fixtures pass on macOS arm64. MEMORY.md records the allocation boundary.
 The WSL workflow now caps the setup step at ten minutes. The two completed
 source-matched provisions took under 90 seconds each; run `44304694837` spent
 over eight minutes there before any repository WSL test could execute.
+Network-only, Windows-only and WSL acceptance inputs now participate in the
+workflow concurrency key. An unrelated validation mode no longer cancels or
+queues behind a run with an otherwise identical group.
 
 ## Evidence index
 
