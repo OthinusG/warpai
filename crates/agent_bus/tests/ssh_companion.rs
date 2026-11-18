@@ -70,7 +70,7 @@ async fn controlled_agent_terminal(profile: &SshProfile) {
     let launch = TerminalLaunch { fence: owner.fence().cloned(), session_id: Uuid::new_v4().to_string(),
         executable: "/bin/sh".into(), arguments: vec!["-c".into(),
             "printf 'REMOTE_ROOT=%s\\n' \"$PWD\"; while IFS= read -r input; do printf 'RECEIVED=%s\\n' \"$input\"; done".into()],
-        columns: 80, rows: 24, agent_program: None, working_directory: None, guarded: false, label: None };
+        columns: 80, rows: 24, agent_program: None, working_directory: None, guarded: false, label: None, session_kind: None };
     let state = owner.terminal_launch(launch.clone()).await.unwrap();
     assert_eq!(
         owner.terminal_launch(launch).await.unwrap().run_id,
@@ -226,6 +226,7 @@ async fn controlled_two_agents(profile: &SshProfile, receiver_profile: &SshProfi
                 agent_program: Some("fixture".into()), working_directory: None,
                 guarded: false,
                 label: None,
+                session_kind: None,
             })
             .await
             .unwrap();

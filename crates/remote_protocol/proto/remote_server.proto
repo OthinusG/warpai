@@ -200,6 +200,14 @@ message TerminalLaunch {
   bool guarded = 9;
   // Nonsecret display label; labels are selectors, never task or authority IDs.
   optional string label = 10;
+  // Required exactly when guarded; shell/command sessions create no Agent binding.
+  optional TerminalSessionKind session_kind = 11;
+}
+enum TerminalSessionKind {
+  TERMINAL_SESSION_KIND_UNSPECIFIED = 0;
+  TERMINAL_SESSION_KIND_AGENT = 1;
+  TERMINAL_SESSION_KIND_SHELL = 2;
+  TERMINAL_SESSION_KIND_COMMAND = 3;
 }
 enum TerminalAction {
   TERMINAL_ACTION_UNSPECIFIED = 0;

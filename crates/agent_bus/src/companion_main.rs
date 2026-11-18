@@ -193,6 +193,7 @@ async fn launch_agent() -> anyhow::Result<i32> {
             agent_program: Some(program), working_directory: None,
             guarded: false,
             label: None,
+            session_kind: None,
         })
         .await
         .map_err(|_| anyhow::anyhow!("Agent launch unavailable"))?;

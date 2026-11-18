@@ -340,6 +340,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
         working_directory: None,
         guarded: false,
         label: Some("legacy-label".into()),
+        session_kind: None,
     };
     assert!(matches!(
         result(companion.handle(request(managed_request::Operation::TerminalLaunch(
@@ -348,25 +349,36 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
         managed_response::Result::Error(ManagedError { code })
             if code == ManagedErrorCode::ManagedInvalidInput as i32
     ));
+    let launch = TerminalLaunch {
+        fence: Some(fence.clone()),
+        session_id: Uuid::new_v4().to_string(),
+        executable: "/bin/sh".into(),
+        arguments: vec![
+            "-c".into(),
+            "while IFS= read -r line; do printf 'ECHO=%s\\n' \"$line\"; done".into(),
+        ],
+        columns: 80,
+        rows: 24,
+        agent_program: None,
+        working_directory: None,
+        guarded: true,
+        label: Some("guarded-test".into()),
+        session_kind: Some(TerminalSessionKind::Shell as i32),
+    };
     let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
-        managed_request::Operation::TerminalLaunch(TerminalLaunch {
-            fence: Some(fence.clone()),
-            session_id: Uuid::new_v4().to_string(),
-            executable: "/bin/sh".into(),
-            arguments: vec![
-                "-c".into(),
-                "while IFS= read -r line; do printf 'ECHO=%s\\n' \"$line\"; done".into(),
-            ],
-            columns: 80,
-            rows: 24,
-            agent_program: None,
-            working_directory: None,
-            guarded: true,
-            label: Some("guarded-test".into()),
-        }),
+        managed_request::Operation::TerminalLaunch(launch.clone()),
     ))) else {
         panic!("Guarded launch required")
     };
+    let mut changed_kind = launch;
+    changed_kind.session_kind = Some(TerminalSessionKind::Command as i32);
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::TerminalLaunch(
+            changed_kind
+        )))),
+        managed_response::Result::Error(ManagedError { code })
+            if code == ManagedErrorCode::ManagedConflict as i32
+    ));
     assert_eq!(launched.guarded, Some(true));
     assert_eq!(launched.label.as_deref(), Some("guarded-test"));
     assert!(launched.input_receipt.is_none());
@@ -594,6 +606,7 @@ fn legacy_stop_requires_the_owning_connection() {
             working_directory: None,
             guarded: false,
             label: None,
+            session_kind: None,
         }),
     ))) else {
         panic!("Legacy launch required")

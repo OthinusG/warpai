@@ -27,6 +27,18 @@ MCP namespaces, adapter capabilities and Store ownership without auto-merging th
 Existing non-guardian service paths remain unchanged. No per-task/type daemon,
 remote renderer, native-local daemon or local Broker move. See [CLI.md](CLI.md).
 
+Resolve the guardian root from the effective UID's OS account home, not
+`HOME`/`XDG` or route variables: `<passwd-home>/.local/share/warpai/guardian`
+on Linux, `<passwd-home>/Library/Application Support/warpai/guardian` on macOS.
+One `service.lock` guards DB open, cleanup and listener bind across versions; the
+stable `service.id` and `catalog.sqlite3` live beside it. A private
+`/tmp/warpai-guardian-<euid>/` (0700) holds `ssh.sock` and, on Linux, `wsl.sock`
+(0600). A candidate probes a responsive owner before spawning and may remove only
+an owned stale socket inode while holding the lock. The bounded IPC preface
+exchanges guardian IPC major, requested route, guardian ID and non-nil boot UUID;
+both ends verify peer UID and the handshake. Lock files or PID files are not
+liveness proof, and an incompatible or unauthorized owner is never replaced.
+
 Ensure the daemon when guardian is explicitly enabled. Keep a compatible live
 instance across reconnects; a helper lacking a required logical-scope capability
 fails explicitly rather than creating a second guardian. Bound per-scope adapter
@@ -203,6 +215,21 @@ policy, target/project references, timestamps and proven lifecycle evidence in
 namespaced tables using existing SQLite facilities. Never store argv/environment,
 MCP bearer tokens or relaunch plans. On runtime restart, prior live runs become
 interruption/unknown evidence until explicit guarded reconciliation; no auto-resume.
+
+Durable catalog storage is a separate `guardian/catalog.sqlite3` opened only under
+the guardian lock, with `application_id=0x57474341` and `user_version=1`.
+`guardian_catalog_sessions` is keyed by session UUID and stores exact run/boot
+UUIDs, logical service/project IDs, actual policy and kind, bounded sanitized
+label, creation/MRU sequences, state, observation Unix-ms and optional exit
+status. A newly created file is initialized; an existing file is validated
+read-only for schema/version and refused without overwrite when corrupt, unknown
+or unversioned. Boot marks prior live rows interrupted/unknown in one transaction.
+Durable rows are bounded; only resolved ended rows are pruned, and unresolved
+uncertainty produces capacity failure. V1 has no migration or auto-recovery;
+before any future migration, take and integrity-check a private consistent backup
+under exclusive ownership, migrate in one transaction, and retain the backup for
+explicit offline recovery. The in-memory boot-scoped catalog remains the index and
+watch ring; durable metadata is required before external list/inspect/watch.
 
 Retain ended output for a proposed 5 minutes, within the same memory cap and with
 oldest-ended eviction under pressure. Keep durable task results and unresolved

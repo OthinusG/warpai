@@ -646,7 +646,7 @@ impl HostClient {
         {
             return Err(ConnectionError::FeatureUnavailable);
         }
-        if (request.guarded || request.label.is_some())
+        if (request.guarded || request.label.is_some() || request.session_kind.is_some())
             && !self
                 .capabilities
                 .iter()

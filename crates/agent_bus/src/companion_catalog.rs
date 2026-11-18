@@ -2,6 +2,7 @@
 //! terminal registry only after account-level guardian election exists.
 #![allow(dead_code)]
 
+use remote_protocol::proto::TerminalSessionKind;
 use std::{
     collections::{BTreeMap, VecDeque},
     time::{Duration, Instant},
@@ -20,6 +21,26 @@ pub(crate) enum SessionKind {
     Agent,
     Shell,
     Command,
+}
+
+impl SessionKind {
+    /// Explicit wire kind; unspecified/unknown never select a catalog entry.
+    pub(crate) fn from_proto(value: i32) -> Option<Self> {
+        match TerminalSessionKind::try_from(value).ok()? {
+            TerminalSessionKind::Agent => Some(Self::Agent),
+            TerminalSessionKind::Shell => Some(Self::Shell),
+            TerminalSessionKind::Command => Some(Self::Command),
+            TerminalSessionKind::Unspecified => None,
+        }
+    }
+
+    pub(crate) fn proto(self) -> i32 {
+        match self {
+            Self::Agent => TerminalSessionKind::Agent as i32,
+            Self::Shell => TerminalSessionKind::Shell as i32,
+            Self::Command => TerminalSessionKind::Command as i32,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

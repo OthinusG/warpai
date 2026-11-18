@@ -42,6 +42,7 @@ Implemented additively in protocol major 1; field/action numbers are now frozen:
 | --- | --- | --- |
 | `TerminalLaunch` | `guarded` | 9 |
 | `TerminalLaunch` | `label` | 10 |
+| `TerminalLaunch` | `session_kind` | 11 |
 | `TerminalAction` | `TERMINAL_ATTACH` | 8 |
 | `TerminalAction` | `TERMINAL_DETACH` | 9 |
 | `TerminalControl` | `attachment_id` | 11 |
@@ -55,6 +56,53 @@ Implemented additively in protocol major 1; field/action numbers are now frozen:
 `guarded_remote_sessions_v1` is advertised only after the native launch, attach,
 input, snapshot and stop paths pass. It is unadvertised at this S0 slice, so
 compliant clients must reject guarded fields with clear upgrade guidance.
+
+### S0 decision record: session kind, election and catalog storage (2026-11-18)
+
+`TerminalSessionKind` uses `UNSPECIFIED=0`, `AGENT=1`, `SHELL=2`, `COMMAND=3` in
+additive `TerminalLaunch.session_kind = 11`. A guarded launch requires exactly one
+of 1..3. `AGENT` requires a valid nonblank `agent_program`; `SHELL` and `COMMAND`
+require its absence and create no RunBinding. An unguarded launch must omit the
+field and keeps legacy semantics, including an optional `agent_program`. Absent,
+zero, unknown or policy-mismatched kind is rejected before any native spawn, and
+kind participates in launch replay equivalence. The client transmits it only
+when `guarded_remote_sessions_v1` is negotiated.
+
+The account guardian root is
+`<passwd-home>/.local/share/warpai/guardian` (Linux) or
+`<passwd-home>/Library/Application Support/warpai/guardian` (macOS), resolved from
+the effective UID's account, never `HOME`/`XDG`/route variables. It contains
+`service.lock`, `service.id` and `catalog.sqlite3`. One private
+`/tmp/warpai-guardian-<euid>/` (0700) holds `ssh.sock` and Linux `wsl.sock`
+(0600), owned by one process. One lock spans versions and is taken before DB
+open, cleanup or bind. A candidate probes an existing owner under the same
+deadline; it may reclaim only an owned stale socket inode while holding the lock
+and never unlinks a responsive listener. A bounded private IPC preface carries
+the guardian IPC major, requested route, stable guardian ID and non-nil boot
+UUID; both ends verify kernel peer UID and the handshake before forwarding. No
+boot/PID file or lock metadata proves liveness, and there is no second owner or
+legacy fallback.
+
+Route is bound by the accepting listener and resolved server-side; helper strings
+and managed frames confer no authority. Each route keeps its existing logical
+service ID and exact fence validation. One account `Terminals` registry and cap
+serves all routes with per-run logical-scope checks; Files and Projects/Store stay
+route-local, and WSL-only or SSH-only handlers follow the admitted route. Before
+opening a Store or cleaning scratch space, the guardian holds that scope's
+existing `service.lock` for as long as the scope is in use; live legacy lock
+contention refuses that scope with upgrade guidance and never stops or duplicates
+the legacy Broker.
+
+Durable catalog metadata lives in `guardian/catalog.sqlite3` with
+`application_id=0x57474341` and `user_version=1`, initialized only for a newly
+created file and validated read-only before any write. Table
+`guardian_catalog_sessions` stores session/run/boot UUIDs, logical service and
+project IDs, actual policy and kind, bounded sanitized label, creation and MRU
+sequences, state, observation Unix-ms and optional exit status. It stores no
+argv, environment, screen, output, attachment token or relaunch plan. On boot,
+prior live rows are transactionally marked interrupted/unknown. Pruning is
+limited to resolved ended rows; unresolved uncertainty yields capacity errors.
+V1 performs no migration or automatic recovery.
 
 ## Unified guardian identity and control clients
 

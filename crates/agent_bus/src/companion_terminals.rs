@@ -379,6 +379,29 @@ fn valid_label(label: Option<&str>) -> bool {
             && !label.chars().any(char::is_control)
     })
 }
+/// Guarded launches declare their kind explicitly; Agent-ness must match the binding.
+fn launch_kind(
+    guarded: bool,
+    kind: Option<i32>,
+    has_agent: bool,
+) -> Result<Option<catalog::SessionKind>, Error> {
+    match (guarded, kind) {
+        (false, None) => Ok(None),
+        (false, Some(_)) => Err(Error::ManagedInvalidInput),
+        (true, None) => Err(Error::ManagedInvalidInput),
+        (true, Some(value)) => {
+            let kind =
+                catalog::SessionKind::from_proto(value).ok_or(Error::ManagedInvalidInput)?;
+            match (kind, has_agent) {
+                (catalog::SessionKind::Agent, true)
+                | (catalog::SessionKind::Shell | catalog::SessionKind::Command, false) => {
+                    Ok(Some(kind))
+                }
+                _ => Err(Error::ManagedInvalidInput),
+            }
+        }
+    }
+}
 
 /// True resumes the same writer; false acquires a new attachment after a fenced takeover.
 fn attach_decision(
@@ -531,6 +554,11 @@ impl Terminals {
         }) {
             return Err(Error::ManagedInvalidInput);
         }
+        launch_kind(
+            request.guarded,
+            request.session_kind,
+            request.agent_program.is_some(),
+        )?;
         let size = dimensions(request.columns, request.rows)?;
         let reconcile = |sessions: &BTreeMap<String, Owner>| -> Result<Option<TerminalState>, Error> {
             if let Some(owner) = sessions.get(&request.session_id) {
@@ -545,6 +573,7 @@ impl Terminals {
                     || original.working_directory != request.working_directory
                     || original.guarded != request.guarded
                     || original.label != request.label
+                    || original.session_kind != request.session_kind
                 {
                     return Err(Error::ManagedConflict);
                 }
@@ -1379,6 +1408,49 @@ mod tests {
         assert!(!valid_label(Some("")));
         assert!(!valid_label(Some("bad\u{7}label")));
         assert!(!valid_label(Some("x".repeat(MAX_LABEL + 1).as_str())));
+    }
+
+    #[test]
+    fn guarded_launch_kinds_are_explicit_and_match_agent_binding() {
+        use crate::companion::catalog::SessionKind;
+        let kind = |kind: TerminalSessionKind| Some(kind as i32);
+        assert!(matches!(launch_kind(false, None, true), Ok(None)));
+        assert!(matches!(
+            launch_kind(false, kind(TerminalSessionKind::Agent), true),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert!(matches!(
+            launch_kind(true, None, false),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert!(matches!(
+            launch_kind(true, Some(0), false),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert!(matches!(
+            launch_kind(true, Some(99), false),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert!(matches!(
+            launch_kind(true, kind(TerminalSessionKind::Agent), false),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert!(matches!(
+            launch_kind(true, kind(TerminalSessionKind::Shell), true),
+            Err(Error::ManagedInvalidInput)
+        ));
+        assert_eq!(
+            launch_kind(true, kind(TerminalSessionKind::Agent), true),
+            Ok(Some(SessionKind::Agent))
+        );
+        assert_eq!(
+            launch_kind(true, kind(TerminalSessionKind::Shell), false),
+            Ok(Some(SessionKind::Shell))
+        );
+        assert_eq!(
+            launch_kind(true, kind(TerminalSessionKind::Command), false),
+            Ok(Some(SessionKind::Command))
+        );
     }
 }
 

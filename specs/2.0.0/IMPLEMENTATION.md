@@ -935,6 +935,79 @@ MEMORY update or reason no durable fact changed: MEMORY records that the guarded
   slice now compiles and passes host tests, while remote acceptance remains unrun.
 ```
 
+## S0/S1: session-kind wire freeze and validation
+
+```text
+Record ID / date: S1-h / 2026-11-18
+Work item and PRD requirements: freeze additive session kind and reject
+  policy/kind mismatches before native spawn (FR-03, FR-05, FR-09)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: `TerminalLaunch` had no session-kind field, so a guarded shell/command
+  and a guarded Agent were distinguishable only by `agent_program`, and the
+  planned catalog could not record the actual kind. A guarded launch without an
+  Agent binding was accepted without an explicit declaration.
+  After: `TerminalSessionKind` (UNSPECIFIED=0, AGENT=1, SHELL=2, COMMAND=3) is an
+  additive `TerminalLaunch.session_kind = 11`. A guarded launch requires a valid
+  kind; AGENT requires a valid nonblank `agent_program`; SHELL/COMMAND require its
+  absence and create no RunBinding. An unguarded launch must omit the field.
+  Absent, zero, unknown and mismatched values are rejected before spawn, and the
+  kind participates in launch replay equivalence.
+
+Scope: crates/remote_protocol/proto/remote_server.proto,
+  crates/agent_bus/src/companion_catalog.rs,
+  crates/agent_bus/src/companion_terminals.rs,
+  crates/agent_bus/src/ssh_remote.rs, launcher/fixture call sites,
+  specs/2.0.0/API.md, specs/2.0.0/TECH.md.
+
+Files and symbols changed:
+  remote_server.proto: TerminalSessionKind, TerminalLaunch.session_kind = 11
+  companion_catalog.rs: SessionKind::{from_proto,proto}
+  companion_terminals.rs: launch_kind validation, replay comparison includes
+    session_kind, guarded kind matrix test
+  ssh_remote.rs: client refuses to transmit session_kind without
+    guarded_remote_sessions_v1
+  panel.rs, companion_main.rs, companion_tests.rs, managed_agent.rs,
+    ssh_companion.rs, wsl_workspace.rs: explicit legacy omission; guarded fixture
+    declares Shell and asserts changed-kind replay is a conflict
+
+Implementation method:
+  - Proto field is optional so legacy callers omit it and decode as None.
+  - Server validation is a pure `launch_kind(guarded, kind, has_agent)` helper so
+    the matrix is unit-testable without spawning a PTY. `AGENT` requires an agent
+    binding; `SHELL`/`COMMAND` forbid one; explicit kind on an unguarded launch is
+    invalid.
+  - Replay conflict compares the whole original launch including kind, so a
+    retried session ID with a different kind cannot silently adopt the run.
+  - The client gate reuses the existing capability check; the capability remains
+    unadvertised, so no production client can transmit the new kind yet.
+
+Decision and rationale: make shell/command Agent-right-free at the earliest
+  validation point and keep legacy semantics byte-identical by requiring omission.
+
+Verification:
+  - `cargo test -p warp-agent-bus -p remote_protocol`: all executed tests passed
+    (232 library tests, 16 remote_protocol, all integration suites; 8 ignored
+    fixtures), including the new kind matrix and changed-kind replay conflict.
+  - `cargo check -p warpai --bin warpai`: finished successfully (42s) after the
+    app call-site edit.
+  - Failures found, fixes applied and rerun receipt: the first test import used
+    `crate::companion_catalog`, which is a child of `companion`; corrected to
+    `crate::companion::catalog::SessionKind` and reran successfully.
+
+Unverified behavior and remaining risks: the kind is not echoed in TerminalState
+  and the catalog is not yet wired, so readback relies on future catalog metadata.
+  No remote SSH/WSL launch exercised the field. Capability remains unadvertised.
+
+Follow-up tasks / affected gates: catalog wiring and account election per S1-i;
+  native acceptance before advertisement.
+MEMORY update or reason no durable fact changed: MEMORY records the frozen kind
+  field and pre-spawn validation; scope and capability gating are unchanged.
+```
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
@@ -944,6 +1017,8 @@ MEMORY update or reason no durable fact changed: MEMORY records that the guarded
 | S1-e review closure | `efe9fd12` on `feat/2.0.0` | implemented_unverified | Generation-keyed ledger, non-evictable Unknown, between-write cancellation, guarded-only retention, fail-closed Unix credentials, Windows client SID recheck, explicit DeliveryUnknown and no connection-wide close for session stale; rustfmt parse and diff check only, no build/test |
 | S1-f catalog prototype | Source commit after this record on `feat/2.0.0` | implemented_unverified | Bounded stable pages, boot/filter-bound cursors, revision-scoped watch ring with explicit gap, MRU resume excluding ended runs, state-age tracking, 32/64 ceilings; 7 isolated `rustc --test` cases passed with a uuid stub; not linked into the workspace crate and not wired to any session |
 | S1-g build restoration | `e220a5c9` plus the follow-up fix commit on `feat/2.0.0` | verified_host_only | `remote_protocol` E0599 fixed, `protoc` 36.2 installed, stale write-count and idempotent-input test expectations corrected; `cargo check -p warp-agent-bus`, `cargo check -p warpai --bin warpai` and the full `warp-agent-bus` + `remote_protocol` test suites pass on macOS arm64; remote SSH/WSL and ignored fixture tests remain NOT RUN |
+| S1-h session kind | Source commit after this record on `feat/2.0.0` | verified_host_only | Additive `session_kind=11`, pre-spawn policy/kind matrix, replay conflict on kind change, client capability gate; full host suites pass; capability unadvertised, no remote launch tested |
+| S1-i account election/storage | Pending | not_started | Unix guardian election, route-scoped runtime and durable catalog per Codex decision; stop at gated Unix fixtures before native proof |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |
