@@ -31,11 +31,26 @@ passwd-home root, one account lock, private per-route sockets, peer-UID-checked
 `guardian/catalog.sqlite3` with identity `0x57474341`/v1 and boot interruption
 marking. Guarded launch, attach and observed exit now populate that catalog, but
 these remain host-verified components: no production client calls
-`guardian::connect`, and the guardian grants no external access. The `warp-agent-bus` and `remote_protocol`
+`guardian::connect`, and the guardian grants no external access. Client probing
+now verifies private directory/socket ownership, mode and kernel peer UID,
+distinguishes absent routes from incompatible owners, never spawns for a
+responsive owner, and treats a stalled preface as a per-connection failure
+instead of blocking dispatch. A single account serializer allocates signed
+monotonic `created_seq`/`mru_seq`, catalog rows are identity-checked on update,
+and the terminals registry reports observed native exit plus drained output to
+the catalog on its existing maintenance tick without requiring a client read.
+An internal installed-helper `--guardian-stdio` bridge forwards verified stdio to
+the account guardian, and additive proto tags 10/11 define account-fenced
+catalog list and inspect with boot/revision-bound cursors; watch (12) and stop
+(13) have frozen wire shapes but return `ManagedFeatureUnavailable`. A host
+fixture now drives the real listener through preface, initialize, project open,
+guarded launch, catalog list, bridge drop, same-boot reconnect, exact attach,
+stop and ended observation without client reads.
+The `warp-agent-bus` and `remote_protocol`
 crates now compile and their full test suites pass on macOS arm64, including the
 real Companion PTY integration tests; this is host evidence, not remote SSH/WSL
-evidence. No runtime list/inspect/watch surface, snapshot, CLI, desktop opt-in,
-scheduler, packaging/version change or release is implemented. V01-V30 runtime
+evidence. No CLI, desktop opt-in, scheduler, packaging/version change or release
+is implemented. V01-V30 runtime
 acceptance is NOT RUN. No guard client can reach the slice because
 `guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
 baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
@@ -1209,6 +1224,195 @@ Follow-up tasks / affected gates: account-fenced list/inspect/watch projection,
 MEMORY update or reason no durable fact changed: MEMORY records that guarded
   launch/attach/exit now populate the durable catalog.
 
+Record ID / date: S1-l / 2026-11-18
+Work item and PRD requirements: fail-closed client admission and an installed
+  helper bridge for guarded transport (FR-3, FR-5, FR-12)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: the client probe connected to any socket, spawned a service on any
+  failure including incompatible or denied owners, and the dispatcher awaited
+  each bounded preface inline so one stalled peer delayed accepts and idle
+  accounting. Startup with no admitted route stayed alive without listeners.
+  After: the client verifies the runtime directory is private and owned, the
+  socket is an owned 0600 socket, and the kernel peer UID matches; absent routes
+  are distinguished from incompatible/denied owners; probe-only clients never
+  spawn, and the ensure path spawns at most once only for an absent route under
+  one deadline. Prefaces run in the per-connection task. Zero admitted routes
+  fail startup. `warpai-companion --guardian-stdio ssh|wsl` is an internal
+  helper that bridges bounded stdio to `guardian::connect`; the GUI never passes
+  it, so only the installed helper can start `--guardian-service`.
+
+Scope: crates/agent_bus/src/companion_guardian.rs, companion.rs,
+  companion_main.rs.
+
+Files and symbols changed:
+  companion_guardian.rs: `private_directory`, `private_socket`,
+  `exchange_preface`, `probe_live`, `probe_route` peer-credential check,
+  `route_absent`, `probe`, `connect_inner`, zero-route startup refusal, spawned
+  preface handling
+  companion.rs: `guardian_route`, `serve_guardian_stdio`
+  companion_main.rs: hidden `--guardian-stdio <route>` branch
+
+Implementation method:
+  - Client checks run before connect; a foreign or loose socket fails closed and
+    is never repaired by the client.
+  - The owner's stale check deliberately uses `probe_live`, which tests only
+    responsiveness so a private socket owned by the account can be reclaimed.
+  - Incompatible or denied owners are never unlinked, matching the election
+    invariant.
+  - The bridge copies with fixed buffers; managed framing remains authoritative.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guardian`: 14 passed, including loose
+    socket/directory rejection, closed route names, zero-route failure and a
+    stalled preface not blocking another client.
+  - `cargo test -p warp-agent-bus --lib`: 249 passed, 1 ignored.
+  - `cargo check -p warpai --bin warpai`: finished successfully.
+
+Unverified behavior and remaining risks: no production caller selects the
+  helper path; the GUI binary is unchanged and still cannot handle
+  `--guardian-service`; on-demand scope admission, same-scope legacy cutover
+  forwarding and guest-MCP retargeting are not implemented; Linux SSH-first
+  election of a WSL-incapable image and verified guest namespaces remain open.
+
+Follow-up tasks / affected gates: client transport selection, legacy cutover
+  forwarding, scope-on-demand admission; V03/V05 remain NOT RUN.
+MEMORY update or reason no durable fact changed: MEMORY records the helper
+  bridge and the absence of a production opt-in.
+
+Record ID / date: S1-m / 2026-11-18
+Work item and PRD requirements: one lifecycle authority and one serial sequence
+  owner (FR-16, FR-17)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: `created_seq`/`mru_seq` were wall-clock milliseconds converted to
+  `u64`, so ties and backwards clocks could reorder rows; the catalog accepted
+  updates by session ID only; natural exit was persisted only when a client
+  later read or released; retention and eviction could drop a row that was never
+  reported ended.
+  After: the single account owner allocates checked monotonic signed sequences
+  seeded from the durable maximum; rows are opened only after identity, exact
+  schema columns and every row invariant validate, and creation is
+  transactional. Upsert and state updates require the full immutable identity
+  (session, run, boot, service, project, policy, kind), ended rows cannot be
+  resurrected, and MRU is allocated on foreground attach only. The terminals
+  registry is the lifecycle authority: on the guardian's existing one-second
+  tick it reports native process exit plus drained output once per exact run,
+  and suppresses re-observation only after the durable write succeeds.
+
+Scope: crates/agent_bus/src/companion_guardian_catalog.rs,
+  companion_terminals.rs, companion_guardian.rs, companion.rs,
+  companion_tests.rs.
+
+Files and symbols changed:
+  companion_guardian_catalog.rs: `Catalog::next_seq`, `allocate_seq`,
+  `revision`, `find`, `update_state` with exact identity and ended guard,
+  `touch_mru` self-allocating, strict `open` validation, stable list ordering
+  companion_terminals.rs: `Session::{boot_id, service_id, project_id,
+  end_reported}`, `EndedSession`, `Terminals::ended_guarded`,
+  `Terminals::mark_end_reported`
+  companion_guardian.rs: `wall_millis`, `sync_ended`, maintenance-tick and
+  shutdown sync
+  companion.rs: launch allocates one sequence, control uses exact identity
+
+Implementation method:
+  - DB writes happen on the guardian tick after locks are released per session
+    read; a failed write leaves the session eligible for the next bounded tick.
+  - No new polling source was added: the existing idle tick is reused, and
+    `active()` runs after `sync_ended` so the 300-second retention window cannot
+    erase an unreported row first.
+  - Ended rows keep metadata but stop accepting state transitions.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guardian`: 14 passed, including serial
+    sequence reseeding, identity conflict, ended non-resurrection and bounded
+    capacity.
+  - `cargo test -p warp-agent-bus --lib`: 249 passed, 1 ignored.
+  - `cargo check -p warpai --bin warpai`: finished successfully.
+
+Unverified behavior and remaining risks: catalog pruning and TTL expiry are not
+  independently durable (rows stay until the 64-row cap); DB failure retries are
+  bounded only by guardian lifetime; cluster reaping and output TTL do not yet
+  write separate catalog evidence; no native remote run.
+
+Follow-up tasks / affected gates: prune/TTL evidence policy and DB-fault tests;
+  V11/V12 remain NOT RUN.
+MEMORY update or reason no durable fact changed: MEMORY records the single
+  serializer and terminals-owned exit observation.
+
+Record ID / date: S1-n / 2026-11-18
+Work item and PRD requirements: account-fenced catalog discovery and a real
+  host fixture (FR-18, FR-19, FR-21)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: the catalog was durable but unreachable; no message could list or
+  inspect rows, and no test exercised the real guardian listener through a
+  managed handshake.
+  After: additive proto tags 10-13 define `AccountCatalogList`,
+  `AccountCatalogInspect`, `AccountCatalogWatch` and `AccountStop`, with
+  `ManagedInitialized.account_fence = 7`. List and inspect are implemented for
+  guardian-admitted connections only, bind cursors to boot and catalog revision,
+  cap pages at 32, filter by project UUID, and project only non-secret metadata.
+  Watch and stop parse but return `ManagedFeatureUnavailable`. Legacy services
+  advertise no account fence. A host fixture drives the real Unix listener with
+  a real PTY: preface, initialize with account fence, project open, guarded
+  launch, catalog list, bridge drop, same-boot reconnect, exact attach, stop and
+  ended observation without any read.
+
+Scope: crates/remote_protocol/proto/remote_server.proto,
+  crates/remote_protocol/src/managed.rs, crates/agent_bus/src/companion.rs,
+  companion_guardian.rs, companion_tests.rs, ssh_remote.rs.
+
+Files and symbols changed:
+  remote_server.proto: `AccountFence`, `AccountCatalogFilter`,
+  `AccountCatalogList/Inspect/Watch`, `AccountCatalogRow/Page/Event/Events`,
+  `AccountStop`, `AccountStopTarget/Receipt/Receipts`, request/response tags
+  10-13, `ManagedInitialized.account_fence`
+  managed.rs: `valid_account_fence`
+  companion.rs: `catalog_row`, `valid_uuid`, `dispatch_catalog_list`,
+  `dispatch_catalog_inspect`, `check_account_fence`
+  companion_guardian.rs: `ManagedClient`, `wait_route`,
+  `guarded_sessions_reconnect_and_relist_without_client_reads`
+
+Implementation method:
+  - The account fence carries the guardian UUID from the preface identity, the
+    shared boot UUID and the connection UUID; it is validated independently of
+    the project fence.
+  - Cursor format is `boot:revision:session`; any mutation or boot change makes
+    the page stale with `ManagedConflict`.
+  - `scope_id` filtering is refused until a durable scope identity exists, rather
+    than guessed from paths.
+  - Rows contain IDs, kind/policy, bounded label, state, sequences, observation
+    time and exit status only.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guarded_sessions_reconnect`: passed,
+    exercising the real listener, shared boot identity, reconnect, attach, stop
+    and catalog-observed ended state.
+  - `cargo test -p remote_protocol`: 17 passed, including account-fence
+    validation.
+  - `cargo test -p warp-agent-bus --lib`: 249 passed, 1 ignored.
+  - `cargo check -p warpai --bin warpai`: finished successfully.
+
+Unverified behavior and remaining risks: no client selects the guarded
+  transport, so the RPC is host-reachable only; watch and stop behavior, CLI
+  list/resume/stop, takeover receipts, Windows guarded behavior and all real
+  SSH/WSL/Windows runs are unimplemented or NOT RUN.
+
+Follow-up tasks / affected gates: client opt-in and transport selection, watch
+  ring/gap semantics, stop RPC and CLI; V07/V09/V15/V18/V21 remain NOT RUN.
+MEMORY update or reason no durable fact changed: MEMORY records tags 10/11 and
+  the host fixture scope.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
@@ -1222,6 +1426,9 @@ MEMORY update or reason no durable fact changed: MEMORY records that guarded
 | S1-i account election/routes | Source commit after this record on `feat/2.0.0` | verified_host_only | Passwd-home root, account/scope locks, private route sockets, `WAG1` preface with peer-UID check, stale-only reclaim, shared boot identity, route-derived capabilities and guest/chunk denial; 8 focused lib tests and full 241-test host suite pass; no production client and no real SSH/WSL run |
 | S1-j durable catalog | Source commit after this record on `feat/2.0.0` | verified_host_only | `catalog.sqlite3` identity `0x57474341`/v1, refuse-without-overwrite on mismatch, boot live→unknown marking, bounded ended eviction, unresolved capacity refusal, explicit MRU update; 3 focused tests plus full host suite; not yet wired to session transitions |
 | S1-k catalog lifecycle | Source commit after this record on `feat/2.0.0` | verified_host_only | Guarded launch inserts/updates before ack, attach updates MRU, observed exit marks ended with status, connection-owned launches write nothing, ended rows are not resurrected; lifecycle and upsert tests pass in the 243-test host suite; no natural-exit watch without a read, no retention catalog sync, no list/CLI |
+| S1-l client admission/bridge | Source commit after this record on `feat/2.0.0` | verified_host_only | Private directory/socket and kernel peer-UID checks, absent-only single spawn, incompatible-owner fail-closed, preface off the dispatch loop, zero-route refusal, internal `--guardian-stdio` helper; 14 focused and 249 total host tests pass; no production caller and no GUI opt-in |
+| S1-m lifecycle authority | Source commit after this record on `feat/2.0.0` | verified_host_only | Account-serial signed sequences, strict open invariants, transactional creation, full-identity updates, ended non-resurrection, terminals-owned exit observation on the existing tick; 14 focused and 249 total host tests pass; no TTL/prune evidence or DB-fault test |
+| S1-n account catalog RPC | Source commit after this record on `feat/2.0.0` | verified_host_only | Additive tags 10-13 and `account_fence=7`; account-fenced list/inspect with boot/revision cursor, project filter, 32-row cap; real-listener fixture covers preface, guarded launch, reconnect, attach, stop and read-free ended observation; watch/stop return feature-unavailable; 249 host tests and 17 protocol tests pass; no remote run |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |

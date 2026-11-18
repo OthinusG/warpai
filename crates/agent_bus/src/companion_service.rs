@@ -213,7 +213,7 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         let tasks = tasks.clone();
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid, None, None).await;
+            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid, None, None, None).await;
         });
     }
     #[cfg(unix)]

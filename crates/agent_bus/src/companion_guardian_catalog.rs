@@ -77,6 +77,7 @@ impl Record {
 
 pub struct Catalog {
     connection: SqliteConnection,
+    next_seq: i64,
 }
 
 #[derive(QueryableByName)]
@@ -144,19 +145,23 @@ impl Catalog {
             {
                 return Err("Guardian catalog identity mismatch".into());
             }
-            let tables = sql_query(
-                "SELECT COUNT(*) AS count FROM sqlite_master \
-                 WHERE type='table' AND name='guardian_catalog_sessions'",
+            let columns = sql_query(
+                "SELECT COUNT(*) AS count FROM pragma_table_info('guardian_catalog_sessions') \
+                 WHERE name IN ('session_id','run_id','boot_id','service_id','project_id',\
+                   'policy','kind','label','created_seq','mru_seq','state','observed_ms',\
+                   'exit_status')",
             )
             .get_result::<RowCount>(&mut connection)
             .map_err(unavailable)?;
-            if tables.count != 1 {
+            if columns.count != 13 {
                 return Err("Guardian catalog schema mismatch".into());
             }
         } else {
+            // Identity, version and schema land together or not at all.
             connection
                 .batch_execute(&format!(
-                    "PRAGMA application_id = {APPLICATION_ID};\n\
+                    "BEGIN IMMEDIATE;\n\
+                     PRAGMA application_id = {APPLICATION_ID};\n\
                      PRAGMA user_version = {USER_VERSION};\n\
                      CREATE TABLE guardian_catalog_sessions(\
                        session_id TEXT PRIMARY KEY NOT NULL,\
@@ -171,11 +176,41 @@ impl Catalog {
                        mru_seq INTEGER NOT NULL,\
                        state TEXT NOT NULL,\
                        observed_ms INTEGER NOT NULL,\
-                       exit_status INTEGER)"
+                       exit_status INTEGER);\n\
+                     COMMIT"
                 ))
                 .map_err(|_| "Guardian catalog initialization failed".to_owned())?;
         }
-        Ok(Self { connection })
+        let seeded = sql_query(
+            "SELECT COALESCE(MAX(created_seq), 0) AS count FROM guardian_catalog_sessions",
+        )
+        .get_result::<RowCount>(&mut connection)
+        .map_err(unavailable)?
+        .count;
+        let mru = sql_query(
+            "SELECT COALESCE(MAX(mru_seq), 0) AS count FROM guardian_catalog_sessions",
+        )
+        .get_result::<RowCount>(&mut connection)
+        .map_err(unavailable)?
+        .count;
+        let mut catalog = Self {
+            connection,
+            next_seq: seeded.max(mru),
+        };
+        // Existing rows must satisfy the same invariants before any write.
+        catalog.list()?;
+        Ok(catalog)
+    }
+
+    /// Serially allocated by the single account owner; never derived from wall clocks.
+    pub fn allocate_seq(&mut self) -> Result<u64, String> {
+        let next = self
+            .next_seq
+            .checked_add(1)
+            .filter(|next| *next > 0)
+            .ok_or_else(|| "Guardian catalog sequence exhausted".to_owned())?;
+        self.next_seq = next;
+        u64::try_from(next).map_err(|_| "Guardian catalog sequence exhausted".to_owned())
     }
 
     /// Prior live rows are interruption evidence, never auto-resumed work.
@@ -262,6 +297,24 @@ impl Catalog {
             return Err("Invalid guardian catalog record".into());
         }
         if self.contains(&record.session_id).map_err(unavailable)? {
+            let matches = sql_query(
+                "SELECT COUNT(*) AS count FROM guardian_catalog_sessions \
+                 WHERE session_id=? AND run_id=? AND boot_id=? AND service_id=? \
+                   AND project_id=? AND policy=? AND kind=?",
+            )
+            .bind::<Text, _>(&record.session_id)
+            .bind::<Text, _>(&record.run_id)
+            .bind::<Text, _>(&record.boot_id)
+            .bind::<Text, _>(&record.service_id)
+            .bind::<Text, _>(&record.project_id)
+            .bind::<Text, _>(&record.policy)
+            .bind::<Text, _>(&record.kind)
+            .get_result::<RowCount>(&mut self.connection)
+            .map_err(unavailable)?
+            .count;
+            if matches != 1 {
+                return Err("Guardian catalog identity conflict".into());
+            }
             let mru: i64 = record
                 .mru_seq
                 .try_into()
@@ -286,35 +339,46 @@ impl Catalog {
         self.insert(record)
     }
 
+    /// Exact identity prevents a reused session ID or stale run from mutating another run.
     pub fn update_state(
         &mut self,
         session_id: &str,
+        run_id: &str,
+        boot_id: &str,
+        service_id: &str,
         state: State,
         observed_ms: i64,
         exit_status: Option<i32>,
     ) -> Result<usize, diesel::result::Error> {
         sql_query(
             "UPDATE guardian_catalog_sessions SET state=?, observed_ms=?, exit_status=? \
-             WHERE session_id=?",
+             WHERE session_id=? AND run_id=? AND boot_id=? AND service_id=? AND state<>'ended'",
         )
         .bind::<Text, _>(state.as_str())
         .bind::<BigInt, _>(observed_ms)
         .bind::<Nullable<Integer>, _>(exit_status)
         .bind::<Text, _>(session_id)
+        .bind::<Text, _>(run_id)
+        .bind::<Text, _>(boot_id)
+        .bind::<Text, _>(service_id)
         .execute(&mut self.connection)
     }
 
     /// Foreground acquisition/selection only; listing and observation never call this.
-    pub fn touch_mru(
-        &mut self,
-        session_id: &str,
-        mru_seq: u64,
-    ) -> Result<usize, diesel::result::Error> {
-        let mru: i64 = mru_seq.try_into().unwrap_or(i64::MAX);
-        sql_query("UPDATE guardian_catalog_sessions SET mru_seq=? WHERE session_id=?")
-            .bind::<BigInt, _>(mru)
-            .bind::<Text, _>(session_id)
-            .execute(&mut self.connection)
+    pub fn touch_mru(&mut self, session_id: &str) -> Result<u64, String> {
+        let mru = self.allocate_seq()?;
+        let mru: i64 = mru
+            .try_into()
+            .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
+        sql_query(
+            "UPDATE guardian_catalog_sessions SET mru_seq=? \
+             WHERE session_id=? AND state<>'ended'",
+        )
+        .bind::<BigInt, _>(mru)
+        .bind::<Text, _>(session_id)
+        .execute(&mut self.connection)
+        .map_err(unavailable)?;
+        Ok(mru as u64)
     }
 
     pub fn remove(&mut self, session_id: &str) -> Result<usize, diesel::result::Error> {
@@ -323,17 +387,34 @@ impl Catalog {
             .execute(&mut self.connection)
     }
 
+    /// Monotonic account revision; pages bound to it become stale after any mutation.
+    pub fn revision(&self) -> u64 {
+        self.next_seq.max(0) as u64
+    }
+
+    pub fn find(
+        &mut self,
+        session_id: &str,
+        run_id: &str,
+    ) -> Result<Option<Record>, String> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .find(|record| record.session_id == session_id && record.run_id == run_id))
+    }
+
     pub fn list(&mut self) -> Result<Vec<Record>, String> {
         let rows = sql_query(
             "SELECT session_id, run_id, boot_id, service_id, project_id, policy, kind, label,\
              created_seq, mru_seq, state, observed_ms, exit_status \
-             FROM guardian_catalog_sessions ORDER BY mru_seq DESC, created_seq DESC",
+             FROM guardian_catalog_sessions \
+             ORDER BY mru_seq DESC, created_seq DESC, session_id ASC",
         )
         .get_results::<StoredRow>(&mut self.connection)
         .map_err(unavailable)?;
         rows.into_iter()
             .map(|row| {
-                Some(Record {
+                let record = Record {
                     session_id: row.session_id,
                     run_id: row.run_id,
                     boot_id: row.boot_id,
@@ -347,7 +428,8 @@ impl Catalog {
                     state: State::parse(&row.state)?,
                     observed_ms: row.observed_ms,
                     exit_status: row.exit_status,
-                })
+                };
+                record.valid().then_some(record)
             })
             .collect::<Option<Vec<_>>>()
             .ok_or_else(|| "Invalid guardian catalog row".to_string())
@@ -390,8 +472,46 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().any(|row| row.state == State::Unknown));
         assert!(rows.iter().any(|row| row.state == State::Ended));
-        catalog.touch_mru("a", 7).unwrap();
-        assert_eq!(catalog.list().unwrap()[0].mru_seq, 7);
+        catalog.touch_mru("a").unwrap();
+        assert_eq!(catalog.list().unwrap()[0].mru_seq, 2);
+    }
+
+    #[test]
+    fn sequence_is_serial_and_identity_checked() {
+        let state = tempfile::tempdir().unwrap();
+        let path = state.path().join("catalog.sqlite3");
+        let mut catalog = Catalog::open(&path).unwrap();
+        assert_eq!(catalog.allocate_seq().unwrap(), 1);
+        assert_eq!(catalog.allocate_seq().unwrap(), 2);
+        let mut first = record("a", State::Live);
+        first.created_seq = 2;
+        first.mru_seq = 2;
+        catalog.insert(&first).unwrap();
+        drop(catalog);
+        let mut catalog = Catalog::open(&path).unwrap();
+        assert_eq!(catalog.allocate_seq().unwrap(), 3);
+
+        let mut reused = record("a", State::Live);
+        reused.run_id = "other-run".into();
+        assert!(catalog.upsert(&reused).is_err());
+        assert_eq!(
+            catalog
+                .update_state("a", "other-run", "boot", "service", State::Ended, 5, Some(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            catalog
+                .update_state("a", "run-a", "boot", "service", State::Ended, 5, Some(0))
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            catalog
+                .update_state("a", "run-a", "boot", "service", State::Live, 6, None)
+                .unwrap(),
+            0
+        );
     }
 
     #[test]
@@ -445,7 +565,7 @@ mod tests {
         }
         assert!(catalog.insert(&record("overflow", State::Live)).is_err());
         catalog
-            .update_state("live-0", State::Ended, 2, Some(0))
+            .update_state("live-0", "run-live-0", "boot", "service", State::Ended, 2, Some(0))
             .unwrap();
         catalog.insert(&record("new", State::Live)).unwrap();
         assert!(

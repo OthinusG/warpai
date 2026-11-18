@@ -3,7 +3,7 @@ use std::{path::PathBuf, process::Stdio, time::Duration};
 
 use base64::Engine;
 use remote_protocol::{
-    managed::{valid_fence, PROTOCOL_MAJOR},
+    managed::{valid_account_fence, valid_fence, PROTOCOL_MAJOR},
     proto::*,
     protocol::{read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE},
 };
@@ -449,6 +449,10 @@ impl HostClient {
         if initialized.protocol_major != PROTOCOL_MAJOR
             || !valid_fence(&fence, false)
             || !text(&initialized.account_id, 256)
+            || initialized
+                .account_fence
+                .as_ref()
+                .is_some_and(|fence| !valid_account_fence(fence))
         {
             return Err(ConnectionError::IncompatibleVersion);
         }

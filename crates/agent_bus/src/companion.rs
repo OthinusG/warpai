@@ -52,6 +52,34 @@ pub(crate) enum Route {
     Wsl,
 }
 
+#[cfg(unix)]
+fn valid_uuid(value: &str) -> bool {
+    Uuid::parse_str(value).is_ok_and(|id| !id.is_nil())
+}
+
+/// Sanitized catalog projection; never argv, environment, paths or screen bytes.
+#[cfg(unix)]
+fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
+    AccountCatalogRow {
+        session_id: record.session_id.clone(),
+        run_id: record.run_id.clone(),
+        project_id: record.project_id.clone(),
+        kind: record.kind.clone(),
+        policy: record.policy.clone(),
+        label: record.label.clone(),
+        state: match record.state {
+            guardian_catalog::State::Live => "live",
+            guardian_catalog::State::Ended => "ended",
+            guardian_catalog::State::Unknown => "unknown",
+        }
+        .into(),
+        created_seq: record.created_seq,
+        mru_seq: record.mru_seq,
+        observed_ms: record.observed_ms,
+        exit_status: record.exit_status,
+    }
+}
+
 struct Project {
     root: PathBuf,
     handle: File,
@@ -69,6 +97,7 @@ pub struct Companion {
     peer_pid: Option<u32>,
     route: Option<Route>,
     catalog: Option<CatalogHandle>,
+    account_guardian: Option<Uuid>,
 }
 
 impl Companion {
@@ -89,6 +118,7 @@ impl Companion {
             peer_pid: None,
             route: None,
             catalog: None,
+            account_guardian: None,
             identity,
         })
     }
@@ -159,6 +189,13 @@ impl Companion {
             TerminalSessionKind::Unspecified => return Err(ManagedErrorCode::ManagedInvalidInput),
         };
         let now = unix_millis();
+        let mut catalog = catalog
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        // Account owner allocates both sequences in mutation order.
+        let seq = catalog
+            .allocate_seq()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         let record = guardian_catalog::Record {
             session_id: state.session_id.clone(),
             run_id: state.run_id.clone(),
@@ -168,15 +205,13 @@ impl Companion {
             policy: "guarded".into(),
             kind: kind.into(),
             label: request.label.clone(),
-            created_seq: now as u64,
-            mru_seq: now as u64,
+            created_seq: seq,
+            mru_seq: seq,
             state: guardian_catalog::State::Live,
             observed_ms: now,
             exit_status: None,
         };
         catalog
-            .lock()
-            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
             .upsert(&record)
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)
     }
@@ -210,6 +245,9 @@ impl Companion {
             catalog
                 .update_state(
                     &state.session_id,
+                    &state.run_id,
+                    &self.fence.service_boot_id,
+                    &self.fence.service_id,
                     guardian_catalog::State::Ended,
                     now,
                     state.exit_code,
@@ -217,7 +255,7 @@ impl Companion {
                 .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         } else if action == TerminalAction::TerminalAttach {
             catalog
-                .touch_mru(&state.session_id, now as u64)
+                .touch_mru(&state.session_id)
                 .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         }
         Ok(())
@@ -288,6 +326,12 @@ impl Companion {
                     architecture: std::env::consts::ARCH.into(),
                     capabilities: self.capabilities(),
                     account_id: self.identity.account_id.clone(),
+                    // Legacy per-scope services never advertise account custody.
+                    account_fence: self.account_guardian.map(|guardian| AccountFence {
+                        guardian_id: guardian.to_string(),
+                        boot_id: self.fence.service_boot_id.clone(),
+                        connection_id: self.fence.connection_id.clone(),
+                    }),
                 }))
             }
             Some(managed_request::Operation::ProjectOpen(request)) => {
@@ -372,8 +416,158 @@ impl Companion {
                         .map(managed_response::Result::GuestMcpBound)
                 }
             }
+            Some(managed_request::Operation::AccountCatalogList(request)) => {
+                self.dispatch_catalog_list(request)
+            }
+            Some(managed_request::Operation::AccountCatalogInspect(request)) => {
+                self.dispatch_catalog_inspect(request)
+            }
+            // Frozen wire shapes; streaming watch and stop land with their own proof.
+            Some(managed_request::Operation::AccountCatalogWatch(_))
+            | Some(managed_request::Operation::AccountStop(_)) => {
+                Err(ManagedErrorCode::ManagedFeatureUnavailable)
+            }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
+    }
+
+    #[cfg(unix)]
+    fn check_account_fence(&self, fence: Option<&AccountFence>) -> Result<(), ManagedErrorCode> {
+        let Some(guardian) = self.account_guardian else {
+            return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+        };
+        if !self.initialized {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        let Some(fence) = fence else {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        };
+        if fence.guardian_id != guardian.to_string()
+            || fence.boot_id != self.fence.service_boot_id
+            || fence.connection_id != self.fence.connection_id
+        {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    fn check_account_fence(&self, _fence: Option<&AccountFence>) -> Result<(), ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
+    }
+
+    #[cfg(unix)]
+    fn dispatch_catalog_list(
+        &mut self,
+        request: AccountCatalogList,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        self.check_account_fence(request.fence.as_ref())?;
+        if request
+            .filter
+            .as_ref()
+            .is_some_and(|filter| !filter.scope_id.is_empty())
+        {
+            // No scope identity is durable in the v1 catalog.
+            return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+        }
+        let limit = match request.limit {
+            0 => 16,
+            limit @ 1..=32 => usize::try_from(limit).unwrap_or(16),
+            _ => return Err(ManagedErrorCode::ManagedInvalidInput),
+        };
+        let mut catalog = self
+            .catalog
+            .as_ref()
+            .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        let revision = catalog.revision();
+        let mut rows = catalog.list().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        if let Some(project) = request
+            .filter
+            .as_ref()
+            .map(|filter| filter.project_id.as_str())
+            .filter(|project| !project.is_empty())
+        {
+            rows.retain(|row| row.project_id == project);
+        }
+        let total = rows.len();
+        let after = if request.cursor.is_empty() {
+            0
+        } else {
+            let Some((boot, rest)) = request.cursor.split_once(':') else {
+                return Err(ManagedErrorCode::ManagedConflict);
+            };
+            let Some((page_revision, session)) = rest.split_once(':') else {
+                return Err(ManagedErrorCode::ManagedConflict);
+            };
+            if boot != self.fence.service_boot_id
+                || page_revision.parse::<u64>().ok() != Some(revision)
+            {
+                return Err(ManagedErrorCode::ManagedConflict);
+            }
+            rows.iter()
+                .position(|row| row.session_id == session)
+                .map(|index| index + 1)
+                .ok_or(ManagedErrorCode::ManagedConflict)?
+        };
+        let page = rows.iter().skip(after).take(limit).collect::<Vec<_>>();
+        let next = (after + page.len() < total).then(|| {
+            format!(
+                "{}:{}:{}",
+                self.fence.service_boot_id,
+                revision,
+                page.last().expect("non-empty page").session_id
+            )
+        });
+        Ok(managed_response::Result::AccountCatalogPage(
+            AccountCatalogPage {
+                rows: page.into_iter().map(catalog_row).collect(),
+                total: u32::try_from(total).unwrap_or(u32::MAX),
+                revision,
+                next,
+            },
+        ))
+    }
+
+    #[cfg(not(unix))]
+    fn dispatch_catalog_list(
+        &mut self,
+        _request: AccountCatalogList,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
+    }
+
+    #[cfg(unix)]
+    fn dispatch_catalog_inspect(
+        &mut self,
+        request: AccountCatalogInspect,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        self.check_account_fence(request.fence.as_ref())?;
+        if !valid_uuid(&request.session_id) || !valid_uuid(&request.run_id) {
+            return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        let mut catalog = self
+            .catalog
+            .as_ref()
+            .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        let record = catalog
+            .find(&request.session_id, &request.run_id)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+            .ok_or(ManagedErrorCode::ManagedNotFound)?;
+        Ok(managed_response::Result::AccountCatalogRow(catalog_row(
+            &record,
+        )))
+    }
+
+    #[cfg(not(unix))]
+    fn dispatch_catalog_inspect(
+        &mut self,
+        _request: AccountCatalogInspect,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
     }
 
     fn check_project(&self, fence: Option<&ManagedFence>) -> Result<(), ManagedErrorCode> {
@@ -485,6 +679,28 @@ pub async fn serve_guardian() -> Result<(), ProtocolError> {
     guardian::serve().await
 }
 
+#[cfg(unix)]
+fn guardian_route(name: &str) -> Option<Route> {
+    match name {
+        "ssh" => Some(Route::Ssh),
+        "wsl" if cfg!(all(target_os = "linux", feature = "wsl_companion")) => Some(Route::Wsl),
+        _ => None,
+    }
+}
+
+/// Installed helper only: bridge verified stdio to the account guardian.
+/// The GUI never passes this flag and never starts a guardian from its own binary.
+#[cfg(unix)]
+pub async fn serve_guardian_stdio(route: &str) -> Result<(), ProtocolError> {
+    let route =
+        guardian_route(route).ok_or_else(|| std::io::Error::other("Unknown guardian route"))?;
+    let mut stream = guardian::connect(route).await?;
+    let mut stdio = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
+    // Fixed-size copy buffers preserve backpressure; managed framing stays authoritative.
+    tokio::io::copy_bidirectional(&mut stdio, &mut stream).await?;
+    Ok(())
+}
+
 pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {
     guests::serve_mcp(program).await
 }
@@ -517,6 +733,7 @@ async fn serve_channel<S>(
     peer_pid: Option<u32>,
     route: Option<Route>,
     catalog: Option<CatalogHandle>,
+    account_guardian: Option<Uuid>,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -531,6 +748,7 @@ where
     companion.peer_pid = peer_pid;
     companion.route = route;
     companion.catalog = catalog;
+    companion.account_guardian = account_guardian;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

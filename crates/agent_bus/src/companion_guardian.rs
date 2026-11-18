@@ -175,9 +175,10 @@ async fn accept_preface(
     stream.write_all(&preface(route, guardian, boot)).await
 }
 
-/// Client side: connect and verify the guardian identity before managed framing.
-async fn probe_route(runtime: &Path, route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
-    let mut stream = UnixStream::connect(runtime.join(route.socket_name())).await?;
+async fn exchange_preface(
+    mut stream: UnixStream,
+    route: Route,
+) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     stream.write_all(&request_preface(route)).await?;
     let mut bytes = [0; PREFACE_BYTES];
     tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut bytes))
@@ -186,6 +187,50 @@ async fn probe_route(runtime: &Path, route: Route) -> std::io::Result<(UnixStrea
     let (guardian, boot) =
         valid_reply(&bytes, route).ok_or_else(|| std::io::Error::from(ErrorKind::InvalidData))?;
     Ok((stream, guardian, boot))
+}
+
+fn private_directory(path: &Path) -> std::io::Result<()> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    if !metadata.is_dir() || metadata.uid() != euid() || metadata.permissions().mode() & 0o077 != 0
+    {
+        return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+    }
+    Ok(())
+}
+
+fn private_socket(path: &Path) -> std::io::Result<()> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    if !metadata.file_type().is_socket()
+        || metadata.uid() != euid()
+        || metadata.permissions().mode() & 0o077 != 0
+    {
+        return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+    }
+    Ok(())
+}
+
+/// Client side: verify kernel peer identity, private ownership and the guardian tuple.
+async fn probe_route(runtime: &Path, route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
+    private_directory(runtime)?;
+    private_socket(&runtime.join(route.socket_name()))?;
+    let stream = UnixStream::connect(runtime.join(route.socket_name())).await?;
+    if stream.peer_cred()?.uid() != euid() {
+        return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+    }
+    exchange_preface(stream, route).await
+}
+
+/// Owner-side stale detection: any responsive listener, regardless of permissions.
+async fn probe_live(runtime: &Path, route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
+    let stream = UnixStream::connect(runtime.join(route.socket_name())).await?;
+    exchange_preface(stream, route).await
+}
+
+fn route_absent(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        ErrorKind::NotFound | ErrorKind::ConnectionRefused | ErrorKind::ConnectionReset
+    )
 }
 
 fn start_service() -> std::io::Result<()> {
@@ -214,19 +259,38 @@ fn start_service() -> std::io::Result<()> {
     Ok(())
 }
 
+/// Probe-only: never starts a service and never activates a route.
+pub(crate) async fn probe(route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
+    let runtime = runtime_directory()?;
+    probe_route(&runtime, route).await
+}
+
 /// Connect to the live account guardian, starting one only when no owner answers.
 pub(crate) async fn connect(route: Route) -> std::io::Result<UnixStream> {
+    connect_inner(route, true).await
+}
+
+/// Spawn is allowed only for an absent route; incompatible or denied owners fail closed.
+async fn connect_inner(route: Route, may_start: bool) -> std::io::Result<UnixStream> {
     let runtime = runtime_directory()?;
-    if let Ok((stream, _, _)) = probe_route(&runtime, route).await {
-        return Ok(stream);
+    match probe_route(&runtime, route).await {
+        Ok((stream, _, _)) => return Ok(stream),
+        Err(error) if !route_absent(&error) => return Err(error),
+        Err(_) => (),
+    }
+    if !may_start {
+        return Err(std::io::Error::from(ErrorKind::NotFound));
     }
     start_service()?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match probe_route(&runtime, route).await {
             Ok((stream, _, _)) => return Ok(stream),
-            Err(_) if Instant::now() < deadline => {
+            Err(error) if route_absent(&error) && Instant::now() < deadline => {
                 tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            Err(error) if route_absent(&error) => {
+                return Err(std::io::Error::new(ErrorKind::TimedOut, error));
             }
             Err(error) => return Err(error),
         }
@@ -245,6 +309,41 @@ pub(crate) async fn serve() -> Result<(), ProtocolError> {
         })
         .collect();
     serve_at(root, runtime, scopes).await
+}
+
+fn wall_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// Sole lifecycle authority reports observed exit once, independent of client reads.
+fn sync_ended(terminals: &terminals::Terminals, catalog: &CatalogHandle) {
+    let ended = terminals.ended_guarded();
+    if ended.is_empty() {
+        return;
+    }
+    let Ok(mut catalog) = catalog.lock() else {
+        return;
+    };
+    let observed = wall_millis();
+    for session in ended {
+        if catalog
+            .update_state(
+                &session.session_id,
+                &session.run_id,
+                &session.boot_id,
+                &session.service_id,
+                guardian_catalog::State::Ended,
+                observed,
+                session.exit_code,
+            )
+            .is_ok()
+        {
+            terminals.mark_end_reported(&session.session_id, &session.run_id);
+        }
+    }
 }
 
 struct Scope {
@@ -276,10 +375,7 @@ pub(crate) async fn serve_at(
     let boot = Uuid::new_v4();
     let mut catalog = guardian_catalog::Catalog::open(&root.join("catalog.sqlite3"))
         .map_err(std::io::Error::other)?;
-    let observed_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_millis() as i64)
-        .unwrap_or(0);
+    let observed_ms = wall_millis();
     catalog
         .begin_boot(observed_ms)
         .map_err(std::io::Error::other)?;
@@ -303,6 +399,9 @@ pub(crate) async fn serve_at(
             _lock: scope_lock,
         });
     }
+    if admitted.is_empty() {
+        return Err(std::io::Error::other("No guardian route admitted").into());
+    }
     let terminals = Arc::new(terminals::Terminals::default());
     let mut listeners = Vec::new();
     for scope in &admitted {
@@ -312,7 +411,7 @@ pub(crate) async fn serve_at(
                 if !metadata.file_type().is_socket() || metadata.uid() != euid() {
                     return Err(std::io::Error::from(ErrorKind::PermissionDenied).into());
                 }
-                match probe_route(&runtime, scope.route).await {
+                match probe_live(&runtime, scope.route).await {
                     Ok(_) => return Ok(()),
                     Err(error)
                         if matches!(
@@ -329,10 +428,7 @@ pub(crate) async fn serve_at(
         }
         let listener = tokio::net::UnixListener::bind(&path)?;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-        let metadata = std::fs::symlink_metadata(&path)?;
-        if !metadata.file_type().is_socket() || metadata.uid() != euid() {
-            return Err(std::io::Error::from(ErrorKind::PermissionDenied).into());
-        }
+        private_socket(&path)?;
         listeners.push((listener, scope.route));
     }
     let slots = Arc::new(Semaphore::new(SLOTS));
@@ -365,9 +461,6 @@ pub(crate) async fn serve_at(
                 let Some(scope) = admitted.iter().find(|scope| scope.route == route) else {
                     continue;
                 };
-                if accept_preface(&mut stream, route, guardian, boot).await.is_err() {
-                    continue;
-                }
                 let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
                 idle_since = Instant::now();
                 let peer_pid = credentials
@@ -377,23 +470,30 @@ pub(crate) async fn serve_at(
                 let tasks = scope.tasks.clone();
                 let terminals = terminals.clone();
                 let catalog = catalog.clone();
-                let boot = boot.to_string();
+                let boot_id = boot.to_string();
+                // The bounded preface runs off the dispatch loop; a stalled peer
+                // cannot delay accepts or idle accounting.
                 tokio::spawn(async move {
                     let _slot = slot;
+                    if accept_preface(&mut stream, route, guardian, boot).await.is_err() {
+                        return;
+                    }
                     let _ = serve_channel(
                         stream,
                         &directory,
-                        &boot,
+                        &boot_id,
                         terminals,
                         tasks,
                         peer_pid,
                         Some(route),
                         Some(catalog),
+                        Some(guardian),
                     )
                     .await;
                 });
             }
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                sync_ended(&terminals, &catalog);
                 if slots.available_permits() != SLOTS || terminals.active() {
                     idle_since = Instant::now();
                 }
@@ -408,6 +508,7 @@ pub(crate) async fn serve_at(
             }
         }
     }
+    sync_ended(&terminals, &catalog);
     for scope in &admitted {
         let _ = std::fs::remove_file(runtime.join(scope.route.socket_name()));
     }
@@ -424,6 +525,17 @@ mod tests {
             (Route::Ssh, root.join("ssh")),
             (Route::Wsl, root.join("wsl")),
         ]
+    }
+
+    #[test]
+    fn guardian_route_names_are_closed() {
+        assert_eq!(guardian_route("ssh"), Some(Route::Ssh));
+        assert_eq!(
+            guardian_route("wsl"),
+            cfg!(all(target_os = "linux", feature = "wsl_companion")).then_some(Route::Wsl)
+        );
+        assert_eq!(guardian_route("tap"), None);
+        assert_eq!(guardian_route(""), None);
     }
 
     #[test]
@@ -534,6 +646,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn zero_route_startup_fails_closed() {
+        let state = tempfile::tempdir().unwrap();
+        let result = serve_at(
+            state.path().join("guardian"),
+            state.path().join("run"),
+            Vec::new(),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn client_probe_rejects_loose_socket_and_directory_permissions() {
+        let state = tempfile::tempdir().unwrap();
+        let runtime = state.path().join("run");
+        identity::private_directory(&runtime).unwrap();
+        let path = runtime.join("ssh.sock");
+        let listener = tokio::net::UnixListener::bind(&path).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let loose = probe_route(&runtime, Route::Ssh).await.unwrap_err();
+        assert_eq!(loose.kind(), ErrorKind::PermissionDenied);
+        drop(listener);
+        std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let directory = probe_route(&runtime, Route::Ssh).await.unwrap_err();
+        assert_eq!(directory.kind(), ErrorKind::PermissionDenied);
+    }
+
+    #[tokio::test]
+    async fn stalled_preface_does_not_block_other_clients() {
+        let state = tempfile::tempdir().unwrap();
+        let root = state.path().join("guardian");
+        let runtime = state.path().join("run");
+        let server = {
+            let root = root.clone();
+            let runtime = runtime.clone();
+            let scopes = vec![(Route::Ssh, state.path().join("ssh"))];
+            tokio::spawn(async move { serve_at(root, runtime, scopes).await })
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let path = runtime.join("ssh.sock");
+        while tokio::net::UnixStream::connect(&path).await.is_err() {
+            assert!(Instant::now() < deadline, "Guardian did not start");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let stalled = UnixStream::connect(&path).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(2), probe_route(&runtime, Route::Ssh))
+            .await
+            .expect("Stalled peer blocked dispatch")
+            .unwrap();
+        drop(stalled);
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn invalid_peer_preface_is_rejected_before_managed_framing() {
         let state = tempfile::tempdir().unwrap();
         let root = state.path().join("guardian");
@@ -558,6 +724,248 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(read, Ok(0) | Err(_)));
+        server.abort();
+    }
+
+    struct ManagedClient {
+        reader: tokio_util::compat::Compat<tokio::io::ReadHalf<UnixStream>>,
+        writer: tokio_util::compat::Compat<tokio::io::WriteHalf<UnixStream>>,
+    }
+
+    impl ManagedClient {
+        fn new(stream: UnixStream) -> Self {
+            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+            let (reader, writer) = tokio::io::split(stream);
+            Self {
+                reader: reader.compat(),
+                writer: writer.compat_write(),
+            }
+        }
+
+        async fn call(
+            &mut self,
+            operation: managed_request::Operation,
+        ) -> managed_response::Result {
+            use remote_protocol::protocol::{
+                read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE,
+            };
+            let request = ClientMessage {
+                request_id: Uuid::new_v4().to_string(),
+                message: Some(client_message::Message::Managed(ManagedRequest {
+                    operation: Some(operation),
+                })),
+            };
+            write_message_with_limit(&mut self.writer, &request, MAX_MANAGED_MESSAGE_SIZE)
+                .await
+                .unwrap();
+            let reply = read_message_with_limit::<ServerMessage>(
+                &mut self.reader,
+                MAX_MANAGED_MESSAGE_SIZE,
+            )
+            .await
+            .unwrap();
+            let Some(server_message::Message::Managed(reply)) = reply.message else {
+                panic!("Managed reply required");
+            };
+            reply.result.unwrap()
+        }
+    }
+
+    async fn wait_route(runtime: &Path) -> (UnixStream, Uuid, Uuid) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Ok(probe) = probe_route(runtime, Route::Ssh).await {
+                return probe;
+            }
+            assert!(Instant::now() < deadline, "Guardian did not start");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn guarded_sessions_reconnect_and_relist_without_client_reads() {
+        let state = tempfile::tempdir().unwrap();
+        let root = state.path().join("guardian");
+        let runtime = state.path().join("run");
+        let project = state.path().join("project");
+        std::fs::create_dir_all(&project).unwrap();
+        let server = {
+            let root = root.clone();
+            let runtime = runtime.clone();
+            let scopes = vec![(Route::Ssh, state.path().join("ssh"))];
+            tokio::spawn(async move { serve_at(root, runtime, scopes).await })
+        };
+        let (stream, guardian_id, boot_id) = wait_route(&runtime).await;
+        let mut client = ManagedClient::new(stream);
+        let initialized = match client
+            .call(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: 1,
+            }))
+            .await
+        {
+            managed_response::Result::Initialized(initialized) => initialized,
+            _ => panic!("Guardian initialize required"),
+        };
+        let account = initialized
+            .account_fence
+            .clone()
+            .expect("Guardian advertises account custody");
+        assert_eq!(account.guardian_id, guardian_id.to_string());
+        assert_eq!(account.boot_id, boot_id.to_string());
+        let fence = initialized.fence.clone().unwrap();
+        let opened = match client
+            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: Some(fence),
+                root: project.to_str().unwrap().into(),
+            }))
+            .await
+        {
+            managed_response::Result::ProjectOpened(opened) => opened,
+            _ => panic!("Project open required"),
+        };
+        let project_fence = opened.fence.unwrap();
+        let launched = match client
+            .call(managed_request::Operation::TerminalLaunch(
+                TerminalLaunch {
+                    fence: Some(project_fence.clone()),
+                    session_id: Uuid::new_v4().to_string(),
+                    executable: "/bin/sh".into(),
+                    arguments: vec!["-c".into(), "printf READY; sleep 30".into()],
+                    columns: 80,
+                    rows: 24,
+                    agent_program: None,
+                    working_directory: None,
+                    guarded: true,
+                    label: Some("fixture".into()),
+                    session_kind: Some(TerminalSessionKind::Shell as i32),
+                },
+            ))
+            .await
+        {
+            managed_response::Result::TerminalState(state) => state,
+            _ => panic!("Guarded launch required"),
+        };
+        assert_eq!(launched.guarded, Some(true));
+        let page = match client
+            .call(managed_request::Operation::AccountCatalogList(
+                AccountCatalogList {
+                    fence: Some(account.clone()),
+                    filter: Some(AccountCatalogFilter {
+                        scope_id: String::new(),
+                        project_id: project_fence.project_id.clone(),
+                    }),
+                    limit: 16,
+                    cursor: String::new(),
+                },
+            ))
+            .await
+        {
+            managed_response::Result::AccountCatalogPage(page) => page,
+            _ => panic!("Catalog page required"),
+        };
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0].session_id, launched.session_id);
+        assert_eq!(page.rows[0].state, "live");
+        drop(client);
+
+        let (stream, second_guardian, second_boot) = wait_route(&runtime).await;
+        assert_eq!(second_guardian, guardian_id);
+        assert_eq!(second_boot, boot_id);
+        let mut client = ManagedClient::new(stream);
+        let initialized = match client
+            .call(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: 1,
+            }))
+            .await
+        {
+            managed_response::Result::Initialized(initialized) => initialized,
+            _ => panic!("Reconnect initialize required"),
+        };
+        let fence = initialized.fence.clone().unwrap();
+        let second_account = initialized
+            .account_fence
+            .clone()
+            .expect("Guardian advertises account custody");
+        let reopened = match client
+            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: Some(fence),
+                root: project.to_str().unwrap().into(),
+            }))
+            .await
+        {
+            managed_response::Result::ProjectOpened(opened) => opened,
+            _ => panic!("Reconnect project open required"),
+        };
+        let second_fence = reopened.fence.unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let attached = loop {
+            let control = TerminalControl {
+                fence: Some(second_fence.clone()),
+                session_id: launched.session_id.clone(),
+                run_id: launched.run_id.clone(),
+                action: TerminalAction::TerminalAttach as i32,
+                attachment_id: launched.attachment_id.clone(),
+                attachment_generation: launched.attachment_generation,
+                ..Default::default()
+            };
+            match client
+                .call(managed_request::Operation::TerminalControl(control))
+                .await
+            {
+                managed_response::Result::TerminalState(state) => break state,
+                managed_response::Result::Error(error)
+                    if error.code
+                        == ManagedErrorCode::ManagedConflict as i32
+                        || error.code == ManagedErrorCode::ManagedStaleAttachment as i32 =>
+                {
+                    assert!(Instant::now() < deadline, "Attach did not reconcile");
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                _ => panic!("Attach required"),
+            }
+        };
+        assert_eq!(attached.run_id, launched.run_id);
+        assert!(matches!(
+            client
+                .call(managed_request::Operation::TerminalControl(
+                    TerminalControl {
+                        fence: Some(second_fence),
+                        session_id: launched.session_id.clone(),
+                        run_id: launched.run_id.clone(),
+                        action: TerminalAction::TerminalStop as i32,
+                        attachment_id: attached.attachment_id.clone(),
+                        attachment_generation: attached.attachment_generation,
+                        ..Default::default()
+                    }
+                ))
+                .await,
+            managed_response::Result::TerminalState(_)
+        ));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let row = match client
+                .call(managed_request::Operation::AccountCatalogInspect(
+                    AccountCatalogInspect {
+                        fence: Some(second_account.clone()),
+                        session_id: launched.session_id.clone(),
+                        run_id: launched.run_id.clone(),
+                    },
+                ))
+                .await
+            {
+                managed_response::Result::AccountCatalogRow(row) => row,
+                _ => panic!("Catalog row required"),
+            };
+            if row.state == "ended" {
+                assert!(row.exit_status.is_some());
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Guardian did not observe natural end without reads"
+            );
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
         server.abort();
     }
 }

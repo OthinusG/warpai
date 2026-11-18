@@ -355,6 +355,19 @@ struct Session {
     revoked: Arc<AtomicBool>,
     stop_requested: bool,
     ended_at: Option<Instant>,
+    boot_id: String,
+    service_id: String,
+    project_id: String,
+    end_reported: bool,
+}
+
+/// Exact native identity captured when a guarded run reaches observed exit.
+pub(super) struct EndedSession {
+    pub session_id: String,
+    pub run_id: String,
+    pub boot_id: String,
+    pub service_id: String,
+    pub exit_code: Option<i32>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, Error> {
@@ -851,6 +864,10 @@ impl Terminals {
             revoked,
             stop_requested: false,
             ended_at: None,
+            boot_id: fence.service_boot_id.clone(),
+            service_id: fence.service_id.clone(),
+            project_id: fence.project_id.clone(),
+            end_reported: false,
         };
         let state = session.state(fence, None, None)?;
         sessions.insert(
@@ -1109,6 +1126,50 @@ impl Terminals {
             retained
         });
         active
+    }
+
+    /// Native exit plus drained output; no connection read or release is required.
+    pub(super) fn ended_guarded(&self) -> Vec<EndedSession> {
+        let Ok(owners) = self.owners.lock() else {
+            return Vec::new();
+        };
+        let mut ended = Vec::new();
+        for owner in owners.values() {
+            let Ok(mut session) = owner.lock() else { continue };
+            if session.policy != Policy::Guarded || session.end_reported {
+                continue;
+            }
+            if session.pty.is_active().unwrap_or(true) {
+                continue;
+            }
+            if !session.output.lock().map_or(false, |output| output.closed) {
+                continue;
+            }
+            ended.push(EndedSession {
+                session_id: session.launch.session_id.clone(),
+                run_id: session.run_id.clone(),
+                boot_id: session.boot_id.clone(),
+                service_id: session.service_id.clone(),
+                exit_code: session.pty.exit_code().ok().flatten(),
+            });
+        }
+        ended
+    }
+
+    /// Only an accepted durable write suppresses re-observation.
+    pub(super) fn mark_end_reported(&self, session_id: &str, run_id: &str) {
+        let Ok(owners) = self.owners.lock() else {
+            return;
+        };
+        let Some(owner) = owners.get(session_id) else {
+            return;
+        };
+        let Ok(mut session) = owner.lock() else {
+            return;
+        };
+        if session.run_id == run_id {
+            session.end_reported = true;
+        }
     }
 }
 

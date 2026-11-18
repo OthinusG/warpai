@@ -637,6 +637,7 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
         guardian_catalog::Catalog::open(&catalog_path).unwrap(),
     ));
     companion.catalog = Some(catalog.clone());
+    companion.account_guardian = Some(Uuid::parse_str(&fence.service_id).unwrap());
     let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
         managed_request::Operation::TerminalLaunch(TerminalLaunch {
             fence: Some(fence.clone()),
@@ -664,6 +665,56 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
         assert_eq!(rows[0].label.as_deref(), Some("catalog-test"));
         assert_eq!(rows[0].state, guardian_catalog::State::Live);
     }
+    let account = AccountFence {
+        guardian_id: fence.service_id.clone(),
+        boot_id: fence.service_boot_id.clone(),
+        connection_id: fence.connection_id.clone(),
+    };
+    let managed_response::Result::AccountCatalogPage(page) = result(companion.handle(request(
+        managed_request::Operation::AccountCatalogList(AccountCatalogList {
+            fence: Some(account.clone()),
+            filter: Some(AccountCatalogFilter {
+                scope_id: String::new(),
+                project_id: fence.project_id.clone(),
+            }),
+            limit: 16,
+            cursor: String::new(),
+        }),
+    ))) else {
+        panic!("Account catalog page required")
+    };
+    assert_eq!(page.rows.len(), 1);
+    assert_eq!(page.rows[0].session_id, launched.session_id);
+    assert_eq!(page.rows[0].run_id, launched.run_id);
+    assert_eq!(page.rows[0].label.as_deref(), Some("catalog-test"));
+    assert_eq!(page.rows[0].state, "live");
+    assert_eq!(page.total, 1);
+    assert_eq!(page.revision, 1);
+    assert!(page.next.is_none());
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::AccountCatalogInspect(
+            AccountCatalogInspect {
+                fence: Some(account.clone()),
+                session_id: launched.session_id.clone(),
+                run_id: launched.run_id.clone(),
+            },
+        )))),
+        managed_response::Result::AccountCatalogRow(_)
+    ));
+    let mut stale_account = account;
+    stale_account.boot_id = Uuid::new_v4().to_string();
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::AccountCatalogList(
+            AccountCatalogList {
+                fence: Some(stale_account),
+                filter: None,
+                limit: 16,
+                cursor: String::new(),
+            },
+        )))),
+        managed_response::Result::Error(ManagedError { code })
+            if code == ManagedErrorCode::ManagedStaleAttachment as i32
+    ));
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut offset = 0;
     while Instant::now() < deadline {

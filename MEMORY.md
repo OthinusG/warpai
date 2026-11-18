@@ -221,15 +221,30 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   /tmp/warpai-guardian-<euid>, checks peer UID and a WAG1 identity preface, and
   scopes capabilities by route without merging SSH/WSL Stores; a durable
   guardian/catalog.sqlite3 (application_id 0x57474341, user_version 1) refuses
-  unknown identity without overwrite, marks prior live rows unknown at boot, and
-  now records guarded launch/attach/observed exit before the corresponding ack;
-  these components are host-tested, no production client connects through the
-  guardian sockets, and retention eviction is not synced to catalog rows;
+  unknown identity without overwrite, validates schema and rows before writing,
+  marks prior live rows unknown at boot, and now records guarded launch/attach
+  with an account-serial signed sequence before the corresponding ack;
+  guarded exit is observed by the terminals registry on the existing guardian
+  tick (native process gone plus drained output) without requiring a client
+  read, and only after the durable write succeeds;
+  clients verify private directory/socket ownership, mode and kernel peer UID,
+  spawn only for an absent route, and never unlink an incompatible owner;
+  prefaces run off the dispatch loop and zero admitted routes fail closed;
+  an internal installed-helper `warpai-companion --guardian-stdio ssh|wsl`
+  bridges bounded stdio to the guardian (the GUI never starts a guardian);
+  additive proto tags 10/11 provide account-fenced catalog list/inspect with
+  boot/revision-bound cursors, tags 12/13 freeze watch/stop shapes but return
+  feature-unavailable, and `ManagedInitialized.account_fence=7` comes only from
+  guardian admission;
+  these components are host-tested (including a real-listener guarded launch,
+  bridge drop, same-boot reconnect, attach and read-free ended observation), no
+  production client selects the guarded transport, no CLI exists, and retention
+  eviction is not synced to catalog rows;
   warp-agent-bus, remote_protocol and the warpai
   binary compile and their host test suites pass on macOS arm64 (remote SSH/WSL
   still unrun);
   guarded_remote_sessions_v1 stays unadvertised
-  until native proof; CLI and WSL lifetime remain pending.
+  until native proof; CLI, stop RPC and WSL lifetime remain pending.
   No desktop auto-deployment.
   Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject

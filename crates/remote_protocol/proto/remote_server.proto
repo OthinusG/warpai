@@ -56,6 +56,10 @@ message ManagedRequest {
     ProjectTasksRequest project_tasks = 7;
     ProjectFilesRequest project_files = 8;
     GuestMcpBind guest_mcp_bind = 9;
+    AccountCatalogList account_catalog_list = 10;
+    AccountCatalogInspect account_catalog_inspect = 11;
+    AccountCatalogWatch account_catalog_watch = 12;
+    AccountStop account_stop = 13;
   }
 }
 message ManagedResponse {
@@ -68,6 +72,10 @@ message ManagedResponse {
     ProjectTasksResult project_tasks = 7;
     ProjectFilesResult project_files = 8;
     GuestMcpBound guest_mcp_bound = 9;
+    AccountCatalogPage account_catalog_page = 10;
+    AccountCatalogRow account_catalog_row = 11;
+    AccountCatalogEvents account_catalog_events = 12;
+    AccountStopReceipts account_stop_receipts = 13;
   }
 }
 // WSL guest-only admission; peer ancestry is verified by the private Linux service.
@@ -97,6 +105,104 @@ message ManagedInitialized {
   string architecture = 4;
   repeated string capabilities = 5;
   string account_id = 6;
+  // Present only on account-guardian admission; validated independently of ManagedFence.
+  AccountFence account_fence = 7;
+}
+// Binds catalog operations to one verified guardian boot and connection.
+message AccountFence {
+  string guardian_id = 1;
+  string boot_id = 2;
+  string connection_id = 3;
+}
+// Logical scope and project only; never a filesystem path.
+message AccountCatalogFilter {
+  string scope_id = 1;
+  string project_id = 2;
+}
+message AccountCatalogList {
+  AccountFence fence = 1;
+  AccountCatalogFilter filter = 2;
+  // Default 16, maximum 32.
+  uint32 limit = 3;
+  string cursor = 4;
+}
+message AccountCatalogInspect {
+  AccountFence fence = 1;
+  string session_id = 2;
+  string run_id = 3;
+}
+message AccountCatalogWatch {
+  AccountFence fence = 1;
+  AccountCatalogFilter filter = 2;
+  string cursor = 3;
+  uint32 limit = 4;
+}
+// Non-secret metadata only: no argv, environment, paths, screen or attachment tokens.
+message AccountCatalogRow {
+  string session_id = 1;
+  string run_id = 2;
+  string project_id = 3;
+  string kind = 4;
+  string policy = 5;
+  optional string label = 6;
+  string state = 7;
+  uint64 created_seq = 8;
+  uint64 mru_seq = 9;
+  int64 observed_ms = 10;
+  optional int32 exit_status = 11;
+}
+message AccountCatalogPage {
+  repeated AccountCatalogRow rows = 1;
+  uint32 total = 2;
+  uint64 revision = 3;
+  optional string next = 4;
+}
+enum AccountCatalogChange {
+  ACCOUNT_CATALOG_CHANGE_UNSPECIFIED = 0;
+  ACCOUNT_CATALOG_CHANGE_UPSERTED = 1;
+  ACCOUNT_CATALOG_CHANGE_REMOVED = 2;
+}
+message AccountCatalogEvent {
+  AccountCatalogChange change = 1;
+  AccountCatalogRow row = 2;
+}
+message AccountCatalogEvents {
+  repeated AccountCatalogEvent events = 1;
+  optional string next = 2;
+  // The caller must relist; events below the current revision were not retained.
+  bool gap = 3;
+}
+message AccountStopTarget {
+  string session_id = 1;
+  string run_id = 2;
+}
+message AccountStop {
+  AccountFence fence = 1;
+  // Empty target means the immediate recipient run set; never a wildcard scan.
+  AccountStopTarget target = 2;
+  string project_id = 3;
+}
+enum AccountStopOutcome {
+  ACCOUNT_STOP_OUTCOME_UNSPECIFIED = 0;
+  ACCOUNT_STOP_OUTCOME_REQUESTED = 1;
+  ACCOUNT_STOP_OUTCOME_OBSERVED = 2;
+  ACCOUNT_STOP_OUTCOME_UNKNOWN = 3;
+}
+message AccountStopReceipt {
+  string session_id = 1;
+  string run_id = 2;
+  AccountStopOutcome outcome = 3;
+  optional int32 exit_status = 4;
+}
+enum AccountStopStatus {
+  ACCOUNT_STOP_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_STOP_STATUS_COMPLETED = 1;
+  ACCOUNT_STOP_STATUS_PARTIAL = 2;
+  ACCOUNT_STOP_STATUS_REJECTED = 3;
+}
+message AccountStopReceipts {
+  repeated AccountStopReceipt receipts = 1;
+  AccountStopStatus status = 2;
 }
 message ProjectOpen {
   ManagedFence fence = 1;

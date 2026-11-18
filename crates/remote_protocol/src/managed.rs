@@ -62,9 +62,32 @@ pub fn valid_fence(fence: &ManagedFence, require_project: bool) -> bool {
         }
 }
 
+/// Account custody is verified independently from any project attachment.
+pub fn valid_account_fence(fence: &crate::proto::AccountFence) -> bool {
+    let valid_id = |value: &str| Uuid::parse_str(value).is_ok_and(|id| !id.is_nil());
+    valid_id(&fence.guardian_id) && valid_id(&fence.boot_id) && valid_id(&fence.connection_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn account_fence_requires_exactly_one_verified_connection() {
+        let mut fence = crate::proto::AccountFence {
+            guardian_id: Uuid::new_v4().to_string(),
+            boot_id: Uuid::new_v4().to_string(),
+            connection_id: Uuid::new_v4().to_string(),
+        };
+        assert!(valid_account_fence(&fence));
+        fence.boot_id = Uuid::nil().to_string();
+        assert!(!valid_account_fence(&fence));
+        fence.boot_id = "not-a-uuid".into();
+        assert!(!valid_account_fence(&fence));
+        fence.boot_id = Uuid::new_v4().to_string();
+        fence.connection_id.clear();
+        assert!(!valid_account_fence(&fence));
+    }
 
     #[test]
     fn terminal_state_refuses_invalid_ownership_and_unbounded_replay() {
