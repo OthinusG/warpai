@@ -32,6 +32,7 @@ def run(shell, account, flags, commands, *, interactive=True):
 def main():
     shells = [shell for shell in ("bash", "zsh") if shutil.which(shell)]
     assert shells, "Bash or Zsh is required"
+    os.umask(0o077)
     with tempfile.TemporaryDirectory(prefix="warpai-shell-control-") as temporary:
         account = Path(temporary) / "account with spaces 多语言"
         binary = account / ".config/warpai/bin/warpai-companion"
@@ -82,6 +83,11 @@ def main():
                 assert result.returncode == 0 and result.stdout == "<ctl>\n<list>\n", result.stderr
                 result = run(shell, account, {"WSL_DISTRO_NAME": distro + "-wrong"}, "SOURCE; ! command -v warpai")
                 assert result.returncode == 0, result.stderr
+            binary.parent.chmod(0o770)
+            result = run(shell, account, remote, "SOURCE; warpai list")
+            assert result.returncode != 0 and not result.stdout, result.stderr
+            assert "installation directory is unverified" in result.stderr
+            binary.parent.chmod(0o700)
             binary.write_bytes(b'#!/bin/sh\necho unexpected\n')
             result = run(shell, account, remote, "SOURCE; warpai list")
             assert result.returncode != 0 and not result.stdout, result.stderr
