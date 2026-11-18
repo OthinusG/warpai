@@ -249,6 +249,22 @@ resize revisions, digest and explicit resnapshot on output gaps. Plain CLI attac
 may consume an ANSI projection of the same host state without resetting native
 Warpai block metadata or taking a second resize owner.
 
+### Current snapshot boundaries
+
+| Live state | Existing owner | Representation gap |
+| --- | --- | --- |
+| Absolute output offsets and bounded ring | `companion_terminals::Output` | The ring can discard earlier prompt, saved-screen and escape state. It cannot establish the state at a cut. |
+| Native readiness screen | `screen_detection::native::NativeScreen` wraps `vt100::Parser` | Formatted screen output cannot export private decoder state or both primary and alternate buffers. The readiness screen uses zero scrollback. |
+| Desktop cursor, cells, history and rendering modes | `GridHandler`, `GridStorage`, `FlatStorage` and the terminal model's alternate screen | Existing `GridStorage` serialization skips its cursor, saved cursor and trim count. `GridHandler` separately owns history, active hyperlinks and ANSI state. |
+| Partial terminal input and shell lifecycle | `ansi::Processor` wraps `VteParser` plus DCS/APC and synchronized output state; `TerminalModel` owns the active block | The parser and wrapper need matching portable state, or a bounded suffix from a proven safe cut. Completed `SerializedBlock` data is line-trimmed and omits active shell/parser state. |
+| Host effects | `ansi::Processor::osc_dispatch` and its `Handler` | Import must restore data through a state-only target. Clipboard, notifications, terminal replies and shell actions remain enabled only for live bytes after the cut. |
+
+S2 first needs a lossless round trip for the portable parser and display state.
+Run the same suffix through uninterrupted and restored state at every byte cut
+in split UTF-8, CSI and OSC fixtures, then compare both screens and observe that
+the state-only import emits no effects. Add the command/block state and desktop
+static import before exposing the guarded data bridge to desktop writers.
+
 Keep output/screens/drafts in memory only. Persist minimal nonsecret catalog IDs,
 policy, target/project references, timestamps and proven lifecycle evidence in
 namespaced tables using existing SQLite facilities. Never store argv/environment,
