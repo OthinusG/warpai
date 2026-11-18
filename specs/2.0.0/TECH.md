@@ -196,6 +196,8 @@ The Unix guardian bounds incomplete prefaces separately from established
 channels. Local account operators have dedicated channel permits, so occupied
 bridge channels cannot consume the capacity for a local catalog/stop operation.
 Preface acceptance still requires the same private socket and peer identity.
+Lifecycle scans skip busy run/output locks and retry on the next maintenance
+tick. A busy run remains retained and cannot be evicted to admit another run.
 
 Session launch/attach concurrency is bounded, failed attempts release reservations,
 and stop-one cannot affect sibling sessions. Bare CLI stop and explicit stop-all capture all current-account guarded runs

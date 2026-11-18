@@ -539,7 +539,10 @@ fn retain_session(session: &mut Session, now: Instant) -> bool {
     if !owned {
         session.binding.take();
     }
-    let closed = session.output.lock().map_or(false, |output| output.closed);
+    let Ok(output) = session.output.try_lock() else {
+        return true;
+    };
+    let closed = output.closed;
     if !owned && closed && session.connection.is_none() {
         if session.policy != Policy::Guarded {
             return false;
@@ -565,14 +568,18 @@ fn ended_session(session: &mut Session) -> Option<Instant> {
     let ended = session.ended_at?;
     (session.connection.is_none()
         && !session.pty.is_active().unwrap_or(true)
-        && session.output.lock().map_or(false, |output| output.closed))
+        && session.output.try_lock().is_ok_and(|output| output.closed))
     .then_some(ended)
 }
 
 /// Expire retention normally; at admission pressure, evict oldest ended output first.
 fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_ended: bool) {
     sessions.retain(|_, owner| {
-        let Ok(mut session) = owner.lock() else {
+        // A control request can hold the owner after releasing the registry.
+        if Arc::strong_count(owner) > 1 {
+            return true;
+        }
+        let Ok(mut session) = owner.try_lock() else {
             return true;
         };
         retain_session(&mut session, now)
@@ -583,7 +590,10 @@ fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_en
     let mut ended: Vec<_> = sessions
         .iter()
         .filter_map(|(id, owner)| {
-            let mut session = owner.lock().ok()?;
+            if Arc::strong_count(owner) > 1 {
+                return None;
+            }
+            let mut session = owner.try_lock().ok()?;
             ended_session(&mut session).map(|ended| (ended, id.clone()))
         })
         .collect();
@@ -1300,18 +1310,8 @@ impl Terminals {
         let Ok(mut owners) = self.owners.lock() else {
             return true;
         };
-        let now = Instant::now();
-        let mut active = false;
-        owners.retain(|_, owner| {
-            let Ok(mut session) = owner.lock() else {
-                active = true;
-                return true;
-            };
-            let retained = retain_session(&mut session, now);
-            active |= retained;
-            retained
-        });
-        active
+        prune_sessions(&mut owners, Instant::now(), false);
+        !owners.is_empty()
     }
 
     #[cfg(unix)]
@@ -1335,7 +1335,7 @@ impl Terminals {
             return Vec::new();
         };
         owners.values().filter_map(|owner| {
-            let session = owner.lock().ok()?;
+            let session = owner.try_lock().ok()?;
             let generation = session.writer.attachment.load(Ordering::SeqCst);
             (session.policy == Policy::Guarded && !session.end_reported
                 && generation > session.catalog_generation).then(|| PendingAttachment {
@@ -1356,7 +1356,7 @@ impl Terminals {
         let Some(owner) = owners.get(session_id) else {
             return;
         };
-        let Ok(mut session) = owner.lock() else {
+        let Ok(mut session) = owner.try_lock() else {
             return;
         };
         if session.run_id == run_id {
@@ -1366,19 +1366,20 @@ impl Terminals {
 
     /// Native exit plus drained output; no connection read or release is required.
     pub(super) fn ended_guarded(&self) -> Vec<EndedSession> {
-        let Ok(owners) = self.owners.lock() else {
+        let Ok(owners) = self.owners.lock()
+            .map(|owners| owners.values().cloned().collect::<Vec<_>>()) else {
             return Vec::new();
         };
         let mut ended = Vec::new();
-        for owner in owners.values() {
-            let Ok(mut session) = owner.lock() else { continue };
+        for owner in owners {
+            let Ok(mut session) = owner.try_lock() else { continue };
             if session.policy != Policy::Guarded || session.end_reported {
                 continue;
             }
             if session.pty.is_active().unwrap_or(true) {
                 continue;
             }
-            if !session.output.lock().map_or(false, |output| output.closed) {
+            if !session.output.try_lock().is_ok_and(|output| output.closed) {
                 continue;
             }
             ended.push(EndedSession {
@@ -1400,7 +1401,7 @@ impl Terminals {
         let Some(owner) = owners.get(session_id) else {
             return;
         };
-        let Ok(mut session) = owner.lock() else {
+        let Ok(mut session) = owner.try_lock() else {
             return;
         };
         if session.run_id == run_id {
@@ -1463,6 +1464,46 @@ mod tests {
             resume.send(()).unwrap();
             assert_eq!(duplicate.unwrap_err(), Error::ManagedConflict);
             assert!(sibling.is_ok());
+        });
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn busy_run_is_retained_without_blocking_maintenance_or_sibling_launch() {
+        let state = tempfile::tempdir().unwrap();
+        let terminals = Terminals::default();
+        let projects = tasks::Projects::new(&state.path().join("private"));
+        let fence = ManagedFence {
+            service_id: Uuid::new_v4().to_string(),
+            service_boot_id: Uuid::new_v4().to_string(),
+            project_id: Uuid::new_v4().to_string(),
+            connection_id: Uuid::new_v4().to_string(),
+        };
+        let launch = TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/cat".into(),
+            columns: 80,
+            rows: 24,
+            ..Default::default()
+        };
+        let spawn = |launch| terminals.launch(launch, &fence, state.path(), &projects,
+            false, false, |_, _| Ok(()));
+        spawn(launch.clone()).unwrap();
+        let owner = terminals.owners.lock().unwrap()[&launch.session_id].clone();
+        let session = owner.lock().unwrap();
+        let (done, complete) = mpsc::channel();
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                assert!(terminals.active());
+                assert!(terminals.pending_attachments().is_empty());
+                assert!(terminals.ended_guarded().is_empty());
+                spawn(TerminalLaunch { session_id: Uuid::new_v4().to_string(), ..launch.clone() }).unwrap();
+                done.send(()).unwrap();
+            });
+            let result = complete.recv_timeout(Duration::from_secs(2));
+            drop(session);
+            assert!(result.is_ok(), "Busy session blocked sibling work");
         });
     }
 

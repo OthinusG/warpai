@@ -15,8 +15,10 @@ failed two ordinary-workspace cases because the live guardian served another
 Store. `92f31965` added the logical Store preflight. The source-matched [Windows
 and WSL rerun](https://github.com/OthinusG/warpai/actions/runs/44298760969) and
 [remote wire matrix](https://github.com/OthinusG/warpai/actions/runs/44298760965)
-cover that change and the new first-owner cases. Full V01-V30 acceptance remains
-open. Historical records below describe their own revisions.
+use that source. The matrix passed all three desktop runners, and the Windows
+protocol passed. The native WSL workspace step failed; see its job for the
+current acceptance result. Full V01-V30 acceptance remains open. Historical
+records below describe their own revisions.
 
 The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
 fencing, a bounded SQLite catalog, a helper bridge, account RPCs and a private
@@ -56,7 +58,7 @@ guardian ownership remain open.
 | S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, and private `ctl list/resume/stop`. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL bridge loss and exact-run reconnect passed on `36bdc6d3`. Mixed ordinary/guarded forwarding and both installed-helper startup orders require fresh Windows/WSL proof. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
-| S7 resource/fairness scheduling | in_progress | Local regression holds all 32 bridge channels while an independent account operator reads the catalog and requests account stop. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
+| S7 resource/fairness scheduling | in_progress | Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
 | S9 distribution/release | not_started | None |
 
@@ -1780,6 +1782,23 @@ is refused, then initializes a local operator and sends catalog and stop RPCs.
 The full `warp-agent-bus` macOS arm64 suite passed with 272 tests and one ignored.
 This does not establish bulk IO fairness or native resource targets. MEMORY.md
 records the control-admission limits.
+
+Record ID / date: S7-b / 2026-11-18
+Work item: lifecycle scans and run admission under a busy sibling.
+Baseline: `5bf0f5a6`. Status: verified on macOS arm64.
+
+Maintenance and admission keep busy owners and retry observation as capacity
+becomes available. Eviction under the registry lock requires the run to have
+no in-flight owner reference; output locks are probed without waiting. Exit
+scans release the registry before inspecting native runs and record their exact
+identity for catalog reconciliation. A retained run still counts against the
+admission ceiling. No timeout forces a stop or drops task facts.
+
+The native local fixture holds an existing run's session lock, then verifies
+maintenance and a sibling PTY launch both complete before the lock is released.
+The macOS arm64 suite passed with 273 tests and one ignored. A failed WSL
+acceptance run now skips the Windows cache upload so its log can finalize.
+No protocol or Store changes. The earlier MEMORY.md resource notes still apply.
 
 ## Evidence index
 
