@@ -980,6 +980,25 @@ impl RemoteFiles {
         format!("{:x}", Sha256::digest(content))
     }
 
+    async fn commit_staged(&self, path: String, transfer_id: String, hash: String) -> Result<String, ConnectionError> {
+        let reply = self.control(ProjectFilesRequest {
+            action: ProjectFileAction::ProjectFileCommitWrite as i32,
+            path,
+            transfer_id,
+            expected_hash: hash.clone(),
+            ..Default::default()
+        }).await.map_err(|error| match error {
+            ConnectionError::ConnectionLost | ConnectionError::StaleAttachment
+            | ConnectionError::IncompatibleVersion => ConnectionError::DeliveryUnknown,
+            error => error,
+        })?;
+        if reply.sha256 != hash {
+            self.disconnect();
+            return Err(ConnectionError::DeliveryUnknown);
+        }
+        Ok(hash)
+    }
+
     pub async fn save(
         &self,
         path: &str,
@@ -1016,25 +1035,7 @@ impl RemoteFiles {
             let temporary = temporary.into_temp_path();
             self.transfer(&staged.transfer_path, &staged.transfer_id, &temporary, true)
                 .await?;
-            let hash = Self::content_hash(content);
-            let reply = self
-                .control(ProjectFilesRequest {
-                    action: ProjectFileAction::ProjectFileCommitWrite as i32,
-                    path: relative,
-                    transfer_id: staged.transfer_id.clone(),
-                    expected_hash: hash.clone(),
-                    ..Default::default()
-                })
-                .await.map_err(|error| match error {
-                    ConnectionError::ConnectionLost | ConnectionError::StaleAttachment
-                    | ConnectionError::IncompatibleVersion => ConnectionError::DeliveryUnknown,
-                    error => error,
-                })?;
-            if reply.sha256 != hash {
-                self.disconnect();
-                return Err(ConnectionError::DeliveryUnknown);
-            }
-            Ok(hash)
+            self.commit_staged(relative, staged.transfer_id.clone(), Self::content_hash(content)).await
         }
         .await;
         if result.is_err() {
@@ -1053,6 +1054,90 @@ impl RemoteFiles {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn missing_commit_reply_is_unknown_before_or_after_the_remote_write() {
+        use remote_protocol::protocol::{read_client_message, write_server_message};
+        use tokio::net::UnixStream;
+        use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+
+        fn connect(state: &Path, lose_reply: Option<bool>) -> (UnixStream, tokio::task::JoinHandle<()>) {
+            let (client, server) = UnixStream::pair().unwrap();
+            let state = state.to_owned();
+            let server = tokio::spawn(async move {
+                let (input, output) = tokio::io::split(server);
+                let (mut input, mut output) = (input.compat(), output.compat_write());
+                let mut companion = crate::companion::Companion::new(&state).unwrap();
+                while let Ok(request) = read_client_message(&mut input).await {
+                    let commit = matches!(request.message.as_ref(), Some(client_message::Message::Managed(ManagedRequest {
+                        operation: Some(managed_request::Operation::ProjectFiles(query)),
+                    })) if query.action == ProjectFileAction::ProjectFileCommitWrite as i32);
+                    if commit && lose_reply == Some(false) { break; }
+                    let reply = companion.handle(request);
+                    if commit && lose_reply == Some(true) {
+                        let Some(server_message::Message::Managed(reply)) = reply.message else { panic!("Missing commit receipt") };
+                        assert!(matches!(reply.result, Some(managed_response::Result::ProjectFiles(_))));
+                        break;
+                    }
+                    write_server_message(&mut output, &reply).await.unwrap();
+                }
+            });
+            (client, server)
+        }
+
+        for applied in [false, true] {
+            let owned = tempfile::tempdir().unwrap();
+            let root = owned.path().join("workspace");
+            let state = owned.path().join("state");
+            std::fs::create_dir(&root).unwrap();
+            let original = root.join("notes.txt");
+            std::fs::write(&original, b"before").unwrap();
+            let (stream, server) = connect(&state, Some(applied));
+            let client = HostClient::connect_unix(stream, root.to_str()).await.unwrap();
+            let connection = SshConnection::Native { arguments: vec![], session: "owned-fixture".into() };
+            let files = RemoteFiles {
+                canonical_root: client.canonical_root.clone(),
+                profile: SshProfile {
+                    target: "owned-fixture".into(), config_file: None,
+                    remote_root: client.canonical_root.clone(), companion_path: "/unused".into(),
+                    remote_shell: super::super::ssh_remote::RemoteShell::Posix,
+                },
+                identity: "owned-fixture".into(),
+                access_epoch: AtomicU64::new(connection_epoch(&connection).unwrap().unwrap()),
+                connection,
+                client: Mutex::new(client),
+                connected: AtomicBool::new(true),
+                cache: tempfile::tempdir().unwrap(),
+            };
+            let path = format!("{}/notes.txt", files.canonical_root);
+            let before = files.current_hash(&path).await.unwrap();
+            let staged = files.control(ProjectFilesRequest {
+                action: ProjectFileAction::ProjectFilePrepareWrite as i32,
+                path: "notes.txt".into(), expected_hash: before.clone(), ..Default::default()
+            }).await.unwrap();
+            std::fs::write(&staged.transfer_path, b"attempt").unwrap();
+            let attempted = RemoteFiles::content_hash(b"attempt");
+            assert_eq!(files.commit_staged("notes.txt".into(), staged.transfer_id, attempted.clone()).await,
+                Err(ConnectionError::DeliveryUnknown));
+            assert!(!files.connected());
+            server.await.unwrap();
+
+            let (stream, server) = connect(&state, None);
+            let replacement = HostClient::connect_unix(stream, root.to_str()).await.unwrap();
+            {
+                let mut previous = files.client.lock().await;
+                assert_eq!(replacement.root_identity, previous.root_identity);
+                assert_eq!(replacement.account_id, previous.account_id);
+                *previous = replacement;
+            }
+            files.connected.store(true, Ordering::Release);
+            assert_eq!(files.current_hash(&path).await.unwrap(), if applied { attempted } else { before });
+            assert_eq!(std::fs::read(original).unwrap(), if applied { b"attempt".as_slice() } else { b"before" });
+            drop(files);
+            server.await.unwrap();
+        }
+    }
+
     #[test]
     fn ssh_master_revokes_old_epochs_without_revoking_wsl_or_restoring_stale_clients() {
         let mut policy = super::AccessPolicy { enabled: true, generation: 0 };

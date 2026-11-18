@@ -2024,9 +2024,12 @@ while preserving the draft. Debounce, focus and close auto-save honor the
 receipt, and save-and-close waits for confirmed persistence of the editor's
 current content. User messages are localized in EN, Simplified Chinese and
 Traditional Chinese. The local file model tests cover prior, intended and
-third-party hashes. SSH and WSL native hash assertions are included in CI.
-Desktop state restoration after process exit and the full interrupted-transfer
-and lost-ack acceptance matrix remain open.
+third-party hashes. A framed Unix socket fault test drops the reply both before
+and after the real Companion commits and verifies that the client treats both
+outcomes as uncertain. A fresh attachment observes the resulting content hash
+without replay. SSH and WSL native hash assertions are included in CI. Desktop
+state restoration after process exit and native transport-loss UI acceptance
+remain open.
 
 ## Evidence index
 
