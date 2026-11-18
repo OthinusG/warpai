@@ -250,6 +250,10 @@ without holding parser state across a network request. Parser-state export,
 shell/block restoration and the bounded paged snapshot format are separate
 S2/S3 closure requirements.
 
+Guardian maintenance uses an independent deadline. Continuous incoming
+connections cannot postpone pending route admission, the catalog or exit
+reconciliation. The service skips overdue ticks instead of accumulating them.
+
 ## Future-launch preferences
 
 Store SSH opt-ins by the verified logical service ID of the selected account,

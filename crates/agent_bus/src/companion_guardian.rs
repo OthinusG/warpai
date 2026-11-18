@@ -578,6 +578,9 @@ pub(crate) async fn serve_at(
     // The dispatch loop, not a listener, keeps the channel open.
     let _keepalive = sender.clone();
     let mut idle_since = Instant::now();
+    let period = Duration::from_secs(1);
+    let mut maintenance = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
+    maintenance.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         tokio::select! {
             accepted = receiver.recv() => {
@@ -623,7 +626,7 @@ pub(crate) async fn serve_at(
                     .await;
                 });
             }
-            _ = tokio::time::sleep(Duration::from_secs(1)) => {
+            _ = maintenance.tick() => {
                 for attachment in terminals.pending_attachments() {
                     sync_attachment(&terminals, &catalog, &attachment);
                 }
@@ -815,6 +818,15 @@ mod tests {
         };
         let (stream, guardian, boot) = wait_route(&runtime).await;
         assert!(probe_route(&runtime, Route::Wsl).await.is_err());
+        let churn = tokio::spawn({
+            let runtime = runtime.clone();
+            async move {
+                loop {
+                    drop(probe_route(&runtime, Route::Ssh).await.unwrap());
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            }
+        });
         drop(held);
         let deadline = Instant::now() + Duration::from_secs(10);
         let (wsl_stream, late_guardian, late_boot) = loop {
@@ -826,6 +838,8 @@ mod tests {
         };
         assert_eq!(late_guardian, guardian);
         assert_eq!(late_boot, boot);
+        assert!(!churn.is_finished());
+        churn.abort();
         drop((stream, wsl_stream));
         server.abort();
     }

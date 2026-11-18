@@ -1724,6 +1724,19 @@ retained bytes. The CLI tests include actual PTY terminal attributes and
 escape parsing. Snapshot format/import, block state and interactive native
 signal acceptance remain open.
 
+Record ID / date: S5-a / 2026-11-18
+Scope: native scope admission under sustained connection traffic.
+Baseline: `f0ce2c9f` on `feat/2.0.0`.
+
+The maintenance clock is independent of incoming connections. Released scope
+locks are observed under the same guardian even while SSH bridges continue
+to connect. A fixture holds the WSL scope, generates repeated SSH handshakes,
+releases WSL and verifies the same guardian and boot IDs on both listeners.
+
+Local proof: contention and continuous-accept fixture passed on macOS arm64.
+Installed-helper first-owner election and full native WSL remain separate
+acceptance cases.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
