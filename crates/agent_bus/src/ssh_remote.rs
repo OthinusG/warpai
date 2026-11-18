@@ -35,6 +35,7 @@ pub enum ConnectionError {
     ConnectionLost,
     IncompatibleVersion,
     StaleAttachment,
+    DeliveryUnknown,
     CompanionUnavailable,
     FeatureUnavailable,
     InvalidInput,
@@ -711,12 +712,13 @@ impl HostClient {
             .request(managed_request::Operation::TerminalControl(request))
             .await?;
         if let managed_response::Result::TerminalState(state) = result {
-            if !self.valid_terminal(&state)
-                || state.session_id != session
-                || state.run_id != run
-                || (guarded && state.guarded != Some(true))
-            {
+            if !self.valid_terminal(&state) || (guarded && state.guarded != Some(true)) {
                 self.close();
+                return Err(ConnectionError::StaleAttachment);
+            }
+            // A stale session or attachment belongs to one terminal; keep the
+            // multiplexed connection alive for its other sessions.
+            if state.session_id != session || state.run_id != run {
                 return Err(ConnectionError::StaleAttachment);
             }
             if guarded
@@ -724,7 +726,6 @@ impl HostClient {
                 && (state.attachment_id != expected_attachment.0
                     || state.attachment_generation != expected_attachment.1)
             {
-                self.close();
                 return Err(ConnectionError::StaleAttachment);
             }
             if guarded
@@ -734,8 +735,7 @@ impl HostClient {
                     .as_ref()
                     .is_some_and(|receipt| receipt.input_sequence == input_sequence)
             {
-                self.close();
-                return Err(ConnectionError::IncompatibleVersion);
+                return Err(ConnectionError::DeliveryUnknown);
             }
             return Ok(state);
         }
@@ -809,19 +809,15 @@ impl HostClient {
                     }
                     Ok(ManagedErrorCode::ManagedNotFound) => ConnectionError::NotFound,
                     Ok(ManagedErrorCode::ManagedConflict)
-                    | Ok(ManagedErrorCode::ManagedInputConflict)
-                    | Ok(ManagedErrorCode::ManagedDeliveryUnknown) => ConnectionError::Conflict,
+                    | Ok(ManagedErrorCode::ManagedInputConflict) => ConnectionError::Conflict,
+                    Ok(ManagedErrorCode::ManagedDeliveryUnknown) => {
+                        ConnectionError::DeliveryUnknown
+                    }
                     Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
                         ConnectionError::CapacityExceeded
                     }
                     _ => ConnectionError::CompanionUnavailable,
                 };
-                if matches!(
-                    error,
-                    ConnectionError::StaleAttachment | ConnectionError::IncompatibleVersion
-                ) {
-                    self.close();
-                }
                 Err(error)
             }
             result => Ok(result),

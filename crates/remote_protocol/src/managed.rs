@@ -14,9 +14,9 @@ pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
                 && state.attachment_generation > 0
         }
         Some(false) => state.attachment_id.is_empty() && state.attachment_generation == 0,
-        // Older runtimes do not emit `guarded`; accept only a coherent tuple if present.
+        // Older runtimes do not emit `guarded`; a present tuple must still be coherent.
         None => {
-            state.attachment_id.is_empty()
+            (state.attachment_id.is_empty() && state.attachment_generation == 0)
                 || (valid_id(&state.attachment_id) && state.attachment_generation > 0)
         }
     };
@@ -167,6 +167,14 @@ mod tests {
         assert!(valid_terminal_state(&state));
         state.guarded = None;
         state.input_receipt = None;
+        assert!(valid_terminal_state(&state));
+        state.attachment_generation = 0;
+        assert!(!valid_terminal_state(&state));
+        state.attachment_id.clear();
+        assert!(valid_terminal_state(&state));
+        state.attachment_generation = 1;
+        assert!(!valid_terminal_state(&state));
+        state.attachment_generation = 0;
         assert!(valid_terminal_state(&state));
     }
 }

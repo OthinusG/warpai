@@ -30,8 +30,13 @@ enum Policy {
 }
 
 enum NativeInput {
-    /// Human input carries the attachment epoch and accepted sequence that produced it.
-    User { epoch: u64, sequence: u64, bytes: Vec<u8> },
+    /// Human input carries the attachment generation, epoch and accepted sequence.
+    User {
+        attachment: u64,
+        epoch: u64,
+        sequence: u64,
+        bytes: Vec<u8>,
+    },
     Peer { wake: crate::transport::Wake, bytes: Vec<u8>, submit: bool },
 }
 
@@ -50,7 +55,8 @@ impl InputState {
         matches!(self, Self::Accepted | Self::Writing)
     }
     fn terminal(self) -> bool {
-        !self.pending()
+        // Unknown delivery is unresolved evidence, not safely evictable history.
+        matches!(self, Self::Written | Self::Cancelled | Self::Failed)
     }
     fn disposition(self) -> InputDisposition {
         match self {
@@ -95,8 +101,10 @@ struct InputLedger {
 }
 
 impl InputLedger {
-    fn find(&self, sequence: u64) -> Option<&InputRecord> {
-        self.entries.iter().find(|entry| entry.sequence == sequence)
+    fn find(&self, attachment: u64, sequence: u64) -> Option<&InputRecord> {
+        self.entries
+            .iter()
+            .find(|entry| entry.attachment == attachment && entry.sequence == sequence)
     }
     fn reserve(
         &mut self,
@@ -109,7 +117,7 @@ impl InputLedger {
         if sequence == 0 || len == 0 || len > MAX_INPUT_BYTES {
             return Err(Error::ManagedInvalidInput);
         }
-        if self.find(sequence).is_some() {
+        if self.find(attachment, sequence).is_some() {
             return Err(Error::ManagedInputConflict);
         }
         while self.entries.len() >= MAX_INPUT_RECEIPTS {
@@ -142,23 +150,21 @@ impl InputLedger {
         self.entries.push_back(record.clone());
         Ok(record)
     }
-    fn remove(&mut self, sequence: u64) {
-        if let Some(index) = self
-            .entries
-            .iter()
-            .position(|entry| entry.sequence == sequence)
-        {
+    fn remove(&mut self, attachment: u64, sequence: u64) {
+        if let Some(index) = self.entries.iter().position(|entry| {
+            entry.attachment == attachment && entry.sequence == sequence
+        }) {
             if self.entries[index].state.pending() {
                 self.pending_bytes = self.pending_bytes.saturating_sub(self.entries[index].len);
             }
             self.entries.remove(index);
         }
     }
-    fn mark_writing(&mut self, sequence: u64) -> bool {
+    fn mark_writing(&mut self, attachment: u64, sequence: u64) -> bool {
         let Some(entry) = self
             .entries
             .iter_mut()
-            .find(|entry| entry.sequence == sequence)
+            .find(|entry| entry.attachment == attachment && entry.sequence == sequence)
         else {
             return false;
         };
@@ -167,11 +173,11 @@ impl InputLedger {
         }
         entry.state == InputState::Writing
     }
-    fn cancel(&mut self, sequence: u64) {
+    fn cancel(&mut self, attachment: u64, sequence: u64) {
         let Some(entry) = self
             .entries
             .iter_mut()
-            .find(|entry| entry.sequence == sequence)
+            .find(|entry| entry.attachment == attachment && entry.sequence == sequence)
         else {
             return;
         };
@@ -203,11 +209,11 @@ impl InputLedger {
         }
         self.pending_bytes = 0;
     }
-    fn finish(&mut self, sequence: u64, written: usize, state: InputState) {
+    fn finish(&mut self, attachment: u64, sequence: u64, written: usize, state: InputState) {
         let Some(entry) = self
             .entries
             .iter_mut()
-            .find(|entry| entry.sequence == sequence)
+            .find(|entry| entry.attachment == attachment && entry.sequence == sequence)
         else {
             return;
         };
@@ -229,9 +235,23 @@ fn input_digest(bytes: &[u8]) -> [u8; 32] {
 }
 
 /// Report how many bytes reached the PTY even when a later write or flush fails.
-fn write_counted(writer: &mut impl Write, bytes: &[u8]) -> (usize, std::io::Result<()>) {
+/// Cancellation is checked between writes; an in-flight syscall still completes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WriteEnd {
+    Complete,
+    Cancelled,
+}
+
+fn write_counted(
+    writer: &mut impl Write,
+    bytes: &[u8],
+    mut cancelled: impl FnMut() -> bool,
+) -> (usize, std::io::Result<WriteEnd>) {
     let mut written = 0;
     while written < bytes.len() {
+        if cancelled() {
+            return (written, Ok(WriteEnd::Cancelled));
+        }
         match writer.write(&bytes[written..]) {
             Ok(0) => {
                 return (
@@ -244,7 +264,7 @@ fn write_counted(writer: &mut impl Write, bytes: &[u8]) -> (usize, std::io::Resu
             Err(error) => return (written, Err(error)),
         }
     }
-    (written, Ok(()))
+    (written, Ok(WriteEnd::Complete))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -433,6 +453,9 @@ fn retain_session(session: &mut Session, now: Instant) -> bool {
     }
     let closed = session.output.lock().map_or(false, |output| output.closed);
     if !owned && closed && session.connection.is_none() {
+        if session.policy != Policy::Guarded {
+            return false;
+        }
         match session.ended_at {
             None => session.ended_at = Some(now),
             Some(ended) if now.saturating_duration_since(ended) >= ENDED_RETENTION => return false,
@@ -444,7 +467,10 @@ fn retain_session(session: &mut Session, now: Instant) -> bool {
     session.connection.is_some() || owned || !closed || session.ended_at.is_some()
 }
 
-fn ended_session(session: &Session) -> Option<Instant> {
+fn ended_session(session: &mut Session) -> Option<Instant> {
+    if session.policy != Policy::Guarded {
+        return None;
+    }
     let ended = session.ended_at?;
     (session.connection.is_none()
         && !session.pty.is_active().unwrap_or(true)
@@ -466,8 +492,8 @@ fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_en
     let mut ended: Vec<_> = sessions
         .iter()
         .filter_map(|(id, owner)| {
-            let session = owner.lock().ok()?;
-            ended_session(&session).map(|ended| (ended, id.clone()))
+            let mut session = owner.lock().ok()?;
+            ended_session(&mut session).map(|ended| (ended, id.clone()))
         })
         .collect();
     ended.sort_by_key(|(ended, _)| *ended);
@@ -690,17 +716,24 @@ impl Terminals {
         std::thread::spawn(move || {
             while let Ok(input) = receiver.recv() {
                 if write_revoked.load(Ordering::Acquire) || write_failed.load(Ordering::Acquire) {
-                    if let NativeInput::Peer { wake, .. } = input {
-                        if let Some(broker) = &write_binding {
-                            broker.finish_wake(&wake, false);
+                    match input {
+                        NativeInput::User { attachment, sequence, .. } => {
+                            if let Ok(mut ledger) = write_ledger.lock() {
+                                ledger.cancel(attachment, sequence);
+                            }
+                        }
+                        NativeInput::Peer { wake, .. } => {
+                            if let Some(broker) = &write_binding {
+                                broker.finish_wake(&wake, false);
+                            }
                         }
                     }
                     continue;
                 }
                 let (bytes, delivery, user) = match input {
                     // Input queued by an attachment that has since been replaced never reaches the PTY.
-                    NativeInput::User { epoch, sequence, bytes } => {
-                        (bytes, None, Some((epoch, sequence)))
+                    NativeInput::User { attachment, epoch, sequence, bytes } => {
+                        (bytes, None, Some((attachment, epoch, sequence)))
                     }
                     NativeInput::Peer { wake, bytes, submit } => {
                         let Some(broker) = &write_binding else { continue; };
@@ -709,18 +742,18 @@ impl Terminals {
                     }
                 };
                 let gate = match user {
-                    Some((epoch, sequence)) => {
+                    Some((attachment, epoch, sequence)) => {
                         let Ok(gate) = write_writer.gate.lock() else {
                             if let Ok(mut ledger) = write_ledger.lock() { ledger.fail_pending(); }
                             write_failed.store(true, Ordering::Release);
                             continue;
                         };
                         if write_writer.epoch.load(Ordering::SeqCst) != epoch {
-                            if let Ok(mut ledger) = write_ledger.lock() { ledger.cancel(sequence); }
+                            if let Ok(mut ledger) = write_ledger.lock() { ledger.cancel(attachment, sequence); }
                             continue;
                         }
                         let queued = match write_ledger.lock() {
-                            Ok(mut ledger) => ledger.mark_writing(sequence),
+                            Ok(mut ledger) => ledger.mark_writing(attachment, sequence),
                             Err(_) => {
                                 write_failed.store(true, Ordering::Release);
                                 continue;
@@ -731,20 +764,26 @@ impl Terminals {
                     }
                     None => None,
                 };
-                let (written, write_result) = write_counted(&mut writer, &bytes);
+                let (written, end) = write_counted(&mut writer, &bytes, || match user {
+                    Some((_, epoch, _)) => write_writer.epoch.load(Ordering::SeqCst) != epoch,
+                    None => write_revoked.load(Ordering::Acquire) || write_failed.load(Ordering::Acquire),
+                });
                 // A failed flush means the bytes may have reached the PTY; keep them unknown.
-                let flush_failed = write_result.is_ok() && writer.flush().is_err();
-                let success = write_result.is_ok() && !flush_failed;
-                let outcome = if write_result.is_err() {
-                    InputState::Failed
-                } else if flush_failed {
-                    InputState::Unknown
-                } else {
-                    InputState::Written
+                let (outcome, io_failed) = match end {
+                    Ok(WriteEnd::Complete) => {
+                        let flush_failed = writer.flush().is_err();
+                        (if flush_failed { InputState::Unknown } else { InputState::Written }, flush_failed)
+                    }
+                    Ok(WriteEnd::Cancelled) => (
+                        if written == 0 { InputState::Cancelled } else { InputState::Unknown },
+                        false,
+                    ),
+                    Err(_) => (InputState::Failed, true),
                 };
-                if let Some((_, sequence)) = user {
+                let success = outcome == InputState::Written;
+                if let Some((attachment, _, sequence)) = user {
                     if let Ok(mut ledger) = write_ledger.lock() {
-                        ledger.finish(sequence, written, outcome);
+                        ledger.finish(attachment, sequence, written, outcome);
                     } else {
                         write_failed.store(true, Ordering::Release);
                     }
@@ -753,7 +792,7 @@ impl Terminals {
                 if let (Some(broker), Some((wake, submit))) = (&write_binding, delivery) {
                     if submit || !success { broker.finish_wake(&wake, success && submit); }
                 }
-                if !success {
+                if io_failed {
                     if let Ok(mut ledger) = write_ledger.lock() { ledger.fail_pending(); }
                     write_failed.store(true, Ordering::Release);
                 }
@@ -832,9 +871,10 @@ impl Terminals {
                     return Err(Error::ManagedInvalidInput);
                 }
                 let digest = input_digest(&request.input);
+                let attachment = session.writer.attachment.load(Ordering::SeqCst);
                 if request.input_sequence == session.sequence && session.sequence > 0 {
                     // A retry of the accepted tail is idempotent only for identical bytes.
-                    match session.receipt(session.sequence) {
+                    match session.receipt(attachment, session.sequence) {
                         Some(existing)
                             if existing.digest == digest && existing.len == request.input.len() =>
                         {
@@ -858,7 +898,6 @@ impl Terminals {
                         return Err(Error::ManagedUnavailable);
                     }
                     let len = request.input.len();
-                    let attachment = session.writer.attachment.load(Ordering::SeqCst);
                     session.ledger.lock().map_err(|_| Error::ManagedUnavailable)?.reserve(
                         attachment,
                         request.input_sequence,
@@ -873,6 +912,7 @@ impl Terminals {
                     if session
                         .input
                         .try_send(NativeInput::User {
+                            attachment,
                             epoch: session.writer.epoch.load(Ordering::SeqCst),
                             sequence,
                             bytes: request.input,
@@ -880,12 +920,12 @@ impl Terminals {
                         .is_err()
                     {
                         if let Ok(mut ledger) = session.ledger.lock() {
-                            ledger.remove(sequence);
+                            ledger.remove(attachment, sequence);
                         }
                         return Err(Error::ManagedCapacityExceeded);
                     }
                     session.sequence = sequence;
-                    receipt = session.receipt(sequence);
+                    receipt = session.receipt(attachment, sequence);
                 }
             }
             TerminalAction::TerminalResize => {
@@ -1170,23 +1210,38 @@ mod tests {
             ledger.reserve(1, 1, "other".into(), digest, 5),
             Err(Error::ManagedInputConflict)
         );
-        assert!(ledger.mark_writing(1));
-        assert_eq!(ledger.find(1).unwrap().state, InputState::Writing);
-        ledger.cancel(1);
-        assert_eq!(ledger.find(1).unwrap().state, InputState::Unknown);
+        assert!(ledger.mark_writing(1, 1));
+        assert_eq!(ledger.find(1, 1).unwrap().state, InputState::Writing);
+        ledger.cancel(1, 1);
+        assert_eq!(ledger.find(1, 1).unwrap().state, InputState::Unknown);
         assert_eq!(ledger.pending_bytes, 0);
-        ledger.finish(1, 3, InputState::Failed);
-        let record = ledger.find(1).unwrap();
+        ledger.finish(1, 1, 3, InputState::Failed);
+        let record = ledger.find(1, 1).unwrap();
         assert_eq!(record.state, InputState::Failed);
         assert_eq!(record.written, 3);
         assert_eq!(record.proto().disposition, InputDisposition::InputFailed as i32);
 
         ledger.reserve(1, 2, "queued".into(), digest, 5).unwrap();
-        ledger.cancel(2);
-        assert_eq!(ledger.find(2).unwrap().state, InputState::Cancelled);
+        ledger.cancel(1, 2);
+        assert_eq!(ledger.find(1, 2).unwrap().state, InputState::Cancelled);
         assert_eq!(ledger.pending_bytes, 0);
-        ledger.remove(2);
-        assert!(ledger.find(2).is_none());
+        ledger.remove(1, 2);
+        assert!(ledger.find(1, 2).is_none());
+    }
+
+    #[test]
+    fn stale_generation_cannot_cancel_a_new_attachment() {
+        let mut ledger = InputLedger::default();
+        ledger
+            .reserve(1, 1, "old".into(), [1; 32], 1)
+            .unwrap();
+        ledger.clear();
+        ledger
+            .reserve(2, 1, "new".into(), [2; 32], 1)
+            .unwrap();
+        // An old writer message dequeued after takeover must not target the new sequence.
+        ledger.cancel(1, 1);
+        assert_eq!(ledger.find(2, 1).unwrap().state, InputState::Accepted);
     }
 
     #[test]
@@ -1235,7 +1290,30 @@ mod tests {
         }
         assert!(full.reserve(1, 65, "evicted".into(), [0; 32], 1).is_ok());
         assert_eq!(full.entries.len(), MAX_INPUT_RECEIPTS);
-        assert!(full.find(1).is_none());
+        assert!(full.find(1, 1).is_none());
+    }
+
+    #[test]
+    fn unknown_receipts_backpressure_instead_of_eviction() {
+        let mut ledger = InputLedger::default();
+        for sequence in 1..=MAX_INPUT_RECEIPTS as u64 {
+            ledger
+                .reserve(1, sequence, format!("{sequence}"), [0; 32], 1)
+                .unwrap();
+            assert!(ledger.mark_writing(1, sequence));
+            ledger.cancel(1, sequence);
+        }
+        assert_eq!(ledger.pending_bytes, 0);
+        assert_eq!(
+            ledger.reserve(1, MAX_INPUT_RECEIPTS as u64 + 1, "blocked".into(), [0; 32], 1),
+            Err(Error::ManagedCapacityExceeded)
+        );
+        for entry in &mut ledger.entries {
+            entry.state = InputState::Failed;
+        }
+        assert!(ledger
+            .reserve(1, MAX_INPUT_RECEIPTS as u64 + 1, "settled".into(), [0; 32], 1)
+            .is_ok());
     }
 
     struct ShortWriter {
@@ -1264,8 +1342,8 @@ mod tests {
             remaining: 5,
             written: 0,
         };
-        let (written, result) = write_counted(&mut writer, b"hello");
-        assert!(result.is_ok());
+        let (written, result) = write_counted(&mut writer, b"hello", || false);
+        assert_eq!(result.unwrap(), WriteEnd::Complete);
         assert_eq!(written, 5);
         assert_eq!(writer.written, 5);
 
@@ -1273,12 +1351,25 @@ mod tests {
             remaining: 3,
             written: 0,
         };
-        let (written, result) = write_counted(&mut blocked, b"hello");
+        let (written, result) = write_counted(&mut blocked, b"hello", || false);
         assert_eq!(written, 3);
         assert_eq!(
             result.unwrap_err().kind(),
             std::io::ErrorKind::WriteZero
         );
+
+        let mut cancelled = ShortWriter {
+            remaining: 5,
+            written: 0,
+        };
+        let mut calls = 0;
+        let (written, result) = write_counted(&mut cancelled, b"hello", || {
+            calls += 1;
+            calls > 1
+        });
+        assert_eq!(result.unwrap(), WriteEnd::Cancelled);
+        assert_eq!(written, 1);
+        assert_eq!(cancelled.written, 1);
     }
 
     #[test]
@@ -1292,14 +1383,14 @@ mod tests {
 }
 
 impl Session {
-    fn receipt(&self, sequence: u64) -> Option<InputRecord> {
+    fn receipt(&self, attachment: u64, sequence: u64) -> Option<InputRecord> {
         if sequence == 0 {
             return None;
         }
         self.ledger
             .lock()
             .ok()
-            .and_then(|ledger| ledger.find(sequence).cloned())
+            .and_then(|ledger| ledger.find(attachment, sequence).cloned())
     }
 
     fn state(
@@ -1323,7 +1414,8 @@ impl Session {
             (0, String::new())
         };
         let receipt = if guarded {
-            receipt.or_else(|| self.receipt(self.sequence))
+            let attachment = self.writer.attachment.load(Ordering::SeqCst);
+            receipt.or_else(|| self.receipt(attachment, self.sequence))
         } else {
             None
         };

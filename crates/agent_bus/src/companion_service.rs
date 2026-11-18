@@ -169,16 +169,6 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
                 }
             } => accepted?,
         };
-        #[cfg(unix)]
-        if stream
-            .peer_cred()
-            .ok()
-            .is_some_and(|credentials| credentials.uid() != unsafe { libc::geteuid() })
-        {
-            // Directory and socket modes already restrict access; verify kernel identity too.
-            continue;
-        }
-        idle_since = Instant::now();
         let Ok(slot) = slots.clone().try_acquire_owned() else {
             continue;
         };
@@ -186,16 +176,39 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         // A vanished peer must not terminate other sessions. Native admission
         // rejects a missing PID; ordinary control still uses the private endpoint.
         #[cfg(unix)]
-        let peer_pid = stream.peer_cred().ok().and_then(|credentials| credentials.pid())
-            .and_then(|pid| u32::try_from(pid).ok());
+        let peer_pid = {
+            let Ok(credentials) = stream.peer_cred() else {
+                continue;
+            };
+            if credentials.uid() != unsafe { libc::geteuid() } {
+                continue;
+            }
+            credentials.pid().and_then(|pid| u32::try_from(pid).ok())
+        };
         #[cfg(windows)]
         let peer_pid = {
             use std::os::windows::io::AsRawHandle;
             use windows::Win32::{Foundation::HANDLE, System::Pipes::GetNamedPipeClientProcessId};
             let mut pid = 0;
-            unsafe { GetNamedPipeClientProcessId(HANDLE(stream.as_raw_handle()), &mut pid) }
-                .ok().and_then(|_| (pid > 1).then_some(pid))
+            let Some(pid) = unsafe {
+                GetNamedPipeClientProcessId(HANDLE(stream.as_raw_handle()), &mut pid)
+            }
+            .ok()
+            .and_then(|_| (pid > 1).then_some(pid)) else {
+                continue;
+            };
+            let Ok(current) = crate::transport::windows_pipe::current_user_sid() else {
+                continue;
+            };
+            let Ok(peer) = crate::transport::windows_pipe::client_user_sid(pid) else {
+                continue;
+            };
+            if current != peer {
+                continue;
+            }
+            Some(pid)
         };
+        idle_since = Instant::now();
         let boot = boot.clone();
         let terminals = terminals.clone();
         let tasks = tasks.clone();

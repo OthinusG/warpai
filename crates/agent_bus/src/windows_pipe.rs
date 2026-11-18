@@ -12,12 +12,22 @@ use windows::{
             GetTokenInformation, TokenUser, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY,
             TOKEN_USER,
         },
-        System::Threading::{GetCurrentProcess, OpenProcessToken},
+        System::Threading::{
+            GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
+        },
     },
 };
 
 pub(crate) fn current_user_sid() -> Result<String> {
     process_user_sid(unsafe { GetCurrentProcess() })
+}
+
+/// Kernel-reported pipe peer, re-checked against the pipe's per-user DACL.
+pub(crate) fn client_user_sid(pid: u32) -> Result<String> {
+    ensure!(pid > 1, "Invalid local IPC client");
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)? };
+    let process = unsafe { Owned::new(process) };
+    process_user_sid(*process)
 }
 
 pub(crate) fn process_user_sid(process: HANDLE) -> Result<String> {
@@ -160,5 +170,14 @@ mod tests {
         let next = create(&endpoint, false).unwrap();
         drop(client);
         drop(next);
+    }
+
+    #[test]
+    fn pipe_client_resolves_to_the_current_user() {
+        assert_eq!(
+            client_user_sid(std::process::id()).unwrap(),
+            current_user_sid().unwrap()
+        );
+        assert!(client_user_sid(1).is_err());
     }
 }
