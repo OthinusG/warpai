@@ -1521,6 +1521,65 @@ impl Terminals {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn channel_eof_waiting_for_native_cleanup_leaves_async_dispatch_available() {
+        use crate::ssh_remote::HostClient;
+        use tokio::net::UnixStream;
+
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let terminals = Arc::new(Terminals::default());
+        let projects = Arc::new(tasks::Projects::new(&root));
+        let fence = ManagedFence {
+            service_id: Uuid::new_v4().to_string(),
+            service_boot_id: Uuid::new_v4().to_string(),
+            connection_id: Uuid::new_v4().to_string(),
+            project_id: Uuid::new_v4().to_string(),
+        };
+        let session_id = Uuid::new_v4().to_string();
+        terminals.launch(TerminalLaunch {
+            fence: Some(fence.clone()), session_id: session_id.clone(),
+            executable: "/bin/cat".into(), columns: 80, rows: 24,
+            ..Default::default()
+        }, &fence, &root, &projects, false, false, |_, _| Ok(())).unwrap();
+
+        let channel = || {
+            let (client, server) = UnixStream::pair().unwrap();
+            let state = root.join("private");
+            let terminals = terminals.clone();
+            let projects = projects.clone();
+            let boot = fence.service_boot_id.clone();
+            let server = tokio::spawn(async move {
+                super::super::serve_channel(
+                    server, &state, &boot, terminals, projects, None, None, None, None, false,
+                ).await.unwrap();
+            });
+            (client, server)
+        };
+        let (stream, closing) = channel();
+        let closing_client = HostClient::connect_unix(stream, None).await.unwrap();
+        let owner = terminals.owners.lock().unwrap()[&session_id].clone();
+        let (locked, held) = mpsc::channel();
+        let (release, unlocked) = mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let _session = owner.lock().unwrap();
+            locked.send(()).unwrap();
+            unlocked.recv_timeout(Duration::from_secs(3)).is_ok()
+        });
+        held.recv().unwrap();
+        drop(closing_client);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(!closing.is_finished());
+        let (stream, other) = channel();
+        let other_client = HostClient::connect_unix(stream, None).await.unwrap();
+        let released_while_locked = release.send(()).is_ok();
+        assert!(holder.join().unwrap() && released_while_locked, "EOF cleanup stalled another channel");
+        drop(other_client);
+        closing.await.unwrap();
+        other.await.unwrap();
+    }
+
     #[tokio::test]
     async fn guarded_wakes_sleep_until_change_and_preserve_delivery_pacing() {
         let (notify, changes) = tokio::sync::watch::channel(());

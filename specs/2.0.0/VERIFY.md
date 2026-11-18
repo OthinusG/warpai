@@ -1,9 +1,11 @@
 # Optional SSH/WSL guardian verification
 
-Status: R4 runtime acceptance cases V01-V30 remain open. A partial V02/V04
-Linux OpenSSH receipt is recorded in the implementation ledger. Use exact source,
-runner OS/architecture, helper/app version, workflow job/artifact, expected/actual
-result and redacted receipts. Submitted tests are not passed tests.
+Status: The complete V01–V30 release matrix remains open. The implementation
+ledger records native Linux/macOS OpenSSH reconnect, allocated-TTY CLI and
+caller-owned stop, Windows-to-WSL bridge survival, and Linux task submission
+with both SSH bridges closed. Use exact source, runner OS and architecture,
+helper/app version, workflow job/artifact, expected/actual result and redacted
+receipts. Submitted tests are not passed tests.
 
 ## Traceability
 

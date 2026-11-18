@@ -56,12 +56,12 @@ guardian ownership remain open.
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); v1 SQLite catalog and account RPC tags are on the wire; cutover, operator semantics and compatibility evidence remain open |
-| S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
+| S1 account guardian/native ownership | in_progress | Unix guardian fixtures cover durable ownership, fencing, catalog and account RPCs. Linux/macOS OpenSSH and Windows-to-WSL prove retained Unix runs and native CLI attachment. Native Windows ownership and the mixed-version Store matrix remain open. |
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
 | S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux/macOS SSH reconnect and native CLI TTY, private `ctl list/resume/stop`, and exact live project admission across working directories. Bash/Zsh session-only command is wired into bootstrap. Desktop launch/restore and native Windows shell entry remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
-| S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
+| S6 failure/feature restoration | in_progress | Native Unix caller-owned stop, guarded SSH delivery, and tracked task submission with both bridges closed are exercised. Remote editor commit loss is handled and exercised before/after write over framed sockets. Host restart, permission behavior and desktop workspace restoration remain open. |
 | S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications, direct terminal lookup and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared pool dispatch, bulk fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
 | S9 distribution/release | in_progress | Unix and generated WSL installer regressions cover provenance, permissions, repeat install and scope isolation. Native WSL uses the source-matched package. Release artifacts and the complete mixed-version upgrade matrix remain open. |
@@ -2031,6 +2031,10 @@ without replay. SSH and WSL native hash assertions are included in CI. Desktop
 state restoration after process exit and native transport-loss UI acceptance
 remain open.
 
+The source-matched Windows/WSL job passed current hash observation after
+native reconnect, alongside the existing workspace and guarded bridge tests
+on `611cf945` in [run 44342042377](https://github.com/OthinusG/warpai/actions/runs/44342042377).
+
 Record ID / date: S7-g / 2026-11-19
 Scope: bounded SQLite routing projection for native PTY wakes.
 
@@ -2043,6 +2047,26 @@ fetching and acknowledgement of full messages to the existing Agent tools.
 The storage regression compares the native and cooperative correlation before
 and after a task revision changes. Account-wide fairness and recorded resource
 measurements remain separate release requirements.
+
+Record ID / date: S8-e / 2026-11-19
+Scope: guarded tracked task submission without active SSH bridges (V05).
+
+The owned runner launches two registered Agent children. After the direct-message
+case, the receiver announces readiness and releases its writer. The issuer
+queues one tracked task, then both owned SSH transports exit. The receiver
+starts and submits through the original native run and writes a task/attempt
+receipt. A new bridge verifies the same attempt is submitted in the Store.
+Linux passed on `38d31b4f` in [run 44344251976](https://github.com/OthinusG/warpai/actions/runs/44344251976).
+The wider Coordinator, approvals, questions, WSL and multi-project matrix stays open.
+
+Record ID / date: S7-h / 2026-11-19
+Scope: isolate synchronous managed channel lifetime work from async dispatch.
+
+Identity admission and EOF/write-error cleanup use the existing blocking
+executor. The current-thread Unix socket regression holds a native session
+lock while one channel closes and confirms another channel initializes before
+that lock is released. This covers a blocked cleanup without teardown of the
+sibling channel or its transport.
 
 ## Evidence index
 

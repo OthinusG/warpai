@@ -426,6 +426,8 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   the baseline. Reconnect checks the original account/project and reads the hash.
   Automatic saves wait for explicit reconciliation; save-and-close needs the
   current content confirmed. The editor owns the receipt for its lifetime.
+- Managed channels initialize native identity and clean up PTY leases/staging in
+  the blocking pool. EOF holding a session lock must not stall other channels.
 
 ## Memory maintenance
 

@@ -230,6 +230,9 @@ Long-running local CLI attachments use regular bridge permits. Preface
 acceptance still requires the same private socket and peer identity.
 Lifecycle scans skip busy run/output locks and retry on the next maintenance
 tick. A busy run remains retained and cannot be evicted to admit another run.
+Channel EOF and write errors also move native cleanup to the blocking executor.
+A slow PTY may hold its own cleanup, while other admitted channels continue using
+the shared async dispatcher.
 
 Session launch/attach concurrency is bounded, failed attempts release reservations,
 and stop-one cannot affect sibling sessions. Bare CLI stop and explicit stop-all capture all current-account guarded runs

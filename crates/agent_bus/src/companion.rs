@@ -994,7 +994,10 @@ where
     let (reader, writer) = tokio::io::split(stream);
     let mut reader = reader.compat();
     let mut writer = writer.compat_write();
-    let mut companion = Companion::new(directory)?;
+    let directory = directory.to_owned();
+    let mut companion = tokio::task::spawn_blocking(move || Companion::new(&directory))
+        .await
+        .map_err(std::io::Error::other)??;
     companion.fence.service_boot_id = boot.into();
     companion.terminals = terminals;
     companion.tasks = tasks;
@@ -1003,14 +1006,14 @@ where
     companion.catalog = catalog;
     companion.account_guardian = account_guardian;
     companion.account_operator = account_operator;
-    loop {
+    let result = loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)
                 .await
             {
                 Ok(request) => request,
-                Err(ProtocolError::UnexpectedEof) => return Ok(()),
-                Err(error) => return Err(error),
+                Err(ProtocolError::UnexpectedEof) => break Ok(()),
+                Err(error) => break Err(error),
             };
         // Native spawn/lease operations cannot block the async executor or Agent IO.
         let (owner, reply) = tokio::task::spawn_blocking(move || {
@@ -1020,8 +1023,15 @@ where
         .await
         .map_err(std::io::Error::other)?;
         companion = owner;
-        write_message_with_limit(&mut writer, &reply, MAX_MANAGED_MESSAGE_SIZE).await?;
-    }
+        if let Err(error) = write_message_with_limit(&mut writer, &reply, MAX_MANAGED_MESSAGE_SIZE).await {
+            break Err(error);
+        }
+    };
+    // Native leases and staging cleanup can wait on locks or filesystem IO.
+    tokio::task::spawn_blocking(move || drop(companion))
+        .await
+        .map_err(std::io::Error::other)?;
+    result
 }
 
 impl Drop for Companion {
