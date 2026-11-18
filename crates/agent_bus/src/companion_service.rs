@@ -169,6 +169,15 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
                 }
             } => accepted?,
         };
+        #[cfg(unix)]
+        if stream
+            .peer_cred()
+            .ok()
+            .is_some_and(|credentials| credentials.uid() != unsafe { libc::geteuid() })
+        {
+            // Directory and socket modes already restrict access; verify kernel identity too.
+            continue;
+        }
         idle_since = Instant::now();
         let Ok(slot) = slots.clone().try_acquire_owned() else {
             continue;

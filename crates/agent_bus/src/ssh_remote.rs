@@ -706,6 +706,7 @@ impl HostClient {
         let run = request.run_id.clone();
         let action = TerminalAction::try_from(request.action).ok();
         let input_sequence = request.input_sequence;
+        let expected_attachment = (request.attachment_id.clone(), request.attachment_generation);
         let result = self
             .request(managed_request::Operation::TerminalControl(request))
             .await?;
@@ -714,6 +715,14 @@ impl HostClient {
                 || state.session_id != session
                 || state.run_id != run
                 || (guarded && state.guarded != Some(true))
+            {
+                self.close();
+                return Err(ConnectionError::StaleAttachment);
+            }
+            if guarded
+                && action != Some(TerminalAction::TerminalAttach)
+                && (state.attachment_id != expected_attachment.0
+                    || state.attachment_generation != expected_attachment.1)
             {
                 self.close();
                 return Err(ConnectionError::StaleAttachment);

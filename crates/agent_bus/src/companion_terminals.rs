@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc, Arc, Mutex, TryLockError,
     },
+    time::{Duration, Instant},
 };
 
 const MAX_SESSIONS: usize = 32;
@@ -18,6 +19,7 @@ const MAX_LABEL: usize = 128;
 const MAX_INPUT_BYTES: usize = 4096;
 const MAX_INPUT_RECEIPTS: usize = 64;
 const MAX_PENDING_INPUT_BYTES: usize = 64 * 1024;
+const ENDED_RETENTION: Duration = Duration::from_secs(5 * 60);
 type Error = ManagedErrorCode;
 type Owner = Arc<Mutex<Session>>;
 
@@ -332,6 +334,7 @@ struct Session {
     failed: Arc<AtomicBool>,
     revoked: Arc<AtomicBool>,
     stop_requested: bool,
+    ended_at: Option<Instant>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, Error> {
@@ -422,6 +425,60 @@ fn may_control(session: &Session, fence: &ManagedFence, request: &TerminalContro
     }
 }
 
+/// Ended output stays briefly for an exact resume, within the admission ceiling.
+fn retain_session(session: &mut Session, now: Instant) -> bool {
+    let owned = session.pty.is_active().unwrap_or(true);
+    if !owned {
+        session.binding.take();
+    }
+    let closed = session.output.lock().map_or(false, |output| output.closed);
+    if !owned && closed && session.connection.is_none() {
+        match session.ended_at {
+            None => session.ended_at = Some(now),
+            Some(ended) if now.saturating_duration_since(ended) >= ENDED_RETENTION => return false,
+            Some(_) => {}
+        }
+    } else {
+        session.ended_at = None;
+    }
+    session.connection.is_some() || owned || !closed || session.ended_at.is_some()
+}
+
+fn ended_session(session: &Session) -> Option<Instant> {
+    let ended = session.ended_at?;
+    (session.connection.is_none()
+        && !session.pty.is_active().unwrap_or(true)
+        && session.output.lock().map_or(false, |output| output.closed))
+    .then_some(ended)
+}
+
+/// Expire retention normally; at admission pressure, evict oldest ended output first.
+fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_ended: bool) {
+    sessions.retain(|_, owner| {
+        let Ok(mut session) = owner.lock() else {
+            return true;
+        };
+        retain_session(&mut session, now)
+    });
+    if !evict_ended || sessions.len() < MAX_SESSIONS {
+        return;
+    }
+    let mut ended: Vec<_> = sessions
+        .iter()
+        .filter_map(|(id, owner)| {
+            let session = owner.lock().ok()?;
+            ended_session(&session).map(|ended| (ended, id.clone()))
+        })
+        .collect();
+    ended.sort_by_key(|(ended, _)| *ended);
+    for (_, id) in ended {
+        if sessions.len() < MAX_SESSIONS {
+            break;
+        }
+        sessions.remove(&id);
+    }
+}
+
 impl Terminals {
     pub(super) fn launch(
         &self,
@@ -477,7 +534,9 @@ impl Terminals {
             Ok(None)
         };
         {
-            let sessions = lock(&self.owners)?;
+            let mut sessions = lock(&self.owners)?;
+            let evict = sessions.len() >= MAX_SESSIONS;
+            prune_sessions(&mut sessions, Instant::now(), evict);
             if let Some(state) = reconcile(&sessions)? { return Ok(state); }
         }
         #[cfg(not(feature = "wsl_companion"))]
@@ -504,6 +563,8 @@ impl Terminals {
             tasks.prepare_agent(program, executable)?;
         }
         let mut sessions = lock(&self.owners)?;
+        let evict = sessions.len() >= MAX_SESSIONS;
+        prune_sessions(&mut sessions, Instant::now(), evict);
         if let Some(state) = reconcile(&sessions)? { return Ok(state); }
         let run_id = Uuid::new_v4().to_string();
         let binding = request
@@ -722,6 +783,7 @@ impl Terminals {
             failed,
             revoked,
             stop_requested: false,
+            ended_at: None,
         };
         let state = session.state(fence, None, None)?;
         sessions.insert(
@@ -967,19 +1029,16 @@ impl Terminals {
         let Ok(mut owners) = self.owners.lock() else {
             return true;
         };
+        let now = Instant::now();
         let mut active = false;
         owners.retain(|_, owner| {
             let Ok(mut session) = owner.lock() else {
                 active = true;
                 return true;
             };
-            let owned = session.pty.is_active().unwrap_or(true);
-            if !owned {
-                session.binding.take();
-            }
-            let draining = session.output.lock().map_or(true, |output| !output.closed);
-            active |= owned || draining;
-            session.connection.is_some() || owned || draining
+            let retained = retain_session(&mut session, now);
+            active |= retained;
+            retained
         });
         active
     }
