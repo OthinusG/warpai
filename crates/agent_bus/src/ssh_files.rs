@@ -92,6 +92,32 @@ impl SshConnection {
         Ok(client)
     }
 
+    /// Opt-in account guardian; only POSIX hosts can host the helper.
+    pub async fn connect_guarded(
+        &self,
+        profile: &SshProfile,
+    ) -> Result<HostClient, ConnectionError> {
+        if profile.remote_shell != crate::ssh_remote::RemoteShell::Posix {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        let epoch = connection_epoch(self)?;
+        let mut client = match self {
+            #[cfg(windows)]
+            Self::Wsl {
+                distribution,
+                user,
+            } => HostClient::connect_wsl_guarded(profile, distribution, user, "wsl").await?,
+            Self::Multiplexed { socket, wsl } => {
+                HostClient::connect_session_guarded(profile, socket, wsl.as_deref(), "ssh").await?
+            }
+            Self::Native { arguments, .. } => {
+                HostClient::connect_arguments_guarded(profile, arguments, "ssh").await?
+            }
+        };
+        client.restrict_ssh_access(epoch)?;
+        Ok(client)
+    }
+
     /// Explicit shutdown cleanup must revoke native MCP even after desktop access is off.
     /// Project and file operations must use `connect` instead.
     pub async fn connect_for_mcp_cleanup(&self, profile: &SshProfile) -> Result<HostClient, ConnectionError> {

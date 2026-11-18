@@ -77,6 +77,7 @@ fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
         mru_seq: record.mru_seq,
         observed_ms: record.observed_ms,
         exit_status: record.exit_status,
+        attachment_generation: record.attachment_generation,
     }
 }
 
@@ -133,6 +134,11 @@ impl Companion {
 
     fn capabilities(&self) -> Vec<String> {
         let mut capabilities = vec!["project_open".into(), "managed_agent".into()];
+        // Only the account guardian admits retained runs and the account catalog.
+        if self.account_guardian.is_some() {
+            capabilities
+                .extend(["guarded_remote_sessions_v1", "account_catalog"].map(str::to_owned));
+        }
         if self.wsl_route() {
             capabilities.push("managed_launch_cwd".into());
         }
@@ -168,6 +174,14 @@ impl Companion {
         capabilities
     }
 
+    /// Logical route namespace; never a filesystem path.
+    fn scope_id(&self) -> Option<&'static str> {
+        self.route.map(|route| match route {
+            Route::Ssh => "ssh",
+            Route::Wsl => "wsl",
+        })
+    }
+
     #[cfg(unix)]
     fn record_catalog_launch(
         &mut self,
@@ -180,6 +194,9 @@ impl Companion {
         let Some(catalog) = &self.catalog else {
             return Ok(());
         };
+        let scope_id = self
+            .scope_id()
+            .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?;
         let kind = TerminalSessionKind::try_from(request.session_kind.unwrap_or_default())
             .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
         let kind = match kind {
@@ -201,6 +218,7 @@ impl Companion {
             run_id: state.run_id.clone(),
             boot_id: self.fence.service_boot_id.clone(),
             service_id: self.fence.service_id.clone(),
+            scope_id: scope_id.into(),
             project_id: self.fence.project_id.clone(),
             policy: "guarded".into(),
             kind: kind.into(),
@@ -210,6 +228,7 @@ impl Companion {
             state: guardian_catalog::State::Live,
             observed_ms: now,
             exit_status: None,
+            attachment_generation: state.attachment_generation,
         };
         catalog
             .upsert(&record)
@@ -254,6 +273,9 @@ impl Companion {
                 )
                 .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         } else if action == TerminalAction::TerminalAttach {
+            catalog
+                .touch_attachment(&state.session_id, state.attachment_generation)
+                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
             catalog
                 .touch_mru(&state.session_id)
                 .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
@@ -364,6 +386,9 @@ impl Companion {
             }
             Some(managed_request::Operation::TerminalLaunch(request)) => {
                 self.check_project(request.fence.as_ref())?;
+                if request.guarded && self.account_guardian.is_none() {
+                    return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+                }
                 let recorded = request.clone();
                 let state = self.terminals.launch(
                     request,
@@ -422,10 +447,11 @@ impl Companion {
             Some(managed_request::Operation::AccountCatalogInspect(request)) => {
                 self.dispatch_catalog_inspect(request)
             }
-            // Frozen wire shapes; streaming watch and stop land with their own proof.
-            Some(managed_request::Operation::AccountCatalogWatch(_))
-            | Some(managed_request::Operation::AccountStop(_)) => {
-                Err(ManagedErrorCode::ManagedFeatureUnavailable)
+            Some(managed_request::Operation::AccountCatalogWatch(request)) => {
+                self.dispatch_catalog_watch(request)
+            }
+            Some(managed_request::Operation::AccountStop(request)) => {
+                self.dispatch_account_stop(request)
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -462,14 +488,6 @@ impl Companion {
         request: AccountCatalogList,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         self.check_account_fence(request.fence.as_ref())?;
-        if request
-            .filter
-            .as_ref()
-            .is_some_and(|filter| !filter.scope_id.is_empty())
-        {
-            // No scope identity is durable in the v1 catalog.
-            return Err(ManagedErrorCode::ManagedFeatureUnavailable);
-        }
         let limit = match request.limit {
             0 => 16,
             limit @ 1..=32 => usize::try_from(limit).unwrap_or(16),
@@ -482,6 +500,24 @@ impl Companion {
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         let revision = catalog.revision();
+        if let Some(scope) = request
+            .filter
+            .as_ref()
+            .map(|filter| filter.scope_id.as_str())
+            .filter(|scope| !scope.is_empty())
+        {
+            if Some(scope) != self.scope_id() {
+                // Unknown logical scopes disclose nothing and allocate no rows.
+                return Ok(managed_response::Result::AccountCatalogPage(
+                    AccountCatalogPage {
+                        rows: Vec::new(),
+                        total: 0,
+                        revision,
+                        next: None,
+                    },
+                ));
+            }
+        }
         let mut rows = catalog.list().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         if let Some(project) = request
             .filter
@@ -566,6 +602,149 @@ impl Companion {
     fn dispatch_catalog_inspect(
         &mut self,
         _request: AccountCatalogInspect,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
+    }
+
+    #[cfg(unix)]
+    fn dispatch_catalog_watch(
+        &mut self,
+        request: AccountCatalogWatch,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        self.check_account_fence(request.fence.as_ref())?;
+        let limit = match request.limit {
+            0 => 16,
+            limit @ 1..=32 => usize::try_from(limit).unwrap_or(16),
+            _ => return Err(ManagedErrorCode::ManagedInvalidInput),
+        };
+        let mut catalog = self
+            .catalog
+            .as_ref()
+            .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        let revision = catalog.revision();
+        if let Some(scope) = request
+            .filter
+            .as_ref()
+            .map(|filter| filter.scope_id.as_str())
+            .filter(|scope| !scope.is_empty())
+        {
+            if Some(scope) != self.scope_id() {
+                return Ok(managed_response::Result::AccountCatalogEvents(
+                    AccountCatalogEvents {
+                        events: Vec::new(),
+                        next: Some(format!("{}:{}", self.fence.service_boot_id, revision)),
+                        gap: false,
+                    },
+                ));
+            }
+        }
+        // An empty cursor establishes the baseline; it never replays history.
+        let after = if request.cursor.is_empty() {
+            revision
+        } else {
+            let Some((boot, after)) = request.cursor.split_once(':') else {
+                return Err(ManagedErrorCode::ManagedConflict);
+            };
+            if boot != self.fence.service_boot_id {
+                return Err(ManagedErrorCode::ManagedConflict);
+            }
+            after
+                .parse::<u64>()
+                .map_err(|_| ManagedErrorCode::ManagedConflict)?
+        };
+        let batch = catalog
+            .watch(after, limit)
+            .map_err(|_| ManagedErrorCode::ManagedConflict)?;
+        let events = batch
+            .events
+            .into_iter()
+            .map(|(change, row)| AccountCatalogEvent {
+                change: match change {
+                    guardian_catalog::Change::Upserted => AccountCatalogChange::Upserted as i32,
+                    guardian_catalog::Change::Removed => AccountCatalogChange::Removed as i32,
+                },
+                row: row.as_ref().map(catalog_row),
+            })
+            .collect();
+        Ok(managed_response::Result::AccountCatalogEvents(
+            AccountCatalogEvents {
+                events,
+                next: Some(format!("{}:{}", self.fence.service_boot_id, batch.next)),
+                gap: batch.gap,
+            },
+        ))
+    }
+
+    #[cfg(not(unix))]
+    fn dispatch_catalog_watch(
+        &mut self,
+        _request: AccountCatalogWatch,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
+    }
+
+    /// Account-owned stop batch; receipts report requests, never task completion.
+    #[cfg(unix)]
+    fn dispatch_account_stop(
+        &mut self,
+        request: AccountStop,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        self.check_account_fence(request.fence.as_ref())?;
+        if !request.project_id.is_empty()
+            && (request.project_id.len() > 256
+                || request.project_id.chars().any(char::is_control))
+        {
+            return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        let project = (!request.project_id.is_empty()).then_some(request.project_id.as_str());
+        let target = match request.target.as_ref() {
+            Some(target) if !target.session_id.is_empty() || !target.run_id.is_empty() => {
+                if !valid_uuid(&target.session_id) || !valid_uuid(&target.run_id) {
+                    return Err(ManagedErrorCode::ManagedInvalidInput);
+                }
+                Some((target.session_id.as_str(), target.run_id.as_str()))
+            }
+            _ => None,
+        };
+        let runs = self.terminals.stop_guarded(project, target)?;
+        let mut partial = false;
+        let receipts = runs
+            .into_iter()
+            .map(|run| {
+                let outcome = if !run.stop_requested {
+                    partial = true;
+                    AccountStopOutcome::Unknown
+                } else if run.exit_code.is_some() {
+                    AccountStopOutcome::Observed
+                } else {
+                    AccountStopOutcome::Requested
+                };
+                AccountStopReceipt {
+                    session_id: run.session_id,
+                    run_id: run.run_id,
+                    outcome: outcome as i32,
+                    exit_status: run.exit_code,
+                }
+            })
+            .collect();
+        Ok(managed_response::Result::AccountStopReceipts(
+            AccountStopReceipts {
+                receipts,
+                status: if partial {
+                    AccountStopStatus::Partial as i32
+                } else {
+                    AccountStopStatus::Completed as i32
+                },
+            },
+        ))
+    }
+
+    #[cfg(not(unix))]
+    fn dispatch_account_stop(
+        &mut self,
+        _request: AccountStop,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         Err(ManagedErrorCode::ManagedFeatureUnavailable)
     }

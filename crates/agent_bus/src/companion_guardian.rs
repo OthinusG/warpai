@@ -98,10 +98,14 @@ pub(crate) fn scope_directory(route: Route) -> std::io::Result<PathBuf> {
 }
 
 fn supported_routes() -> Vec<Route> {
-    let mut routes = vec![Route::Ssh];
     #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
-    routes.push(Route::Wsl);
-    routes
+    {
+        vec![Route::Ssh, Route::Wsl]
+    }
+    #[cfg(not(all(target_os = "linux", feature = "wsl_companion")))]
+    {
+        vec![Route::Ssh]
+    }
 }
 
 impl Route {
@@ -353,6 +357,72 @@ struct Scope {
     _lock: File,
 }
 
+/// `Ok(None)` means a live legacy owner still holds the scope lock.
+fn admit_scope(route: Route, directory: PathBuf) -> std::io::Result<Option<Scope>> {
+    identity::private_directory(&directory)?;
+    let scope_lock = identity::private_file(&directory.join("service.lock"))?;
+    match scope_lock.try_lock() {
+        Ok(()) => (),
+        // Never stop or duplicate live legacy ownership.
+        Err(std::fs::TryLockError::WouldBlock) => return Ok(None),
+        Err(error) => return Err(std::io::Error::other(error)),
+    }
+    let tasks = Arc::new(tasks::Projects::new(&directory));
+    Ok(Some(Scope {
+        route,
+        directory,
+        tasks,
+        _lock: scope_lock,
+    }))
+}
+
+async fn bind_route(runtime: &Path, route: Route) -> std::io::Result<tokio::net::UnixListener> {
+    let path = runtime.join(route.socket_name());
+    match std::fs::symlink_metadata(&path) {
+        Ok(metadata) => {
+            if !metadata.file_type().is_socket() || metadata.uid() != euid() {
+                return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+            }
+            match probe_live(runtime, route).await {
+                Ok(_) => return Err(std::io::Error::from(ErrorKind::AddrInUse)),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        ErrorKind::ConnectionRefused | ErrorKind::NotFound
+                    ) => {}
+                // A responsive but incompatible owner is never unlinked.
+                Err(error) => return Err(error),
+            }
+            std::fs::remove_file(&path)?;
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => (),
+        Err(error) => return Err(error),
+    }
+    let listener = tokio::net::UnixListener::bind(&path)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    private_socket(&path)?;
+    Ok(listener)
+}
+
+fn spawn_accept(
+    listener: tokio::net::UnixListener,
+    route: Route,
+    sender: tokio::sync::mpsc::Sender<(UnixStream, Route)>,
+) {
+    tokio::spawn(async move {
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    if sender.send((stream, route)).await.is_err() {
+                        return;
+                    }
+                }
+                Err(_) => tokio::time::sleep(Duration::from_millis(10)).await,
+            }
+        }
+    });
+}
+
 /// Bind one private listener per admitted route under one account lock.
 pub(crate) async fn serve_at(
     root: PathBuf,
@@ -382,73 +452,34 @@ pub(crate) async fn serve_at(
     let catalog = Arc::new(std::sync::Mutex::new(catalog));
     identity::private_directory(&runtime)?;
     let mut admitted = Vec::new();
+    // Held scopes stay pending: the guardian admits them once the legacy owner exits.
+    let mut pending = Vec::new();
     for (route, directory) in scopes {
-        identity::private_directory(&directory)?;
-        let scope_lock = identity::private_file(&directory.join("service.lock"))?;
-        match scope_lock.try_lock() {
-            Ok(()) => (),
-            // Live legacy ownership refuses this scope; never stop or duplicate it.
-            Err(std::fs::TryLockError::WouldBlock) => continue,
+        match admit_scope(route, directory.clone()) {
+            Ok(Some(scope)) => admitted.push(scope),
+            Ok(None) => pending.push((route, directory)),
             Err(error) => return Err(std::io::Error::other(error).into()),
         }
-        let tasks = Arc::new(tasks::Projects::new(&directory));
-        admitted.push(Scope {
-            route,
-            directory,
-            tasks,
-            _lock: scope_lock,
-        });
     }
-    if admitted.is_empty() {
-        return Err(std::io::Error::other("No guardian route admitted").into());
+    if admitted.is_empty() && pending.is_empty() {
+        return Err(std::io::Error::other("No guardian route configured").into());
     }
     let terminals = Arc::new(terminals::Terminals::default());
     let mut listeners = Vec::new();
     for scope in &admitted {
-        let path = runtime.join(scope.route.socket_name());
-        match std::fs::symlink_metadata(&path) {
-            Ok(metadata) => {
-                if !metadata.file_type().is_socket() || metadata.uid() != euid() {
-                    return Err(std::io::Error::from(ErrorKind::PermissionDenied).into());
-                }
-                match probe_live(&runtime, scope.route).await {
-                    Ok(_) => return Ok(()),
-                    Err(error)
-                        if matches!(
-                            error.kind(),
-                            ErrorKind::ConnectionRefused | ErrorKind::NotFound
-                        ) => {}
-                    // A responsive but incompatible owner is never unlinked.
-                    Err(error) => return Err(error.into()),
-                }
-                std::fs::remove_file(&path)?;
-            }
-            Err(error) if error.kind() == ErrorKind::NotFound => (),
+        match bind_route(&runtime, scope.route).await {
+            Ok(listener) => listeners.push((listener, scope.route)),
+            Err(error) if error.kind() == ErrorKind::AddrInUse => return Ok(()),
             Err(error) => return Err(error.into()),
         }
-        let listener = tokio::net::UnixListener::bind(&path)?;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-        private_socket(&path)?;
-        listeners.push((listener, scope.route));
     }
     let slots = Arc::new(Semaphore::new(SLOTS));
     let (sender, mut receiver) = tokio::sync::mpsc::channel(32);
     for (listener, route) in listeners {
-        let sender = sender.clone();
-        tokio::spawn(async move {
-            loop {
-                match listener.accept().await {
-                    Ok((stream, _)) => {
-                        if sender.send((stream, route)).await.is_err() {
-                            return;
-                        }
-                    }
-                    Err(_) => tokio::time::sleep(Duration::from_millis(10)).await,
-                }
-            }
-        });
+        spawn_accept(listener, route, sender.clone());
     }
-    drop(sender);
+    // The dispatch loop, not a listener, keeps the channel open.
+    let _keepalive = sender.clone();
     let mut idle_since = Instant::now();
     loop {
         tokio::select! {
@@ -494,7 +525,32 @@ pub(crate) async fn serve_at(
             }
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
                 sync_ended(&terminals, &catalog);
-                if slots.available_permits() != SLOTS || terminals.active() {
+                let mut admitted_new = false;
+                let mut index = 0;
+                while index < pending.len() {
+                    let (route, directory) = pending[index].clone();
+                    match admit_scope(route, directory.clone()) {
+                        Ok(Some(scope)) => {
+                            pending.remove(index);
+                            match bind_route(&runtime, route).await {
+                                Ok(listener) => {
+                                    spawn_accept(listener, route, sender.clone());
+                                    admitted.push(scope);
+                                    admitted_new = true;
+                                }
+                                Err(_) => {
+                                    pending.push((route, directory));
+                                    index += 1;
+                                }
+                            }
+                        }
+                        Ok(None) | Err(_) => index += 1,
+                    }
+                }
+                if let Ok(mut catalog) = catalog.lock() {
+                    let _ = catalog.prune_ended(wall_millis() - guardian_catalog::ENDED_TTL_MS);
+                }
+                if slots.available_permits() != SLOTS || terminals.active() || admitted_new {
                     idle_since = Instant::now();
                 }
                 for scope in &admitted {
@@ -502,6 +558,8 @@ pub(crate) async fn serve_at(
                         idle_since = Instant::now();
                     }
                 }
+                // Pending legacy scopes are not work; a later connection
+                // re-ensures a guardian and admits them once released.
                 if idle_since.elapsed() >= IDLE_EXIT {
                     break;
                 }
@@ -621,6 +679,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn released_scope_is_admitted_under_the_same_guardian() {
+        let state = tempfile::tempdir().unwrap();
+        let root = state.path().join("guardian");
+        let runtime = state.path().join("run");
+        let wsl = state.path().join("wsl");
+        identity::private_directory(&wsl).unwrap();
+        let held = identity::private_file(&wsl.join("service.lock")).unwrap();
+        held.try_lock().unwrap();
+        let server = {
+            let root = root.clone();
+            let runtime = runtime.clone();
+            let scopes = vec![(Route::Ssh, state.path().join("ssh")), (Route::Wsl, wsl)];
+            tokio::spawn(async move { serve_at(root, runtime, scopes).await })
+        };
+        let (stream, guardian, boot) = wait_route(&runtime).await;
+        assert!(probe_route(&runtime, Route::Wsl).await.is_err());
+        drop(held);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let (wsl_stream, late_guardian, late_boot) = loop {
+            if let Ok(probe) = probe_route(&runtime, Route::Wsl).await {
+                break probe;
+            }
+            assert!(Instant::now() < deadline, "Released scope was not admitted");
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        };
+        assert_eq!(late_guardian, guardian);
+        assert_eq!(late_boot, boot);
+        drop((stream, wsl_stream));
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn owned_stale_socket_is_reclaimed_under_the_account_lock() {
         let state = tempfile::tempdir().unwrap();
         let root = state.path().join("guardian");
@@ -725,6 +815,215 @@ mod tests {
             .unwrap();
         assert!(matches!(read, Ok(0) | Err(_)));
         server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn guardian_watch_and_stop_report_owned_runs() {
+        let state = tempfile::tempdir().unwrap();
+        let root = state.path().join("guardian");
+        let runtime = state.path().join("run");
+        let project = state.path().join("project");
+        std::fs::create_dir_all(&project).unwrap();
+        let server = {
+            let root = root.clone();
+            let runtime = runtime.clone();
+            let scopes = vec![(Route::Ssh, state.path().join("ssh"))];
+            tokio::spawn(async move { serve_at(root, runtime, scopes).await })
+        };
+        let (stream, _, _) = wait_route(&runtime).await;
+        let mut client = ManagedClient::new(stream);
+        let initialized = match client
+            .call(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: 1,
+            }))
+            .await
+        {
+            managed_response::Result::Initialized(initialized) => initialized,
+            _ => panic!("Guardian initialize required"),
+        };
+        let account = initialized.account_fence.clone().unwrap();
+        let opened = match client
+            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: initialized.fence.clone(),
+                root: project.to_str().unwrap().into(),
+            }))
+            .await
+        {
+            managed_response::Result::ProjectOpened(opened) => opened,
+            _ => panic!("Project open required"),
+        };
+        let project_fence = opened.fence.unwrap();
+        let project_id = project_fence.project_id.clone();
+        let first = launch_guarded(
+            &mut client,
+            &project_fence,
+            Uuid::new_v4().to_string(),
+        )
+        .await;
+        let baseline_next = match client
+            .call(managed_request::Operation::AccountCatalogWatch(
+                AccountCatalogWatch {
+                    fence: Some(account.clone()),
+                    filter: Some(AccountCatalogFilter {
+                        scope_id: String::new(),
+                        project_id: String::new(),
+                    }),
+                    cursor: String::new(),
+                    limit: 16,
+                },
+            ))
+            .await
+        {
+            managed_response::Result::AccountCatalogEvents(events) => {
+                assert!(events.events.is_empty());
+                assert!(!events.gap);
+                events.next.unwrap()
+            }
+            _ => panic!("Catalog watch required"),
+        };
+        let second = launch_guarded(
+            &mut client,
+            &project_fence,
+            Uuid::new_v4().to_string(),
+        )
+        .await;
+        let events = match client
+            .call(managed_request::Operation::AccountCatalogWatch(
+                AccountCatalogWatch {
+                    fence: Some(account.clone()),
+                    filter: None,
+                    cursor: baseline_next.clone(),
+                    limit: 16,
+                },
+            ))
+            .await
+        {
+            managed_response::Result::AccountCatalogEvents(events) => events,
+            _ => panic!("Catalog watch required"),
+        };
+        assert!(!events.gap);
+        assert_eq!(events.events.len(), 1);
+        assert_eq!(
+            events.events[0].change,
+            AccountCatalogChange::Upserted as i32
+        );
+        let row = events.events[0].row.as_ref().unwrap();
+        assert_eq!(row.session_id, second.session_id);
+
+        let stopped = match client
+            .call(managed_request::Operation::AccountStop(AccountStop {
+                fence: Some(account.clone()),
+                target: None,
+                project_id: project_id.clone(),
+            }))
+            .await
+        {
+            managed_response::Result::AccountStopReceipts(receipts) => receipts,
+            _ => panic!("Account stop required"),
+        };
+        assert_eq!(stopped.status, AccountStopStatus::Completed as i32);
+        assert_eq!(stopped.receipts.len(), 2);
+        assert!(stopped.receipts.iter().all(|receipt| {
+            receipt.outcome == AccountStopOutcome::Requested as i32
+                && receipt.exit_status.is_none()
+        }));
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let row = inspect_guarded(&mut client, &account, &first).await;
+            if row.state == "ended" {
+                assert!(row.exit_status.is_some());
+                break;
+            }
+            assert!(Instant::now() < deadline, "Stop was not observed");
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        let observed = match client
+            .call(managed_request::Operation::AccountStop(AccountStop {
+                fence: Some(account.clone()),
+                target: Some(AccountStopTarget {
+                    session_id: second.session_id.clone(),
+                    run_id: second.run_id.clone(),
+                }),
+                project_id: String::new(),
+            }))
+            .await
+        {
+            managed_response::Result::AccountStopReceipts(receipts) => receipts,
+            _ => panic!("Account stop required"),
+        };
+        assert_eq!(observed.status, AccountStopStatus::Completed as i32);
+        assert_eq!(observed.receipts.len(), 1);
+        assert_eq!(
+            observed.receipts[0].outcome,
+            AccountStopOutcome::Observed as i32
+        );
+        assert!(observed.receipts[0].exit_status.is_some());
+
+        let stale = client
+            .call(managed_request::Operation::AccountCatalogWatch(
+                AccountCatalogWatch {
+                    fence: Some(account),
+                    filter: None,
+                    cursor: format!("{baseline_next}-stale"),
+                    limit: 16,
+                },
+            ))
+            .await;
+        assert!(matches!(
+            stale,
+            managed_response::Result::Error(error)
+                if error.code == ManagedErrorCode::ManagedConflict as i32
+        ));
+        server.abort();
+    }
+
+    async fn launch_guarded(
+        client: &mut ManagedClient,
+        fence: &ManagedFence,
+        session_id: String,
+    ) -> TerminalState {
+        match client
+            .call(managed_request::Operation::TerminalLaunch(
+                TerminalLaunch {
+                    fence: Some(fence.clone()),
+                    session_id,
+                    executable: "/bin/sh".into(),
+                    arguments: vec!["-c".into(), "sleep 30".into()],
+                    columns: 80,
+                    rows: 24,
+                    agent_program: None,
+                    working_directory: None,
+                    guarded: true,
+                    label: None,
+                    session_kind: Some(TerminalSessionKind::Shell as i32),
+                },
+            ))
+            .await
+        {
+            managed_response::Result::TerminalState(state) => state,
+            other => panic!("Guarded launch required: {other:?}"),
+        }
+    }
+
+    async fn inspect_guarded(
+        client: &mut ManagedClient,
+        fence: &AccountFence,
+        run: &TerminalState,
+    ) -> AccountCatalogRow {
+        match client
+            .call(managed_request::Operation::AccountCatalogInspect(
+                AccountCatalogInspect {
+                    fence: Some(fence.clone()),
+                    session_id: run.session_id.clone(),
+                    run_id: run.run_id.clone(),
+                },
+            ))
+            .await
+        {
+            managed_response::Result::AccountCatalogRow(row) => row,
+            _ => panic!("Catalog row required"),
+        }
     }
 
     struct ManagedClient {

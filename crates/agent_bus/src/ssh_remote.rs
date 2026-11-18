@@ -153,6 +153,18 @@ impl SshProfile {
         })
     }
 
+    /// Opt-in helper bridge: the installed companion joins the account guardian.
+    fn guardian_command(&self, route: &str) -> Result<String, ConnectionError> {
+        if !matches!(route, "ssh" | "wsl") {
+            return Err(ConnectionError::InvalidProfile);
+        }
+        // The guardian is a POSIX account service; Windows hosts stay unsupported.
+        if self.remote_shell != RemoteShell::Posix {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        self.companion_command_args(&format!(" --guardian-stdio {route}"))
+    }
+
     fn arguments_command(&self, arguments: &[String]) -> Result<Command, ConnectionError> {
         if arguments.is_empty()
             || arguments.len() > 128
@@ -217,12 +229,76 @@ fn windows_absolute(path: &str) -> bool {
         || path.starts_with("\\\\")
 }
 
+/// Managed channel over either a spawned companion process or a verified Unix socket.
+enum HostWriter {
+    Child(ChildStdin),
+    #[cfg(unix)]
+    Unix(tokio::io::WriteHalf<tokio::net::UnixStream>),
+}
+
+impl tokio::io::AsyncWrite for HostWriter {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+        buffer: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match self.get_mut() {
+            Self::Child(writer) => std::pin::Pin::new(writer).poll_write(context, buffer),
+            #[cfg(unix)]
+            Self::Unix(writer) => std::pin::Pin::new(writer).poll_write(context, buffer),
+        }
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Child(writer) => std::pin::Pin::new(writer).poll_flush(context),
+            #[cfg(unix)]
+            Self::Unix(writer) => std::pin::Pin::new(writer).poll_flush(context),
+        }
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Child(writer) => std::pin::Pin::new(writer).poll_shutdown(context),
+            #[cfg(unix)]
+            Self::Unix(writer) => std::pin::Pin::new(writer).poll_shutdown(context),
+        }
+    }
+}
+
+enum HostReader {
+    Child(ChildStdout),
+    #[cfg(unix)]
+    Unix(tokio::io::ReadHalf<tokio::net::UnixStream>),
+}
+
+impl tokio::io::AsyncRead for HostReader {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+        buffer: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            Self::Child(reader) => std::pin::Pin::new(reader).poll_read(context, buffer),
+            #[cfg(unix)]
+            Self::Unix(reader) => std::pin::Pin::new(reader).poll_read(context, buffer),
+        }
+    }
+}
+
 /// Mutable access serializes requests. Any timeout/malformed response closes the channel.
 pub struct HostClient {
-    child: Child,
-    input: Compat<ChildStdin>,
-    output: Compat<ChildStdout>,
+    child: Option<Child>,
+    input: Compat<HostWriter>,
+    output: Compat<HostReader>,
     fence: Option<ManagedFence>,
+    account_fence: Option<AccountFence>,
     pub canonical_root: String,
     pub account_id: String,
     pub root_identity: String,
@@ -262,6 +338,36 @@ impl HostClient {
         Ok(client)
     }
 
+    /// Opt-in account guardian inside the selected WSL distribution.
+    #[cfg(windows)]
+    pub async fn connect_wsl_guarded(
+        profile: &SshProfile,
+        distribution: &str,
+        user: &str,
+        route: &str,
+    ) -> Result<Self, ConnectionError> {
+        if route != "wsl" {
+            return Err(ConnectionError::InvalidProfile);
+        }
+        Self::probe_installed(profile, Self::wsl_command(profile, distribution, user)?).await?;
+        let mut command = Self::wsl_command(profile, distribution, user)?;
+        command.arg(format!("--guardian-stdio {route}"));
+        command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        let child = command
+            .spawn()
+            .map_err(|_| ConnectionError::CompanionUnavailable)?;
+        let mut client = Self::open(child, &profile.remote_root).await?;
+        if !client.account_id.starts_with("uid:") {
+            client.disconnect();
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        client.require_account_guardian()?;
+        Ok(client)
+    }
+
     #[cfg(windows)]
     pub(crate) fn wsl_command(profile: &SshProfile, distribution: &str, user: &str) -> Result<Command, ConnectionError> {
         profile.validate()?;
@@ -296,6 +402,25 @@ impl HostClient {
         Self::open(child, &profile.remote_root).await
     }
 
+    /// Opt-in account guardian: the installed helper bridges to retained runs.
+    pub async fn connect_guarded(profile: &SshProfile, route: &str) -> Result<Self, ConnectionError> {
+        let mut command = profile.ssh_command()?;
+        command
+            .arg("--")
+            .arg(&profile.target)
+            .arg(profile.guardian_command(route)?)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true);
+        let child = command
+            .spawn()
+            .map_err(|_| ConnectionError::SshUnavailable)?;
+        let mut client = Self::open(child, &profile.remote_root).await?;
+        client.require_account_guardian()?;
+        Ok(client)
+    }
+
     /// Attach to the selected terminal's already authenticated SSH session.
     pub async fn connect_session(
         profile: &SshProfile,
@@ -303,7 +428,30 @@ impl HostClient {
         wsl: Option<&str>,
     ) -> Result<Self, ConnectionError> {
         Self::probe_installed(profile, profile.session_command(socket, wsl)?).await?;
-        Self::open_command(profile, profile.session_command(socket, wsl)?).await
+        Self::open_command(
+            profile,
+            profile.session_command(socket, wsl)?,
+            profile.companion_command()?,
+        )
+        .await
+    }
+
+    /// Opt-in account guardian over the established session.
+    pub async fn connect_session_guarded(
+        profile: &SshProfile,
+        socket: &std::path::Path,
+        wsl: Option<&str>,
+        route: &str,
+    ) -> Result<Self, ConnectionError> {
+        Self::probe_installed(profile, profile.session_command(socket, wsl)?).await?;
+        let mut client = Self::open_command(
+            profile,
+            profile.session_command(socket, wsl)?,
+            profile.guardian_command(route)?,
+        )
+        .await?;
+        client.require_account_guardian()?;
+        Ok(client)
     }
 
     /// Native Windows uses the user's original system SSH transport arguments.
@@ -312,7 +460,47 @@ impl HostClient {
         arguments: &[String],
     ) -> Result<Self, ConnectionError> {
         Self::probe_installed(profile, profile.arguments_command(arguments)?).await?;
-        Self::open_command(profile, profile.arguments_command(arguments)?).await
+        Self::open_command(
+            profile,
+            profile.arguments_command(arguments)?,
+            profile.companion_command()?,
+        )
+        .await
+    }
+
+    /// Opt-in account guardian through native Windows SSH arguments.
+    pub async fn connect_arguments_guarded(
+        profile: &SshProfile,
+        arguments: &[String],
+        route: &str,
+    ) -> Result<Self, ConnectionError> {
+        Self::probe_installed(profile, profile.arguments_command(arguments)?).await?;
+        let mut client = Self::open_command(
+            profile,
+            profile.arguments_command(arguments)?,
+            profile.guardian_command(route)?,
+        )
+        .await?;
+        client.require_account_guardian()?;
+        Ok(client)
+    }
+
+    /// A guarded connection must be served by the account guardian, never a legacy scope.
+    fn require_account_guardian(&mut self) -> Result<(), ConnectionError> {
+        let valid = self.account_fence.is_some()
+            && self
+                .capabilities
+                .iter()
+                .any(|capability| capability == "guarded_remote_sessions_v1")
+            && self
+                .capabilities
+                .iter()
+                .any(|capability| capability == "account_catalog");
+        if !valid {
+            self.close();
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        Ok(())
     }
 
     async fn probe_installed(
@@ -370,9 +558,10 @@ impl HostClient {
     async fn open_command(
         profile: &SshProfile,
         mut command: Command,
+        remote_command: String,
     ) -> Result<Self, ConnectionError> {
         let child = command
-            .arg(profile.companion_command()?)
+            .arg(remote_command)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -413,21 +602,51 @@ impl HostClient {
     }
 
     async fn open(mut child: Child, root: &str) -> Result<Self, ConnectionError> {
-        let input = child
-            .stdin
-            .take()
-            .ok_or(ConnectionError::ConnectionLost)?
-            .compat_write();
-        let output = child
-            .stdout
-            .take()
-            .ok_or(ConnectionError::ConnectionLost)?
-            .compat();
+        let input = HostWriter::Child(
+            child
+                .stdin
+                .take()
+                .ok_or(ConnectionError::ConnectionLost)?,
+        )
+        .compat_write();
+        let output = HostReader::Child(
+            child
+                .stdout
+                .take()
+                .ok_or(ConnectionError::ConnectionLost)?,
+        )
+        .compat();
+        Self::handshake(Some(child), input, output, root).await
+    }
+
+    /// Direct account-guardian socket for the local CLI; no process or shell involved.
+    #[cfg(unix)]
+    pub async fn connect_unix(
+        stream: tokio::net::UnixStream,
+        root: &str,
+    ) -> Result<Self, ConnectionError> {
+        let (reader, writer) = tokio::io::split(stream);
+        Self::handshake(
+            None,
+            HostWriter::Unix(writer).compat_write(),
+            HostReader::Unix(reader).compat(),
+            root,
+        )
+        .await
+    }
+
+    async fn handshake(
+        child: Option<Child>,
+        input: Compat<HostWriter>,
+        output: Compat<HostReader>,
+        root: &str,
+    ) -> Result<Self, ConnectionError> {
         let mut client = Self {
             child,
             input,
             output,
             fence: None,
+            account_fence: None,
             canonical_root: String::new(),
             account_id: String::new(),
             root_identity: String::new(),
@@ -449,10 +668,13 @@ impl HostClient {
         if initialized.protocol_major != PROTOCOL_MAJOR
             || !valid_fence(&fence, false)
             || !text(&initialized.account_id, 256)
-            || initialized
-                .account_fence
-                .as_ref()
-                .is_some_and(|fence| !valid_account_fence(fence))
+        {
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        if initialized
+            .account_fence
+            .as_ref()
+            .is_some_and(|fence| !valid_account_fence(fence))
         {
             return Err(ConnectionError::IncompatibleVersion);
         }
@@ -483,6 +705,7 @@ impl HostClient {
         client.account_id = initialized.account_id;
         client.root_identity = opened.root_identity;
         client.capabilities = initialized.capabilities;
+        client.account_fence = initialized.account_fence;
         Ok(client)
     }
 
@@ -747,6 +970,132 @@ impl HostClient {
         Err(ConnectionError::StaleAttachment)
     }
 
+    pub fn account_fence(&self) -> Option<&AccountFence> {
+        self.account_fence.as_ref()
+    }
+
+    /// Only the account guardian serves the shared catalog and retained runs.
+    pub fn is_account_guardian(&self) -> bool {
+        self.account_fence.is_some()
+            && self
+                .capabilities
+                .iter()
+                .any(|capability| capability == "guarded_remote_sessions_v1")
+            && self
+                .capabilities
+                .iter()
+                .any(|capability| capability == "account_catalog")
+    }
+
+    fn account_scope(&self) -> Result<AccountFence, ConnectionError> {
+        if !self.alive || !self.is_account_guardian() {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        self.account_fence
+            .clone()
+            .ok_or(ConnectionError::FeatureUnavailable)
+    }
+
+    pub async fn account_catalog_list(
+        &mut self,
+        filter: AccountCatalogFilter,
+        limit: u32,
+        cursor: String,
+    ) -> Result<AccountCatalogPage, ConnectionError> {
+        let fence = self.account_scope()?;
+        let result = self
+            .request(managed_request::Operation::AccountCatalogList(
+                AccountCatalogList {
+                    fence: Some(fence),
+                    filter: Some(filter),
+                    limit,
+                    cursor,
+                },
+            ))
+            .await?;
+        match result {
+            managed_response::Result::AccountCatalogPage(page) => Ok(page),
+            _ => {
+                self.close();
+                Err(ConnectionError::IncompatibleVersion)
+            }
+        }
+    }
+
+    pub async fn account_catalog_inspect(
+        &mut self,
+        session_id: String,
+        run_id: String,
+    ) -> Result<AccountCatalogRow, ConnectionError> {
+        let fence = self.account_scope()?;
+        let result = self
+            .request(managed_request::Operation::AccountCatalogInspect(
+                AccountCatalogInspect {
+                    fence: Some(fence),
+                    session_id,
+                    run_id,
+                },
+            ))
+            .await?;
+        match result {
+            managed_response::Result::AccountCatalogRow(row) => Ok(row),
+            _ => {
+                self.close();
+                Err(ConnectionError::IncompatibleVersion)
+            }
+        }
+    }
+
+    /// Replay is bounded; a `gap` requires a fresh listing before trusting events.
+    pub async fn account_catalog_watch(
+        &mut self,
+        filter: Option<AccountCatalogFilter>,
+        cursor: String,
+        limit: u32,
+    ) -> Result<AccountCatalogEvents, ConnectionError> {
+        let fence = self.account_scope()?;
+        let result = self
+            .request(managed_request::Operation::AccountCatalogWatch(
+                AccountCatalogWatch {
+                    fence: Some(fence),
+                    filter,
+                    cursor,
+                    limit,
+                },
+            ))
+            .await?;
+        match result {
+            managed_response::Result::AccountCatalogEvents(events) => Ok(events),
+            _ => {
+                self.close();
+                Err(ConnectionError::IncompatibleVersion)
+            }
+        }
+    }
+
+    /// Receipts report the stop request; task acceptance and review stay separate.
+    pub async fn account_stop(
+        &mut self,
+        target: Option<AccountStopTarget>,
+        project_id: String,
+    ) -> Result<AccountStopReceipts, ConnectionError> {
+        let fence = self.account_scope()?;
+        let result = self
+            .request(managed_request::Operation::AccountStop(AccountStop {
+                fence: Some(fence),
+                target,
+                project_id,
+            }))
+            .await?;
+        match result {
+            managed_response::Result::AccountStopReceipts(receipts) => Ok(receipts),
+            _ => {
+                self.close();
+                Err(ConnectionError::IncompatibleVersion)
+            }
+        }
+    }
+
     fn valid_terminal(&self, state: &TerminalState) -> bool {
         remote_protocol::managed::valid_terminal_state(state) && state.fence == self.fence
     }
@@ -831,7 +1180,9 @@ impl HostClient {
     fn close(&mut self) {
         self.alive = false;
         self.fence = None;
-        let _ = self.child.start_kill();
+        if let Some(child) = &mut self.child {
+            let _ = child.start_kill();
+        }
     }
 }
 

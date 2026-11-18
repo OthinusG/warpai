@@ -30,6 +30,7 @@ pub enum Action {
     SshAgent(String, String),
     SshRefresh(String),
     SshRemoveAll(String),
+    SshGuardian,
     SshGuide,
     Select(String),
     Refresh,
@@ -56,6 +57,7 @@ pub struct CommunicationSettingsView {
     ssh_switch: SwitchStateHandle,
     ssh_account: ViewHandle<crate::view_components::Dropdown<Action>>,
     ssh_maintenance: [MouseStateHandle; 3],
+    ssh_guardian: MouseStateHandle,
     refresh: MouseStateHandle,
     uninstall_all: MouseStateHandle,
     checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
@@ -115,6 +117,7 @@ impl CommunicationSettingsView {
             ssh_switch: Default::default(),
             ssh_account,
             ssh_maintenance: Default::default(),
+            ssh_guardian: Default::default(),
             refresh: Default::default(),
             uninstall_all: Default::default(),
             checkboxes: Default::default(),
@@ -194,6 +197,7 @@ impl TypedActionView for CommunicationSettingsView {
             Action::SshRemoveAll(key) if model.ssh.preferences.selected.as_ref() == Some(key) =>
                 model.configure_ssh(warp_agent_bus::wsl_setup::Action::RemoveAll, ctx),
             Action::SshAgent(..) | Action::SshRefresh(_) | Action::SshRemoveAll(_) => (),
+            Action::SshGuardian => model.set_ssh_guardian(!model.ssh.preferences.guardian, ctx),
             Action::SshGuide => ctx.open_url("https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md"),
             Action::Enable => model.configure(Some(!model.preferences.enabled), None, ctx),
             Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
@@ -380,6 +384,14 @@ impl View for CommunicationSettingsView {
             if ssh.targets.is_empty() {
                 body.add_child(secondary_text(appearance, warpui::localization::text("No logged-in SSH accounts. Connect in a Warpai terminal first.").into(), None));
             }
+            let guardian = builder.checkbox(self.ssh_guardian.clone(), None).check(ssh.preferences.guardian);
+            let guardian = if ssh.busy { guardian.disabled() } else { guardian };
+            body.add_child(build_toggle_element(
+                render_body_item_label_with_icon::<Action>("Keep remote sessions".into(), warp_core::ui::Icon::History, None, None,
+                    LocalOnlyIconState::Hidden, if ssh.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
+                guardian.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::SshGuardian)).finish(),
+                appearance, Some(warpui::localization::text("Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.").into()),
+            ));
             if let Some(target) = ssh.selected_target() {
                 let key = target.key.clone();
                 if ssh.account_id.is_some() && ssh.available.is_empty() && !ssh.busy {

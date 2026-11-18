@@ -370,6 +370,14 @@ pub(super) struct EndedSession {
     pub exit_code: Option<i32>,
 }
 
+/// One account-owned stop outcome; never proof of task cancellation.
+pub(super) struct StoppedRun {
+    pub session_id: String,
+    pub run_id: String,
+    pub stop_requested: bool,
+    pub exit_code: Option<i32>,
+}
+
 fn lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, Error> {
     mutex.lock().map_err(|_| Error::ManagedUnavailable)
 }
@@ -447,6 +455,10 @@ fn attach_decision(
         if !presented_attachment.is_empty() && presented_attachment != held_attachment {
             return Err(Error::ManagedStaleAttachment);
         }
+        return Ok(false);
+    }
+    // A detached guarded run has no writer; first attach acquires rather than steals.
+    if !occupied && !same_connection {
         return Ok(false);
     }
     if exact && occupied {
@@ -1080,6 +1092,52 @@ impl Terminals {
         )
     }
 
+    /// Account-owned stop of guarded runs; the requesting socket never owns the batch.
+    pub(super) fn stop_guarded(
+        &self,
+        project_id: Option<&str>,
+        target: Option<(&str, &str)>,
+    ) -> Result<Vec<StoppedRun>, Error> {
+        let owners = lock(&self.owners)?;
+        let mut stopped = Vec::new();
+        let mut exact_found = target.is_none();
+        for owner in owners.values() {
+            let Ok(mut session) = owner.lock() else {
+                continue;
+            };
+            if session.policy != Policy::Guarded {
+                continue;
+            }
+            if project_id.is_some_and(|project| project != session.project_id) {
+                continue;
+            }
+            if let Some((session_id, run_id)) = target {
+                if session.launch.session_id != session_id || session.run_id != run_id {
+                    continue;
+                }
+                exact_found = true;
+            }
+            let exit_code = session.pty.exit_code().map_err(path_error)?;
+            let active = session.pty.is_active().map_err(path_error)?;
+            let stopped_now = if exit_code.is_some() || !active {
+                true
+            } else {
+                session.stop_requested = true;
+                session.pty.stop().is_ok()
+            };
+            stopped.push(StoppedRun {
+                session_id: session.launch.session_id.clone(),
+                run_id: session.run_id.clone(),
+                stop_requested: stopped_now,
+                exit_code: if stopped_now { exit_code } else { None },
+            });
+        }
+        if !exact_found {
+            return Err(Error::ManagedNotFound);
+        }
+        Ok(stopped)
+    }
+
     pub(super) fn disconnect(&self, connection: &str) {
         let Ok(owners) = self
             .owners
@@ -1110,6 +1168,7 @@ impl Terminals {
         }
     }
 
+    /// Active slices that must count against idle exit: running work, retained output or a writer.
     pub(super) fn active(&self) -> bool {
         let Ok(mut owners) = self.owners.lock() else {
             return true;
@@ -1228,11 +1287,11 @@ mod tests {
         );
         assert_eq!(
             attach_decision(Policy::Guarded, 2, &id, 1, &id, false, false, false),
-            Err(Error::ManagedStaleAttachment)
+            Ok(false)
         );
         assert_eq!(
             attach_decision(Policy::Guarded, 2, &id, 0, "", false, false, false),
-            Err(Error::ManagedConflict)
+            Ok(false)
         );
         assert_eq!(
             attach_decision(Policy::Guarded, 2, &id, 0, "", true, false, false),

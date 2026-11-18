@@ -490,6 +490,7 @@ pub(crate) struct CollaborationPanel {
     last_received: Option<Instant>,
     remote_buttons: [MouseStateHandle; 3],
     remote_connection: Option<SshConnection>,
+    remote_guardian: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -619,6 +620,7 @@ impl CollaborationPanel {
             last_received: None,
             remote_buttons: Default::default(),
             remote_connection: None,
+            remote_guardian: false,
         }
     }
 
@@ -799,6 +801,13 @@ impl CollaborationPanel {
             self.remote = selected.as_ref().map(|(profile, _)| profile.clone());
             self.remote_connection = selected.map(|(_, connection)| connection);
         }
+        let guardian = super::AgentCommunication::as_ref(ctx).ssh.preferences.guardian;
+        if self.remote_guardian != guardian {
+            self.remote_guardian = guardian;
+            self.remote_client = Default::default();
+            self.remote_failed = false;
+            self.connected = false;
+        }
         let enabled = self.communication_enabled(ctx);
         let context = enabled.then(|| self.current_context(ctx)).flatten();
         if context != self.context {
@@ -859,6 +868,7 @@ impl CollaborationPanel {
         }
         let remote = self.remote.clone();
         let connection = self.remote_connection.clone();
+        let guardian = self.remote_guardian;
         let client = self.remote_client.clone();
         self.in_flight = true;
         let mut query = self.query.clone();
@@ -868,9 +878,16 @@ impl CollaborationPanel {
             let value = if let Some(profile) = remote {
                 let mut client = client.lock().await;
                 if client.is_none() {
-                    *client = Some(match connection {
-                        Some(connection) => connection.connect(&profile).await,
-                        None => HostClient::connect(&profile).await,
+                    *client = Some(if guardian {
+                        match connection {
+                            Some(connection) => connection.connect_guarded(&profile).await,
+                            None => HostClient::connect_guarded(&profile, "ssh").await,
+                        }
+                    } else {
+                        match connection {
+                            Some(connection) => connection.connect(&profile).await,
+                            None => HostClient::connect(&profile).await,
+                        }
                     }.map_err(anyhow::Error::new)?);
                 }
                 query.project.clear();

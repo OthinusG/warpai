@@ -37,6 +37,9 @@ impl Target {
 pub(crate) struct Preferences {
     pub enabled: bool,
     pub selected: Option<String>,
+    /// Opt-in account guardian: retained runs and same-run reconnect.
+    #[serde(default)]
+    pub guardian: bool,
 }
 
 #[derive(Default)]
@@ -137,8 +140,21 @@ impl AgentCommunication {
         ctx.notify();
     }
 
+    /// Opt-in only: existing SSH Remote setup and MCP flows stay on the legacy service.
+    pub(crate) fn set_ssh_guardian(&mut self, enabled: bool, ctx: &mut ModelContext<Self>) {
+        if self.ssh.busy || self.ssh.preferences.guardian == enabled {
+            return;
+        }
+        self.ssh.preferences.guardian = enabled;
+        self.ssh.generation += 1;
+        self.save_ssh_preferences();
+        ctx.notify();
+    }
+
     fn save_ssh_preferences(&mut self) {
-        if self.ssh.path.as_os_str().is_empty() { return; }
+        if self.ssh.path.as_os_str().is_empty() {
+            return;
+        }
         let result = serde_json::to_vec_pretty(&self.ssh.preferences)
             .map_err(anyhow::Error::from).and_then(|bytes| setup::atomic_write(&self.ssh.path, &bytes));
         if result.is_err() { self.ssh.status = "Could not save SSH Remote preferences.".into(); }
@@ -261,7 +277,13 @@ mod tests {
         let settings = SshSettings::default();
         assert!(!settings.preferences.enabled);
         let value = serde_json::to_value(&settings.preferences).unwrap();
-        assert_eq!(value, serde_json::json!({"enabled":false,"selected":null}));
+        assert_eq!(
+            value,
+            serde_json::json!({"enabled":false,"selected":null,"guardian":false})
+        );
+        let legacy: Preferences =
+            serde_json::from_str(r#"{"enabled":true,"selected":null}"#).unwrap();
+        assert!(legacy.enabled && !legacy.guardian);
     }
 
     #[test]

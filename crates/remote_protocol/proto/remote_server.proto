@@ -150,6 +150,8 @@ message AccountCatalogRow {
   uint64 mru_seq = 9;
   int64 observed_ms = 10;
   optional int32 exit_status = 11;
+  // Observed writer epoch; explicit takeover presents this generation.
+  uint64 attachment_generation = 12;
 }
 message AccountCatalogPage {
   repeated AccountCatalogRow rows = 1;

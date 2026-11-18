@@ -113,6 +113,18 @@ pub(crate) async fn run() {
                 std::process::exit(1);
             }
         },
+        #[cfg(unix)]
+        Some("ctl") => {
+            let code =
+                warp_agent_bus::companion_ctl::run(&std::env::args().skip(2).collect::<Vec<_>>())
+                    .await;
+            std::process::exit(code);
+        }
+        #[cfg(not(unix))]
+        Some("ctl") => {
+            eprintln!("Guardian session continuity is unavailable on Windows");
+            std::process::exit(2);
+        }
         _ => (),
     }
     if std::env::args_os().len() == 2
@@ -166,6 +178,14 @@ pub(crate) async fn run() {
             std::process::exit(1);
         }
         return;
+    }
+    #[cfg(not(unix))]
+    if matches!(
+        std::env::args().nth(1).as_deref(),
+        Some("--guardian-service" | "--guardian-stdio")
+    ) {
+        eprintln!("Guardian service mode is unavailable on Windows");
+        std::process::exit(2);
     }
     let service = std::env::args_os().len() == 2
         && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--service"));

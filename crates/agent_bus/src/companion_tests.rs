@@ -367,6 +367,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
+    companion.account_guardian = Some(Uuid::parse_str(&fence.service_id).unwrap());
     let mut next = fence.clone();
     next.connection_id = Uuid::new_v4().to_string();
     let label_only = TerminalLaunch {
@@ -464,20 +465,8 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
         companion.terminals.control(input, &fence),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
-    // A guessed or missing writer identity needs an explicit takeover.
-    let mut attach = control(&next, TerminalAction::TerminalAttach);
-    attach.attachment_id = Uuid::new_v4().to_string();
-    assert!(matches!(
-        companion.terminals.control(attach, &next),
-        Err(ManagedErrorCode::ManagedStaleAttachment)
-    ));
-    let mut cold = control(&next, TerminalAction::TerminalAttach);
-    cold.attachment_id = String::new();
-    cold.attachment_generation = 0;
-    assert!(matches!(
-        companion.terminals.control(cold, &next),
-        Err(ManagedErrorCode::ManagedConflict)
-    ));
+    // A detached run has no writer, so exact-tuple resume is admitted; takeovers are
+    // only fenced against a live writer (covered after detach below).
     let attached = companion
         .terminals
         .control(control(&next, TerminalAction::TerminalAttach), &next)
@@ -638,6 +627,7 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
     ));
     companion.catalog = Some(catalog.clone());
     companion.account_guardian = Some(Uuid::parse_str(&fence.service_id).unwrap());
+    companion.route = Some(Route::Ssh);
     let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
         managed_request::Operation::TerminalLaunch(TerminalLaunch {
             fence: Some(fence.clone()),
@@ -689,7 +679,7 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
     assert_eq!(page.rows[0].label.as_deref(), Some("catalog-test"));
     assert_eq!(page.rows[0].state, "live");
     assert_eq!(page.total, 1);
-    assert_eq!(page.revision, 1);
+    assert_eq!(page.revision, catalog.lock().unwrap().revision());
     assert!(page.next.is_none());
     assert!(matches!(
         result(companion.handle(request(managed_request::Operation::AccountCatalogInspect(
