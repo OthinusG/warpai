@@ -18,8 +18,11 @@ and WSL rerun](https://github.com/OthinusG/warpai/actions/runs/44298760969) and
 use that source. The matrix passed all three desktop runners, and the Windows
 protocol passed. Both ordinary WSL workspace cases passed. The new guarded
 first-owner fixture hit EOF before its reconnect assertions, so this run gives
-no first-owner proof. Full V01-V30 acceptance remains open. Historical
-records below describe their own revisions.
+no first-owner proof. After the installer permissions fix, the [native WSL
+workspace step on `acd9e63e`](https://github.com/OthinusG/warpai/actions/runs/44311567207/job/134826760180)
+passed both startup orders, a 12-second bridge-free reconnect, and both ordinary
+workspace cases on the same runner. Full V01-V30 acceptance remains open.
+Historical records below describe their own revisions.
 
 The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
 fencing, a bounded SQLite catalog, a helper bridge, account RPCs and a private
@@ -36,7 +39,7 @@ guardian ownership remain open.
 | WSL bridge flag and route passed as one argv entry | Repaired. The argv fixture verifies two distinct arguments; native Windows dispatched the real WSL guarded lifetime fixture on `36bdc6d3`. |
 | Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
 | Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
-| Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Native distro verification and installed-helper dual-route election are implemented. The two first-owner orders still need source-matched cloud proof. |
+| Store cutover and executable/route election | Source-matched Windows/WSL acceptance passed both first-owner orders with isolated logical Store identities and ordinary workspace coexistence. The released mixed-version install/upgrade matrix remains open. |
 | Catalog launch/attach write failure | Repaired on the host. Launch reserves exact identity before spawn; an acquired writer returns its native tuple even if the projection write fails. Pending exact generations reconcile on maintenance without changing a newer writer or reordering MRU on replay. |
 | Catalog watch and cursor scoping | Repaired in the working tree. Cursor formats now bind filters. The watch ring stores bounded sanitized rows and preserves removal identity. Fixture coverage includes a changed filter and a real retained-window gap. |
 | Desktop launch, automatic restore, snapshots and shell entry | Launch through a verified opt-in target, restore only exact runs/free writers, recover from output gaps and exercise the private CLI in a real TTY. |
@@ -57,7 +60,7 @@ guardian ownership remain open.
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
 | S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, private `ctl list/resume/stop`, and exact live project admission for resume across working directories in one logical scope. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
-| S5 mandatory WSL guardian | in_progress | Native Windows/WSL bridge loss and exact-run reconnect passed on `36bdc6d3`. Mixed ordinary/guarded forwarding and both installed-helper startup orders require fresh Windows/WSL proof. |
+| S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | in_progress | Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
@@ -1881,9 +1884,11 @@ the parent configuration directory and rejects an unsafe parent before repair.
 The generated installer fixture now exercises permissive-umask first install,
 upgrade from writable component directories and prior isolation/corruption cases.
 The permission check failed against the old installer and passed against the
-fix. The WSL CI guest installs with the same permissive umask. Exact native
-election still requires a fresh Windows/WSL pass. MEMORY.md records the installed
-boundary.
+fix. The WSL CI guest installs with the same permissive umask. The source-matched
+Windows/WSL job at `acd9e63e` passed the guest build, installation and native
+workspace checks, including both startup orders, distinct logical identities,
+exact-run reconnect and both ordinary workspace cases. MEMORY.md records the
+installed boundary and native receipt.
 
 ## Evidence index
 

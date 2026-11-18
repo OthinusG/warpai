@@ -389,8 +389,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - On WSL, SSH-first selects the owned manifest-checked dual-route guest where
   both helpers are installed. Ordinary stdio only follows a guardian whose
-  logical service ID matches its legacy Store. Both startup orders require
-  source-matched native proof.
+  logical service ID matches its legacy Store. Native run 44311567207 at
+  `acd9e63e` passed both startup orders, a bridge-free exact-run reconnect and
+  ordinary workspace coexistence. The full release matrix is tracked in specs.
 
 - Companion installers create private component directories and repair legacy
   group/other write bits. SSH-first WSL election requires account-owned
