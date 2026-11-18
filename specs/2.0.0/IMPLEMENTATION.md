@@ -26,7 +26,7 @@ present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
 | WSL bridge flag and route passed as one argv entry | Repaired in the working tree. The argv fixture verifies two distinct arguments. Actual wsl.exe dispatch remains unverified. |
 | Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
 | Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
-| Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Both installed-helper startup orders and the verified WSL namespace remain open. |
+| Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Native distro verification and installed-helper dual-route election are implemented. The two first-owner orders still need source-matched cloud proof. |
 | Catalog launch/attach write failure | Repaired on the host. Launch reserves exact identity before spawn; an acquired writer returns its native tuple even if the projection write fails. Pending exact generations reconcile on maintenance without changing a newer writer or reordering MRU on replay. |
 | Catalog watch and cursor scoping | Repaired in the working tree. Cursor formats now bind filters. The watch ring stores bounded sanitized rows and preserves removal identity. Fixture coverage includes a changed filter and a real retained-window gap. |
 | Desktop launch, automatic restore, snapshots and shell entry | Launch through a verified opt-in target, restore only exact runs/free writers, recover from output gaps and exercise the private CLI in a real TTY. |
@@ -1736,6 +1736,24 @@ releases WSL and verifies the same guardian and boot IDs on both listeners.
 Local proof: contention and continuous-accept fixture passed on macOS arm64.
 Installed-helper first-owner election and full native WSL remain separate
 acceptance cases.
+
+Record ID / date: S5-b / 2026-11-18
+Scope: same-account SSH-first/WSL-first election and legacy scope routing.
+Baseline: `fd86a43e` on `feat/2.0.0`.
+
+On a verified WSL guest with both helpers installed, the SSH launcher verifies
+the owned WSL image against its installed manifest and probes the private
+dual-route ABI before invoking it. WSL-first uses that image directly.
+The guardian's route-local Projects adapters keep separate setup and Store
+ownership. Ordinary SSH keeps its native Agent binding, including the native
+working-directory check. Ordinary stdio preflights the guardian's scoped
+service ID before redirecting; an unrelated legacy Store starts independently.
+
+Host proof: the manifest fixture rejects modified and symlinked binaries, the
+default and feature libraries check on macOS, local Companion tests pass,
+and the WSL provisioning script passes `bash -n`. The WSL CI guest now
+installs both source-matched helpers. Its native Windows bridge fixture checks
+both first-owner orders and distinct logical IDs; the result remains pending.
 
 ## Evidence index
 

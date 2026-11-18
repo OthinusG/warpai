@@ -261,6 +261,7 @@ fn ssh_route_hides_wsl_capabilities_and_rejects_guest_binding() {
     let state = tempfile::tempdir().unwrap();
     let mut companion = Companion::new(&state.path().join("remote-data")).unwrap();
     companion.route = Some(Route::Ssh);
+    companion.account_guardian = Some(Uuid::new_v4());
     let managed_response::Result::Initialized(initialized) = result(companion.handle(request(
         managed_request::Operation::Initialize(ManagedInitialize {
             protocol_major: PROTOCOL_MAJOR,
@@ -292,6 +293,12 @@ fn ssh_route_hides_wsl_capabilities_and_rejects_guest_binding() {
         result(companion.handle(bind(fence.clone()))),
         managed_response::Result::Error(ManagedError { code })
             if code == i32::from(ManagedErrorCode::ManagedFeatureUnavailable)
+    ));
+    companion.account_guardian = None;
+    assert!(matches!(
+        result(companion.handle(bind(fence))),
+        managed_response::Result::Error(ManagedError { code })
+            if code == i32::from(ManagedErrorCode::ManagedPermissionDenied)
     ));
 }
 

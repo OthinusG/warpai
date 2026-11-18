@@ -580,56 +580,89 @@ pub(crate) fn decode_result(bytes: &[u8]) -> Option<serde_json::Value> {
 pub(super) struct Projects {
     directory: PathBuf,
     owners: Mutex<BTreeMap<String, (String, RunningBroker)>>,
-    #[cfg(not(feature = "wsl_companion"))]
     mcp_setup: Mutex<()>,
+    pub(super) wsl_scope: bool,
+    ssh_bridge: Option<PathBuf>,
     pub(super) guests: super::guests::Guests,
 }
 impl Projects {
     pub(super) fn new(directory: &Path) -> Self {
+        let wsl_scope = cfg!(feature = "wsl_companion");
+        let bridge = (!wsl_scope).then(|| std::env::current_exe().ok()).flatten();
+        Self::for_scope(directory, wsl_scope, bridge)
+    }
+
+    #[cfg(unix)]
+    pub(super) fn for_guardian(directory: &Path, route: Route) -> Self {
+        let bridge = match route {
+            Route::Wsl => None,
+            Route::Ssh => {
+                #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    super::guardian::account_home().ok().and_then(|home| {
+                        let (path, _) = crate::installation::companion_path(home.to_str()?, "Linux").ok()?;
+                        let path = PathBuf::from(path);
+                        let metadata = path.symlink_metadata().ok()?;
+                        (metadata.is_file() && metadata.uid() == unsafe { libc::geteuid() }
+                            && metadata.mode() & 0o122 == 0o100).then_some(path)
+                    })
+                }
+                #[cfg(not(all(target_os = "linux", feature = "wsl_companion")))]
+                std::env::current_exe().ok()
+            }
+        };
+        Self::for_scope(directory, route == Route::Wsl, bridge)
+    }
+
+    fn for_scope(directory: &Path, wsl_scope: bool, ssh_bridge: Option<PathBuf>) -> Self {
         Self {
             directory: directory.join("projects"),
             owners: Mutex::new(BTreeMap::new()),
-            #[cfg(not(feature = "wsl_companion"))]
             mcp_setup: Mutex::new(()),
+            wsl_scope,
+            ssh_bridge,
             guests: super::guests::Guests::new(directory.join("mcp-settings.json")),
         }
     }
+
+    pub(super) fn supports_ssh_setup(&self) -> bool {
+        !self.wsl_scope && self.ssh_bridge.is_some()
+    }
     /// Explicit SSH Agent launches reuse managed MCP setup; guest opt-ins remain WSL-owned.
     pub(super) fn prepare_agent(&self, program: &str, executable: &Path) -> Result<(), ManagedErrorCode> {
-        #[cfg(feature = "wsl_companion")]
-        { let _ = (program, executable); return Ok(()); }
-        #[cfg(not(feature = "wsl_companion"))]
-        {
-            if matches!(program, "codex" | "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn")
-                || !crate::screen_detection::has_manifest(program) { return Ok(()); }
-            let _setup = self.mcp_setup.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-            let bridge = std::env::current_exe().map_err(path_error)?;
-            let entry = crate::setup::remote_installed(program, executable, &bridge)
-                .map_err(|_| ManagedErrorCode::ManagedFeatureUnavailable)?;
-            if matches!(entry.adapter, crate::setup::Adapter::Vibe(_)) { return Ok(()); }
-            let path = self.directory.parent().ok_or(ManagedErrorCode::ManagedUnavailable)?.join("mcp-settings.json");
-            let mut preferences = match std::fs::File::open(&path) {
-                Ok(file) => {
-                    let mut bytes = Vec::new();
-                    file.take(512 * 1024 + 1).read_to_end(&mut bytes).map_err(path_error)?;
-                    if bytes.len() > 512 * 1024 { return Err(ManagedErrorCode::ManagedInvalidInput); }
-                    serde_json::from_slice::<crate::setup::Preferences>(&bytes).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Default::default(),
-                Err(error) => return Err(path_error(error)),
-            };
-            let owned = preferences.selected.contains_key(program);
-            if !owned {
-                crate::setup::configure(&entry, false, false).map_err(|_| ManagedErrorCode::ManagedConflict)?;
-            }
-            preferences.enabled = true;
-            let mut intent = entry.clone(); intent.active = false;
-            preferences.selected.insert(program.into(), intent);
-            crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-            crate::setup::configure(&entry, true, owned).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-            preferences.selected.insert(program.into(), entry);
-            crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)
+        if self.wsl_scope {
+            return Ok(());
         }
+        if matches!(program, "codex" | "claude" | "qoder" | "qodercli" | "qoder-cli" | "qodercn" | "qoderclicn" | "qoder-cn")
+            || !crate::screen_detection::has_manifest(program) { return Ok(()); }
+        let _setup = self.mcp_setup.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        let bridge = self.ssh_bridge.as_deref().ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?;
+        let entry = crate::setup::remote_installed(program, executable, bridge)
+            .map_err(|_| ManagedErrorCode::ManagedFeatureUnavailable)?;
+        if matches!(entry.adapter, crate::setup::Adapter::Vibe(_)) { return Ok(()); }
+        let path = self.directory.parent().ok_or(ManagedErrorCode::ManagedUnavailable)?.join("mcp-settings.json");
+        let mut preferences = match std::fs::File::open(&path) {
+            Ok(file) => {
+                let mut bytes = Vec::new();
+                file.take(512 * 1024 + 1).read_to_end(&mut bytes).map_err(path_error)?;
+                if bytes.len() > 512 * 1024 { return Err(ManagedErrorCode::ManagedInvalidInput); }
+                serde_json::from_slice::<crate::setup::Preferences>(&bytes).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Default::default(),
+            Err(error) => return Err(path_error(error)),
+        };
+        let owned = preferences.selected.contains_key(program);
+        if !owned {
+            crate::setup::configure(&entry, false, false).map_err(|_| ManagedErrorCode::ManagedConflict)?;
+        }
+        preferences.enabled = true;
+        let mut intent = entry.clone(); intent.active = false;
+        preferences.selected.insert(program.into(), intent);
+        crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        crate::setup::configure(&entry, true, owned).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        preferences.selected.insert(program.into(), entry);
+        crate::setup::save_preferences(&path, &preferences).map_err(|_| ManagedErrorCode::ManagedUnavailable)
     }
     pub(super) fn broker(&self, project_id: &str, root: &str) -> Result<Broker, ManagedErrorCode> {
         let id = Uuid::parse_str(project_id).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
@@ -724,10 +757,12 @@ impl Projects {
             return Err(ManagedErrorCode::ManagedInvalidInput);
         }
         if let Command::SshSetup(query) = command {
-            if expected_scope.is_some() || cfg!(feature = "wsl_companion") {
+            if expected_scope.is_some() || !self.supports_ssh_setup() {
                 return Err(ManagedErrorCode::ManagedFeatureUnavailable);
             }
-            let configured = crate::ssh_setup::configure(query);
+            let directory = self.directory.parent().ok_or(ManagedErrorCode::ManagedUnavailable)?;
+            let bridge = self.ssh_bridge.as_deref().ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?;
+            let configured = crate::ssh_setup::configure_in(query, directory, bridge);
             // A completed disable must revoke native MCP before its acknowledgement.
             self.guests.reap_and_active();
             let value = configured.map_err(|_| ManagedErrorCode::ManagedUnavailable)?;

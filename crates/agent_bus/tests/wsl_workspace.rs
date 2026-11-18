@@ -335,16 +335,29 @@ async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
     let root = std::env::var("WARP_TEST_WSL_ROOT").expect("Controlled Linux project");
     let companion = std::env::var("WARP_TEST_WSL_COMPANION").expect("Source-matched Linux Companion");
     let data_path = format!("XDG_DATA_HOME=/tmp/warpai-guardian-test-{}", Uuid::new_v4());
+    let guest_command = |user: &str, image: &str, route: &str, data: &str| {
+        let mut command = tokio::process::Command::new("wsl.exe");
+        command.args([
+            "--distribution", &distribution, "--user", user,
+            "--exec", "/usr/bin/env", data, image, "--guardian-stdio", route,
+        ]);
+        command
+    };
+    guarded_reconnect::verify_same_guardian(
+        &root,
+        guest_command(&user, "/home/warpai-test/.config/warpai/bin/warpai-companion", "ssh", &data_path),
+        guest_command(&user, &companion, "wsl", &data_path),
+    ).await;
     guarded_reconnect::verify_guarded_reconnect(
         &root,
         std::time::Duration::from_secs(12),
-        || {
-            let mut command = tokio::process::Command::new("wsl.exe");
-            command.args([
-                "--distribution", &distribution, "--user", &user,
-                "--exec", "/usr/bin/env", &data_path, &companion, "--guardian-stdio", "wsl",
-            ]);
-            command
-        },
+        || guest_command(&user, &companion, "wsl", &data_path),
+    ).await;
+
+    let other_data = format!("XDG_DATA_HOME=/tmp/warpai-guardian-test-{}", Uuid::new_v4());
+    guarded_reconnect::verify_same_guardian(
+        "/home/warpai-other/project",
+        guest_command("warpai-other", "/home/warpai-other/.config/warpai/wsl/bin/warpai-wsl-companion", "wsl", &other_data),
+        guest_command("warpai-other", "/home/warpai-other/.config/warpai/bin/warpai-companion", "ssh", &other_data),
     ).await;
 }

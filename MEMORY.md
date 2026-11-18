@@ -387,6 +387,11 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Guarded resize is idempotently sequenced per writer. Pending PTY launches
   reserve a session slot before releasing the shared registry for native spawn.
 
+- On WSL, SSH-first selects the owned manifest-checked dual-route guest where
+  both helpers are installed. Ordinary stdio only follows a guardian whose
+  logical service ID matches its legacy Store. Both startup orders require
+  source-matched native proof.
+
 ## Memory maintenance
 
 Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;

@@ -404,8 +404,7 @@ impl Guests {
         let root = PathBuf::from(
             crate::project_root(root).map_err(|_| ManagedErrorCode::ManagedInvalidInput)?,
         );
-        #[cfg(not(feature = "wsl_companion"))]
-        if PathBuf::from(crate::project_root(&native_directory(pid).map_err(path_error)?)
+        if !projects.wsl_scope && PathBuf::from(crate::project_root(&native_directory(pid).map_err(path_error)?)
             .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?) != root {
             return Err(ManagedErrorCode::ManagedPermissionDenied);
         }

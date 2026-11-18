@@ -5,6 +5,11 @@ async fn main() {
 }
 
 pub(crate) async fn run() {
+    #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
+    if std::env::args_os().len() == 2 && std::env::args().nth(1).as_deref() == Some("--guardian-abi") {
+        println!("WAG1 ssh+wsl");
+        return;
+    }
     if std::env::args_os().len() == 2
         && std::env::args().nth(1).as_deref() == Some("--check-runtime")
     {

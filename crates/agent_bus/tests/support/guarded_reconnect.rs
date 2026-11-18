@@ -57,7 +57,7 @@ impl Bridge {
         reply.result.unwrap()
     }
 
-    async fn open(&mut self, root: &str) -> ManagedFence {
+    async fn open(&mut self, root: &str) -> (ManagedFence, AccountFence) {
         let managed_response::Result::Initialized(init) = self
             .call(managed_request::Operation::Initialize(ManagedInitialize {
                 protocol_major: remote_protocol::managed::PROTOCOL_MAJOR,
@@ -66,7 +66,7 @@ impl Bridge {
         else {
             panic!("Guardian handshake required");
         };
-        assert!(init.account_fence.is_some());
+        let account = init.account_fence.expect("Guardian account admission");
         assert!(!init
             .capabilities
             .iter()
@@ -80,7 +80,7 @@ impl Bridge {
         else {
             panic!("Fixture project must open");
         };
-        opened.fence.unwrap()
+        (opened.fence.unwrap(), account)
     }
 
     async fn terminal(&mut self, request: TerminalControl) -> TerminalState {
@@ -94,13 +94,25 @@ impl Bridge {
     }
 }
 
+#[cfg(windows)]
+pub async fn verify_same_guardian(root: &str, first: Command, second: Command) {
+    let mut first = Bridge::connect(first);
+    let (first_fence, first_owner) = first.open(root).await;
+    let mut second = Bridge::connect(second);
+    let (second_fence, second_owner) = second.open(root).await;
+    assert_eq!(first_owner.guardian_id, second_owner.guardian_id);
+    assert_eq!(first_owner.boot_id, second_owner.boot_id);
+    assert_ne!(first_fence.service_id, second_fence.service_id);
+    assert_ne!(first_fence.project_id, second_fence.project_id);
+}
+
 pub async fn verify_guarded_reconnect(
     root: &str,
     bridge_gap: Duration,
     command: impl Fn() -> Command,
 ) {
     let mut first = Bridge::connect(command());
-    let fence = first.open(root).await;
+    let (fence, _) = first.open(root).await;
     let session_id = Uuid::new_v4().to_string();
     let managed_response::Result::TerminalState(launched) = first.call(
         managed_request::Operation::TerminalLaunch(TerminalLaunch {
@@ -149,7 +161,7 @@ pub async fn verify_guarded_reconnect(
     sleep(bridge_gap).await;
 
     let mut second = Bridge::connect(command());
-    let rejoined = second.open(root).await;
+    let (rejoined, _) = second.open(root).await;
     assert_eq!(rejoined.service_id, fence.service_id);
     assert_eq!(rejoined.service_boot_id, fence.service_boot_id);
     assert_eq!(rejoined.project_id, fence.project_id);

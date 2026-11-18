@@ -79,7 +79,7 @@ pub fn companion_path(home: &str, os: &str) -> Result<(String, RemoteShell), Con
 }
 
 /// Resolve the dedicated WSL installation without sharing the SSH executable.
-#[cfg(any(windows, feature = "wsl_companion", test))]
+#[cfg(any(windows, target_os = "linux", feature = "wsl_companion", test))]
 pub fn wsl_companion_path(home: &str) -> Result<String, ConnectionError> {
     // Reuse the native home validation without pointing WSL to the SSH installation.
     companion_path(home, "Linux")?;

@@ -28,7 +28,7 @@ fn euid() -> u32 {
 }
 
 /// Account home from passwd, never HOME/XDG or route environment.
-fn account_home() -> std::io::Result<PathBuf> {
+pub(super) fn account_home() -> std::io::Result<PathBuf> {
     let mut buffer = vec![0u8; 4096];
     let mut entry = unsafe { std::mem::zeroed::<libc::passwd>() };
     let mut result = std::ptr::null_mut();
@@ -73,7 +73,7 @@ pub(crate) fn runtime_directory() -> std::io::Result<PathBuf> {
     Ok(PathBuf::from("/tmp").join(format!("warpai-guardian-{}", euid())))
 }
 
-#[cfg(any(test, all(target_os = "linux", feature = "wsl_companion")))]
+#[cfg(any(test, target_os = "linux"))]
 fn translated_wsl_root(output: &[u8]) -> Option<&str> {
     if output.len() > 4096 {
         return None;
@@ -91,7 +91,7 @@ fn translated_wsl_root(output: &[u8]) -> Option<&str> {
     Some(distribution)
 }
 
-#[cfg(all(target_os = "linux", feature = "wsl_companion"))]
+#[cfg(target_os = "linux")]
 async fn verified_distribution() -> std::io::Result<String> {
     let mut command = tokio::process::Command::new("/usr/bin/wslpath");
     command.args(["-w", "/"]).kill_on_drop(true);
@@ -309,8 +309,90 @@ fn route_absent(error: &std::io::Error) -> bool {
     )
 }
 
-fn start_service() -> std::io::Result<()> {
-    let mut command = tokio::process::Command::new(std::env::current_exe()?);
+#[cfg(any(test, all(target_os = "linux", not(feature = "wsl_companion"))))]
+fn owned_installation_file(path: &Path) -> std::io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    let file = std::fs::OpenOptions::new().read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK).open(path)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() || metadata.uid() != euid() || metadata.mode() & 0o022 != 0 {
+        return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+    }
+    Ok(file)
+}
+
+#[cfg(any(test, all(target_os = "linux", not(feature = "wsl_companion"))))]
+fn verify_guest_image(home: &Path, image: &Path) -> std::io::Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+
+    let directory = image.parent().ok_or_else(|| std::io::Error::from(ErrorKind::InvalidInput))?;
+    for relative in [".config", ".config/warpai", ".config/warpai/wsl", ".config/warpai/wsl/bin"] {
+        let metadata = std::fs::symlink_metadata(home.join(relative))?;
+        if !metadata.is_dir() || metadata.uid() != euid() || metadata.mode() & 0o022 != 0 {
+            return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+        }
+    }
+    let mut manifest = Vec::new();
+    owned_installation_file(&directory.join("companion-manifest.json"))?
+        .take(65537).read_to_end(&mut manifest)?;
+    if manifest.len() > 65536 {
+        return Err(std::io::Error::from(ErrorKind::InvalidData));
+    }
+    let manifest: serde_json::Value = serde_json::from_slice(&manifest)?;
+    let file = owned_installation_file(image)?;
+    let metadata = file.metadata()?;
+    const MAX_IMAGE_BYTES: u64 = 256 * 1024 * 1024;
+    if metadata.mode() & 0o100 == 0 || metadata.len() > MAX_IMAGE_BYTES {
+        return Err(std::io::Error::from(ErrorKind::InvalidData));
+    }
+    let mut digest = Sha256::new();
+    let mut file = file.take(MAX_IMAGE_BYTES + 1);
+    let mut buffer = [0u8; 16384];
+    loop {
+        let count = file.read(&mut buffer)?;
+        if count == 0 { break; }
+        digest.update(&buffer[..count]);
+    }
+    if file.limit() == 0 || manifest["sha256"].as_str() != Some(&format!("{:x}", digest.finalize())) {
+        return Err(std::io::Error::from(ErrorKind::InvalidData));
+    }
+    Ok(())
+}
+
+async fn launch_image() -> std::io::Result<PathBuf> {
+    #[cfg(all(target_os = "linux", not(feature = "wsl_companion")))]
+    if Path::new("/usr/bin/wslpath").is_file() {
+        verified_distribution().await?;
+        let home = account_home()?;
+        let image = PathBuf::from(crate::installation::wsl_companion_path(
+            home.to_str().ok_or_else(|| std::io::Error::from(ErrorKind::InvalidData))?,
+        ).map_err(std::io::Error::other)?);
+        match std::fs::symlink_metadata(&image) {
+            Ok(_) => {
+                let image = tokio::task::spawn_blocking(move || {
+                    verify_guest_image(&home, &image)?;
+                    Ok::<_, std::io::Error>(image)
+                }).await.map_err(std::io::Error::other)??;
+                let mut probe = tokio::process::Command::new(&image);
+                probe.arg("--guardian-abi").kill_on_drop(true);
+                let output = tokio::time::timeout(Duration::from_secs(2), probe.output())
+                    .await.map_err(|_| std::io::Error::from(ErrorKind::TimedOut))??;
+                if !output.status.success() || output.stdout != b"WAG1 ssh+wsl\n" {
+                    return Err(std::io::Error::from(ErrorKind::Unsupported));
+                }
+                return Ok(image);
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => (),
+            Err(error) => return Err(error),
+        }
+    }
+    std::env::current_exe()
+}
+
+async fn start_service() -> std::io::Result<()> {
+    let mut command = tokio::process::Command::new(launch_image().await?);
     command
         .arg("--guardian-service")
         .stdin(std::process::Stdio::null())
@@ -364,7 +446,7 @@ pub(crate) async fn connect(route: Route) -> std::io::Result<(UnixStream, Uuid, 
         Err(error) if !route_absent(&error) => return Err(error),
         Err(_) => (),
     }
-    start_service()?;
+    start_service().await?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match probe_route(&runtime, route).await {
@@ -464,7 +546,7 @@ fn admit_scope(route: Route, directory: PathBuf) -> std::io::Result<Option<Scope
         Err(std::fs::TryLockError::WouldBlock) => return Ok(None),
         Err(error) => return Err(std::io::Error::other(error)),
     }
-    let tasks = Arc::new(tasks::Projects::new(&directory));
+    let tasks = Arc::new(tasks::Projects::for_guardian(&directory, route));
     Ok(Some(Scope {
         route,
         directory,
@@ -700,6 +782,31 @@ mod tests {
         );
         assert_eq!(guardian_route("tap"), None);
         assert_eq!(guardian_route(""), None);
+    }
+
+    #[test]
+    fn verifies_only_the_manifest_owned_dual_route_image() {
+        use sha2::{Digest, Sha256};
+        use std::os::unix::fs::{symlink, PermissionsExt};
+
+        let state = tempfile::tempdir().unwrap();
+        let bin = state.path().join(".config/warpai/wsl/bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let expected = bin.join("warpai-wsl-companion");
+        let image = b"source-matched fixture";
+        std::fs::write(&expected, image).unwrap();
+        std::fs::set_permissions(&expected, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let manifest = serde_json::json!({"sha256": format!("{:x}", Sha256::digest(image))});
+        std::fs::write(bin.join("companion-manifest.json"), manifest.to_string()).unwrap();
+        assert!(verify_guest_image(state.path(), &expected).is_ok());
+        std::fs::write(&expected, b"modified").unwrap();
+        assert!(verify_guest_image(state.path(), &expected).is_err());
+        std::fs::remove_file(&expected).unwrap();
+        let elsewhere = state.path().join("elsewhere");
+        std::fs::write(&elsewhere, image).unwrap();
+        std::fs::set_permissions(&elsewhere, std::fs::Permissions::from_mode(0o700)).unwrap();
+        symlink(&elsewhere, &expected).unwrap();
+        assert!(verify_guest_image(state.path(), &expected).is_err());
     }
 
     #[test]

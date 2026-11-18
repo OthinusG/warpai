@@ -23,6 +23,7 @@ bash /home/warpai-test/rustup-install.sh -y --profile minimal --default-toolchai
 source /home/warpai-test/.cargo/env
 cargo build -p warp-agent-bus --bin warpai-companion --locked
 test "$(target/debug/warpai-companion --version)" = 'warpai-companion 6.1.0 protocol 1'
+install -D -m 755 target/debug/warpai-companion "$HOME/.config/warpai/bin/warpai-companion"
 cargo build --release -p warp-agent-bus --bin warpai-wsl-companion --features wsl_companion --locked
 python3 script/companion/package-wsl.py target/release/warpai-wsl-companion "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" "$source_revision"
 payload_directory=$(mktemp -d)
@@ -67,6 +68,7 @@ test "$(/home/warpai-test/.config/warpai/wsl/bin/warpai-wsl-companion --version)
 install -m 755 /home/warpai-test/warpai-source/script/test-wsl-native-agent.py /home/warpai-test/native-agent-fixture.py
 GUEST
 install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-wsl-companion /home/warpai-other/.config/warpai/wsl/bin/warpai-wsl-companion
+install -D -m 755 /home/warpai-test/warpai-source/target/debug/warpai-companion /home/warpai-other/.config/warpai/bin/warpai-companion
 install -d -o warpai-other -g warpai-other -m 700 /home/warpai-other/project
 chown -R warpai-other:warpai-other /home/warpai-other/.config
 chmod 700 /home/warpai-other/.config /home/warpai-other/.config/warpai

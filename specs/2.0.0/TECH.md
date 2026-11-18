@@ -254,6 +254,14 @@ Guardian maintenance uses an independent deadline. Continuous incoming
 connections cannot postpone pending route admission, the catalog or exit
 reconciliation. The service skips overdue ticks instead of accumulating them.
 
+When the verified Linux execution account is a WSL guest with an installed
+WSL Companion, SSH-first election selects the manifest-verified dual-route
+guest image. The same image starts on a WSL-first request. The helper's private
+ABI probe confirms support for both routes before startup. Shared ownership
+does not change logical Store or setup authority: each admitted route owns its
+own Projects adapter and native MCP settings. An existing one-route owner
+keeps its live work until normal shutdown.
+
 ## Future-launch preferences
 
 Store SSH opt-ins by the verified logical service ID of the selected account,

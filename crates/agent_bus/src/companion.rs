@@ -177,8 +177,9 @@ impl Companion {
             ]
             .map(str::to_owned),
         );
-        #[cfg(not(feature = "wsl_companion"))]
-        capabilities.push("native_mcp_setup".into());
+        if self.tasks.supports_ssh_setup() {
+            capabilities.push("native_mcp_setup".into());
+        }
         capabilities.push("project_files".into());
         if self.wsl_route() {
             capabilities.push("project_file_chunks".into());
@@ -462,7 +463,7 @@ impl Companion {
             }
             Some(managed_request::Operation::GuestMcpBind(request)) => {
                 self.check_project(request.fence.as_ref())?;
-                if self.route == Some(Route::Ssh) {
+                if self.route == Some(Route::Ssh) && self.account_guardian.is_some() {
                     return Err(ManagedErrorCode::ManagedFeatureUnavailable);
                 }
                 {

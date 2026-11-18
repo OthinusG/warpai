@@ -41,12 +41,6 @@ impl Drop for SetupLock {
     }
 }
 
-pub(crate) fn configure(request: Request) -> Result<Response> {
-    validate(&request)?;
-    let directory = crate::companion::data_directory()?;
-    configure_in(request, &directory, &std::env::current_exe()?)
-}
-
 fn validate(request: &Request) -> Result<()> {
     ensure!(request.commands.len() <= 128 && request.commands.iter().all(|(program, command)| {
         [program, command].into_iter().all(|value| !value.is_empty() && !value.starts_with('-') && value.len() <= 64
@@ -61,7 +55,7 @@ fn validate(request: &Request) -> Result<()> {
     Ok(())
 }
 
-fn configure_in(request: Request, directory: &Path, bridge: &Path) -> Result<Response> {
+pub(crate) fn configure_in(request: Request, directory: &Path, bridge: &Path) -> Result<Response> {
     validate(&request)?;
     crate::companion::identity::private_directory(directory)?;
     let lock = crate::companion::identity::private_file(&directory.join("mcp-settings.lock"))?;

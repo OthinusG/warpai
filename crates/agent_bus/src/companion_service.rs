@@ -79,23 +79,24 @@ fn start_service() -> std::io::Result<()> {
 pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     let directory = data_directory()?;
     let endpoint = endpoint(&directory)?;
-    let (stream, from_guardian) = match connect(&endpoint).await {
-        Ok(stream) => (stream, false),
+    let (stream, expected_scope) = match connect(&endpoint).await {
+        Ok(stream) => (stream, None),
         Err(_) => {
             #[cfg(unix)]
-            if let Ok(Some(stream)) = guardian::probe_connection_owned().await {
-                let scope = identity::Identity::open(&directory)?.service_id;
+            let scope = identity::Identity::open(&directory)?.service_id;
+            #[cfg(unix)]
+            if let Some(stream) = ordinary_guardian(&scope).await {
                 return forward_stdio(stream, Some(scope), None).await;
             }
             start_service()?;
             tokio::time::timeout(Duration::from_secs(10), async {
                 loop {
                     if let Ok(stream) = connect(&endpoint).await {
-                        break (stream, false);
+                        break (stream, None);
                     }
                     #[cfg(unix)]
-                    if let Ok(Some(stream)) = guardian::probe_connection_owned().await {
-                        break (stream, true);
+                    if let Some(stream) = ordinary_guardian(&scope).await {
+                        break (stream, Some(scope.clone()));
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
@@ -104,10 +105,31 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
             .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))?
         }
     };
-    let expected_scope = from_guardian
-        .then(|| identity::Identity::open(&directory).map(|identity| identity.service_id))
-        .transpose()?;
     forward_stdio(stream, expected_scope, None).await
+}
+
+#[cfg(unix)]
+async fn ordinary_guardian(scope: &str) -> Option<Stream> {
+    let mut candidate = guardian::probe_connection_owned().await.ok()??.compat();
+    let request_id = Uuid::new_v4().to_string();
+    let request = ClientMessage {
+        request_id: request_id.clone(),
+        message: Some(client_message::Message::Managed(ManagedRequest {
+            operation: Some(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: PROTOCOL_MAJOR,
+            })),
+        })),
+    };
+    let reply = tokio::time::timeout(Duration::from_secs(2), async {
+        write_message_with_limit(&mut candidate, &request, MAX_MANAGED_MESSAGE_SIZE).await?;
+        read_message_with_limit::<ServerMessage>(&mut candidate, MAX_MANAGED_MESSAGE_SIZE).await
+    }).await.ok()?.ok()?;
+    drop(candidate);
+    if reply.request_id != request_id || !verified_initialize(&reply, scope, None) {
+        // A different logical Store is independent of this legacy launch.
+        return None;
+    }
+    guardian::probe_connection_owned().await.ok().flatten()
 }
 
 pub(super) async fn forward_stdio(
