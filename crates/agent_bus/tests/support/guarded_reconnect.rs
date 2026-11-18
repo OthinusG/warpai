@@ -272,6 +272,9 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
             loop {
                 line.clear();
                 assert_ne!(output.read_line(&mut line).await.unwrap(), 0, "Missing {expected}");
+                if let Some(reason) = line.trim_end().strip_prefix("GUARDIAN_CLI_TTY_ERROR=") {
+                    panic!("Native CLI TTY fixture failed: {reason}");
+                }
                 if line.trim_end() == expected { break; }
             }
         }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"));

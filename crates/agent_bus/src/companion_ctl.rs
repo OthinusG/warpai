@@ -892,7 +892,10 @@ impl Drop for RawTerminal {
     fn drop(&mut self) {
         if let Some(original) = &self.original {
             unsafe {
-                libc::tcsetattr(self.fd, libc::TCSANOW, original);
+                if libc::tcsetattr(self.fd, libc::TCSANOW, original) == 0 {
+                    // Darwin marks pending input for reprocessing when canonical mode returns.
+                    libc::tcflush(self.fd, libc::TCIFLUSH);
+                }
             }
         }
     }
@@ -917,16 +920,23 @@ mod tests {
             (std::fs::File::from_raw_fd(master), std::fs::File::from_raw_fd(slave))
         };
         let fd = slave.as_raw_fd();
-        let mode = || unsafe {
+        let attributes = || unsafe {
             let mut attributes: libc::termios = std::mem::zeroed();
             assert_eq!(libc::tcgetattr(fd, &mut attributes), 0);
-            attributes.c_lflag & (libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN)
+            attributes
         };
-        let original = mode();
+        let original = attributes();
         let raw = RawTerminal::enable(fd).unwrap();
-        assert_eq!(mode(), 0);
+        assert_eq!(attributes().c_lflag & (libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN), 0);
         drop(raw);
-        assert_eq!(mode(), original);
+        let restored = attributes();
+        assert_eq!(restored.c_iflag, original.c_iflag);
+        assert_eq!(restored.c_oflag, original.c_oflag);
+        assert_eq!(restored.c_cflag, original.c_cflag);
+        assert_eq!(restored.c_lflag, original.c_lflag);
+        assert_eq!(restored.c_cc, original.c_cc);
+        assert_eq!(restored.c_ispeed, original.c_ispeed);
+        assert_eq!(restored.c_ospeed, original.c_ospeed);
     }
 
     fn args(value: &[&str]) -> Vec<String> {

@@ -365,8 +365,8 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   remains gated; native Windows refuses guardian flags and `ctl`.
 - Companion CLI `ctl list|resume|stop` probes only. Bare resume recognizes its
   native guarded session before selecting in the helper's logical scope. Bare
-  stop is account-wide and operator-only, with boot-scoped receipts. The
-  session-only shell function and full V01-V30 release acceptance remain open.
+  stop is account-wide and operator-only, with boot-scoped receipts. Full
+  V01-V30 release acceptance remains open.
 - S1-r review/repairs and source-matched host receipts are in
   specs/2.0.0/IMPLEMENTATION.md. Existing Store locks and exact logical service
   identity fence ordinary-helper forwarding during guardian cutover.
@@ -408,6 +408,13 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   with 300 ms delivery pacing and five-second idle reconciliation. Direct wakes
   resolve by terminal; pool notices retain project-wide arbitration. Native
   delivery latency and resource benchmarks remain release gates.
+
+- Bash/Zsh managed remote bootstrap installs a session-only `warpai` function
+  with an absolute, manifest-verified SSH or WSL helper. User command collisions
+  keep precedence. Native Windows still needs its guardian and shell path.
+- Darwin leaves `PENDIN` when a raw CLI returning to canonical mode uses only
+  `TCSANOW`. Flush pending input after restoring attributes without draining
+  output. Local PTY regression compares all termios fields.
 
 ## Memory maintenance
 

@@ -59,7 +59,7 @@ guardian ownership remain open.
 | S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
-| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, private `ctl list/resume/stop`, and exact live project admission for resume across working directories in one logical scope. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
+| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect and native CLI TTY, private `ctl list/resume/stop`, and exact live project admission across working directories. Bash/Zsh session-only command is wired into bootstrap. Desktop launch/restore and native Windows shell entry remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications, direct terminal lookup and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared pool dispatch, bulk fairness and measured resource budgets remain open. |
@@ -1944,6 +1944,29 @@ required a guarded capability that the installed guardian withheld from all
 channels. The local authenticated operator now receives it; the remote data
 bridge continues to withhold it. The TTY fixture uses the normal installed
 binary path and also checks the data bridge's restricted capability set.
+Linux OpenSSH passed the native PID, input, split detach and `stty` checks at
+`542bf22f` in [run 44322343719](https://github.com/OthinusG/warpai/actions/runs/44322343719).
+On macOS, resume and input succeeded but the final restoration marker was
+missing. A full local Darwin PTY attribute comparison reproduced the extra
+`PENDIN` bit after canonical mode returned. The CLI restores attributes and
+flushes pending input without waiting for the output queue. The full attribute
+comparison passes after the fix. Remote macOS verification remains open.
+
+Record ID / date: S4-d / 2026-11-18
+Scope: Bash/Zsh session-only `warpai` command (FR-16, V26).
+
+The existing Bash/Zsh bootstrap includes a shared fragment after shell startup.
+It uses the managed SSH marker or the native WSL UNC root and exact distro hint
+to select the dedicated absolute helper path. Installation verification checks
+ownership, symlinks, directory/file write permissions and the binary's installed
+SHA-256 before dispatch. The shell function forwards literal arguments to `ctl`.
+Aliases, functions and executables named `warpai` keep their precedence, with an
+absolute-path hint. No profile, persistent environment or PATH changes.
+
+The owned TTY fixture passed in Bash and Zsh on macOS, covering literal Unicode
+and metacharacters, three collision types, noninteractive/normal local shells
+and corrupt helper rejection. Remote CI includes the fixture, with native WSL
+guest path checks when run inside WSL. Native Windows requires its guardian.
 
 ## Evidence index
 

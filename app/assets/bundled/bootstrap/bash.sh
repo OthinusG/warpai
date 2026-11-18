@@ -436,6 +436,7 @@
  # but it gets replaced by a new shell that we fully control.
  read -r -d '' WARP_BOOTSTRAP_VAR << 'EOM'
 #include bundled/bootstrap/bash_body.sh
+#include bundled/bootstrap/warpai_control.sh
 EOM
  # We need to restore the line editor before we evaluate the bootstrap logic
  # or everything freezes up

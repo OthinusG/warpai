@@ -18,4 +18,5 @@
  # where the buffer was getting messed up after processing the heredoc about 1/50 of the time.
  read -r -d '' WARP_BOOTSTRAP_VAR << 'EOM'; command -p stty sane; eval "$WARP_BOOTSTRAP_VAR"; unset WARP_BOOTSTRAP_VAR
 #include bundled/bootstrap/zsh_body.sh
+#include bundled/bootstrap/warpai_control.sh
 EOM

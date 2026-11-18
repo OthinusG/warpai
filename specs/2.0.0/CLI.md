@@ -51,6 +51,11 @@ or global alias. Do not override an existing user command/function/alias; show t
 private full-path alternative on collision. Do not inject into noninteractive or
 unknown shells, vendor CLI input streams, unrelated SSH sessions or local shells.
 
+The bundled Bash/Zsh bootstrap chooses the installed SSH helper in a managed
+SSH shell and the dedicated guest helper in a native, verified WSL shell. The
+function retains that absolute path for its shell session and verifies the
+owned directories, manifest and binary digest before dispatching each call.
+
 In an ordinary independently opened SSH/WSL shell, bare `warpai` is not promised
 without PATH/profile changes. The absolute Companion command remains usable.
 This limitation is deliberate and must be documented alongside the convenience

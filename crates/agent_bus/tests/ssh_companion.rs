@@ -863,7 +863,7 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     );
     let tty_resume = |session_id: &str| {
         let run = format!(
-            "before=$(stty -g) && {invocation} ctl resume --id {} && [ \"$(stty -g)\" = \"$before\" ] && printf '%s\\n' GUARDIAN_CLI_TTY_RESTORED",
+            "before=$(stty -g) || exit 10; {invocation} ctl resume --id {}; result=$?; if [ \"$result\" -ne 0 ]; then printf 'GUARDIAN_CLI_TTY_ERROR=exit_%s\\n' \"$result\"; exit \"$result\"; fi; after=$(stty -g) || exit 11; if [ \"$after\" != \"$before\" ]; then printf '%s\\n' GUARDIAN_CLI_TTY_ERROR=mode_mismatch; exit 12; fi; printf '%s\\n' GUARDIAN_CLI_TTY_RESTORED",
             quote(session_id),
         );
         let mut command = tokio::process::Command::new("ssh");
