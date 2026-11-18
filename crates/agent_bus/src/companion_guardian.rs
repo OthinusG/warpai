@@ -1537,15 +1537,25 @@ mod tests {
         assert_eq!(rows, vec![row.clone()]);
         let mut stale = row.clone();
         stale.run_id = Uuid::new_v4().to_string();
-        assert!(operator.open_guarded_project(&stale).await.is_err());
+        assert_eq!(
+            operator.open_guarded_project(&stale).await.unwrap_err(),
+            crate::ssh_remote::ConnectionError::NotFound,
+        );
         operator.open_guarded_project(&row).await.unwrap();
         assert_eq!(operator.fence().unwrap().project_id, project_fence.project_id);
         assert_eq!(inspect_guarded(&mut launcher, &account, &run).await, row);
 
         std::fs::rename(&project, state.path().join("old-project")).unwrap();
-        std::fs::create_dir(&project).unwrap();
         let mut operator = open_operator().await;
-        assert!(operator.open_guarded_project(&row).await.is_err());
+        assert_eq!(
+            operator.open_guarded_project(&row).await.unwrap_err(),
+            crate::ssh_remote::ConnectionError::StaleAttachment,
+        );
+        std::fs::create_dir(&project).unwrap();
+        assert_eq!(
+            operator.open_guarded_project(&row).await.unwrap_err(),
+            crate::ssh_remote::ConnectionError::StaleAttachment,
+        );
         server.abort();
     }
 

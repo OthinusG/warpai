@@ -1855,6 +1855,17 @@ Network-only, Windows-only and WSL acceptance inputs now participate in the
 workflow concurrency key. An unrelated validation mode no longer cancels or
 queues behind a run with an otherwise identical group.
 
+Record ID / date: S4-c / 2026-11-18
+Scope: MRU selection when a candidate ends during discovery and admission.
+
+Bare resume drops a candidate only after its exact run is confirmed absent or
+ended, then chooses from the remaining bounded results. A missing or replaced
+project root returns a stale attachment rather than a missing run. Exact
+selection and writer conflict still report failure for the selected target.
+Where no candidate has an MRU sequence, the newest creation sequence wins.
+The host fixtures check creation ordering and distinct run/root error codes.
+No wire, Store or durable memory changes.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

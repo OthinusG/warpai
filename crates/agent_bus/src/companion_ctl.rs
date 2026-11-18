@@ -441,7 +441,7 @@ fn select<'a>(
             .into_iter()
             .find(|row| &row.session_id == id)
             .ok_or_else(|| {
-                eprintln!("No live session matches {id} in this project.");
+                eprintln!("No live session matches {id}.");
                 EXIT_DOMAIN
             }),
         Selection::Name(name) => {
@@ -451,7 +451,7 @@ fn select<'a>(
                 .collect();
             match named.len() {
                 0 => {
-                    eprintln!("No live session is named {name} in this project.");
+                    eprintln!("No live session is named {name}.");
                     Err(EXIT_DOMAIN)
                 }
                 1 => Ok(named[0]),
@@ -466,7 +466,7 @@ fn select<'a>(
         }
         Selection::All => match live.len() {
             0 => {
-                eprintln!("No live session is resumable in this project.");
+                eprintln!("No live session is resumable.");
                 Err(EXIT_DOMAIN)
             }
             1 => Ok(live[0]),
@@ -476,6 +476,7 @@ fn select<'a>(
                 .max_by(|left, right| {
                     left.mru_seq
                         .cmp(&right.mru_seq)
+                        .then_with(|| left.created_seq.cmp(&right.created_seq))
                         .then_with(|| right.session_id.cmp(&left.session_id))
                 })
                 .expect("Live selection is not empty")),
@@ -494,34 +495,54 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
         println!("Already in the current guarded session.");
         return EXIT_OK;
     }
-    let rows = match rows(&mut client, route_name(route()), &filter).await {
+    let mut rows = match rows(&mut client, route_name(route()), &filter).await {
         Ok(rows) => rows,
         Err(code) => return code,
     };
-    let selected = match select(&rows, &selection) {
-        Ok(row) => row.clone(),
-        Err(code) => return code,
-    };
-    if client.current_guarded_session().is_some_and(|current| {
-        current.session_id == selected.session_id && current.run_id == selected.run_id
-    }) {
-        println!("Already in the current guarded session.");
-        return EXIT_OK;
-    }
-    let current = match client
-        .account_catalog_inspect(selected.session_id.clone(), selected.run_id.clone())
-        .await
-    {
-        Ok(row) if is_live(&row) => row,
-        _ => {
-            eprintln!("Selected session is no longer live.");
-            return EXIT_DOMAIN;
+    let current = loop {
+        let selected = match select(&rows, &selection) {
+            Ok(row) => row,
+            Err(code) => return code,
+        };
+        if client.current_guarded_session().is_some_and(|current| {
+            current.session_id == selected.session_id && current.run_id == selected.run_id
+        }) {
+            println!("Already in the current guarded session.");
+            return EXIT_OK;
+        }
+        let inspected = client
+            .account_catalog_inspect(selected.session_id.clone(), selected.run_id.clone())
+            .await;
+        let available = match inspected {
+            Ok(row) if row.session_id != selected.session_id || row.run_id != selected.run_id
+                || row.project_id != selected.project_id => Err(ConnectionError::StaleAttachment),
+            Ok(row) if is_live(&row) && project.is_none() => {
+                client.open_guarded_project(&row).await.map(|()| row)
+            }
+            Ok(row) if is_live(&row) => Ok(row),
+            Ok(_) => Err(ConnectionError::NotFound),
+            Err(error) => Err(error),
+        };
+        match available {
+            Ok(row) => break row,
+            Err(ConnectionError::NotFound) if matches!(selection, Selection::All) => {
+                let removed = selected.session_id.clone();
+                rows.retain(|row| row.session_id != removed);
+            }
+            Err(ConnectionError::NotFound) => {
+                eprintln!("Selected session is no longer live.");
+                return EXIT_DOMAIN;
+            }
+            Err(ConnectionError::InvalidInput | ConnectionError::FeatureUnavailable) if project.is_none() => {
+                eprintln!("Selected session project could not be opened. Use --project <root> for an older guardian.");
+                return EXIT_DOMAIN;
+            }
+            Err(error) => {
+                eprintln!("Selected session could not be opened: {error}");
+                return EXIT_DOMAIN;
+            }
         }
     };
-    if project.is_none() && client.open_guarded_project(&current).await.is_err() {
-        eprintln!("Selected session project is unavailable. Use --project <root> for an older guardian.");
-        return EXIT_DOMAIN;
-    }
     let attach = TerminalControl {
         fence: client.fence().cloned(),
         session_id: current.session_id.clone(),
@@ -1013,6 +1034,11 @@ mod tests {
         );
         let only_live = vec![row("x", None, "live", 1), row("y", None, "unknown", 9)];
         assert_eq!(select(&only_live, &Selection::All).unwrap().session_id, "x");
+        let no_history = [
+            AccountCatalogRow { created_seq: 2, ..row("a", None, "live", 0) },
+            AccountCatalogRow { created_seq: 3, ..row("z", None, "live", 0) },
+        ];
+        assert_eq!(select(&no_history, &Selection::All).unwrap().session_id, "z");
         assert_eq!(
             select(&[row("z", None, "ended", 3)], &Selection::All).unwrap_err(),
             EXIT_DOMAIN

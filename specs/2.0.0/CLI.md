@@ -129,6 +129,9 @@ not a target checklist of tools to reproduce.
    most recently polled row or last Agent vendor. Catalog queries and background
    refresh never change it. Detach does not reorder it.
 4. If the latest used session exited, skip it and choose the next live session.
+   Between discovery and project admission, a confirmed absent or ended run
+   is discarded from the existing bounded candidate set. Other failures are
+   presented for the selected run.
    If no surviving session has attachment history, use the newest created live
    session with stable ID as deterministic tie-break. No interactive picker.
 5. A selected session occupied by another writer returns a writer conflict;

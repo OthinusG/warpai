@@ -778,7 +778,10 @@ impl Companion {
         let (root, project_id) = self.terminals.guarded_project(
             &self.fence, &request.session_id, &request.run_id,
         )?;
-        self.open_project(&root, Some(&project_id))
+        self.open_project(&root, Some(&project_id)).map_err(|error| match error {
+            ManagedErrorCode::ManagedNotFound => ManagedErrorCode::ManagedStaleAttachment,
+            error => error,
+        })
     }
 
     #[cfg(not(unix))]
