@@ -399,6 +399,7 @@ mod tests {
                 age();
                 let task = call(broker, &issuer, assign(actor["agent"]["name"].as_str().unwrap())).unwrap();
                 let wake = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal).unwrap();
+                assert_eq!(broker.native_wake(&terminal), Some(wake.clone()));
                 assert!(broker.claim_wake(&wake), "{program}: native draft is not execution");
                 assert!(!broker.claim_wake(&wake), "one claim per message");
                 assert!(broker.wake_valid(&wake));

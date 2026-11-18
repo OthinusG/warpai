@@ -149,6 +149,9 @@ for the guarded path with shared notifications and nearest-deadline scheduling:
 Guarded native delivery runs on the existing Tokio runtime. A Broker watch
 coalesces Store changes. Each run signals its own input and committed PTY
 output so unrelated redraws leave sibling workers asleep.
+Ordinary peer notifications resolve through the terminal's indexed Broker
+binding. Broadcast pool notices still use the existing project-wide winner
+selection and claim validation.
 The worker uses the existing quiet/ready gates as deadlines and spaces
 draft cancellation, paste and Enter by at least 300 ms. A periodic safety
 check handles external Stores and checks that the native run still exists.

@@ -405,8 +405,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   and the catalog keeps no path. Project admission does not take the writer.
 
 - Guarded Agent wake checks use runtime notifications and quiet/ready deadlines
-  with 300 ms delivery pacing and five-second idle reconciliation. Native
-  guarded delivery latency and resource benchmarks remain release gates.
+  with 300 ms delivery pacing and five-second idle reconciliation. Direct wakes
+  resolve by terminal; pool notices retain project-wide arbitration. Native
+  delivery latency and resource benchmarks remain release gates.
 
 ## Memory maintenance
 

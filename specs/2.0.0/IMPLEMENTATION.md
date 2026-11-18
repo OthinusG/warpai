@@ -62,7 +62,7 @@ guardian ownership remain open.
 | S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, private `ctl list/resume/stop`, and exact live project admission for resume across working directories in one logical scope. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
-| S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions also cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Per-run indexing, bulk fairness and measured resource budgets remain open. |
+| S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications, direct terminal lookup and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared pool dispatch, bulk fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
 | S9 distribution/release | in_progress | Unix and generated WSL installer regressions cover provenance, permissions, repeat install and scope isolation. Native WSL uses the source-matched package. Release artifacts and the complete mixed-version upgrade matrix remain open. |
 
@@ -1904,7 +1904,18 @@ Successive evaluations are at least 300 ms apart, including draft cancellation,
 paste and Enter. Idle reconciliation uses a five-second deadline.
 Legacy wake checks retain their current loop. The worker test observes an idle
 window with zero extra evaluations, wakes on notification, and verifies pacing
-under a burst. Per-run indexing, native delivery and resource gates remain open.
+under a burst. Native delivery and resource gates remain open.
+
+Record ID / date: S7-f / 2026-11-18
+Scope: direct guarded deliveries and project-wide pool arbitration.
+
+A guarded worker resolves the direct wake for its terminal and live run from
+the existing Broker registry. Project-wide evaluation is needed only for a
+broadcast pool candidate and retains the same winner ranking and claim guards.
+The legacy selector and the indexed path share the readiness and message query.
+The existing multi-Agent test compares the exact candidate from both paths
+before verifying single-claim and draft/cancellation fencing. No wire or Store
+changes. MEMORY.md records the direct lookup boundary.
 
 ## Evidence index
 

@@ -146,6 +146,24 @@ struct State {
     terminals: HashMap<String, Terminal>,
     programs: Option<HashSet<String>>,
 }
+impl State {
+    fn wake_candidate(&self, terminal: &str, live: &Live) -> Option<(u64, Option<String>, Wake)> {
+        if live.wake_ready_at()? > Instant::now() {
+            return None;
+        }
+        let actor = live.agent.as_ref()?;
+        let message = self.store.next_unnotified(actor, &live.run, &live.delivered).ok()??;
+        let pool = (message.kind == "available").then(|| message.task_id.clone()).flatten();
+        Some((message.sequence, pool, Wake {
+            terminal: terminal.to_owned(),
+            run: live.run.clone(),
+            message_id: message.id,
+            generation: live.generation,
+            task_id: message.task_id,
+            revision: message.revision,
+        }))
+    }
+}
 struct Shared {
     state: Mutex<State>,
     forwarded: Mutex<HashMap<String, Broker>>,
@@ -858,6 +876,19 @@ impl Broker {
         let deadline = state.terminals.get(terminal)?.live.as_ref()?.wake_ready_at()?;
         deadline.checked_duration_since(Instant::now()).filter(|delay| !delay.is_zero())
     }
+
+    pub(crate) fn native_wake(&self, terminal: &str) -> Option<Wake> {
+        if let Some(broker) = self.forwarded(terminal) {
+            return broker.native_wake(terminal);
+        }
+        let state = self.shared.state.lock().ok()?;
+        let (_, pool, wake) = state.wake_candidate(terminal, state.terminals.get(terminal)?.live.as_ref()?)?;
+        if pool.is_none() {
+            return Some(wake);
+        }
+        drop(state);
+        self.wakeups().into_iter().find(|wake| wake.terminal == terminal)
+    }
     /// Empty-queue projections can be reused until a mutation; forwarded Stores keep polling.
     pub fn work_revision(&self) -> Option<usize> {
         if !self.shared.forwarded.lock().ok()?.is_empty() { return None; }
@@ -875,23 +906,11 @@ impl Broker {
             .iter()
             .filter_map(|(terminal, binding)| {
                 let live = binding.live.as_ref()?;
-                if live.wake_ready_at()? > Instant::now() {
-                    return None;
-                }
-                let actor = live.agent.as_ref()?;
-                let message = state.store.next_unnotified(actor, &live.run, &live.delivered).ok()??;
-                let pool = (message.kind == "available").then_some(message.task_id.clone()).flatten();
+                let (sequence, pool, wake) = state.wake_candidate(terminal, live)?;
                 if pool.as_ref().is_some_and(|task| dispatched_pools.contains(task)) {
                     return None;
                 }
-                Some((live.project.clone(), message.sequence, pool, Wake {
-                    terminal: terminal.clone(),
-                    run: live.run.clone(),
-                    message_id: message.id,
-                    generation: live.generation,
-                    task_id: message.task_id,
-                    revision: message.revision,
-                }))
+                Some((live.project.clone(), sequence, pool, wake))
             })
             .collect();
         candidates.sort_by(|left, right| (&left.0, left.1, &left.3.terminal)

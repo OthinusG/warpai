@@ -880,7 +880,12 @@ impl Terminals {
                     } else if paste { delivery = Some((wake, false)); }
                     return Some(WAKE_PACING);
                 }
-                if let Some(wake) = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal) {
+                let wake = if guarded {
+                    broker.native_wake(&terminal)
+                } else {
+                    broker.wakeups().into_iter().find(|wake| wake.terminal == terminal)
+                };
+                if let Some(wake) = wake {
                     if Uuid::parse_str(&wake.message_id).is_err() || !broker.claim_wake(&wake) { return Some(WAKE_PACING); }
                     if broker.discard_native_draft(&wake)
                         && input.try_send(NativeInput::Peer { wake: wake.clone(), bytes: b"\x03".to_vec(), submit: false }).is_err() {
