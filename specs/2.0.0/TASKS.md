@@ -15,6 +15,10 @@ and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
 | S7 | Shared pool dispatch, bulk fairness and resource accounting | Prove guarded delivery and benchmark actual CPU/RSS/threads with noisy, quiet and blocked sessions |
 | S8, S9 | Release gates, artifact integration and bilingual product documentation | Complete V01–V30 on matched artifacts, mixed-version upgrades and release review |
 
+The controlled Unix SSH fixture exercises the actual installed-style `ctl`
+entry on an allocated SSH TTY. It checks same-process output and input after a
+bridge gap, split detach input, and restoration of the outer terminal settings.
+
 ## S0: scope, caller inventory and contract freeze
 
 - [ ] Inventory managed launch/control/read/release callers, native WSL foreground

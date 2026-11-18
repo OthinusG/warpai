@@ -857,11 +857,20 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
     let helper = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
     let state = tempfile::tempdir().unwrap();
+    let invocation = format!("env {} {}", quote(&format!("XDG_DATA_HOME={}", state.path().display())), quote(&helper));
     let remote_command = format!(
-        "exec env {} {} --guardian-stdio ssh",
-        quote(&format!("XDG_DATA_HOME={}", state.path().display())),
-        quote(&helper),
+        "exec {invocation} --guardian-stdio ssh",
     );
+    let tty_resume = |session_id: &str| {
+        let run = format!(
+            "before=$(stty -g) && {invocation} ctl resume --id {} && [ \"$(stty -g)\" = \"$before\" ] && printf '%s\\n' GUARDIAN_CLI_TTY_RESTORED",
+            quote(session_id),
+        );
+        let mut command = tokio::process::Command::new("ssh");
+        command.arg("-F").arg(&config)
+            .args(["-tt", "-o", "BatchMode=yes", "--", "warpai-test", &run]);
+        command
+    };
     guarded_reconnect::verify_guarded_reconnect(
         &root,
         std::time::Duration::from_secs(12),
@@ -871,5 +880,6 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
                 .args(["-T", "-o", "BatchMode=yes", "--", "warpai-test", &remote_command]);
             command
         },
+        Some(&tty_resume),
     ).await;
 }

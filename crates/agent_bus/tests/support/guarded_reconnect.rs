@@ -111,6 +111,7 @@ pub async fn verify_guarded_reconnect(
     root: &str,
     bridge_gap: Duration,
     command: impl Fn() -> Command,
+    tty_resume: Option<&dyn Fn(&str) -> Command>,
 ) {
     let mut first = Bridge::connect(command());
     let (fence, _) = first.open(root).await;
@@ -160,6 +161,9 @@ pub async fn verify_guarded_reconnect(
     first.child.kill().await.unwrap();
     drop(first);
     sleep(bridge_gap).await;
+    if let Some(resume) = tty_resume {
+        verify_cli_tty(resume(&session_id), pid).await;
+    }
 
     let mut second = Bridge::connect(command());
     let (rejoined, _) = second.open(root).await;
@@ -256,4 +260,33 @@ pub async fn verify_guarded_reconnect(
         assert!(Instant::now() < deadline);
         sleep(Duration::from_millis(20)).await;
     }
+}
+
+async fn verify_cli_tty(mut command: Command, pid: u32) {
+    use std::process::Stdio;
+    use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    async fn expect_line(output: &mut (impl AsyncBufRead + Unpin), expected: &str) {
+        timeout(Duration::from_secs(10), async {
+            let mut line = String::new();
+            loop {
+                line.clear();
+                assert_ne!(output.read_line(&mut line).await.unwrap(), 0, "Missing {expected}");
+                if line.trim_end() == expected { break; }
+            }
+        }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"));
+    }
+
+    let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped())
+        .kill_on_drop(true).spawn().expect("Owned SSH TTY");
+    let mut input = child.stdin.take().unwrap();
+    let mut output = BufReader::new(child.stdout.take().unwrap());
+    expect_line(&mut output, &format!("GUARDIAN_PID={pid}")).await;
+    input.write_all(b"through-cli\r").await.unwrap();
+    expect_line(&mut output, "GUARDIAN_ECHO=through-cli").await;
+    input.write_all(b"\x02").await.unwrap();
+    sleep(Duration::from_millis(100)).await;
+    input.write_all(b"q").await.unwrap();
+    expect_line(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
+    assert!(timeout(Duration::from_secs(10), child.wait()).await.unwrap().unwrap().success());
 }

@@ -1929,6 +1929,17 @@ disposable Unix CI accounts because macOS uses account application support
 paths. The Rust fixture compiles and the Python supervisor checks pass on
 macOS. Native cloud results are tracked separately.
 
+Record ID / date: S8-b / 2026-11-18
+Scope: V25/V26, direct CLI resume and detach on real Unix SSH TTYs.
+
+The controlled reconnect fixture holds every bridge closed for twelve seconds,
+then runs the installed-style Companion `ctl resume` command over `ssh -tt`.
+It checks the original PID, submits input and reads the run's echo, sends the
+detach prefix across two writes, and confirms the enclosing SSH terminal's
+`stty -g` value matches its value before resume. A new protocol writer then
+reattaches to the same run. The WSL fixture keeps its existing headless
+bridge-loss test. The SSH fixture compiles locally; cloud execution is pending.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

@@ -354,6 +354,7 @@ async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
         &root,
         std::time::Duration::from_secs(12),
         || guest_command(&user, &companion, "wsl", &data_path),
+        None,
     ).await;
 
     let other_data = format!("XDG_DATA_HOME=/tmp/warpai-guardian-test-{}", Uuid::new_v4());
