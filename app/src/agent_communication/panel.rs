@@ -6091,7 +6091,10 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         .with_step(TestStep::new("save remote code through existing FileModel").with_action(|app, window, _| {
             let views = app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).unwrap();
             let editor = views.iter().find(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)))).unwrap().clone();
-            editor.update(app, |view, ctx| view.save_local(ctx).expect("Remote editor save starts"));
+            editor.update(app, |view, ctx| {
+                view.save_local(ctx).expect("Remote editor save starts");
+                assert!(view.has_unsaved_changes(ctx), "Remote save stays dirty until its receipt");
+            });
         }).add_named_assertion("remote original contains saved editor changes", |app, window| {
             let remote_path = std::path::PathBuf::from(std::env::var_os("WARP_TEST_REMOTE_ROOT").unwrap()).join("example.rs");
             warpui::async_assert!(std::fs::read_to_string(remote_path).is_ok_and(|text| text.contains("// Native remote UI save")) && app.views_of_type::<crate::code::local_code_editor::LocalCodeEditorView>(window).is_some_and(|views| views.iter().any(|view| view.read(app, |view, app| view.file_path().is_some_and(|path| warp_files::FileModel::as_ref(app).is_ssh_file(path)) && !view.has_unsaved_changes(app)))))

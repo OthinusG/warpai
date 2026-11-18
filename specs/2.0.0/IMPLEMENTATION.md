@@ -2008,7 +2008,25 @@ then sends from the still-attached peer. The receiver must write a message/run
 receipt before any replacement receiver bridge is opened. The replacement
 writer verifies the exact run, retained native notification output and the
 still-unacknowledged message. The fixture compiles locally. Native execution
-and the full task, busy/permission and WSL matrices remain pending.
+passed on Linux in [run 44339984782](https://github.com/OthinusG/warpai/actions/runs/44339984782)
+at `b96c789f`. Native registration is distinct from readiness, so the fixture
+establishes readiness through `AgentReady` before removing the writer. macOS
+rerun and the full task, busy/permission and WSL matrices remain pending.
+
+Record ID / date: S6-a / 2026-11-18
+Scope: editor file commit uncertainty after SSH or direct WSL reconnect (FR-14, V17).
+
+The editor keeps the attempted content hash with its original source and
+baseline. Reconnect verifies the same attachment identity and reads the remote
+hash without resending a commit. An explicit save recognizes already-present
+content without rewriting it. A different observed hash surfaces a conflict
+while preserving the draft. Debounce, focus and close auto-save honor the
+receipt, and save-and-close waits for confirmed persistence of the editor's
+current content. User messages are localized in EN, Simplified Chinese and
+Traditional Chinese. The local file model tests cover prior, intended and
+third-party hashes. SSH and WSL native hash assertions are included in CI.
+Desktop state restoration after process exit and the full interrupted-transfer
+and lost-ack acceptance matrix remain open.
 
 ## Evidence index
 

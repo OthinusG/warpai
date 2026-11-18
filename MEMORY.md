@@ -421,6 +421,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   and both route-election orders passed on `904801ed` (run 44333896370).
   Catalog writer occupancy is an
   optional exact-generation observation outside durable revision and MRU.
+- A remote editor commit with a missing reply keeps its attempted hash alongside
+  the baseline. Reconnect checks the original account/project and reads the hash.
+  Automatic saves wait for explicit reconciliation; save-and-close needs the
+  current content confirmed. The editor owns the receipt for its lifetime.
 
 ## Memory maintenance
 

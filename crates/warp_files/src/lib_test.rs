@@ -6,6 +6,21 @@ use super::*;
 
 const WRITE_TEST_PATH: &str = "test_data/test_write/";
 
+#[cfg(not(target_family = "wasm"))]
+#[test]
+fn interrupted_ssh_save_keeps_its_fence_until_remote_content_is_confirmed() {
+    let mut save = SshSaveFence { baseline: "old".into(), unconfirmed: Some("attempt".into()) };
+    save.observe("old".into()).unwrap();
+    assert_eq!(save.baseline, "old");
+    assert_eq!(save.unconfirmed.as_deref(), Some("attempt"));
+    assert!(matches!(save.observe("external edit".into()), Err(FileSaveError::RemoteSaveConflict)));
+    assert_eq!(save.baseline, "old");
+    save.observe("attempt".into()).unwrap();
+    assert_eq!(save.baseline, "attempt");
+    assert_eq!(save.unconfirmed.as_deref(), Some("attempt"));
+    assert!(matches!(save.observe("old".into()), Err(FileSaveError::RemoteSaveConflict)));
+}
+
 /// This enum is used so that we can pass the event through the async channel.
 /// io::Error is not clonable, so we can't clone the FileModelEvent.
 #[derive(Debug)]

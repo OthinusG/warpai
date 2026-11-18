@@ -274,6 +274,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     assert!(cleared, "Only actual native Agent exit clears Coordinator liveness");
     files.disconnect();
     files.reconnect().await.unwrap();
+    assert_eq!(files.current_hash(&path).await.unwrap(), updated);
     assert_eq!(files.download(&path).await.unwrap().1, updated);
     let mut invalid = profile;
     invalid.companion_path = "/nonexistent-owned-warpai-companion".into();

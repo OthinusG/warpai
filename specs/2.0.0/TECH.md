@@ -135,6 +135,15 @@ resources and temporary staging safely on disconnect; preserve uncertain mutatio
 receipts instead of replaying writes on reconnect. UI/Review/editor reconnect to
 remote facts on demand; unsaved drafts retain existing client ownership.
 
+An editor source keeps the baseline hash and the intended hash of an unconfirmed
+file commit in memory. Reconnect verifies the original account/project through
+the existing attachment fence, then checks the remote hash with a read-only
+request. A matching intended hash confirms the observed content, a matching
+baseline permits an explicit save, and another hash preserves the draft and
+requires an explicit reload or conflict decision. Background saves are suspended
+while the receipt is unresolved or awaiting explicit save. No reconnect request
+submits the earlier staged content or persists it in guardian storage.
+
 Guarded Coordinator rights survive only for the proven same native run. Reconnect
 or focus grants no new task/checkout authority and accepts/integrates no result.
 Permission waits remain blocked. Changes to existing task/MCP acknowledgement,

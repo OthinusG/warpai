@@ -1031,19 +1031,19 @@ impl LocalCodeEditorView {
             .unwrap_or(false)
     }
 
-    fn format_and_save(&mut self, file_id: FileId, ctx: &mut ViewContext<Self>) {
+    fn format_and_save(&mut self, file_id: FileId, automatic: bool, ctx: &mut ViewContext<Self>) {
         let Some(lsp_server) = &self.lsp_server else {
-            self.perform_save(file_id, ctx);
+            self.perform_save(file_id, automatic, ctx);
             return;
         };
 
         let Some(file_path) = self.file_path() else {
-            self.perform_save(file_id, ctx);
+            self.perform_save(file_id, automatic, ctx);
             return;
         };
 
         if !lsp_server.as_ref(ctx).is_ready_for_requests() {
-            self.perform_save(file_id, ctx);
+            self.perform_save(file_id, automatic, ctx);
             return;
         };
 
@@ -1051,7 +1051,7 @@ impl LocalCodeEditorView {
 
         // Now proceed with formatting
         let Some(lsp_server) = &self.lsp_server else {
-            self.perform_save(file_id, ctx);
+            self.perform_save(file_id, automatic, ctx);
             return;
         };
 
@@ -1078,7 +1078,7 @@ impl LocalCodeEditorView {
             Ok(future) => future,
             Err(e) => {
                 log::warn!("Failed to request document formatting: {e}");
-                self.perform_save(file_id, ctx);
+                self.perform_save(file_id, automatic, ctx);
                 return;
             }
         };
@@ -1125,12 +1125,14 @@ impl LocalCodeEditorView {
                 }
             }
             // After formatting (or if formatting failed), proceed with save
-            me.perform_save(file_id, ctx);
+            me.perform_save(file_id, automatic, ctx);
         });
     }
 
-    fn perform_save(&mut self, file_id: FileId, ctx: &mut ViewContext<Self>) {
-        self.base_content_version = Some(self.editor.as_ref(ctx).version(ctx));
+    fn perform_save(&mut self, file_id: FileId, automatic: bool, ctx: &mut ViewContext<Self>) {
+        if !self.file_path().is_some_and(|path| warp_files::FileModel::as_ref(ctx).is_ssh_file(path)) {
+            self.base_content_version = Some(self.editor.as_ref(ctx).version(ctx));
+        }
 
         let result = match self.diff() {
             Some(DiffType::Update {
@@ -1161,7 +1163,7 @@ impl LocalCodeEditorView {
                 let buffer_version = editor.version(ctx);
 
                 GlobalBufferModel::handle(ctx).update(ctx, move |model, ctx| {
-                    model.save(file_id, content.into_string(), buffer_version, ctx)
+                    model.save(file_id, content.into_string(), buffer_version, automatic, ctx)
                 })
             }),
         };
@@ -1193,7 +1195,7 @@ impl LocalCodeEditorView {
             return;
         }
 
-        if self.is_remote_disconnected(ctx) || !self.has_unsaved_changes(ctx) {
+        if !self.can_auto_save(ctx) || !self.has_unsaved_changes(ctx) {
             return;
         }
 
@@ -1204,7 +1206,7 @@ impl LocalCodeEditorView {
         // Skip LSP formatting for delay-based auto-saves. Mark this as an
         // auto-save so the "File saved." toast is suppressed.
         self.auto_save_in_flight = true;
-        self.perform_save(file_id, ctx);
+        self.perform_save(file_id, true, ctx);
     }
 
     /// Auto-save triggered when the editor loses focus (either another view in
@@ -1221,6 +1223,7 @@ impl LocalCodeEditorView {
         // None` and remain eligible.
         if !*CodeSettings::as_ref(ctx).auto_save
             || self.diff_type.is_some()
+            || !self.can_auto_save(ctx)
             || !self.has_unsaved_changes(ctx)
         {
             return;
@@ -1230,8 +1233,7 @@ impl LocalCodeEditorView {
         // If the save never starts (untitled file with no `file_id`, or a
         // disconnected remote), clear the marker so the next manual save still
         // shows its "File saved." toast.
-        self.auto_save_in_flight = true;
-        if self.save_local(ctx).is_err() {
+        if self.save_local_with_trigger(true, ctx).is_err() {
             self.auto_save_in_flight = false;
         }
     }
@@ -1255,13 +1257,6 @@ impl LocalCodeEditorView {
         if was_window_focused && !is_window_focused {
             self.auto_save_on_focus_change(ctx);
         }
-    }
-
-    /// Marks the next save as an auto-save so the resulting `FileSaved` event
-    /// suppresses the "File saved." toast. Used by the close flow when auto-save
-    /// is enabled, so closing a file flushes edits silently.
-    pub fn mark_next_save_as_auto_save(&mut self) {
-        self.auto_save_in_flight = true;
     }
 
     pub fn is_new_file(&self) -> bool {
@@ -1687,13 +1682,20 @@ impl LocalCodeEditorView {
 
     /// Whether auto-save can persist this local editor's changes.
     pub fn can_auto_save(&self, app: &AppContext) -> bool {
-        self.file_id().is_some() && !self.is_remote_disconnected(app)
+        self.file_id().is_some_and(|id| {
+            let files = warp_files::FileModel::as_ref(app);
+            !files.is_remote_disconnected(id) && !files.remote_save_needs_confirmation(id)
+        })
     }
 
     /// Save the file to the local file system.
     /// This will only return an error immediately if there is a failure in the sync part of the call.
     /// Other errors could be returned asynchronously via the FileModelEvent::FailedToSave event.
     pub fn save_local(&mut self, ctx: &mut ViewContext<Self>) -> Result<(), ImmediateSaveError> {
+        self.save_local_with_trigger(false, ctx)
+    }
+
+    pub fn save_local_with_trigger(&mut self, automatic: bool, ctx: &mut ViewContext<Self>) -> Result<(), ImmediateSaveError> {
         if self.is_remote_disconnected(ctx) {
             return Err(ImmediateSaveError::RemoteDisconnected);
         }
@@ -1703,7 +1705,8 @@ impl LocalCodeEditorView {
         };
 
         // Always attempt to format before saving if LSP is available
-        self.format_and_save(file_id, ctx);
+        self.auto_save_in_flight = automatic;
+        self.format_and_save(file_id, automatic, ctx);
         Ok(())
     }
 
@@ -1770,7 +1773,7 @@ impl LocalCodeEditorView {
         me.base_content_version = Some(buffer_version);
         let save_outcome = if let Err(err) = GlobalBufferModel::handle(ctx)
             .update(ctx, move |model, ctx| {
-                model.save(file_id, content, buffer_version, ctx)
+                model.save(file_id, content, buffer_version, false, ctx)
             }) {
             log::error!("Failed to save file to new path: {err:?}");
             ctx.emit(LocalCodeEditorEvent::FailedToSave {
@@ -2220,7 +2223,7 @@ impl DiffViewer for LocalCodeEditorView {
 
         GlobalBufferModel::handle(ctx)
             .update(ctx, |model, ctx| {
-                model.save(file_id, base_content, buffer_version, ctx)
+                model.save(file_id, base_content, buffer_version, false, ctx)
             })
             .map_err(|e| format!("Failed to save file: {e:?}"))
     }
@@ -2399,13 +2402,11 @@ impl TypedActionView for LocalCodeEditorView {
                 .and_then(|path| warp_files::FileModel::as_ref(ctx).ssh_source(path))
             {
                 ctx.spawn(
-                    async move { source.files.reconnect().await },
+                    async move { source.reconnect().await },
                     |_, result, ctx| {
                         if let Err(error) = result {
                             ctx.emit(LocalCodeEditorEvent::FailedToSave {
-                                error: Rc::new(FileSaveError::RemoteError(format!(
-                                    "Could not reconnect the original remote file: {error}"
-                                ))),
+                                error: Rc::new(error),
                             });
                         }
                         ctx.notify();

@@ -145,20 +145,97 @@ impl FileBackend {
 pub struct SshFile {
     pub files: std::sync::Arc<remote_server::RemoteFiles>,
     pub path: String,
-    hash: futures::lock::Mutex<String>,
+    save: futures::lock::Mutex<SshSaveFence>,
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[derive(Debug)]
+struct SshSaveFence {
+    baseline: String,
+    unconfirmed: Option<String>,
+}
+
+#[cfg(not(target_family = "wasm"))]
+impl SshSaveFence {
+    fn observe(&mut self, remote: String) -> Result<(), FileSaveError> {
+        if self.baseline != remote && self.unconfirmed.as_deref() != Some(remote.as_str()) {
+            return Err(FileSaveError::RemoteSaveConflict);
+        }
+        self.baseline = remote;
+        Ok(())
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]
 impl SshFile {
+    /// Reopen the exact attachment and observe any unconfirmed commit without writing.
+    pub async fn reconnect(&self) -> Result<(), FileSaveError> {
+        let mut save = self.save.lock().await;
+        self.files
+            .reconnect()
+            .await
+            .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
+        if save.unconfirmed.is_some() {
+            self.observe_remote(&mut save).await?;
+        }
+        Ok(())
+    }
+
+    async fn observe_remote(&self, save: &mut SshSaveFence) -> Result<(), FileSaveError> {
+        let remote = self.files.current_hash(&self.path).await
+            .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
+        save.observe(remote)
+    }
+
+    async fn save_content(
+        &self,
+        content: String,
+        cache: PathBuf,
+        automatic: bool,
+    ) -> Result<(), FileSaveError> {
+        let mut save = self.save.lock().await;
+        let digest = remote_server::RemoteFiles::content_hash(content.as_bytes());
+        let already_saved = if save.unconfirmed.is_some() {
+            if automatic {
+                return Err(FileSaveError::RemoteSaveUnconfirmed);
+            }
+            self.observe_remote(&mut save).await?;
+            save.baseline == digest
+        } else {
+            false
+        };
+
+        // Record the hash before awaiting a commit so cancellation also leaves a receipt.
+        if !already_saved {
+            let previous = save.unconfirmed.replace(digest);
+            let result = self.files.save(&self.path, content.as_bytes(), &save.baseline).await;
+            save.baseline = match result {
+                Ok(hash) => hash,
+                Err(remote_server::RemoteFilesError::DeliveryUnknown) => {
+                    return Err(FileSaveError::RemoteSaveUnconfirmed);
+                }
+                Err(error) => {
+                    save.unconfirmed = previous;
+                    return Err(FileSaveError::RemoteError(error.to_string()));
+                }
+            };
+        }
+        save.unconfirmed = None;
+        async_fs::write(&cache, content)
+            .await
+            .map_err(|error| FileSaveError::IOError { error, path: cache })
+    }
+
     /// Reload the remote document before discarding edits, updating its save fence.
     pub async fn reload(&self) -> Result<String, FileLoadError> {
-        let mut hash = self.hash.lock().await;
+        let mut save = self.save.lock().await;
         let (cache, downloaded_hash) =
             self.files.download(&self.path).await.map_err(|error| {
                 FileLoadError::IOError(std::io::Error::other(error.to_string()))
             })?;
         let content = FileModel::read_content_for_file(&cache).await?;
-        *hash = downloaded_hash;
+        save.baseline = downloaded_hash;
+        save.unconfirmed = None;
         Ok(content)
     }
 }
@@ -425,7 +502,7 @@ impl FileModel {
             std::sync::Arc::new(SshFile {
                 files,
                 path,
-                hash: futures::lock::Mutex::new(hash),
+                save: futures::lock::Mutex::new(SshSaveFence { baseline: hash, unconfirmed: None }),
             })
         });
         Ok(())
@@ -454,6 +531,14 @@ impl FileModel {
         #[cfg(not(target_family = "wasm"))]
         if let Some(FileBackend::Ssh { source, .. }) = self.file_state.get(file_id) {
             return !source.files.connected();
+        }
+        false
+    }
+
+    pub fn remote_save_needs_confirmation(&self, file_id: FileId) -> bool {
+        #[cfg(not(target_family = "wasm"))]
+        if let Some(FileBackend::Ssh { source, .. }) = self.file_state.get(file_id) {
+            return source.save.try_lock().is_none_or(|save| save.unconfirmed.is_some());
         }
         false
     }
@@ -837,6 +922,17 @@ impl FileModel {
         version: ContentVersion,
         ctx: &mut ModelContext<Self>,
     ) -> Result<(), FileSaveError> {
+        self.save_with_trigger(file_id, content, version, false, ctx)
+    }
+
+    pub fn save_with_trigger(
+        &mut self,
+        file_id: FileId,
+        content: String,
+        version: ContentVersion,
+        automatic: bool,
+        ctx: &mut ModelContext<Self>,
+    ) -> Result<(), FileSaveError> {
         let backend = self
             .file_state
             .get(file_id)
@@ -848,18 +944,7 @@ impl FileModel {
                 let source = source.clone();
                 let cache = cache.clone();
                 ctx.spawn(
-                    async move {
-                        // Serialize saves of the same source, including its observed hash.
-                        let mut hash = source.hash.lock().await;
-                        *hash = source
-                            .files
-                            .save(&source.path, content.as_bytes(), &hash)
-                            .await
-                            .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
-                        async_fs::write(&cache, content)
-                            .await
-                            .map_err(|error| FileSaveError::IOError { error, path: cache })
-                    },
+                    async move { source.save_content(content, cache, automatic).await },
                     move |me, result, ctx| match result {
                         Ok(()) => {
                             me.set_version(file_id, version);

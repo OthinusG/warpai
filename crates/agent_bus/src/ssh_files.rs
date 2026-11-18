@@ -954,6 +954,32 @@ impl RemoteFiles {
             .await;
         result.and_then(|value| release.map(|_| value))
     }
+    /// Compare remote content without downloading it or writing the original file.
+    pub async fn current_hash(&self, path: &str) -> Result<String, ConnectionError> {
+        let relative = self.relative(path)?;
+        let mut cancellation = TransferCancellation(Some(self));
+        let staged = self.control(ProjectFilesRequest {
+            action: ProjectFileAction::ProjectFilePrepareRead as i32,
+            path: relative,
+            ..Default::default()
+        }).await?;
+        let released = self.control(ProjectFilesRequest {
+            action: ProjectFileAction::ProjectFileRelease as i32,
+            transfer_id: staged.transfer_id,
+            ..Default::default()
+        }).await;
+        cancellation.0 = None;
+        released?;
+        if staged.sha256.len() != 64 || !staged.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(ConnectionError::StaleAttachment);
+        }
+        Ok(staged.sha256)
+    }
+
+    pub fn content_hash(content: &[u8]) -> String {
+        format!("{:x}", Sha256::digest(content))
+    }
+
     pub async fn save(
         &self,
         path: &str,
@@ -990,7 +1016,7 @@ impl RemoteFiles {
             let temporary = temporary.into_temp_path();
             self.transfer(&staged.transfer_path, &staged.transfer_id, &temporary, true)
                 .await?;
-            let hash = format!("{:x}", Sha256::digest(content));
+            let hash = Self::content_hash(content);
             let reply = self
                 .control(ProjectFilesRequest {
                     action: ProjectFileAction::ProjectFileCommitWrite as i32,
@@ -999,10 +1025,14 @@ impl RemoteFiles {
                     expected_hash: hash.clone(),
                     ..Default::default()
                 })
-                .await?;
+                .await.map_err(|error| match error {
+                    ConnectionError::ConnectionLost | ConnectionError::StaleAttachment
+                    | ConnectionError::IncompatibleVersion => ConnectionError::DeliveryUnknown,
+                    error => error,
+                })?;
             if reply.sha256 != hash {
                 self.disconnect();
-                return Err(ConnectionError::StaleAttachment);
+                return Err(ConnectionError::DeliveryUnknown);
             }
             Ok(hash)
         }

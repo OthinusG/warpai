@@ -16,6 +16,10 @@ pub enum FileSaveError {
     },
     #[error("Remote file operation failed: {0}")]
     RemoteError(String),
+    #[error("The remote save could not be confirmed. Reconnect and save explicitly to check it.")]
+    RemoteSaveUnconfirmed,
+    #[error("The remote file changed during the interrupted save. Review it before replacing the draft.")]
+    RemoteSaveConflict,
 }
 
 #[derive(thiserror::Error, Debug)]

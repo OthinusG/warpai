@@ -485,10 +485,11 @@ impl GlobalBufferModel {
         file_id: FileId,
         content: String,
         version: ContentVersion,
+        automatic: bool,
         ctx: &mut ModelContext<Self>,
     ) -> Result<(), FileSaveError> {
         FileModel::handle(ctx).update(ctx, |file_model, ctx| {
-            file_model.save(file_id, content, version, ctx)
+            file_model.save_with_trigger(file_id, content, version, automatic, ctx)
         })
     }
 

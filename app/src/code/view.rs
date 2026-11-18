@@ -53,7 +53,7 @@ use warpui::{
     id,
     keymap::EditableBinding,
     ui_components::{button::ButtonVariant, components::UiComponent},
-    AppContext, Element, Entity, ModelHandle, SingletonEntity, TypedActionView, View, ViewContext,
+    AppContext, Element, Entity, EntityId, ModelHandle, SingletonEntity, TypedActionView, View, ViewContext,
     ViewHandle, WindowId,
 };
 
@@ -239,6 +239,7 @@ pub struct CodeView {
     window_id: WindowId,
     drag_position: Option<TabBarDragPosition>,
     markdown_mode_segmented_control: Option<ViewHandle<MarkdownToggleView>>,
+    pending_remote_saves: HashMap<EntityId, SaveCallback>,
 }
 
 impl CodeView {
@@ -255,6 +256,7 @@ impl CodeView {
             window_id,
             drag_position: None,
             markdown_mode_segmented_control: None,
+            pending_remote_saves: HashMap::new(),
         }
     }
 
@@ -487,7 +489,7 @@ impl CodeView {
                 editor.set_interaction_state(InteractionState::Selectable, ctx);
             });
         }
-        ctx.subscribe_to_view(&code_editor, |me, _, event, ctx| match event {
+        ctx.subscribe_to_view(&code_editor, |me, source, event, ctx| match event {
             LocalCodeEditorEvent::FileLoaded => {
                 me.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx);
@@ -528,11 +530,22 @@ impl CodeView {
                 if !*auto_saved {
                     CodeView::display_save_success(ctx.window_id(), ctx);
                 }
+                if let Some(callback) = me.pending_remote_saves.remove(&source.id()) {
+                    let outcome = if source.as_ref(ctx).has_unsaved_changes(ctx) {
+                        SaveOutcome::Failed
+                    } else {
+                        SaveOutcome::Succeeded
+                    };
+                    callback(outcome, me, ctx);
+                }
                 ctx.notify();
             }
             LocalCodeEditorEvent::FailedToSave { error: err } => {
                 log::warn!("Failed to load file. {err:?}");
-                CodeView::display_save_failure(ctx.window_id(), ctx);
+                CodeView::display_save_failure(ctx.window_id(), Some(err), ctx);
+                if let Some(callback) = me.pending_remote_saves.remove(&source.id()) {
+                    callback(SaveOutcome::Failed, me, ctx);
+                }
             }
             LocalCodeEditorEvent::DiffAccepted => {
                 CodeManager::handle(ctx).update(ctx, |code_manager, ctx| {
@@ -834,15 +847,25 @@ impl CodeView {
         &mut self,
         index: usize,
         callback: Option<SaveCallback>,
+        automatic: bool,
         ctx: &mut ViewContext<Self>,
     ) -> SaveStatus {
+        let remote_editor = self.tab_at(index)
+            .filter(|tab| tab.path.as_ref()
+                .is_some_and(|path| warp_files::FileModel::as_ref(ctx).is_ssh_file(path)))
+            .map(|tab| tab.editor_view.id());
+        if callback.is_some()
+            && remote_editor.is_some_and(|id| self.pending_remote_saves.contains_key(&id))
+        {
+            return SaveStatus::AsyncSaveInProgress;
+        }
         // This will only return an error immediately if there is a failure in the sync part of the call.
         // Other errors could be returned asynchronously via the FileModelEvent::FailedToSave event.
         let result = self
             .tab_at(index)
             .map(|tab| {
                 tab.editor_view
-                    .update(ctx, |code_diff, ctx| code_diff.save_local(ctx))
+                    .update(ctx, |code_diff, ctx| code_diff.save_local_with_trigger(automatic, ctx))
             })
             .unwrap_or_else(|| Err(ImmediateSaveError::NoActiveFileTab));
 
@@ -863,7 +886,7 @@ impl CodeView {
             }
             Err(err) => {
                 log::warn!("Failed to save file. {err:?}");
-                CodeView::display_save_failure(ctx.window_id(), ctx);
+                CodeView::display_save_failure(ctx.window_id(), None, ctx);
                 if let Some(callback) = callback {
                     callback(SaveOutcome::Failed, self, ctx);
                 }
@@ -871,6 +894,10 @@ impl CodeView {
             }
             Ok(()) => {
                 if let Some(callback) = callback {
+                    if let Some(id) = remote_editor {
+                        self.pending_remote_saves.insert(id, callback);
+                        return SaveStatus::AsyncSaveInProgress;
+                    }
                     callback(SaveOutcome::Succeeded, self, ctx);
                 }
                 SaveStatus::SavedImmediately
@@ -917,9 +944,19 @@ impl CodeView {
         });
     }
 
-    fn display_save_failure(window_id: WindowId, ctx: &mut ViewContext<Self>) {
+    fn display_save_failure(
+        window_id: WindowId,
+        error: Option<&warp_util::file::FileSaveError>,
+        ctx: &mut ViewContext<Self>,
+    ) {
+        use warp_util::file::FileSaveError;
+        let message = match error {
+            Some(FileSaveError::RemoteSaveUnconfirmed) => "The remote save could not be confirmed. Reconnect and save explicitly to check it.",
+            Some(FileSaveError::RemoteSaveConflict) => "The remote file changed during the interrupted save. Review it before replacing the draft.",
+            _ => "Failed to save file.",
+        };
         ToastStack::handle(ctx).update(ctx, |toast_stack, ctx| {
-            let toast = DismissibleToast::error(warpui::localization::text("Failed to save file.").to_owned())
+            let toast = DismissibleToast::error(warpui::localization::text(message).to_owned())
                 .with_object_id("failed_to_save_file".to_string());
             toast_stack.add_ephemeral_toast(toast, window_id, ctx);
         });
@@ -1013,11 +1050,9 @@ impl CodeView {
                 .tab_at(index)
                 .is_some_and(|tab| tab.editor_view.as_ref(ctx).can_auto_save(ctx));
             if can_auto_save {
-                if let Some(tab) = self.tab_at(index) {
-                    tab.editor_view
-                        .update(ctx, |editor, _| editor.mark_next_save_as_auto_save());
-                }
-                self.save_local(index, None, ctx);
+                unsaveable_changes_remain |= self.tab_at(index).and_then(|tab| tab.path.as_ref())
+                    .is_some_and(|path| warp_files::FileModel::as_ref(ctx).is_ssh_file(path));
+                self.save_local(index, None, true, ctx);
             } else {
                 unsaveable_changes_remain = true;
             }
@@ -1045,6 +1080,7 @@ impl CodeView {
 
     pub fn cleanup_all_tabs(&mut self, ctx: &mut ViewContext<Self>) {
         self.tab_group.clear();
+        self.pending_remote_saves.clear();
         GlobalBufferModel::handle(ctx).update(ctx, |model, ctx| {
             model.remove_deallocated_buffers(ctx);
         });
@@ -1193,33 +1229,21 @@ impl CodeView {
                 // changes" action), marking the saves as auto-saves so they stay
                 // silent. Untitled files (no path) still prompt, since auto-save
                 // can't persist them without a Save As.
-                let tab_has_backing_file = self
+                let can_auto_save = self
                     .tab_at(index)
-                    .is_some_and(|tab| tab.editor_view.as_ref(ctx).file_id().is_some());
-                if *CodeSettings::as_ref(ctx).auto_save && tab_has_backing_file {
+                    .is_some_and(|tab| tab.editor_view.as_ref(ctx).can_auto_save(ctx));
+                if *CodeSettings::as_ref(ctx).auto_save && can_auto_save {
                     if is_clearing_group {
                         let unsaved_indices = self.unsaved_indices(ctx);
-                        for &unsaved_index in &unsaved_indices {
-                            if let Some(tab) = self.tab_group.get(unsaved_index) {
-                                if tab.editor_view.as_ref(ctx).file_id().is_some() {
-                                    tab.editor_view.update(ctx, |editor, _| {
-                                        editor.mark_next_save_as_auto_save()
-                                    });
-                                }
-                            }
-                        }
                         self.clear_tab_group_with_intent(
                             unsaved_indices,
                             0,
                             Some(PendingSaveIntent::Save),
+                            true,
                             ctx,
                         );
                     } else {
-                        if let Some(tab) = self.tab_at(index) {
-                            tab.editor_view
-                                .update(ctx, |editor, _| editor.mark_next_save_as_auto_save());
-                        }
-                        self.remove_tab_with_intent(index, Some(PendingSaveIntent::Save), ctx);
+                        self.remove_tab_with_intent(index, Some(PendingSaveIntent::Save), true, ctx);
                     }
                     return;
                 }
@@ -1235,10 +1259,11 @@ impl CodeView {
                                         unsaved_indices,
                                         0,
                                         Some(intent),
+                                        false,
                                         ctx,
                                     );
                                 } else {
-                                    view.remove_tab_with_intent(index, Some(intent), ctx);
+                                    view.remove_tab_with_intent(index, Some(intent), false, ctx);
                                 }
                             });
                         }
@@ -1257,7 +1282,9 @@ impl CodeView {
     }
 
     fn remove_tab_data_index(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
-        self.tab_group.remove(index);
+        let removed = self.tab_group.remove(index);
+        self.pending_remote_saves.remove(&removed.editor_view.id());
+        drop(removed);
         GlobalBufferModel::handle(ctx).update(ctx, |model, ctx| {
             model.remove_deallocated_buffers(ctx);
         });
@@ -1284,17 +1311,25 @@ impl CodeView {
         &mut self,
         index: usize,
         intent: Option<PendingSaveIntent>,
+        automatic: bool,
         ctx: &mut ViewContext<Self>,
     ) {
         match intent {
             Some(PendingSaveIntent::Save) => {
+                let Some(tab_id) = self.tab_at(index).map(|tab| tab.editor_view.id()) else {
+                    return;
+                };
                 self.save_local(
                     index,
                     Some(Box::new(move |outcome, me, ctx| {
-                        if outcome != SaveOutcome::Canceled {
-                            me.remove_tab_data_index(index, ctx);
+                        if outcome == SaveOutcome::Succeeded {
+                            if let Some(index) = me.tab_group.iter()
+                                .position(|tab| tab.editor_view.id() == tab_id) {
+                                me.remove_tab_data_index(index, ctx);
+                            }
                         }
                     })),
+                    automatic,
                     ctx,
                 );
             }
@@ -1310,17 +1345,21 @@ impl CodeView {
         unsaved_indices: Vec<usize>,
         current_index: usize,
         intent: Option<PendingSaveIntent>,
+        automatic: bool,
         ctx: &mut ViewContext<Self>,
     ) {
         match intent {
             Some(PendingSaveIntent::Save) => {
+                let tabs: Vec<_> = self.tab_group.iter().map(|tab| tab.editor_view.id()).collect();
                 self.save_local(
                     unsaved_indices[current_index],
                     Some(Box::new(move |outcome, me, ctx| {
-                        if outcome != SaveOutcome::Canceled {
+                        if outcome == SaveOutcome::Succeeded
+                            && me.tab_group.iter().map(|tab| tab.editor_view.id()).eq(tabs) {
                             me.process_next_tab_for_clear(unsaved_indices, current_index + 1, ctx);
                         }
                     })),
+                    automatic,
                     ctx,
                 );
             }
@@ -2212,7 +2251,7 @@ impl TypedActionView for CodeView {
     fn handle_action(&mut self, action: &Self::Action, ctx: &mut ViewContext<Self>) {
         match action {
             CodeViewAction::SaveFile => {
-                self.save_local(self.active_tab_index, None, ctx);
+                self.save_local(self.active_tab_index, None, false, ctx);
             }
             CodeViewAction::SaveFileAs => {
                 self.save_as(self.active_tab_index, None, ctx);
@@ -2233,10 +2272,11 @@ impl TypedActionView for CodeView {
                 self.save_local(
                     self.active_tab_index,
                     Some(Box::new(|outcome, me, ctx| {
-                        if outcome != SaveOutcome::Canceled {
+                        if outcome == SaveOutcome::Succeeded {
                             me.close(ctx);
                         }
                     })),
+                    false,
                     ctx,
                 );
             }
@@ -2315,13 +2355,14 @@ impl TypedActionView for CodeView {
                         self.save_local(
                             self.active_tab_index,
                             Some(Box::new(move |outcome, _me, ctx| {
-                                if outcome != SaveOutcome::Canceled {
+                                if outcome == SaveOutcome::Succeeded {
                                     ctx.emit(CodeViewEvent::Pane(PaneEvent::ReplaceWithFilePane {
                                         path: path.clone(),
                                         source: Some(source.clone()),
                                     }));
                                 }
                             })),
+                            false,
                             ctx,
                         );
                     } else {

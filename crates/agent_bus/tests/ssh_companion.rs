@@ -700,6 +700,7 @@ async fn controlled_remote_files(files: &warp_agent_bus::ssh_files::RemoteFiles)
         ConnectionError::ConnectionLost
     );
     files.reconnect().await.unwrap();
+    assert_eq!(files.current_hash(&absolute).await.unwrap(), hash);
     assert_eq!(
         std::fs::read(files.download(&absolute).await.unwrap().0).unwrap(),
         bytes
