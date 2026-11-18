@@ -209,8 +209,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Methods/ledger: specs/2.0.0/README.md. Unverified 2026-11-18 slice: guarded
   session retention plus exact attachment fence, CAS takeover, input epoch and a
   bounded per-attachment write-receipt ledger in the Companion terminal registry;
-  guarded_remote_sessions_v1 stays unadvertised until native proof; election,
-  catalog, CLI and WSL lifetime remain pending.
+  Unix peer-UID admission and 300s ended-output retention with capacity eviction;
+  guarded_remote_sessions_v1 stays unadvertised until native proof; unified
+  election, catalog, CLI and WSL lifetime remain pending.
   No desktop auto-deployment.
   Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject

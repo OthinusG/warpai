@@ -12,19 +12,23 @@ tuple, takeover fences the observed generation, and detach/transport loss
 invalidates queued input through a separate writer epoch. A bounded input ledger
 now returns per-attachment receipts for accepted, writing, written, cancelled,
 failed and unknown delivery, rejects conflicting or skipped sequences, and fails
-the writer path closed on write, flush, gate or ledger faults. Unit coverage and
-two Unix integration tests are written but not compiled or run. No guardian
-election, account catalog, snapshot, CLI, desktop opt-in, scheduler,
-packaging/version change or release is implemented. V01-V30 runtime acceptance is
-NOT RUN. No guard client can reach the slice because `guarded_remote_sessions_v1`
-is deliberately not advertised. Runtime inspection baseline is
-`db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is commits
-`87e18c942630e58c91849532fb132323e0500ab5` and
-`5163030f7535f59f673723c1932563bd186282c3` on `feat/2.0.0`, while `main` remains
-at the baseline. A read-only peer review at the first commit identified remaining
-P1/P2 work; it is not runtime evidence. Revalidate current HEAD at implementation
-startup rather than assuming an earlier observed repository position is still
-current.
+the writer path closed on write, flush, gate or ledger faults. The service now
+rechecks the Unix peer UID at accept where the kernel exposes it, and retains
+detached ended output for 300 seconds within the 32-session ceiling, evicting the
+oldest ended session only under admission pressure. Client control also requires
+the guarded attachment tuple to be echoed exactly for every non-attach action.
+Unit coverage and two Unix integration tests are written but not compiled or run.
+No unified SSH/WSL election, account catalog, snapshot, CLI, desktop opt-in,
+scheduler, packaging/version change or release is implemented. V01-V30 runtime
+acceptance is NOT RUN. No guard client can reach the slice because
+`guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
+baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
+commits `87e18c942630e58c91849532fb132323e0500ab5`,
+`5163030f7535f59f673723c1932563bd186282c3` and
+`99eaa0eb` on `feat/2.0.0`, while `main` remains at the baseline. A read-only peer
+review at the first commit identified remaining P1/P2 work; it is not runtime
+evidence. Revalidate current HEAD at implementation startup rather than assuming
+an earlier observed repository position is still current.
 
 The owner corrected the initial plan: guarding is optional/default-off, native
 local persistence is excluded, SSH and WSL are both core, and resource overhead
@@ -42,9 +46,9 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch and storage schema pending |
-| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, input epoch and receipt ledger added after review; account-global election, catalog and native proof pending |
+| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, input epoch and receipt ledger added after review; Unix peer UID admission and 300s ended-output retention written but unverified; unified SSH/WSL election, catalog and native proof pending |
 | S2 compact terminal restoration | not_started | None |
-| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, fail-closed writer faults; snapshots, reconnect transport and operator stop pending |
+| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, fail-closed writer faults, exact tuple echo and bounded ended-output retention; snapshots, reconnect transport and operator stop pending |
 | S4 SSH optional UI/CLI | not_started | None |
 | S5 mandatory WSL guardian | not_started | None |
 | S6 failure/feature restoration | not_started | None |
@@ -556,11 +560,101 @@ MEMORY update or reason no durable fact changed: MEMORY records the receipt ledg
   as part of the unverified guarded slice.
 ```
 
+## S1: local peer admission and ended-output retention
+
+```text
+Record ID / date: S1-d / 2026-11-18
+Work item and PRD requirements: S1 account-scoped service boundary and bounded
+  ended-output retention (FR-01, FR-09, FR-12)
+Status: implemented_unverified
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: 99eaa0eb on feat/2.0.0; no PR
+
+Problem and observable before/after:
+  Before: Unix clients were admitted by the private data directory and 0600
+  socket mode; the kernel-reported peer UID was collected for process identity but
+  not checked for admission. A session whose process ended and whose output closed
+  was dropped by the next one-second active sweep, so an exact writer could not
+  resume recently ended output. At 32 sessions, even expiring ended sessions could
+  block a new launch.
+  After: a Unix connection whose kernel-reported UID differs from the service
+  effective UID is closed before admission. Windows keeps its existing per-user
+  named-pipe DACL. A detached session with no live process and closed output is
+  retained for 300 seconds, remains eligible for exact-tuple attach, and is
+  removed after expiry. At the 32-session admission ceiling, the oldest ended
+  session is evicted first; live, attached or draining sessions are never evicted
+  for capacity. Client guarded control now requires the response to echo the exact
+  attachment tuple for every action except attach.
+Scope: crates/agent_bus/src/companion_service.rs,
+  crates/agent_bus/src/companion_terminals.rs,
+  crates/agent_bus/src/ssh_remote.rs.
+Files and symbols changed:
+  companion_service.rs: Unix peer_cred UID comparison against geteuid before slot
+    admission and idle reset
+  companion_terminals.rs: ENDED_RETENTION, Session.ended_at, retain_session,
+    ended_session, prune_sessions, admission-time pruning/eviction, active()
+    retention sweep
+  ssh_remote.rs: captured expected attachment tuple and rejected non-attach
+    guarded replies that do not echo it
+
+Implementation method:
+  - Admission still relies first on the 0700 private directory, 0600 Unix socket
+    and current-user Windows pipe DACL. On Unix, peer_cred is best-effort because
+    not every platform exposes it; when a UID is available and differs from
+    geteuid, the connection is refused. The same private endpoint and persisted
+    service_id plus service.lock retain single-instance election inside one
+    account/transport data directory.
+  - retain_session classifies a session as ended only when the process is
+    inactive, output is closed and no attachment remains. It records the first
+    observation time, keeps the session for ENDED_RETENTION, and clears the
+    timestamp when the process, output or attachment becomes live again. A
+    poisoned session or output lock is treated conservatively as retained.
+  - prune_sessions runs on every active sweep for expiry and before launch
+    admission. If the map is at MAX_SESSIONS, it removes ended sessions in
+    oldest-ended order until there is room for one new launch. It does not count
+    or evict live processes, attached sessions or undrained output.
+  - The ceiling remains 32 sessions, each with a lazy 256 KiB output ring, so
+    retained raw output is bounded by 8 MiB before other parser/snapshot state.
+    The 64 MiB account terminal-data cap is therefore not allocated explicitly in
+    this slice; S8 must measure combined RSS and revise if other state grows.
+  - The client tuple echo closes a stale or mixed-policy reply instead of
+    accepting a state from another attachment. Attach still returns the new tuple
+    permitted by rotation or adoption.
+Decision and rationale: add defense-in-depth admission without changing the
+  existing endpoint/election topology, and retain only the minimum ended state
+  needed for an exact resume for a bounded window. Evict ended output before
+  refusing a new session so history does not starve live work.
+Verification:
+  - rustfmt --edition 2021 parsed the changed files; no syntax error. The
+    retention helper was copied into an isolated rustc program with mock PTY/output
+    types and its expiry path passed; this is not a workspace build.
+  - No cargo build or test was run locally; the workspace has no dependency cache.
+    The Unix peer-UID path, real PTY retention, eviction at 32 sessions and Windows
+    DACL behavior remain unrun.
+  - Failures found, fixes applied and rerun receipt: none; parser and isolated
+    helper checks only.
+Unverified behavior and remaining risks: peer_cred may be unavailable, leaving
+  directory/socket permissions as the sole Unix boundary; the Windows peer token
+  is not rechecked after the DACL, only the DACL itself; retention timing and PTY
+  active/closed transitions are unmeasured; there is no account catalog, list,
+  inspect or watch gap yet, so retained output cannot be discovered by a new
+  client; SSH and WSL still use separate data directories and are not unified by a
+  logical-scope election; daemon-owned stop batches, the 64 MiB accounting cap and
+  idle-exit timing with retained output remain unimplemented or unproven.
+Follow-up tasks / affected gates: S0 account catalog/watch contract; S1 unified
+  logical scope and 60s idle/retention proof; S4 CLI list/resume; S7/S8 resource
+  measurement and native peer tests.
+MEMORY update or reason no durable fact changed: MEMORY records guarded retention
+  and input receipts; the 300s ended-output window and Unix peer UID check are
+  implementation details recorded here and do not change the scope decision.
+```
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
 | --- | --- | --- | --- |
-| S1/S3 source slice | `87e18c94` and `5163030f` on `feat/2.0.0` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch, bounded receipts and fail-closed writer handling written; rustfmt parse only, not compiled or run |
+| S1/S3 source slice | `87e18c94`, `5163030f` and `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch, bounded receipts, fail-closed writer handling, Unix peer UID admission and 300s ended-output retention written; rustfmt parse and isolated helper type-check only, not compiled or run |
+| S1-d retention/admission | `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Unix peer UID check, ended-output TTL and capacity eviction, exact tuple echo; no workspace build, native test or resource measurement |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |
