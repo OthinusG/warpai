@@ -907,10 +907,15 @@ Decision and rationale: keep the contract (idempotent same-byte tail retry,
 
 Verification:
   - `cargo check -p warp-agent-bus`: finished successfully (warnings only).
+  - `cargo test -p warp-agent-bus --lib catalog::`: 7 catalog tests passed when
+    linked and run through the workspace crate.
+  - `cargo check -p warpai --bin warpai`: finished successfully in 5m35s
+    (pre-existing library warnings only), so the application binary links the
+    guarded slice.
   - `cargo test -p warp-agent-bus -p remote_protocol`: all executed tests passed:
     16 remote_protocol unit tests; 231 agent_bus library tests (1 ignored);
-    integration suites 20, 7, 6, 2 and 6 passed with 11 ignored child fixtures;
-    zero failures.
+    integration suites 20, 7, 6, 2 and 6 passed; 8 child/fixture tests remain
+    ignored; zero failures.
   - The ignored tests require the owned Companion PTY child, real WSL or another
     platform and remain NOT RUN.
   - Failures found, fixes applied and rerun receipts: both test corrections and
@@ -920,8 +925,8 @@ Verification:
 
 Unverified behavior and remaining risks: passing host tests do not prove remote
   SSH/WSL lifetime, Windows admission, 300s retention timing, resource ceilings,
-  snapshot import or reconnect transport. The application binary compile result
-  is recorded separately when it completes. `guarded_remote_sessions_v1` remains
+  snapshot import or reconnect transport. The application binary compiles, but no
+  live desktop/remote scenario was exercised. `guarded_remote_sessions_v1` remains
   unadvertised, so no client path reaches these operations.
 
 Follow-up tasks / affected gates: Windows/Linux CI at a fixed SHA; real SSH and
@@ -938,7 +943,7 @@ MEMORY update or reason no durable fact changed: MEMORY records that the guarded
 | S1-d retention/admission | `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Unix peer UID check, ended-output TTL and capacity eviction, exact tuple echo; no workspace build, native test or resource measurement |
 | S1-e review closure | `efe9fd12` on `feat/2.0.0` | implemented_unverified | Generation-keyed ledger, non-evictable Unknown, between-write cancellation, guarded-only retention, fail-closed Unix credentials, Windows client SID recheck, explicit DeliveryUnknown and no connection-wide close for session stale; rustfmt parse and diff check only, no build/test |
 | S1-f catalog prototype | Source commit after this record on `feat/2.0.0` | implemented_unverified | Bounded stable pages, boot/filter-bound cursors, revision-scoped watch ring with explicit gap, MRU resume excluding ended runs, state-age tracking, 32/64 ceilings; 7 isolated `rustc --test` cases passed with a uuid stub; not linked into the workspace crate and not wired to any session |
-| S1-g build restoration | `e220a5c9` plus the follow-up fix commit on `feat/2.0.0` | verified_host_only | `remote_protocol` E0599 fixed, `protoc` 36.2 installed, stale write-count and idempotent-input test expectations corrected; `cargo check -p warp-agent-bus` and the full `warp-agent-bus` + `remote_protocol` test suites pass on macOS arm64; remote SSH/WSL and ignored fixture tests remain NOT RUN |
+| S1-g build restoration | `e220a5c9` plus the follow-up fix commit on `feat/2.0.0` | verified_host_only | `remote_protocol` E0599 fixed, `protoc` 36.2 installed, stale write-count and idempotent-input test expectations corrected; `cargo check -p warp-agent-bus`, `cargo check -p warpai --bin warpai` and the full `warp-agent-bus` + `remote_protocol` test suites pass on macOS arm64; remote SSH/WSL and ignored fixture tests remain NOT RUN |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |
