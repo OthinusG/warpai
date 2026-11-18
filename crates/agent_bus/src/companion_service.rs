@@ -85,7 +85,7 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
             #[cfg(unix)]
             let scope = identity::Identity::open(&directory)?.service_id;
             #[cfg(unix)]
-            if let Some(stream) = ordinary_guardian(&scope).await {
+            if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
                 return forward_stdio(stream, Some(scope), None).await;
             }
             start_service()?;
@@ -95,7 +95,7 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
                         break (stream, None);
                     }
                     #[cfg(unix)]
-                    if let Some(stream) = ordinary_guardian(&scope).await {
+                    if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
                         break (stream, Some(scope.clone()));
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -109,8 +109,14 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
 }
 
 #[cfg(unix)]
-async fn ordinary_guardian(scope: &str) -> Option<Stream> {
-    let mut candidate = guardian::probe_connection_owned().await.ok()??.compat();
+pub(super) async fn ordinary_guardian<F>(
+    scope: &str,
+    probe: impl Fn() -> F,
+) -> Option<Stream>
+where
+    F: std::future::Future<Output = std::io::Result<Option<Stream>>>,
+{
+    let mut candidate = probe().await.ok()??.compat();
     let request_id = Uuid::new_v4().to_string();
     let request = ClientMessage {
         request_id: request_id.clone(),
@@ -129,7 +135,7 @@ async fn ordinary_guardian(scope: &str) -> Option<Stream> {
         // A different logical Store is independent of this legacy launch.
         return None;
     }
-    guardian::probe_connection_owned().await.ok().flatten()
+    probe().await.ok().flatten()
 }
 
 pub(super) async fn forward_stdio(

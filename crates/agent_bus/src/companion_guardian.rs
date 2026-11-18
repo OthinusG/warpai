@@ -22,6 +22,7 @@ const MAGIC: [u8; 4] = *b"WAG1";
 const PREFACE_BYTES: usize = 4 + 2 + 1 + 1 + 16 + 16;
 const IDLE_EXIT: Duration = Duration::from_secs(60);
 const SLOTS: usize = 32;
+const OPERATOR_SLOTS: usize = 2;
 
 fn euid() -> u32 {
     unsafe { libc::geteuid() }
@@ -198,13 +199,7 @@ enum Admission {
     ConnectionOwned = 2,
 }
 
-/// Server side: verify the client preface and answer with the runtime identity.
-async fn accept_preface(
-    stream: &mut UnixStream,
-    route: Route,
-    guardian: Uuid,
-    boot: Uuid,
-) -> std::io::Result<Admission> {
+async fn read_preface(stream: &mut UnixStream, route: Route) -> std::io::Result<Admission> {
     let mut bytes = [0; PREFACE_BYTES];
     tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut bytes))
         .await
@@ -217,7 +212,6 @@ async fn accept_preface(
     {
         return Err(std::io::Error::from(ErrorKind::InvalidData));
     }
-    stream.write_all(&preface(route, guardian, boot)).await?;
     Ok(match bytes[7] {
         0 => Admission::Guarded,
         1 => Admission::Operator,
@@ -652,7 +646,9 @@ pub(crate) async fn serve_at(
             Err(error) => return Err(error.into()),
         }
     }
-    let slots = Arc::new(Semaphore::new(SLOTS));
+    let handshakes = Arc::new(Semaphore::new(SLOTS));
+    let bridges = Arc::new(Semaphore::new(SLOTS));
+    let operators = Arc::new(Semaphore::new(OPERATOR_SLOTS));
     let (sender, mut receiver) = tokio::sync::mpsc::channel(32);
     for (listener, route) in listeners {
         spawn_accept(listener, route, sender.clone());
@@ -674,7 +670,7 @@ pub(crate) async fn serve_at(
                 let Some(scope) = admitted.iter().find(|scope| scope.route == route) else {
                     continue;
                 };
-                let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
+                let Ok(handshake) = handshakes.clone().try_acquire_owned() else { continue };
                 idle_since = Instant::now();
                 let peer_pid = credentials
                     .pid()
@@ -685,14 +681,21 @@ pub(crate) async fn serve_at(
                 let tasks = scope.tasks.clone();
                 let terminals = terminals.clone();
                 let catalog = catalog.clone();
+                let bridges = bridges.clone();
+                let operators = operators.clone();
                 let boot_id = boot.to_string();
                 // The bounded preface runs off the dispatch loop; a stalled peer
                 // cannot delay accepts or idle accounting.
                 tokio::spawn(async move {
-                    let _slot = slot;
-                    let Ok(admission) = accept_preface(&mut stream, route, guardian, boot).await else {
+                    let Ok(admission) = read_preface(&mut stream, route).await else {
                         return;
                     };
+                    let capacity = if admission == Admission::Operator { operators } else { bridges };
+                    let Ok(_slot) = capacity.try_acquire_owned() else { return; };
+                    drop(handshake);
+                    if stream.write_all(&preface(route, guardian, boot)).await.is_err() {
+                        return;
+                    }
                     let _ = serve_channel(
                         stream,
                         &directory,
@@ -738,7 +741,12 @@ pub(crate) async fn serve_at(
                 if let Ok(mut catalog) = catalog.lock() {
                     let _ = catalog.prune_ended(wall_millis() - guardian_catalog::ENDED_TTL_MS);
                 }
-                if slots.available_permits() != SLOTS || terminals.active() || admitted_new {
+                if handshakes.available_permits() != SLOTS
+                    || bridges.available_permits() != SLOTS
+                    || operators.available_permits() != OPERATOR_SLOTS
+                    || terminals.active()
+                    || admitted_new
+                {
                     idle_since = Instant::now();
                 }
                 for scope in &admitted {
@@ -1462,6 +1470,85 @@ mod tests {
             assert!(Instant::now() < deadline, "Guardian did not start");
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
+    }
+
+    #[tokio::test]
+    async fn ordinary_bridge_only_joins_its_store_and_starts_uninitialized() {
+        let state = tempfile::tempdir().unwrap();
+        let runtime = state.path().join("run");
+        let root = state.path().join("guardian");
+        let scoped_store = state.path().join("ssh");
+        let legacy_store = state.path().join("legacy");
+        let scope = identity::Identity::open(&scoped_store).unwrap().service_id;
+        let legacy = identity::Identity::open(&legacy_store).unwrap().service_id;
+        let server = tokio::spawn(serve_at(
+            root,
+            runtime.clone(),
+            vec![(Route::Ssh, scoped_store)],
+        ));
+        drop(wait_route(&runtime).await);
+        let probe = || async {
+            probe_route_as(&runtime, Route::Ssh, Admission::ConnectionOwned)
+                .await
+                .map(|(stream, _, _)| Some(stream))
+        };
+        assert!(service::ordinary_guardian(&legacy, probe).await.is_none());
+        let stream = service::ordinary_guardian(&scope, probe).await.unwrap();
+        let result = ManagedClient::new(stream)
+            .call(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: PROTOCOL_MAJOR,
+            }))
+            .await;
+        let managed_response::Result::Initialized(reply) = result else {
+            panic!("A fresh ordinary bridge should initialize");
+        };
+        assert_eq!(reply.fence.unwrap().service_id, scope);
+        assert!(reply.account_fence.is_none());
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn saturated_bridge_channels_leave_capacity_for_account_operators() {
+        let state = tempfile::tempdir().unwrap();
+        let runtime = state.path().join("run");
+        let server = tokio::spawn(serve_at(
+            state.path().join("guardian"),
+            runtime.clone(),
+            vec![(Route::Ssh, state.path().join("ssh"))],
+        ));
+        let mut bridges = vec![wait_route(&runtime).await.0];
+        for _ in 1..SLOTS {
+            bridges.push(probe_route(&runtime, Route::Ssh).await.unwrap().0);
+        }
+        assert!(probe_route(&runtime, Route::Ssh).await.is_err());
+        let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::Operator)
+            .await
+            .unwrap();
+        let mut operator = ManagedClient::new(stream);
+        let result = operator
+            .call(managed_request::Operation::Initialize(ManagedInitialize {
+                protocol_major: PROTOCOL_MAJOR,
+            }))
+            .await;
+        let managed_response::Result::Initialized(reply) = result else {
+            panic!("Operator initialization should survive bridge saturation");
+        };
+        let result = operator
+            .call(managed_request::Operation::AccountCatalogList(AccountCatalogList {
+                fence: reply.account_fence.clone(),
+                ..Default::default()
+            }))
+            .await;
+        assert!(matches!(result, managed_response::Result::AccountCatalogPage(_)));
+        let result = operator
+            .call(managed_request::Operation::AccountStop(AccountStop {
+                fence: reply.account_fence,
+                ..Default::default()
+            }))
+            .await;
+        assert!(matches!(result, managed_response::Result::AccountStopReceipts(_)));
+        drop(bridges);
+        server.abort();
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -192,6 +192,11 @@ reserve dispatch capacity so floods cannot starve stop, permission attention or
 quiet-session work. Record task IDs/revisions through existing Store operations;
 no second durable task scheduler or automatic Agent spawning is introduced.
 
+The Unix guardian bounds incomplete prefaces separately from established
+channels. Local account operators have dedicated channel permits, so occupied
+bridge channels cannot consume the capacity for a local catalog/stop operation.
+Preface acceptance still requires the same private socket and peer identity.
+
 Session launch/attach concurrency is bounded, failed attempts release reservations,
 and stop-one cannot affect sibling sessions. Bare CLI stop and explicit stop-all capture all current-account guarded runs
 without a selector/confirmation, then return per-run receipts; partial failures

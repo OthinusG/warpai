@@ -392,6 +392,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   logical service ID matches its legacy Store. Both startup orders require
   source-matched native proof.
 
+- The Unix guardian caps pending prefaces and established bridges separately.
+  Two local operator permits keep account catalog and stop available when all
+  32 bridge channels are occupied.
+
 ## Memory maintenance
 
 Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;

@@ -6,24 +6,31 @@ Updated: 2026-11-18. Scope revision: R4 optional SSH/WSL guardian.
 
 Audit baseline: `61b3fcac` on `feat/2.0.0`, with `main` at `db280c6b`.
 S1-l through S1-q describe the successive changes since the original baseline.
-The latest committed receipts cover macOS arm64 builds, 261 agent-bus library
-tests (one ignored), 17 protocol tests and a local Unix listener/PTY fixture.
-They do not close any V01-V30 native acceptance case. Historical method records
-below describe their own revisions.
+Recent receipts cover macOS arm64 app compilation and library tests, plus the
+[Linux/macOS/Windows remote wire matrix on `36bdc6d3`](https://github.com/OthinusG/warpai/actions/runs/44282851874).
+That matrix exercises the guarded Linux SSH lifetime and ordered resize over a
+real SSH bridge. A [separate WSL run on `36bdc6d3`](https://github.com/OthinusG/warpai/actions/runs/44282850183)
+passed the guarded lifetime test with every bridge closed for 12 seconds, then
+failed two ordinary-workspace cases because the live guardian served another
+Store. `92f31965` added the logical Store preflight. The source-matched [Windows
+and WSL rerun](https://github.com/OthinusG/warpai/actions/runs/44298760969) and
+[remote wire matrix](https://github.com/OthinusG/warpai/actions/runs/44298760965)
+cover that change and the new first-owner cases. Full V01-V30 acceptance remains
+open. Historical records below describe their own revisions.
 
 The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
 fencing, a bounded SQLite catalog, a helper bridge, account RPCs and a private
-CLI. A desktop preference selects the guarded transport; the production
-desktop still lacks guarded PTY launch and exact-run restoration. Native
-Windows guarded execution is unsupported on this baseline. WSL guest code is
-present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
+CLI. The SSH and WSL preferences bind a verified remote identity for future
+launches. The normal desktop Remote panel keeps its ordinary workspace channel.
+Production guarded PTY launch, exact-run desktop restoration and native Windows
+guardian ownership remain open.
 
 ### Audit findings and closure checks
 
 | Gap | Closure check |
 | --- | --- |
 | CLI page limit exceeds wire limit; named selection reads only page one | Repaired in the working tree. CLI reads bounded pages. A real-listener fixture returns 40 rows across two pages without project admission. |
-| WSL bridge flag and route passed as one argv entry | Repaired in the working tree. The argv fixture verifies two distinct arguments. Actual wsl.exe dispatch remains unverified. |
+| WSL bridge flag and route passed as one argv entry | Repaired. The argv fixture verifies two distinct arguments; native Windows dispatched the real WSL guarded lifetime fixture on `36bdc6d3`. |
 | Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
 | Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
 | Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Native distro verification and installed-helper dual-route election are implemented. The two first-owner orders still need source-matched cloud proof. |
@@ -46,11 +53,11 @@ present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
 | S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
-| S4 SSH optional UI/CLI | in_progress | Persisted `guardian` opt-in, settings checkbox, guarded transport selection in the remote panel, `ctl list/resume/stop` with exit codes and documented absolute-helper invocation; no session-only shell function and no native remote run |
-| S5 mandatory WSL guardian | in_progress | Linux guest guardian route behind `wsl_companion`, `--guardian-stdio wsl` bridge and Windows client guarded WSL constructors exist; prune/TTL and Windows unsupported messages are host-tested only; no WSL distribution run |
+| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, and private `ctl list/resume/stop`. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
+| S5 mandatory WSL guardian | in_progress | Native Windows/WSL bridge loss and exact-run reconnect passed on `36bdc6d3`. Mixed ordinary/guarded forwarding and both installed-helper startup orders require fresh Windows/WSL proof. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
-| S7 resource/fairness scheduling | not_started | None |
-| S8 native acceptance | not_started | None |
+| S7 resource/fairness scheduling | in_progress | Local regression holds all 32 bridge channels while an independent account operator reads the catalog and requests account stop. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
+| S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
 | S9 distribution/release | not_started | None |
 
 ## Mandatory method records
@@ -1754,6 +1761,25 @@ default and feature libraries check on macOS, local Companion tests pass,
 and the WSL provisioning script passes `bash -n`. The WSL CI guest now
 installs both source-matched helpers. Its native Windows bridge fixture checks
 both first-owner orders and distinct logical IDs; the result remains pending.
+
+Record ID / date: S5-c / S7-a / 2026-11-18
+Work item: ordinary bridge regression and account-control admission under load.
+Baseline: `92f31965`. Status: verified on macOS arm64.
+
+The ordinary stdio preflight now has a real private-socket fixture. It rejects
+another Store and returns a fresh connection with the matching Store's service
+ID and no account fence. The Unix listener has 32 established bridge permits,
+two independent local operator permits and 32 bounded pending prefaces. A peer
+must pass the existing kernel UID and preface checks before taking a channel
+permit, and receives the boot reply only after admission. Each permit is released
+on failure or disconnect. Idle exit counts all three pools. No wire fields or
+Store schema changed.
+
+The contention fixture occupies every bridge permit, verifies a further bridge
+is refused, then initializes a local operator and sends catalog and stop RPCs.
+The full `warp-agent-bus` macOS arm64 suite passed with 272 tests and one ignored.
+This does not establish bulk IO fairness or native resource targets. MEMORY.md
+records the control-admission limits.
 
 ## Evidence index
 
