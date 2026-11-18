@@ -341,15 +341,15 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
         run
     }
 
-    async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState, operation: Operation) -> serde_json::Value {
+    async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState, sequence: u64, operation: Operation) -> serde_json::Value {
         bridge.terminal(TerminalControl {
             input: format!("{}\r", serde_json::to_string(&operation).unwrap()).into_bytes(),
-            input_sequence: 1,
+            input_sequence: run.accepted_input_sequence + 1,
             ..control(fence, run, TerminalAction::TerminalInput)
         }).await;
-        const MARKER: &str = "FIXTURE_RESULT_1=";
-        let output = output(bridge, fence, run, MARKER).await;
-        serde_json::from_str(output.split_once(MARKER).unwrap().1.lines().next().unwrap()).unwrap()
+        let marker = format!("FIXTURE_RESULT_{sequence}=");
+        let output = output(bridge, fence, run, &marker).await;
+        serde_json::from_str(output.split_once(&marker).unwrap().1.lines().next().unwrap()).unwrap()
     }
 
     let root = tempfile::tempdir_in(root).unwrap();
@@ -360,6 +360,8 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
     let mut receiver = Bridge::connect(command());
     let (receiver_fence, _) = receiver.open(path).await;
     let receiver_run = launch(&mut receiver, &receiver_fence, executable).await;
+    let ready = operation(&mut receiver, &receiver_fence, &receiver_run, 1, Operation::AgentReady).await;
+    assert_eq!(ready["ready"], true);
 
     receiver.child.kill().await.unwrap();
     drop(receiver);
@@ -379,7 +381,7 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
         sleep(Duration::from_millis(20)).await;
     }
 
-    let sent = operation(&mut sender, &sender_fence, &sender_run, Operation::AgentSend {
+    let sent = operation(&mut sender, &sender_fence, &sender_run, 1, Operation::AgentSend {
         to: format!("fixture-{}", receiver_run.session_id),
         body: "Remote fixture message".into(),
         content: None,
@@ -410,7 +412,7 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
     assert_eq!(attached.run_id, receiver_run.run_id);
     let retained = output(&mut receiver, &rejoined, &attached, "PEER_NOTIFICATION_RECEIVED").await;
     assert_eq!(retained.matches("PEER_NOTIFICATION_RECEIVED").count(), 1);
-    let inbox = operation(&mut receiver, &rejoined, &attached, Operation::AgentInbox { cursor: None, limit: None }).await;
+    let inbox = operation(&mut receiver, &rejoined, &attached, 2, Operation::AgentInbox { cursor: None, limit: None }).await;
     assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["id"] == id.to_string()));
     for (bridge, fence, run) in [(&mut sender, &sender_fence, &sender_run), (&mut receiver, &rejoined, &attached)] {
         assert!(bridge.terminal(control(fence, run, TerminalAction::TerminalStop)).await.stop_requested);

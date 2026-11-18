@@ -138,7 +138,7 @@ fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
             "attempt_id":result["content"]["snapshot"]["attempt_id"],"reason":result["content"]["snapshot"]["reason"],
             "binding":{"terminal":result["content"]["snapshot"]["binding"]["terminal"]}}),
         "context_refs":result["context_refs"], "handoff_source":result["source"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
-        "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],
+        "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],"ready":result["ready"],
         "messages":result["messages"].as_array().map(|messages| messages.iter()
             .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),
         "has_message":result["messages"].as_array().is_some_and(|messages|
