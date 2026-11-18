@@ -92,8 +92,14 @@ fn managed_agent_child() {
             break;
         }
         let mut value = line.trim_end();
-        if value.starts_with("Warpai peer work is waiting (message ") {
+        if let Some(notification) = value.strip_prefix("Warpai peer work is waiting (message ") {
             println!("PEER_NOTIFICATION_RECEIVED");
+            if let Some((id, _)) = notification.split_once(')') {
+                let id = Uuid::parse_str(id).unwrap();
+                let terminal = std::env::var(warp_agent_bus::transport::TERMINAL).unwrap();
+                let terminal = Uuid::parse_str(&terminal).unwrap();
+                std::fs::write(format!("agent-wake-{terminal}-{id}"), agent_run.as_deref().unwrap()).unwrap();
+            }
             let Some(start) = value.find('{') else { continue; };
             value = &value[start..];
         }

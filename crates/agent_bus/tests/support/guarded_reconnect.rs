@@ -295,6 +295,139 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
 }
 
 #[cfg(unix)]
+pub async fn verify_detached_agent_delivery(root: &str, executable: &str, command: impl Fn() -> Command) {
+    use warp_agent_bus::Operation;
+
+    fn control(fence: &ManagedFence, run: &TerminalState, action: TerminalAction) -> TerminalControl {
+        TerminalControl {
+            fence: Some(fence.clone()),
+            session_id: run.session_id.clone(),
+            run_id: run.run_id.clone(),
+            action: action as i32,
+            attachment_id: run.attachment_id.clone(),
+            attachment_generation: run.attachment_generation,
+            ..Default::default()
+        }
+    }
+
+    async fn output(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState, marker: &str) -> String {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let state = bridge.terminal(control(fence, run, TerminalAction::TerminalRead)).await;
+            let output = String::from_utf8_lossy(&state.output);
+            if output.contains(marker) { return output.into_owned(); }
+            assert!(Instant::now() < deadline, "Native Agent never emitted {marker}");
+            sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    async fn launch(bridge: &mut Bridge, fence: &ManagedFence, executable: &str) -> TerminalState {
+        let result = bridge.call(managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: executable.into(),
+            arguments: ["--exact", "managed_agent_child", "--ignored", "--nocapture"].map(str::to_owned).to_vec(),
+            columns: 1000,
+            rows: 24,
+            guarded: true,
+            agent_program: Some("fixture".into()),
+            session_kind: Some(TerminalSessionKind::Agent as i32),
+            ..Default::default()
+        })).await;
+        let managed_response::Result::TerminalState(run) = result else {
+            panic!("Guarded Agent launch failed: {result:?}");
+        };
+        output(bridge, fence, &run, &format!("MCP_NATIVE_RUN={}", run.run_id)).await;
+        run
+    }
+
+    async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState, operation: Operation) -> serde_json::Value {
+        bridge.terminal(TerminalControl {
+            input: format!("{}\r", serde_json::to_string(&operation).unwrap()).into_bytes(),
+            input_sequence: 1,
+            ..control(fence, run, TerminalAction::TerminalInput)
+        }).await;
+        const MARKER: &str = "FIXTURE_RESULT_1=";
+        let output = output(bridge, fence, run, MARKER).await;
+        serde_json::from_str(output.split_once(MARKER).unwrap().1.lines().next().unwrap()).unwrap()
+    }
+
+    let root = tempfile::tempdir_in(root).unwrap();
+    let path = root.path().to_str().unwrap();
+    let mut sender = Bridge::connect(command());
+    let (sender_fence, account) = sender.open(path).await;
+    let sender_run = launch(&mut sender, &sender_fence, executable).await;
+    let mut receiver = Bridge::connect(command());
+    let (receiver_fence, _) = receiver.open(path).await;
+    let receiver_run = launch(&mut receiver, &receiver_fence, executable).await;
+
+    receiver.child.kill().await.unwrap();
+    drop(receiver);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let result = sender.call(managed_request::Operation::AccountCatalogInspect(AccountCatalogInspect {
+            fence: Some(account.clone()),
+            session_id: receiver_run.session_id.clone(),
+            run_id: receiver_run.run_id.clone(),
+        })).await;
+        let managed_response::Result::AccountCatalogRow(row) = result else {
+            panic!("Guarded Agent catalog inspect failed: {result:?}");
+        };
+        assert_eq!(row.state, "live");
+        if row.writer_attached == Some(false) { break; }
+        assert!(Instant::now() < deadline, "Receiver bridge did not release its writer");
+        sleep(Duration::from_millis(20)).await;
+    }
+
+    let sent = operation(&mut sender, &sender_fence, &sender_run, Operation::AgentSend {
+        to: format!("fixture-{}", receiver_run.session_id),
+        body: "Remote fixture message".into(),
+        content: None,
+        expects_result: false,
+        subject: None,
+        thread_id: None,
+        reply_to: None,
+        task_id: None,
+        request_id: Uuid::new_v4().to_string(),
+    }).await;
+    let id = Uuid::parse_str(sent["id"].as_str().unwrap()).unwrap();
+    let receipt = root.path().join(format!("agent-wake-{}-{id}", receiver_run.session_id));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while std::fs::read_to_string(&receipt).as_deref().ok() != Some(receiver_run.run_id.as_str()) {
+        assert!(Instant::now() < deadline, "The original Agent did not consume the wake while detached");
+        sleep(Duration::from_millis(20)).await;
+    }
+
+    let mut receiver = Bridge::connect(command());
+    let (rejoined, _) = receiver.open(path).await;
+    assert_eq!(rejoined.service_boot_id, receiver_fence.service_boot_id);
+    assert_ne!(rejoined.connection_id, receiver_fence.connection_id);
+    let attached = receiver.terminal(TerminalControl {
+        attachment_id: String::new(),
+        attachment_generation: 0,
+        ..control(&rejoined, &receiver_run, TerminalAction::TerminalAttach)
+    }).await;
+    assert_eq!(attached.run_id, receiver_run.run_id);
+    let retained = output(&mut receiver, &rejoined, &attached, "PEER_NOTIFICATION_RECEIVED").await;
+    assert_eq!(retained.matches("PEER_NOTIFICATION_RECEIVED").count(), 1);
+    let inbox = operation(&mut receiver, &rejoined, &attached, Operation::AgentInbox { cursor: None, limit: None }).await;
+    assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["id"] == id.to_string()));
+    for (bridge, fence, run) in [(&mut sender, &sender_fence, &sender_run), (&mut receiver, &rejoined, &attached)] {
+        assert!(bridge.terminal(control(fence, run, TerminalAction::TerminalStop)).await.stop_requested);
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let state = bridge.terminal(control(fence, run, TerminalAction::TerminalRead)).await;
+            if state.output_closed && state.processes_active == Some(false) {
+                assert!(state.exit_code.is_some());
+                break;
+            }
+            assert!(Instant::now() < deadline, "Guarded Agent must exit and drain before the next account test");
+            sleep(Duration::from_millis(20)).await;
+        }
+    }
+}
+
+#[cfg(unix)]
 pub async fn verify_cli_stop_survives_caller(root: &str, helper: &str, command: Command) {
     let mut bridge = Bridge::connect(command);
     let (fence, _) = bridge.open(root).await;

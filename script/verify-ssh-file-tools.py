@@ -139,6 +139,8 @@ def main():
                 companion = Path("target/debug/warpai-companion" + (".exe" if windows else "")).resolve()
                 env.update(WARP_TEST_SSH_CONFIG=str(config), WARP_TEST_REMOTE_ROOT=str(root), WARP_TEST_COMPANION_PATH=str(companion))
                 if args.guardian:
+                    agent = next(path for path in Path("target/debug/deps").glob("managed_agent-*") if path.is_file() and os.access(path, os.X_OK))
+                    env["WARP_TEST_AGENT_FIXTURE"] = str(agent.resolve())
                     print("Owned SSH fixture stage: guarded reconnect", flush=True)
                     checked_run(["cargo", "test", "-p", "warp-agent-bus", "--test", "ssh_companion",
                                  "--locked", "--", "--ignored", "--exact",

@@ -880,5 +880,7 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     guarded_reconnect::verify_guarded_reconnect(
         &root, std::time::Duration::from_secs(12), bridge, Some(&tty_resume),
     ).await;
+    let agent = std::env::var("WARP_TEST_AGENT_FIXTURE").expect("Owned native Agent fixture executable");
+    guarded_reconnect::verify_detached_agent_delivery(&root, &agent, bridge).await;
     guarded_reconnect::verify_cli_stop_survives_caller(&root, &helper, bridge()).await;
 }

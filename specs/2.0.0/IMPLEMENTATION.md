@@ -1995,7 +1995,20 @@ observes a writer while attached and free after transport loss.
 The WSL shell fixture found that the path translator accepts an environment
 hint supplied by its caller. Both native probes strip `WSL_DISTRO_NAME` before
 the translation, then compare against the original hint. This isolates the
-probe from the text it is supposed to validate. Native rerun remains pending.
+probe from the text it is supposed to validate. [Run 44333896370](https://github.com/OthinusG/warpai/actions/runs/44333896370)
+on `904801ed` passed the positive and mismatched-hint shell cases, the native
+guarded reconnect, both WSL/SSH election orders and ordinary WSL workspace tests.
+
+Record ID / date: S8-d / 2026-11-18
+Scope: direct Agent delivery after native SSH bridge loss (V05, V14).
+
+The owned loopback fixture uses two registered guarded Agent PTYs in one project.
+It kills the receiver SSH process, waits for the writer to be observed free,
+then sends from the still-attached peer. The receiver must write a message/run
+receipt before any replacement receiver bridge is opened. The replacement
+writer verifies the exact run, retained native notification output and the
+still-unacknowledged message. The fixture compiles locally. Native execution
+and the full task, busy/permission and WSL matrices remain pending.
 
 ## Evidence index
 

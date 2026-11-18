@@ -148,6 +148,11 @@ completion. Linux SSH tests cannot substitute for guest lifetime evidence.
 
 Deliver: native fault matrix, feature coverage receipts and privacy/storage checks.
 
+The controlled Unix SSH fixture must prove that a direct peer message reaches
+the same registered Agent after its writer disconnects. Verify an exact message
+receipt from the native PTY child before opening a replacement receiver bridge,
+then verify retained output and the still-unacknowledged inbox entry after attach.
+
 ## S7: low-overhead scheduling and multitasking
 
 - [ ] Replace guarded per-Agent 300 ms polling with shared event notifications,
