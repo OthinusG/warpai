@@ -60,6 +60,7 @@ message ManagedRequest {
     AccountCatalogInspect account_catalog_inspect = 11;
     AccountCatalogWatch account_catalog_watch = 12;
     AccountStop account_stop = 13;
+    GuardedProjectOpen guarded_project_open = 14;
   }
 }
 message ManagedResponse {
@@ -214,6 +215,11 @@ message AccountStopReceipts {
 message ProjectOpen {
   ManagedFence fence = 1;
   string root = 2;
+}
+message GuardedProjectOpen {
+  ManagedFence fence = 1;
+  string session_id = 2;
+  string run_id = 3;
 }
 message ProjectOpened {
   ManagedFence fence = 1;

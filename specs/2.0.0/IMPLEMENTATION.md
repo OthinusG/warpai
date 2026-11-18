@@ -56,7 +56,7 @@ guardian ownership remain open.
 | S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
-| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, and private `ctl list/resume/stop`. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
+| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, private `ctl list/resume/stop`, and exact live project admission for resume across working directories in one logical scope. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL bridge loss and exact-run reconnect passed on `36bdc6d3`. Mixed ordinary/guarded forwarding and both installed-helper startup orders require fresh Windows/WSL proof. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | in_progress | Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
@@ -1815,6 +1815,26 @@ the complete input and absolute output offsets still advance by its full length.
 The local fixture checks retained bytes, capacity and offsets for both ordinary
 and oversized appends. No wire or Store changes. Native election acceptance and
 total RSS targets remain open. The MEMORY.md resource notes still apply.
+
+Record ID / date: S4-b / 2026-11-18
+Baseline: `398dbc6f`. Scope: FR-16, FR-18, V25 and V29 CLI resume admission.
+
+Bare or named resume can select a live run in another project of the helper's
+logical scope. Selection comes from the scoped catalog, independent of the CLI
+working directory. The additive `GuardedProjectOpen` operation uses exact live
+run and project identity from memory, verifies local operator admission and
+reopens the native project path. A replacement directory, stale run or wrong
+scope is rejected. The operation acquires no writer and skips MRU changes. The
+existing attach path still enforces writer conflict and explicit takeover.
+`--project` retains existing explicit-path admission and works with older
+guardians. The catalog still persists no paths.
+
+Host proof: a real Unix listener and PTY fixture verifies matching operator
+admission, rejects data bridges, another logical scope, replaced directories
+and stale run IDs, and proves opening the project leaves the catalog row intact.
+The macOS arm64 library suite passed with 274 tests and one ignored, and all
+17 protocol tests passed. Native CLI TTY and desktop acceptance remain open. MEMORY.md records the
+boot-local project lookup and scope boundary.
 
 ## Evidence index
 

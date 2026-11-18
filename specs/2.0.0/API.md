@@ -135,6 +135,14 @@ Catalog watches are bounded, revision/cursor-scoped and contain sanitized IDs/st
 only; gaps require bounded relisting. Reconnect restores metadata automatically,
 not every writer/snapshot. Detailed CLI/default/name rules live in [CLI.md](CLI.md).
 
+The private `GuardedProjectOpen` request (tag 14) lets a local account operator
+open the project of an exact live session/run in its authenticated logical
+scope. The guardian uses the guarded run's in-memory project root, reopens the
+native directory and compares its project identity before returning the existing
+`ProjectOpened` response. The request cannot grant a writer, open another scope,
+or recover a path from the persisted catalog. Ordinary remote project admission
+continues to use `ProjectOpen` with an explicit root.
+
 A direct operator handshake may report `ManagedInitialized.current_guarded_session`
 (tag 8). The guardian derives this selector from the authenticated local
 peer's OS session leader and the currently owned guarded PTY; remote bridges

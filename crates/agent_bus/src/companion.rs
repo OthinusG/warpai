@@ -387,24 +387,10 @@ impl Companion {
                 {
                     return Err(ManagedErrorCode::ManagedInvalidInput);
                 }
-                let root = Path::new(&request.root)
-                    .canonicalize()
-                    .map_err(path_error)?;
-                if !root.is_dir() || root.to_str().is_none() {
-                    return Err(ManagedErrorCode::ManagedInvalidInput);
-                }
-                let handle = open_root(&root).map_err(path_error)?;
-                let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
-                let canonical_root = root.to_str().unwrap().to_owned();
-                self.terminals.disconnect(&self.fence.connection_id);
-                self.files.clear();
-                self.project = Some(Project { root, handle });
-                self.fence.project_id = id;
-                Ok(managed_response::Result::ProjectOpened(ProjectOpened {
-                    fence: Some(self.fence.clone()),
-                    canonical_root,
-                    root_identity,
-                }))
+                self.open_project(Path::new(&request.root), None)
+            }
+            Some(managed_request::Operation::GuardedProjectOpen(request)) => {
+                self.open_guarded_project(request)
             }
             Some(managed_request::Operation::TerminalLaunch(request)) => {
                 self.check_project(request.fence.as_ref())?;
@@ -749,6 +735,56 @@ impl Companion {
         &mut self,
         _request_id: Uuid,
         _request: AccountStop,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        Err(ManagedErrorCode::ManagedFeatureUnavailable)
+    }
+
+    fn open_project(
+        &mut self,
+        root: &Path,
+        expected_id: Option<&str>,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        let root = root.canonicalize().map_err(path_error)?;
+        let canonical_root = root.to_str().filter(|_| root.is_dir())
+            .ok_or(ManagedErrorCode::ManagedInvalidInput)?.to_owned();
+        let handle = open_root(&root).map_err(path_error)?;
+        let (id, root_identity) = self.identity.project(&handle).map_err(path_error)?;
+        if expected_id.is_some_and(|expected| expected != id) {
+            return Err(ManagedErrorCode::ManagedStaleAttachment);
+        }
+        self.terminals.disconnect(&self.fence.connection_id);
+        self.files.clear();
+        self.project = Some(Project { root, handle });
+        self.fence.project_id = id;
+        Ok(managed_response::Result::ProjectOpened(ProjectOpened {
+            fence: Some(self.fence.clone()),
+            canonical_root,
+            root_identity,
+        }))
+    }
+
+    #[cfg(unix)]
+    fn open_guarded_project(
+        &mut self,
+        request: GuardedProjectOpen,
+    ) -> Result<managed_response::Result, ManagedErrorCode> {
+        self.check_fence(request.fence.as_ref(), false)?;
+        if self.account_guardian.is_none() || !self.account_operator || self.project.is_some() {
+            return Err(ManagedErrorCode::ManagedPermissionDenied);
+        }
+        if !valid_uuid(&request.session_id) || !valid_uuid(&request.run_id) {
+            return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        let (root, project_id) = self.terminals.guarded_project(
+            &self.fence, &request.session_id, &request.run_id,
+        )?;
+        self.open_project(&root, Some(&project_id))
+    }
+
+    #[cfg(not(unix))]
+    fn open_guarded_project(
+        &mut self,
+        _request: GuardedProjectOpen,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         Err(ManagedErrorCode::ManagedFeatureUnavailable)
     }

@@ -368,6 +368,8 @@ impl Output {
 }
 struct Session {
     launch: TerminalLaunch,
+    #[cfg(unix)]
+    guarded_root: Option<PathBuf>,
     policy: Policy,
     label: Option<String>,
     run_id: String,
@@ -942,6 +944,8 @@ impl Terminals {
         let label = request.label.clone();
         let mut session = Session {
             launch: request,
+            #[cfg(unix)]
+            guarded_root: (policy == Policy::Guarded).then(|| root.to_owned()),
             policy,
             label,
             run_id,
@@ -1314,6 +1318,33 @@ impl Terminals {
         };
         prune_sessions(&mut owners, Instant::now(), false);
         !owners.is_empty()
+    }
+
+    #[cfg(unix)]
+    pub(super) fn guarded_project(
+        &self,
+        fence: &ManagedFence,
+        session_id: &str,
+        run_id: &str,
+    ) -> Result<(PathBuf, String), Error> {
+        let owner = lock(&self.owners)?
+            .get(session_id)
+            .cloned()
+            .ok_or(Error::ManagedNotFound)?;
+        let mut session = lock(&owner)?;
+        if session.run_id != run_id
+            || session.boot_id != fence.service_boot_id
+            || session.service_id != fence.service_id
+        {
+            return Err(Error::ManagedNotFound);
+        }
+        let Some(root) = session.guarded_root.clone() else {
+            return Err(Error::ManagedNotFound);
+        };
+        if !session.pty.is_active().map_err(path_error)? {
+            return Err(Error::ManagedNotFound);
+        }
+        Ok((root, session.project_id.clone()))
     }
 
     #[cfg(unix)]

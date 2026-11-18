@@ -18,7 +18,7 @@ warpai list [--project <path>] [--id <session>]
     List guardian sessions for this account.
 
 warpai resume [<name>] [--id <session>] [--project <path>] [--takeover]
-    Attach the unique, current-project or last-used live session.
+    Attach the current, unique or last-used live session in this helper's scope.
     Ctrl+B Q detaches; the remote process keeps running.
 
 warpai stop [<name>] [--id <session>] [--project <path>]
@@ -336,7 +336,7 @@ fn route_name(route: Route) -> &'static str {
 /// Account discovery and bare stop do not require a project admission.
 async fn connect(
     project: &Option<String>,
-) -> Result<(HostClient, String, String), i32> {
+) -> Result<(HostClient, String), i32> {
     let active = route();
     let (stream, guardian, boot) = match guardian::probe(active).await {
         Ok(connected) => connected,
@@ -364,17 +364,16 @@ async fn connect(
             return Err(EXIT_DOMAIN);
         }
     }
-    let current_project = client
+    let filter = client
         .fence()
         .map(|fence| fence.project_id.clone())
         .unwrap_or_default();
-    let filter = project.as_ref().map_or_else(String::new, |_| current_project.clone());
-    Ok((client, current_project, filter))
+    Ok((client, filter))
 }
 
-pub(crate) async fn rows(client: &mut HostClient, project_id: &str) -> Result<Vec<AccountCatalogRow>, i32> {
+pub(crate) async fn rows(client: &mut HostClient, scope_id: &str, project_id: &str) -> Result<Vec<AccountCatalogRow>, i32> {
     let filter = AccountCatalogFilter {
-        scope_id: String::new(),
+        scope_id: scope_id.to_owned(),
         project_id: project_id.to_owned(),
     };
     let mut cursor = String::new();
@@ -403,11 +402,11 @@ pub(crate) async fn rows(client: &mut HostClient, project_id: &str) -> Result<Ve
 }
 
 async fn list(project: Option<String>, id: Option<String>) -> i32 {
-    let (mut client, _, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };
-    let rows = match rows(&mut client, &filter).await {
+    let rows = match rows(&mut client, "", &filter).await {
         Ok(rows) => rows,
         Err(code) => return code,
     };
@@ -480,7 +479,7 @@ fn select<'a>(
 }
 
 async fn resume(project: Option<String>, selection: Selection, takeover: bool) -> i32 {
-    let (mut client, mut current_project, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };
@@ -490,27 +489,7 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
         println!("Already in the current guarded session.");
         return EXIT_OK;
     }
-    if project.is_none() {
-        let Ok(directory) = std::env::current_dir() else {
-            eprintln!("Current project directory is unavailable.");
-            return EXIT_DOMAIN;
-        };
-        let Some(root) = directory.to_str() else {
-            eprintln!("Project path is not valid UTF-8.");
-            return EXIT_DOMAIN;
-        };
-        if client.open_project(root).await.is_err() {
-            eprintln!("Current project admission failed.");
-            return EXIT_DOMAIN;
-        }
-        current_project = client.fence().expect("Admitted project fence").project_id.clone();
-    }
-    let filter = if matches!(selection, Selection::All) {
-        &current_project
-    } else {
-        &filter
-    };
-    let rows = match rows(&mut client, filter).await {
+    let rows = match rows(&mut client, route_name(route()), &filter).await {
         Ok(rows) => rows,
         Err(code) => return code,
     };
@@ -524,13 +503,6 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
         println!("Already in the current guarded session.");
         return EXIT_OK;
     }
-    if selected.project_id != current_project {
-        eprintln!(
-            "Session {} belongs to another project; pass --project <root>.",
-            selected.session_id
-        );
-        return EXIT_DOMAIN;
-    }
     let current = match client
         .account_catalog_inspect(selected.session_id.clone(), selected.run_id.clone())
         .await
@@ -541,6 +513,10 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
             return EXIT_DOMAIN;
         }
     };
+    if project.is_none() && client.open_guarded_project(&current).await.is_err() {
+        eprintln!("Selected session project is unavailable. Use --project <root> for an older guardian.");
+        return EXIT_DOMAIN;
+    }
     let attach = TerminalControl {
         fence: client.fence().cloned(),
         session_id: current.session_id.clone(),
@@ -795,14 +771,14 @@ async fn detach(client: &mut HostClient, state: &TerminalState) {
 }
 
 async fn stop(project: Option<String>, selection: Selection) -> i32 {
-    let (mut client, _, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };
     let target = match selection {
         Selection::All => None,
         selection => {
-            let rows = match rows(&mut client, &filter).await {
+            let rows = match rows(&mut client, "", &filter).await {
                 Ok(rows) => rows,
                 Err(code) => return code,
             };

@@ -707,12 +707,35 @@ impl HostClient {
 
     pub(crate) async fn open_project(&mut self, root: &str) -> Result<(), ConnectionError> {
         let fence = self.fence.clone().ok_or(ConnectionError::StaleAttachment)?;
-        let opened = self
-            .request(managed_request::Operation::ProjectOpen(ProjectOpen {
-                fence: Some(fence.clone()),
+        self.open_project_request(
+            managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: Some(fence),
                 root: root.into(),
-            }))
-            .await?;
+            }),
+            None,
+        ).await
+    }
+
+    #[cfg(unix)]
+    pub(crate) async fn open_guarded_project(&mut self, row: &AccountCatalogRow) -> Result<(), ConnectionError> {
+        let fence = self.fence.clone().ok_or(ConnectionError::StaleAttachment)?;
+        self.open_project_request(
+            managed_request::Operation::GuardedProjectOpen(GuardedProjectOpen {
+                fence: Some(fence),
+                session_id: row.session_id.clone(),
+                run_id: row.run_id.clone(),
+            }),
+            Some(&row.project_id),
+        ).await
+    }
+
+    async fn open_project_request(
+        &mut self,
+        operation: managed_request::Operation,
+        expected_project: Option<&str>,
+    ) -> Result<(), ConnectionError> {
+        let fence = self.fence.clone().ok_or(ConnectionError::StaleAttachment)?;
+        let opened = self.request(operation).await?;
         let managed_response::Result::ProjectOpened(opened) = opened else {
             return Err(ConnectionError::CompanionUnavailable);
         };
@@ -723,6 +746,7 @@ impl HostClient {
             || project_fence.service_id != fence.service_id
             || project_fence.service_boot_id != fence.service_boot_id
             || project_fence.connection_id != fence.connection_id
+            || expected_project.is_some_and(|project| project != project_fence.project_id)
             || !text(&opened.canonical_root, 4096)
             || opened.root_identity.len() != 64
             || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())

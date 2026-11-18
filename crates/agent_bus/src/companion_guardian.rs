@@ -1104,7 +1104,7 @@ mod tests {
         let (stream, _, _) = wait_route(&runtime).await;
         let mut client = crate::ssh_remote::HostClient::connect_unix(stream, None)
             .await.unwrap();
-        let rows = crate::companion_ctl::rows(&mut client, "").await.unwrap();
+        let rows = crate::companion_ctl::rows(&mut client, "", "").await.unwrap();
         assert_eq!(rows.len(), 40);
         assert_eq!(rows[0].created_seq, 40);
         assert_eq!(rows[39].created_seq, 1);
@@ -1470,6 +1470,61 @@ mod tests {
             assert!(Instant::now() < deadline, "Guardian did not start");
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
+    }
+
+    #[tokio::test]
+    async fn local_operator_opens_the_exact_live_project_without_cwd() {
+        let state = tempfile::tempdir().unwrap();
+        let runtime = state.path().join("run");
+        let project = state.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        let server = tokio::spawn(serve_at(
+            state.path().join("guardian"),
+            runtime.clone(),
+            scopes(state.path()),
+        ));
+        let mut launcher = ManagedClient::new(wait_route(&runtime).await.0);
+        let initialize = managed_request::Operation::Initialize(ManagedInitialize {
+            protocol_major: PROTOCOL_MAJOR,
+        });
+        let managed_response::Result::Initialized(init) = launcher.call(initialize.clone()).await else {
+            panic!("Guarded route should initialize");
+        };
+        let account = init.account_fence.unwrap();
+        let managed_response::Result::ProjectOpened(opened) = launcher
+            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: init.fence,
+                root: project.to_str().unwrap().into(),
+            }))
+            .await else { panic!("Fixture project should open"); };
+        let project_fence = opened.fence.unwrap();
+        let run = launch_guarded(&mut launcher, &project_fence, Uuid::new_v4().to_string()).await;
+        let row = inspect_guarded(&mut launcher, &account, &run).await;
+
+        for (route, admission) in [(Route::Ssh, Admission::Guarded), (Route::Wsl, Admission::Operator)] {
+            let (stream, _, _) = probe_route_as(&runtime, route, admission).await.unwrap();
+            let mut client = crate::ssh_remote::HostClient::connect_unix(stream, None).await.unwrap();
+            assert!(client.open_guarded_project(&row).await.is_err());
+        }
+        let open_operator = || async {
+            let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::Operator).await.unwrap();
+            crate::ssh_remote::HostClient::connect_unix(stream, None).await.unwrap()
+        };
+        let mut operator = open_operator().await;
+        let rows = crate::companion_ctl::rows(&mut operator, "ssh", "").await.unwrap();
+        assert_eq!(rows, vec![row.clone()]);
+        let mut stale = row.clone();
+        stale.run_id = Uuid::new_v4().to_string();
+        assert!(operator.open_guarded_project(&stale).await.is_err());
+        operator.open_guarded_project(&row).await.unwrap();
+        assert_eq!(operator.fence().unwrap().project_id, project_fence.project_id);
+        assert_eq!(inspect_guarded(&mut launcher, &account, &run).await, row);
+
+        std::fs::rename(&project, state.path().join("old-project")).unwrap();
+        std::fs::create_dir(&project).unwrap();
+        let mut operator = open_operator().await;
+        assert!(operator.open_guarded_project(&row).await.is_err());
+        server.abort();
     }
 
     #[tokio::test]

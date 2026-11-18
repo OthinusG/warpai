@@ -121,6 +121,8 @@ not a target checklist of tools to reproduce.
    A valid current live session wins. If this caller already owns it, report that
    fact rather than recursively attaching the PTY to itself.
 2. With no valid current context, a single live resumable session wins.
+   Resume searches the logical scope of the installed SSH or WSL helper. A
+   selected run may be in a different project from the caller's working directory.
 3. With several live sessions, pick the highest `last_active_sequence` recorded
    by the daemon on successful foreground attachment or explicit foreground view
    selection. This is the last used live session, not the last output, last task,
