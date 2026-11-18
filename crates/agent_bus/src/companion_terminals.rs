@@ -1514,8 +1514,14 @@ mod tests {
         let (notify, changes) = tokio::sync::watch::channel(());
         let (native, native_changes) = tokio::sync::watch::channel(());
         let (observations, mut steps) = tokio::sync::mpsc::unbounded_channel();
+        let (release, during_advance) = mpsc::channel();
+        let mut evaluations = 0;
         let worker = tokio::spawn(drive_guarded_wakes(changes, native_changes, move || {
             observations.send(Instant::now()).unwrap();
+            evaluations += 1;
+            if evaluations == 3 {
+                during_advance.recv_timeout(Duration::from_secs(2)).unwrap();
+            }
             Some(WAKE_RECONCILE)
         }));
         let initial = steps.recv().await.unwrap();
@@ -1526,6 +1532,10 @@ mod tests {
         for _ in 0..32 { native.send(()).unwrap(); }
         let paced = tokio::time::timeout(Duration::from_secs(2), steps.recv()).await.unwrap().unwrap();
         assert!(paced.duration_since(first) >= WAKE_PACING);
+        native.send(()).unwrap();
+        release.send(()).unwrap();
+        let deferred = tokio::time::timeout(Duration::from_secs(2), steps.recv()).await.unwrap().unwrap();
+        assert!(deferred.duration_since(paced) >= WAKE_PACING);
         assert!(tokio::time::timeout(WAKE_PACING * 2, steps.recv()).await.is_err());
         drop(notify);
         worker.await.unwrap();

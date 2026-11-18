@@ -1904,7 +1904,8 @@ Successive evaluations are at least 300 ms apart, including draft cancellation,
 paste and Enter. Idle reconciliation uses a five-second deadline.
 Legacy wake checks retain their current loop. The worker test observes an idle
 window with zero extra evaluations, wakes on notification, and verifies pacing
-under a burst. Native delivery and resource gates remain open.
+under a burst. A notification sent while an evaluation is blocked triggers the
+next paced evaluation. Native delivery and resource gates remain open.
 
 Record ID / date: S7-f / 2026-11-18
 Scope: direct guarded deliveries and project-wide pool arbitration.
