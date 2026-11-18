@@ -221,9 +221,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   /tmp/warpai-guardian-<euid>, checks peer UID and a WAG1 identity preface, and
   scopes capabilities by route without merging SSH/WSL Stores; a durable
   guardian/catalog.sqlite3 (application_id 0x57474341, user_version 1) refuses
-  unknown identity without overwrite and marks prior live rows unknown at boot;
-  these components are host-tested but unwired, and no production client connects
-  through the guardian sockets;
+  unknown identity without overwrite, marks prior live rows unknown at boot, and
+  now records guarded launch/attach/observed exit before the corresponding ack;
+  these components are host-tested, no production client connects through the
+  guardian sockets, and retention eviction is not synced to catalog rows;
   warp-agent-bus, remote_protocol and the warpai
   binary compile and their host test suites pass on macOS arm64 (remote SSH/WSL
   still unrun);

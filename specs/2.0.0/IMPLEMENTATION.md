@@ -29,9 +29,9 @@ with passing isolated tests. A Unix account-global guardian election now exists:
 passwd-home root, one account lock, private per-route sockets, peer-UID-checked
 `WAG1` preface, shared boot identity and route-derived capabilities, backed by
 `guardian/catalog.sqlite3` with identity `0x57474341`/v1 and boot interruption
-marking. These are host-verified components; the catalog is not yet wired to
-terminal transitions, no production client calls `guardian::connect`, and the
-guardian grants no external access. The `warp-agent-bus` and `remote_protocol`
+marking. Guarded launch, attach and observed exit now populate that catalog, but
+these remain host-verified components: no production client calls
+`guardian::connect`, and the guardian grants no external access. The `warp-agent-bus` and `remote_protocol`
 crates now compile and their full test suites pass on macOS arm64, including the
 real Companion PTY integration tests; this is host evidence, not remote SSH/WSL
 evidence. No runtime list/inspect/watch surface, snapshot, CLI, desktop opt-in,
@@ -1145,6 +1145,70 @@ Follow-up tasks / affected gates: wire transitions with launch-before-ack and
 MEMORY update or reason no durable fact changed: MEMORY records the catalog file,
   identity and boot-marking rule.
 
+Record ID / date: S1-k / 2026-11-18
+Work item and PRD requirements: record guarded session lifecycle before
+  acknowledgement and keep MRU explicit (FR-16, FR-17)
+Status: verified_host_only
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 commit after this record; no PR
+
+Problem and observable before/after:
+  Before: the durable catalog existed but no guarded launch produced a row, so
+  external discovery would have had nothing to list.
+  After: a guarded launch inserts or updates its metadata before the launch reply
+  is written; a guarded read that observes a closed process marks the row ended
+  with its exit status; a successful attach updates MRU. Connection-owned and
+  unguarded launches write nothing. A replay of an ended session cannot resurrect
+  the row to `live`. Guardian connections share one catalog handle; legacy stdio
+  and service connections pass `None`.
+
+Scope: crates/agent_bus/src/companion.rs, companion_guardian.rs,
+  companion_guardian_catalog.rs, companion_tests.rs,
+  companion_files_tests.rs, companion_service.rs.
+
+Files and symbols changed:
+  companion.rs: `CatalogHandle`, `Companion::catalog`, `record_catalog_launch`,
+    `record_catalog_control`, dispatch wiring for Launch/Control, serve_channel
+    catalog parameter
+  companion_guardian_catalog.rs: `contains`, `upsert` with ended-state guard and
+    peak-preserving MRU
+  companion_guardian.rs: catalog wrapped in `Arc<Mutex<_>>` and passed per
+    connection
+  companion_tests.rs: guarded lifecycle records live, kind, policy, label and
+    ended exit status; catalog upsert retry test
+
+Implementation method:
+  - Recording happens after the native launch succeeds but before the reply, so a
+    failed insert returns `ManagedUnavailable` and a retry reconciles the existing
+    run and retries the same upsert.
+  - Only `TerminalState.guarded == Some(true)` is persisted, matching the catalog's
+    resume purpose; connection-owned behavior and Store semantics are unchanged.
+  - Ended state is observed from `output_closed && processes_active == false` on a
+    guarded read; no process table scan or synthetic exit is introduced.
+  - Attach is the only MRU trigger; read/list/observation never reorder rows.
+
+Decision and rationale: explicit, fenced observations avoid a second lifecycle
+  source of truth while still giving reconnect a durable bounded index.
+
+Verification:
+  - `cargo test -p warp-agent-bus --lib guarded_session_lifecycle`: passed,
+    recording a live guarded shell row and its ended exit status.
+  - `cargo test -p warp-agent-bus --lib guardian`: 9 passed including upsert
+    deduplication and peak MRU retention.
+  - `cargo test -p warp-agent-bus --lib`: 243 passed, 1 ignored.
+  - `cargo check -p warpai --bin warpai`: finished successfully.
+
+Unverified behavior and remaining risks: natural exit without any subsequent
+  guarded read is not observed until a read/release occurs; retention expiry and
+  capacity eviction update the in-memory registry but not the catalog row; no
+  page/inspect/watch protocol or CLI exists; no production client connects
+  through the guardian sockets.
+
+Follow-up tasks / affected gates: account-fenced list/inspect/watch projection,
+  then private CLI list/resume/stop; S5/S8 native proof remains required.
+MEMORY update or reason no durable fact changed: MEMORY records that guarded
+  launch/attach/exit now populate the durable catalog.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
@@ -1157,6 +1221,7 @@ MEMORY update or reason no durable fact changed: MEMORY records the catalog file
 | S1-h session kind | Source commit after this record on `feat/2.0.0` | verified_host_only | Additive `session_kind=11`, pre-spawn policy/kind matrix, replay conflict on kind change, client capability gate; full host suites pass; capability unadvertised, no remote launch tested |
 | S1-i account election/routes | Source commit after this record on `feat/2.0.0` | verified_host_only | Passwd-home root, account/scope locks, private route sockets, `WAG1` preface with peer-UID check, stale-only reclaim, shared boot identity, route-derived capabilities and guest/chunk denial; 8 focused lib tests and full 241-test host suite pass; no production client and no real SSH/WSL run |
 | S1-j durable catalog | Source commit after this record on `feat/2.0.0` | verified_host_only | `catalog.sqlite3` identity `0x57474341`/v1, refuse-without-overwrite on mismatch, boot live→unknown marking, bounded ended eviction, unresolved capacity refusal, explicit MRU update; 3 focused tests plus full host suite; not yet wired to session transitions |
+| S1-k catalog lifecycle | Source commit after this record on `feat/2.0.0` | verified_host_only | Guarded launch inserts/updates before ack, attach updates MRU, observed exit marks ended with status, connection-owned launches write nothing, ended rows are not resurrected; lifecycle and upsert tests pass in the 243-test host suite; no natural-exit watch without a read, no retention catalog sync, no list/CLI |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |

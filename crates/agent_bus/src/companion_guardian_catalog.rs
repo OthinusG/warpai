@@ -246,6 +246,46 @@ impl Catalog {
         Ok(())
     }
 
+    fn contains(&mut self, session_id: &str) -> Result<bool, diesel::result::Error> {
+        Ok(sql_query(
+            "SELECT COUNT(*) AS count FROM guardian_catalog_sessions WHERE session_id=?",
+        )
+        .bind::<Text, _>(session_id)
+        .get_result::<RowCount>(&mut self.connection)?
+        .count
+            > 0)
+    }
+
+    /// Launch recording is retry-safe: an existing session ID updates instead of duplicating.
+    pub fn upsert(&mut self, record: &Record) -> Result<(), String> {
+        if !record.valid() {
+            return Err("Invalid guardian catalog record".into());
+        }
+        if self.contains(&record.session_id).map_err(unavailable)? {
+            let mru: i64 = record
+                .mru_seq
+                .try_into()
+                .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
+            sql_query(
+                "UPDATE guardian_catalog_sessions SET label=?, \
+                 state=CASE WHEN state='ended' THEN state ELSE ? END, observed_ms=?, \
+                 mru_seq=MAX(mru_seq, ?), \
+                 exit_status=CASE WHEN state='ended' THEN exit_status ELSE ? END \
+                 WHERE session_id=?",
+            )
+            .bind::<Nullable<Text>, _>(record.label.as_deref())
+            .bind::<Text, _>(record.state.as_str())
+            .bind::<BigInt, _>(record.observed_ms)
+            .bind::<BigInt, _>(mru)
+            .bind::<Nullable<Integer>, _>(record.exit_status)
+            .bind::<Text, _>(&record.session_id)
+            .execute(&mut self.connection)
+            .map_err(unavailable)?;
+            return Ok(());
+        }
+        self.insert(record)
+    }
+
     pub fn update_state(
         &mut self,
         session_id: &str,
@@ -352,6 +392,25 @@ mod tests {
         assert!(rows.iter().any(|row| row.state == State::Ended));
         catalog.touch_mru("a", 7).unwrap();
         assert_eq!(catalog.list().unwrap()[0].mru_seq, 7);
+    }
+
+    #[test]
+    fn upsert_updates_without_duplicating_and_keeps_peak_mru() {
+        let state = tempfile::tempdir().unwrap();
+        let path = state.path().join("catalog.sqlite3");
+        let mut catalog = Catalog::open(&path).unwrap();
+        let mut first = record("a", State::Live);
+        first.mru_seq = 5;
+        catalog.upsert(&first).unwrap();
+        let mut retry = record("a", State::Ended);
+        retry.mru_seq = 2;
+        retry.exit_status = Some(0);
+        catalog.upsert(&retry).unwrap();
+        let rows = catalog.list().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].state, State::Ended);
+        assert_eq!(rows[0].mru_seq, 5);
+        assert_eq!(rows[0].exit_status, Some(0));
     }
 
     #[test]

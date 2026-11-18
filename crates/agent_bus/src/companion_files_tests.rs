@@ -135,6 +135,7 @@ async fn disconnect_cleans_staging_through_the_framed_service() {
             tasks,
             None,
             None,
+            None,
         )
         .await
     });
@@ -206,6 +207,7 @@ async fn fragmented_invalid_and_oversized_control_frames_have_no_partial_effects
                 &Uuid::new_v4().to_string(),
                 std::sync::Arc::new(terminals::Terminals::default()),
                 tasks,
+                None,
                 None,
                 None,
             )

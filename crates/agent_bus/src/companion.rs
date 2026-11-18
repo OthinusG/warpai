@@ -39,6 +39,12 @@ pub(crate) mod guardian_catalog;
 pub(crate) use tasks::{decode_result as decode_task_result, MAX_RESULT as MAX_TASK_RESULT};
 pub use tasks::Command as TaskCommand;
 
+#[cfg(unix)]
+pub(crate) type CatalogHandle =
+    std::sync::Arc<std::sync::Mutex<guardian_catalog::Catalog>>;
+#[cfg(not(unix))]
+pub(crate) type CatalogHandle = ();
+
 /// Admitted transport route for an account-global guardian connection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
@@ -62,6 +68,7 @@ pub struct Companion {
     files: files::Files,
     peer_pid: Option<u32>,
     route: Option<Route>,
+    catalog: Option<CatalogHandle>,
 }
 
 impl Companion {
@@ -81,6 +88,7 @@ impl Companion {
             files: files::Files::new(data_directory),
             peer_pid: None,
             route: None,
+            catalog: None,
             identity,
         })
     }
@@ -129,6 +137,107 @@ impl Companion {
         );
         capabilities
     }
+
+    #[cfg(unix)]
+    fn record_catalog_launch(
+        &mut self,
+        request: &TerminalLaunch,
+        state: &TerminalState,
+    ) -> Result<(), ManagedErrorCode> {
+        if state.guarded != Some(true) {
+            return Ok(());
+        }
+        let Some(catalog) = &self.catalog else {
+            return Ok(());
+        };
+        let kind = TerminalSessionKind::try_from(request.session_kind.unwrap_or_default())
+            .map_err(|_| ManagedErrorCode::ManagedInvalidInput)?;
+        let kind = match kind {
+            TerminalSessionKind::Agent => "agent",
+            TerminalSessionKind::Shell => "shell",
+            TerminalSessionKind::Command => "command",
+            TerminalSessionKind::Unspecified => return Err(ManagedErrorCode::ManagedInvalidInput),
+        };
+        let now = unix_millis();
+        let record = guardian_catalog::Record {
+            session_id: state.session_id.clone(),
+            run_id: state.run_id.clone(),
+            boot_id: self.fence.service_boot_id.clone(),
+            service_id: self.fence.service_id.clone(),
+            project_id: self.fence.project_id.clone(),
+            policy: "guarded".into(),
+            kind: kind.into(),
+            label: request.label.clone(),
+            created_seq: now as u64,
+            mru_seq: now as u64,
+            state: guardian_catalog::State::Live,
+            observed_ms: now,
+            exit_status: None,
+        };
+        catalog
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+            .upsert(&record)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)
+    }
+
+    #[cfg(not(unix))]
+    fn record_catalog_launch(
+        &mut self,
+        _request: &TerminalLaunch,
+        _state: &TerminalState,
+    ) -> Result<(), ManagedErrorCode> {
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn record_catalog_control(
+        &mut self,
+        action: TerminalAction,
+        state: &TerminalState,
+    ) -> Result<(), ManagedErrorCode> {
+        if state.guarded != Some(true) {
+            return Ok(());
+        }
+        let Some(catalog) = &self.catalog else {
+            return Ok(());
+        };
+        let now = unix_millis();
+        let mut catalog = catalog
+            .lock()
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        if state.processes_active == Some(false) && state.output_closed {
+            catalog
+                .update_state(
+                    &state.session_id,
+                    guardian_catalog::State::Ended,
+                    now,
+                    state.exit_code,
+                )
+                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        } else if action == TerminalAction::TerminalAttach {
+            catalog
+                .touch_mru(&state.session_id, now as u64)
+                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    fn record_catalog_control(
+        &mut self,
+        _action: TerminalAction,
+        _state: &TerminalState,
+    ) -> Result<(), ManagedErrorCode> {
+        Ok(())
+    }
+}
+
+fn unix_millis() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 impl Companion {
@@ -211,21 +320,25 @@ impl Companion {
             }
             Some(managed_request::Operation::TerminalLaunch(request)) => {
                 self.check_project(request.fence.as_ref())?;
-                self.terminals
-                    .launch(
-                        request,
-                        &self.fence,
-                        &self.project.as_ref().unwrap().root,
-                        &self.tasks,
-                        self.wsl_route(),
-                    )
-                    .map(managed_response::Result::TerminalState)
+                let recorded = request.clone();
+                let state = self.terminals.launch(
+                    request,
+                    &self.fence,
+                    &self.project.as_ref().unwrap().root,
+                    &self.tasks,
+                    self.wsl_route(),
+                )?;
+                self.record_catalog_launch(&recorded, &state)?;
+                Ok(managed_response::Result::TerminalState(state))
             }
             Some(managed_request::Operation::TerminalControl(request)) => {
                 self.check_project(request.fence.as_ref())?;
-                self.terminals
-                    .control(request, &self.fence)
-                    .map(managed_response::Result::TerminalState)
+                let action = TerminalAction::try_from(request.action).ok();
+                let state = self.terminals.control(request, &self.fence)?;
+                if let Some(action) = action {
+                    self.record_catalog_control(action, &state)?;
+                }
+                Ok(managed_response::Result::TerminalState(state))
             }
             Some(managed_request::Operation::ProjectTasks(request)) => {
                 self.check_project(request.fence.as_ref())?;
@@ -403,6 +516,7 @@ async fn serve_channel<S>(
     tasks: std::sync::Arc<tasks::Projects>,
     peer_pid: Option<u32>,
     route: Option<Route>,
+    catalog: Option<CatalogHandle>,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -416,6 +530,7 @@ where
     companion.tasks = tasks;
     companion.peer_pid = peer_pid;
     companion.route = route;
+    companion.catalog = catalog;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

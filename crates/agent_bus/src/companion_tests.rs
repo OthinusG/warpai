@@ -626,6 +626,74 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
 
 #[cfg(unix)]
 #[test]
+fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
+    use std::time::{Duration, Instant};
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
+    let catalog_path = state.path().join("guardian/catalog.sqlite3");
+    std::fs::create_dir_all(catalog_path.parent().unwrap()).unwrap();
+    let catalog = std::sync::Arc::new(std::sync::Mutex::new(
+        guardian_catalog::Catalog::open(&catalog_path).unwrap(),
+    ));
+    companion.catalog = Some(catalog.clone());
+    let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
+        managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/sh".into(),
+            arguments: vec!["-c".into(), "sleep 0.2".into()],
+            columns: 80,
+            rows: 24,
+            agent_program: None,
+            working_directory: None,
+            guarded: true,
+            label: Some("catalog-test".into()),
+            session_kind: Some(TerminalSessionKind::Shell as i32),
+        }),
+    ))) else {
+        panic!("Guarded launch required")
+    };
+    {
+        let rows = catalog.lock().unwrap().list().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].session_id, launched.session_id);
+        assert_eq!(rows[0].run_id, launched.run_id);
+        assert_eq!(rows[0].kind, "shell");
+        assert_eq!(rows[0].policy, "guarded");
+        assert_eq!(rows[0].label.as_deref(), Some("catalog-test"));
+        assert_eq!(rows[0].state, guardian_catalog::State::Live);
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut offset = 0;
+    while Instant::now() < deadline {
+        let managed_response::Result::TerminalState(state) = result(companion.handle(request(
+            managed_request::Operation::TerminalControl(TerminalControl {
+                fence: Some(fence.clone()),
+                session_id: launched.session_id.clone(),
+                run_id: launched.run_id.clone(),
+                action: TerminalAction::TerminalRead as i32,
+                output_offset: offset,
+                attachment_id: launched.attachment_id.clone(),
+                attachment_generation: launched.attachment_generation,
+                ..Default::default()
+            }),
+        ))) else {
+            panic!("Guarded read required")
+        };
+        offset = state.output_offset + state.output.len() as u64;
+        if state.output_closed && state.processes_active == Some(false) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let rows = catalog.lock().unwrap().list().unwrap();
+    assert_eq!(rows[0].state, guardian_catalog::State::Ended);
+    assert_eq!(rows[0].exit_status, Some(0));
+}
+
+#[cfg(unix)]
+#[test]
 fn legacy_stop_requires_the_owning_connection() {
     use std::time::{Duration, Instant};
     let root = tempfile::tempdir().unwrap();

@@ -283,6 +283,7 @@ pub(crate) async fn serve_at(
     catalog
         .begin_boot(observed_ms)
         .map_err(std::io::Error::other)?;
+    let catalog = Arc::new(std::sync::Mutex::new(catalog));
     identity::private_directory(&runtime)?;
     let mut admitted = Vec::new();
     for (route, directory) in scopes {
@@ -375,6 +376,7 @@ pub(crate) async fn serve_at(
                 let directory = scope.directory.clone();
                 let tasks = scope.tasks.clone();
                 let terminals = terminals.clone();
+                let catalog = catalog.clone();
                 let boot = boot.to_string();
                 tokio::spawn(async move {
                     let _slot = slot;
@@ -386,6 +388,7 @@ pub(crate) async fn serve_at(
                         tasks,
                         peer_pid,
                         Some(route),
+                        Some(catalog),
                     )
                     .await;
                 });
