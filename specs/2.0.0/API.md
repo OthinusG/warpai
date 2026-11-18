@@ -126,6 +126,9 @@ The guarded bridge verifies the same scoped service ID and matches the guardian
 and boot IDs returned by the private socket handshake before handing the
 managed connection to the client. Direct CLI admission checks the same
 guardian/boot pair. A mismatch closes the connection before project admission.
+Installed helpers advertise `guarded_remote_sessions_v1` to the authenticated
+local operator for direct CLI control. The SSH/WSL data bridge keeps the desktop
+capability gated until native UI acceptance.
 A long-lived local CLI attachment uses a separate preface mode with the same
 local operator identity and consumes a regular channel permit. A full channel
 pool returns a busy preface from the existing owner. A new local attachment can

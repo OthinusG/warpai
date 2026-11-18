@@ -156,9 +156,9 @@ impl Companion {
         // Only the account guardian admits retained runs and the account catalog.
         if self.account_guardian.is_some() {
             capabilities.push("account_catalog".into());
-            // The native acceptance gate remains closed for installed helpers.
-            #[cfg(test)]
-            capabilities.push("guarded_remote_sessions_v1".into());
+            if self.account_operator || cfg!(test) {
+                capabilities.push("guarded_remote_sessions_v1".into());
+            }
         }
         if self.wsl_route() {
             capabilities.push("managed_launch_cwd".into());

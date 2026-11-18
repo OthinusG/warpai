@@ -360,9 +360,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Untargeted remote-peer polls must not bump WSL/SSH generations or abort auto-warpify.
   Both bootstrap/generation repairs shipped in 1.7.8; details in the Oct30 archive.
 
-- 2.0.0 guardian stays default-off. Installed helpers withhold the guarded
-  capability until native proof; macOS Unix fixtures can negotiate it in test
-  builds. Native Windows refuses guardian flags and `ctl`.
+- 2.0.0 guardian stays default-off. Installed helpers advertise the private
+  guarded capability to authenticated local operators. The desktop data bridge
+  remains gated; native Windows refuses guardian flags and `ctl`.
 - Companion CLI `ctl list|resume|stop` probes only. Bare resume recognizes its
   native guarded session before selecting in the helper's logical scope. Bare
   stop is account-wide and operator-only, with boot-scoped receipts. The

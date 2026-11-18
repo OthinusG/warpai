@@ -37,7 +37,7 @@ guardian ownership remain open.
 | --- | --- |
 | CLI page limit exceeds wire limit; named selection reads only page one | Repaired in the working tree. CLI reads bounded pages. A real-listener fixture returns 40 rows across two pages without project admission. |
 | WSL bridge flag and route passed as one argv entry | Repaired. The argv fixture verifies two distinct arguments; native Windows dispatched the real WSL guarded lifetime fixture on `36bdc6d3`. |
-| Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
+| Guarded capability advertised before proof | Installed builds advertise the private capability on the authenticated local operator channel. The remote data bridge keeps the desktop capability gated. |
 | Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
 | Store cutover and executable/route election | Source-matched Windows/WSL acceptance passed both first-owner orders with isolated logical Store identities and ordinary workspace coexistence. The released mixed-version install/upgrade matrix remains open. |
 | Catalog launch/attach write failure | Repaired on the host. Launch reserves exact identity before spawn; an acquired writer returns its native tuple even if the projection write fails. Pending exact generations reconcile on maintenance without changing a newer writer or reordering MRU on replay. |
@@ -1939,6 +1939,11 @@ detach prefix across two writes, and confirms the enclosing SSH terminal's
 `stty -g` value matches its value before resume. A new protocol writer then
 reattaches to the same run. The WSL fixture keeps its existing headless
 bridge-loss test. The SSH fixture compiles locally; cloud execution is pending.
+The fixture also exposed a production admission mismatch: the direct CLI
+required a guarded capability that the installed guardian withheld from all
+channels. The local authenticated operator now receives it; the remote data
+bridge continues to withhold it. The TTY fixture uses the normal installed
+binary path and also checks the data bridge's restricted capability set.
 
 ## Evidence index
 
