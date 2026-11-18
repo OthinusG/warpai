@@ -406,8 +406,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - Guarded Agent wake checks use runtime notifications and quiet/ready deadlines
   with 300 ms delivery pacing and five-second idle reconciliation. Direct wakes
-  resolve by terminal; pool notices retain project-wide arbitration. Native
-  delivery latency and resource benchmarks remain release gates.
+  resolve by terminal using a streamed, recipient-indexed routing projection
+  that avoids inbox bodies. Pool notices retain project-wide arbitration.
+  Native delivery latency and resource benchmarks remain release gates.
 
 - Bash/Zsh managed remote bootstrap installs a session-only `warpai` function
   with an absolute, manifest-verified SSH or WSL helper. User command collisions

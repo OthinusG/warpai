@@ -152,15 +152,15 @@ impl State {
             return None;
         }
         let actor = live.agent.as_ref()?;
-        let message = self.store.next_unnotified(actor, &live.run, &live.delivered).ok()??;
+        let message = self.store.next_wake_notice(actor, &live.run, &live.delivered).ok()??;
         let pool = (message.kind == "available").then(|| message.task_id.clone()).flatten();
-        Some((message.sequence, pool, Wake {
+        Some((message.sequence as u64, pool, Wake {
             terminal: terminal.to_owned(),
             run: live.run.clone(),
             message_id: message.id,
             generation: live.generation,
             task_id: message.task_id,
-            revision: message.revision,
+            revision: message.revision.map(|revision| revision as u32),
         }))
     }
 }
@@ -979,11 +979,11 @@ impl Broker {
         let Some(actor) = live.agent.as_ref() else {
             return false;
         };
-        let Ok(Some(message)) = state.store.next_unnotified(actor, &live.run, &live.delivered) else {
+        let Ok(Some(message)) = state.store.next_wake_notice(actor, &live.run, &live.delivered) else {
             return false;
         };
         if message.id != wake.message_id
-            || message.task_id != wake.task_id || message.revision != wake.revision
+            || message.task_id != wake.task_id || message.revision.map(|revision| revision as u32) != wake.revision
             || (message.kind == "available" && message.task_id.as_ref()
                 .is_some_and(|task| dispatched_pools(&state).contains(task)))
         {
@@ -1802,7 +1802,7 @@ fn dispatched_pools(state: &State) -> HashSet<String> {
         .filter_map(|binding| binding.live.as_ref())
         .filter(|live| !live.expired && live.started.elapsed() < MUTATION_EPOCH)
         .filter_map(|live| {
-            let message = state.store.first_pending(live.agent.as_ref()?, false).ok()??;
+            let message = state.store.first_pending_notice(live.agent.as_ref()?).ok()??;
             (message.kind == "available" && live.delivered.contains(&message.id))
                 .then_some(message.task_id).flatten()
         }).collect()

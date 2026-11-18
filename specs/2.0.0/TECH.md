@@ -128,6 +128,11 @@ Broker message/results/attention facts, readiness and guarded peer delivery aliv
 Only keep project Brokers with live guarded runs or active client requests; close
 idle handles/caches under existing data safety rules and recreate lazily.
 
+Native wake selection reads only inbox routing metadata through the recipient
+index and stops at the first eligible notice. The Agent's inbox and cooperative
+wait still return full messages. Apply the same stale-task and active-run gates
+when selecting or claiming a notice, without changing acknowledgement state.
+
 Do not host a hidden desktop. No GPU/UI rendering, full-window framebuffer,
 usage-dashboard polling, recursive workspace indexing or permanent file watchers.
 SFTP connections and WSL transfers remain client/request-owned. Release transfer

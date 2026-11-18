@@ -2007,11 +2007,11 @@ It kills the receiver SSH process, waits for the writer to be observed free,
 then sends from the still-attached peer. The receiver must write a message/run
 receipt before any replacement receiver bridge is opened. The replacement
 writer verifies the exact run, retained native notification output and the
-still-unacknowledged message. The fixture compiles locally. Native execution
-passed on Linux in [run 44339984782](https://github.com/OthinusG/warpai/actions/runs/44339984782)
+still-unacknowledged message. Native execution passed on Linux and macOS in
+[run 44339984782](https://github.com/OthinusG/warpai/actions/runs/44339984782)
 at `b96c789f`. Native registration is distinct from readiness, so the fixture
-establishes readiness through `AgentReady` before removing the writer. macOS
-rerun and the full task, busy/permission and WSL matrices remain pending.
+establishes readiness through `AgentReady` before removing the writer. The full
+task, busy/permission and WSL matrices remain pending.
 
 Record ID / date: S6-a / 2026-11-18
 Scope: editor file commit uncertainty after SSH or direct WSL reconnect (FR-14, V17).
@@ -2030,6 +2030,19 @@ outcomes as uncertain. A fresh attachment observes the resulting content hash
 without replay. SSH and WSL native hash assertions are included in CI. Desktop
 state restoration after process exit and native transport-loss UI acceptance
 remain open.
+
+Record ID / date: S7-g / 2026-11-19
+Scope: bounded SQLite routing projection for native PTY wakes.
+
+Wake selection and claim read message identity, task revision, ordering and kind
+through the recipient index. The cursor stops at the first eligible undelivered
+notice, so a large mailbox need not load message bodies or all rows. Pool checks
+read only the first pending routing row. The native projection excludes the
+same stale follow-ups and active-run delegation as cooperative wait, and leaves
+fetching and acknowledgement of full messages to the existing Agent tools.
+The storage regression compares the native and cooperative correlation before
+and after a task revision changes. Account-wide fairness and recorded resource
+measurements remain separate release requirements.
 
 ## Evidence index
 

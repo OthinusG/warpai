@@ -1196,6 +1196,32 @@ impl Store {
         Ok(None)
     }
 
+    /// PTY wakes need only correlation and ordering, even for a full inbox.
+    pub(crate) fn next_wake_notice(&self, actor: &Agent, run: &str, delivered: &HashSet<String>) -> Result<Option<WakeNotice>> {
+        self.authorize_orchestration(actor, run, &Operation::AgentReady)?;
+        self.authorize(actor)?;
+        let executing = self.execution_in_run(&actor.id, run)?;
+        let mut connection = self.connection.borrow_mut();
+        let rows = diesel::sql_query(
+            "SELECT id, task_id, revision, kind, sequence FROM messages AS m
+             WHERE recipient = ? AND acknowledged = 0
+               AND (? = 0 OR kind NOT IN ('assignment','available'))
+               AND (kind NOT IN ('message','request') OR NOT EXISTS (
+                   SELECT 1 FROM tasks WHERE tasks.id = m.task_id AND tasks.revision <> m.revision
+               )) ORDER BY sequence",
+        )
+        .bind::<Text, _>(&actor.id)
+        .bind::<Integer, _>(i32::from(executing))
+        .load_iter::<WakeNotice, diesel::connection::DefaultLoadingMode>(&mut *connection)?;
+        for row in rows {
+            let row = row?;
+            if !delivered.contains(&row.id) {
+                return Ok(Some(row));
+            }
+        }
+        Ok(None)
+    }
+
     /// A task-linked follow-up queued for an older revision must not drive current work.
     fn stale_followup(&self, message: &Message) -> Result<bool> {
         if !matches!(message.kind.as_str(), "message" | "request") {
@@ -1223,11 +1249,11 @@ impl Store {
         Ok(None)
     }
 
-    pub(crate) fn first_pending(&self, actor: &Agent, skip_delegation: bool) -> Result<Option<Message>> {
+    pub(crate) fn first_pending_notice(&self, actor: &Agent) -> Result<Option<WakeNotice>> {
         self.authorize(actor)?;
-        Ok(diesel::sql_query("SELECT id, sender, recipient, body, subject, thread_id, reply_to, task_id, revision, kind, acknowledged, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 AND (? = 0 OR kind NOT IN ('assignment','available')) ORDER BY sequence LIMIT 1")
-            .bind::<Text, _>(&actor.id).bind::<Integer, _>(i32::from(skip_delegation))
-            .get_result::<MessageRow>(&mut *self.connection.borrow_mut()).optional()?.map(MessageRow::message))
+        Ok(diesel::sql_query("SELECT id, task_id, revision, kind, sequence FROM messages WHERE recipient = ? AND acknowledged = 0 ORDER BY sequence LIMIT 1")
+            .bind::<Text, _>(&actor.id)
+            .get_result::<WakeNotice>(&mut *self.connection.borrow_mut()).optional()?)
     }
 
     pub(crate) fn inbox_count(&self, agent: &str) -> Result<i64> {
@@ -5844,6 +5870,20 @@ struct TaskFollowupRow {
 }
 
 #[derive(QueryableByName)]
+pub(crate) struct WakeNotice {
+    #[diesel(sql_type = Text)]
+    pub id: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub task_id: Option<String>,
+    #[diesel(sql_type = Nullable<Integer>)]
+    pub revision: Option<i32>,
+    #[diesel(sql_type = Text)]
+    pub kind: String,
+    #[diesel(sql_type = BigInt)]
+    pub sequence: i64,
+}
+
+#[derive(QueryableByName)]
 struct MessageRow {
     #[diesel(sql_type = Text)]
     id: String,
@@ -6533,16 +6573,22 @@ mod tests {
         assert_eq!(stale["revision"], 1);
         let stale_id = stale["id"].as_str().unwrap().to_owned();
         assert_eq!(store.next_unnotified(&worker, "worker-run", &Default::default()).unwrap().unwrap().id, stale_id);
+        assert_eq!(store.next_wake_notice(&worker, "worker-run", &Default::default()).unwrap().unwrap().id, stale_id);
         store.execute(&worker, "worker-run", &submit(&id, 1, None, &Uuid::new_v4().to_string())).unwrap();
         let rejected = store.execute(&reviewer, "reviewer-run", &review(&id, 1, false, &Uuid::new_v4().to_string())).unwrap();
         assert_eq!(rejected["revision"], 2);
         let undelivered: std::collections::HashSet<String> = store.pending(&worker).unwrap().into_iter()
             .filter(|message| message.id != stale_id).map(|message| message.id).collect();
         assert!(store.next_unnotified(&worker, "worker-run", &undelivered).unwrap().is_none());
+        assert!(store.next_wake_notice(&worker, "worker-run", &undelivered).unwrap().is_none());
         assert!(store.first_deliverable(&worker, true).unwrap().is_none());
         let fresh = store.execute(&issuer, "issuer-run", &followup(&Uuid::new_v4().to_string())).unwrap();
         assert_eq!(fresh["revision"], 2);
         assert_eq!(store.first_deliverable(&worker, true).unwrap().unwrap().id, fresh["id"].as_str().unwrap());
+        let notice = store.next_wake_notice(&worker, "worker-run", &undelivered).unwrap().unwrap();
+        assert_eq!(notice.id, fresh["id"].as_str().unwrap());
+        assert_eq!(notice.task_id.as_deref(), Some(id.as_str()));
+        assert_eq!(notice.revision, Some(2));
         let attention = store.operator_attention("/project", None, None, false).unwrap();
         let row = attention["tasks"].as_array().unwrap().iter().find(|row| row["task_id"].as_str() == Some(id.as_str())).unwrap();
         assert!(row["actions"].as_array().unwrap().iter().any(|action| action == "reconcile"));
