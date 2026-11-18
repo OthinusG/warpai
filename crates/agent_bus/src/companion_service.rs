@@ -85,7 +85,7 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
             #[cfg(unix)]
             if let Ok(Some(stream)) = guardian::probe_connection_owned().await {
                 let scope = identity::Identity::open(&directory)?.service_id;
-                return forward_stdio(stream, Some(scope)).await;
+                return forward_stdio(stream, Some(scope), None).await;
             }
             start_service()?;
             tokio::time::timeout(Duration::from_secs(10), async {
@@ -107,10 +107,14 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     let expected_scope = from_guardian
         .then(|| identity::Identity::open(&directory).map(|identity| identity.service_id))
         .transpose()?;
-    forward_stdio(stream, expected_scope).await
+    forward_stdio(stream, expected_scope, None).await
 }
 
-async fn forward_stdio(stream: Stream, mut expected_scope: Option<String>) -> Result<(), ProtocolError> {
+pub(super) async fn forward_stdio(
+    stream: Stream,
+    mut expected_scope: Option<String>,
+    expected_guardian: Option<(Uuid, Uuid)>,
+) -> Result<(), ProtocolError> {
     let (input, output) = tokio::io::split(stream);
     let mut input = input.compat();
     let mut output = output.compat_write();
@@ -135,16 +139,77 @@ async fn forward_stdio(stream: Stream, mut expected_scope: Option<String>) -> Re
         .await
         .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))??;
         if let Some(expected) = expected_scope.take() {
-            let Some(server_message::Message::Managed(response)) = &reply.message else {
-                return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
-            };
-            if !matches!(&response.result, Some(managed_response::Result::Initialized(initialized))
-                if initialized.fence.as_ref().is_some_and(|fence| fence.service_id == expected))
-            {
+            if !verified_initialize(&reply, &expected, expected_guardian) {
                 return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
             }
         }
         write_message_with_limit(&mut stdout, &reply, MAX_MANAGED_MESSAGE_SIZE).await?;
+    }
+}
+
+fn verified_initialize(
+    reply: &ServerMessage,
+    service_id: &str,
+    expected_guardian: Option<(Uuid, Uuid)>,
+) -> bool {
+    let Some(server_message::Message::Managed(response)) = &reply.message else {
+        return false;
+    };
+    let Some(managed_response::Result::Initialized(initialized)) = &response.result else {
+        return false;
+    };
+    let Some(fence) = &initialized.fence else {
+        return false;
+    };
+    if fence.service_id != service_id {
+        return false;
+    }
+    match (expected_guardian, &initialized.account_fence) {
+        (None, None) => true,
+        (Some((guardian, boot)), Some(account)) => {
+            account.guardian_id == guardian.to_string()
+                && account.boot_id == boot.to_string()
+                && account.boot_id == fence.service_boot_id
+                && account.connection_id == fence.connection_id
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guardian_stdio_requires_exact_scope_and_socket_owner() {
+        let guardian = Uuid::new_v4();
+        let boot = Uuid::new_v4();
+        let scope = Uuid::new_v4().to_string();
+        let connection = Uuid::new_v4().to_string();
+        let managed = ManagedInitialized {
+            fence: Some(ManagedFence {
+                service_id: scope.clone(),
+                service_boot_id: boot.to_string(),
+                connection_id: connection.clone(),
+                ..Default::default()
+            }),
+            account_fence: Some(AccountFence {
+                guardian_id: guardian.to_string(),
+                boot_id: boot.to_string(),
+                connection_id: connection,
+            }),
+            ..Default::default()
+        };
+        let reply = ServerMessage {
+            message: Some(server_message::Message::Managed(Box::new(ManagedResponse {
+                result: Some(managed_response::Result::Initialized(managed)),
+            }))),
+            ..Default::default()
+        };
+        assert!(verified_initialize(&reply, &scope, Some((guardian, boot))));
+        assert!(!verified_initialize(&reply, &scope, Some((guardian, Uuid::new_v4()))));
+        assert!(!verified_initialize(&reply, &scope, None));
+        assert!(!verified_initialize(&reply, &Uuid::new_v4().to_string(), Some((guardian, boot))));
     }
 }
 

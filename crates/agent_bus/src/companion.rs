@@ -871,16 +871,15 @@ fn guardian_route(name: &str) -> Option<Route> {
 }
 
 /// Installed helper only: bridge verified stdio to the account guardian.
-/// The GUI never passes this flag and never starts a guardian from its own binary.
+/// The GUI invokes this flag on the verified installed helper.
 #[cfg(unix)]
 pub async fn serve_guardian_stdio(route: &str) -> Result<(), ProtocolError> {
     let route =
         guardian_route(route).ok_or_else(|| std::io::Error::other("Unknown guardian route"))?;
-    let mut stream = guardian::connect(route).await?;
-    let mut stdio = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
-    // Fixed-size copy buffers preserve backpressure; managed framing stays authoritative.
-    tokio::io::copy_bidirectional(&mut stdio, &mut stream).await?;
-    Ok(())
+    let directory = guardian::scope_directory(route).await?;
+    let scope = identity::Identity::open(&directory)?.service_id;
+    let (stream, guardian, boot) = guardian::connect(route).await?;
+    service::forward_stdio(stream, Some(scope), Some((guardian, boot))).await
 }
 
 pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {

@@ -1,6 +1,7 @@
 # Optional SSH/WSL guardian verification
 
-Status: R4 plan only. Runtime cases V01-V30 are all NOT RUN. Use exact source,
+Status: R4 runtime acceptance cases V01-V30 remain open. A partial V02/V04
+Linux OpenSSH receipt is recorded in the implementation ledger. Use exact source,
 runner OS/architecture, helper/app version, workflow job/artifact, expected/actual
 result and redacted receipts. Submitted tests are not passed tests.
 

@@ -376,6 +376,14 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   faults leave the latest exact generation pending in the retained run and
   maintenance republishes it without replaying attachment.
 
+- Guarded bridge admission matches scoped service and socket guardian/boot
+  before project access. WSL guarded routing checks native guest root identity.
+  Future-launch opt-in is per verified SSH service or WSL distro/user; ordinary
+  collaboration retains its connection-owned policy.
+- Linux OpenSSH run 44279117156 at `91f7a2aa` proved guarded bridge-loss
+  continuity, exact run/boot rejoin and stale-writer refusal. Full desktop
+  and V02/V04 release gates remain open. Details in specs/2.0.0/IMPLEMENTATION.md.
+
 ## Memory maintenance
 
 Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;

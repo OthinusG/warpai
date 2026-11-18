@@ -73,8 +73,43 @@ pub(crate) fn runtime_directory() -> std::io::Result<PathBuf> {
     Ok(PathBuf::from("/tmp").join(format!("warpai-guardian-{}", euid())))
 }
 
+#[cfg(any(test, all(target_os = "linux", feature = "wsl_companion")))]
+fn translated_wsl_root(output: &[u8]) -> Option<&str> {
+    if output.len() > 4096 {
+        return None;
+    }
+    let root = std::str::from_utf8(output).ok()?.trim_end_matches(['\r', '\n']);
+    let distribution = root.strip_prefix(r"\\wsl.localhost\")
+        .or_else(|| root.strip_prefix(r"\\wsl$\"))?
+        .trim_end_matches('\\');
+    if distribution.is_empty()
+        || distribution.contains(['\\', '/'])
+        || distribution.chars().any(char::is_control)
+    {
+        return None;
+    }
+    Some(distribution)
+}
+
+#[cfg(all(target_os = "linux", feature = "wsl_companion"))]
+async fn verified_distribution() -> std::io::Result<String> {
+    let mut command = tokio::process::Command::new("/usr/bin/wslpath");
+    command.args(["-w", "/"]).kill_on_drop(true);
+    let output = tokio::time::timeout(Duration::from_secs(2), command.output())
+        .await
+        .map_err(|_| std::io::Error::from(ErrorKind::TimedOut))??;
+    let native = output.status.success()
+        .then(|| translated_wsl_root(&output.stdout))
+        .flatten()
+        .ok_or_else(|| std::io::Error::from(ErrorKind::InvalidData))?;
+    if std::env::var_os("WSL_DISTRO_NAME").is_some_and(|hint| hint != native) {
+        return Err(std::io::Error::from(ErrorKind::PermissionDenied));
+    }
+    Ok(native.to_owned())
+}
+
 /// Existing logical scope for a route; Stores stay route-local.
-pub(crate) fn scope_directory(route: Route) -> std::io::Result<PathBuf> {
+pub(crate) async fn scope_directory(route: Route) -> std::io::Result<PathBuf> {
     let base = dirs::data_local_dir()
         .ok_or_else(|| std::io::Error::other("Scope data directory unavailable"))?
         .join("warpai");
@@ -83,8 +118,7 @@ pub(crate) fn scope_directory(route: Route) -> std::io::Result<PathBuf> {
         Route::Wsl => {
             #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
             {
-                let distribution = std::env::var("WSL_DISTRO_NAME")
-                    .map_err(|_| std::io::Error::other("WSL distribution identity unavailable"))?;
+                let distribution = verified_distribution().await?;
                 Ok(base
                     .join("wsl-remote")
                     .join(guests::distribution_namespace(&distribution)?))
@@ -323,26 +357,18 @@ pub(super) async fn probe_connection_owned() -> std::io::Result<Option<UnixStrea
 }
 
 /// Connect to the live account guardian, starting one only when no owner answers.
-pub(crate) async fn connect(route: Route) -> std::io::Result<UnixStream> {
-    connect_inner(route, true).await
-}
-
-/// Spawn is allowed only for an absent route; incompatible or denied owners fail closed.
-async fn connect_inner(route: Route, may_start: bool) -> std::io::Result<UnixStream> {
+pub(crate) async fn connect(route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     let runtime = runtime_directory()?;
     match probe_route(&runtime, route).await {
-        Ok((stream, _, _)) => return Ok(stream),
+        Ok(connected) => return Ok(connected),
         Err(error) if !route_absent(&error) => return Err(error),
         Err(_) => (),
-    }
-    if !may_start {
-        return Err(std::io::Error::from(ErrorKind::NotFound));
     }
     start_service()?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         match probe_route(&runtime, route).await {
-            Ok((stream, _, _)) => return Ok(stream),
+            Ok(connected) => return Ok(connected),
             Err(error) if route_absent(&error) && Instant::now() < deadline => {
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
@@ -357,14 +383,12 @@ async fn connect_inner(route: Route, may_start: bool) -> std::io::Result<UnixStr
 pub(crate) async fn serve() -> Result<(), ProtocolError> {
     let root = root_directory()?;
     let runtime = runtime_directory()?;
-    let scopes = supported_routes()
-        .into_iter()
-        .filter_map(|route| {
-            scope_directory(route)
-                .ok()
-                .map(|directory| (route, directory))
-        })
-        .collect();
+    let mut scopes = Vec::new();
+    for route in supported_routes() {
+        if let Ok(directory) = scope_directory(route).await {
+            scopes.push((route, directory));
+        }
+    }
     serve_at(root, runtime, scopes).await
 }
 
@@ -673,6 +697,23 @@ mod tests {
         );
         assert_eq!(guardian_route("tap"), None);
         assert_eq!(guardian_route(""), None);
+    }
+
+    #[test]
+    fn parses_only_a_native_wsl_distribution_root() {
+        assert_eq!(
+            translated_wsl_root(br"\\wsl.localhost\Ubuntu Test\"),
+            Some("Ubuntu Test")
+        );
+        assert_eq!(translated_wsl_root(br"\\wsl$\Ubuntu"), Some("Ubuntu"));
+        for unrelated in [
+            br"C:\Windows".as_slice(),
+            br"\\another-host\Ubuntu",
+            br"\\wsl.localhost\Ubuntu\etc",
+            br"\\wsl.localhost\",
+        ] {
+            assert_eq!(translated_wsl_root(unrelated), None);
+        }
     }
 
     #[test]

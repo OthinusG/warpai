@@ -1,7 +1,7 @@
 //! SSH account selection and remote-owned native MCP preferences.
 use super::{setup, AgentCommunication};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::{BTreeMap, BTreeSet}, path::PathBuf};
 use warp_agent_bus::{ssh_files::SshConnection, ssh_remote::SshProfile};
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
@@ -37,9 +37,11 @@ impl Target {
 pub(crate) struct Preferences {
     pub enabled: bool,
     pub selected: Option<String>,
-    /// Opt-in account guardian: retained runs and same-run reconnect.
-    #[serde(default)]
-    pub guardian: bool,
+    /// Development preference; never promoted to an unverified account.
+    #[serde(default, rename = "guardian", skip_serializing)]
+    _legacy_guardian: bool,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    guarded_services: BTreeSet<String>,
 }
 
 #[derive(Default)]
@@ -67,6 +69,13 @@ impl SshSettings {
 
     pub fn selected_target(&self) -> Option<&Target> {
         self.targets.iter().find(|target| Some(&target.key) == self.preferences.selected.as_ref())
+    }
+
+    pub fn selected_guardian(&self) -> Option<bool> {
+        self.selected_target()?;
+        self.verified_service.as_ref().map(|service| {
+            self.preferences.guarded_services.contains(service)
+        })
     }
 }
 
@@ -140,24 +149,36 @@ impl AgentCommunication {
         ctx.notify();
     }
 
-    /// Opt-in only: existing SSH Remote setup and MCP flows stay on the legacy service.
-    pub(crate) fn set_ssh_guardian(&mut self, enabled: bool, ctx: &mut ModelContext<Self>) {
-        if self.ssh.busy || self.ssh.preferences.guardian == enabled {
+    pub(crate) fn toggle_ssh_guardian(&mut self, ctx: &mut ModelContext<Self>) {
+        if self.ssh.busy || self.ssh.selected_target().is_none() {
             return;
         }
-        self.ssh.preferences.guardian = enabled;
-        self.ssh.generation += 1;
-        self.save_ssh_preferences();
+        let Some(service) = self.ssh.verified_service.clone() else {
+            return;
+        };
+        let guarded = &mut self.ssh.preferences.guarded_services;
+        let was_enabled = guarded.remove(&service);
+        if !was_enabled {
+            guarded.insert(service.clone());
+        }
+        if !self.save_ssh_preferences() {
+            if was_enabled {
+                self.ssh.preferences.guarded_services.insert(service);
+            } else {
+                self.ssh.preferences.guarded_services.remove(&service);
+            }
+        }
         ctx.notify();
     }
 
-    fn save_ssh_preferences(&mut self) {
+    fn save_ssh_preferences(&mut self) -> bool {
         if self.ssh.path.as_os_str().is_empty() {
-            return;
+            return true;
         }
         let result = serde_json::to_vec_pretty(&self.ssh.preferences)
             .map_err(anyhow::Error::from).and_then(|bytes| setup::atomic_write(&self.ssh.path, &bytes));
         if result.is_err() { self.ssh.status = "Could not save SSH Remote preferences.".into(); }
+        result.is_ok()
     }
 
     pub(crate) fn configure_ssh(&mut self, action: warp_agent_bus::wsl_setup::Action,
@@ -279,11 +300,23 @@ mod tests {
         let value = serde_json::to_value(&settings.preferences).unwrap();
         assert_eq!(
             value,
-            serde_json::json!({"enabled":false,"selected":null,"guardian":false})
+            serde_json::json!({"enabled":false,"selected":null})
         );
         let legacy: Preferences =
             serde_json::from_str(r#"{"enabled":true,"selected":null}"#).unwrap();
-        assert!(legacy.enabled && !legacy.guardian);
+        assert!(legacy.enabled && legacy.guarded_services.is_empty());
+    }
+
+    #[test]
+    fn guardian_opt_in_is_scoped_and_legacy_global_opt_in_is_ignored() {
+        let legacy: Preferences =
+            serde_json::from_str(r#"{"enabled":true,"selected":null,"guardian":true}"#).unwrap();
+        assert!(legacy.guarded_services.is_empty());
+        let saved: Preferences = serde_json::from_str(
+            r#"{"enabled":true,"selected":null,"guarded_services":["one"]}"#,
+        ).unwrap();
+        assert!(saved.guarded_services.contains("one"));
+        assert!(!saved.guarded_services.contains("two"));
     }
 
     #[test]

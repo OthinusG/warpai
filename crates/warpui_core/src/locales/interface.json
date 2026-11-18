@@ -1,4 +1,5 @@
 {
+  "Retain terminal sessions for this WSL account after the desktop disconnects.": ["桌面端断开后，保留此 WSL 账户的终端会话。", "桌面端中斷連線後，保留此 WSL 帳戶的終端機工作階段。"],
   "Keep remote sessions": ["保留远程会话", "保留遠端工作階段"],
   "Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.": ["桌面端断开后保留 SSH 终端会话。需要支持会话守护功能的 Companion 版本。", "桌面端中斷連線後保留 SSH 終端機工作階段。需要支援工作階段守護功能的 Companion 版本。"],
   "Archived": ["已归档", "已封存"],

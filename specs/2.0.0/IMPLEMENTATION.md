@@ -1641,7 +1641,11 @@ The earlier remote companion run 44277309897 found a stale Windows fixture
 call signature and a stale Linux SSH input replay assertion. The Windows test
 now passes the native quoted helper command. The Linux test expects identical
 input to reconcile and different bytes under the same sequence to conflict.
-The new guarded SSH/WSL receipts are recorded after CI.
+Linux OpenSSH receipt: run 44279117156, job 134715011124, source
+`91f7a2aab8a8ad762b59e71fd696a3aee26934c9`. The guarded fixture and four
+other native SSH tests passed. This proves the guarded bridge and native PTY
+continuity slice of V02/V04; full desktop and release acceptance stays open.
+Windows-to-WSL evidence is pending.
 
 Record ID / date: S1-u / 2026-11-18
 Scope: current-session CLI resume without recursively attaching its own PTY.
@@ -1659,6 +1663,27 @@ Host proof: a real Companion-owned PTY reports its native session leader.
 The fixture verifies a positive exact run match and a negative match from the
 test process. The Apple private socket PID lookup compiles on macOS; its
 native CLI interactive acceptance and V29 are still pending.
+
+Record ID / date: S1-v / 2026-11-18
+Scope: exact guardian bridge identity and account-specific launch preferences.
+Baseline: `eaedc067` on `feat/2.0.0`.
+
+The installed stdio bridge verifies the logical service ID and the socket's
+guardian/boot IDs against Initialize before releasing the managed handshake.
+Direct operator CLI applies the same guardian/boot check before project open.
+Guarded WSL resolves the distro from the guest's native root translation and
+rejects a conflicting environment hint. The legacy WSL lookup is unchanged.
+
+SSH preference is keyed to the selected account's verified service ID. WSL
+prefers its selected installed distribution/user pair. A failed preference
+write rolls back the staged toggle. The old global development toggle is
+accepted on load without applying it to any account. Ordinary collaboration
+uses the connection-owned transport independently of launch preference.
+
+Local proof: scoped-handshake rejection, WSL UNC root parsing, preference
+isolation fixtures, strict interface localization and macOS app compilation.
+The actual WSL root translation, Windows settings and native appearance still
+require their platform runs.
 
 ## Evidence index
 

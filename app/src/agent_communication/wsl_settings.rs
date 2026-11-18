@@ -2,7 +2,7 @@
 use super::{setup, AgentCommunication};
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use std::{collections::BTreeSet, path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use warpui::{AppContext, ModelContext, SingletonEntity};
 
@@ -115,6 +115,8 @@ pub(crate) struct Preferences {
     pub distribution: Option<String>,
     #[serde(default)]
     pub user: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    guarded_accounts: BTreeSet<(String, String)>,
 }
 
 #[derive(Default)]
@@ -173,6 +175,13 @@ impl WslSettings {
                 && self.preferences.user.as_deref() == Some(target.user.as_str())
         })
     }
+    pub fn selected_guardian(&self) -> Option<bool> {
+        let target = self.selected_target()?;
+        (self.companion_installed == Some(true)).then(|| {
+            self.preferences.guarded_accounts.contains(&(target.distribution.clone(), target.user.clone()))
+        })
+    }
+
     pub fn load(path: PathBuf) -> Self {
         let preferences = std::fs::read(&path)
             .ok()
@@ -241,6 +250,33 @@ impl AgentCommunication {
         ctx: &mut ModelContext<Self>,
     ) {
         self.configure_wsl_inner(enabled, target, None, None, ctx);
+    }
+
+    pub(crate) fn toggle_wsl_guardian(&mut self, ctx: &mut ModelContext<Self>) {
+        if self.wsl.busy || self.wsl.companion_installed != Some(true) {
+            return;
+        }
+        let Some(target) = self.wsl.selected_target() else {
+            return;
+        };
+        let account = (target.distribution.clone(), target.user.clone());
+        let guarded = &mut self.wsl.preferences.guarded_accounts;
+        let was_enabled = guarded.remove(&account);
+        if !was_enabled {
+            guarded.insert(account.clone());
+        }
+        let save = serde_json::to_vec_pretty(&self.wsl.preferences)
+            .map_err(anyhow::Error::from)
+            .and_then(|bytes| setup::atomic_write(&self.wsl.path, &bytes));
+        if save.is_err() {
+            if was_enabled {
+                self.wsl.preferences.guarded_accounts.insert(account);
+            } else {
+                self.wsl.preferences.guarded_accounts.remove(&account);
+            }
+            self.wsl.status = "Could not save WSL communication settings.".into();
+        }
+        ctx.notify();
     }
 
     pub(crate) fn select_wsl_agent(&mut self, command: String, ctx: &mut ModelContext<Self>) {
@@ -714,6 +750,28 @@ fn parse(bytes: &[u8], commands: &[String]) -> Result<(String, Vec<(String, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guardian_preference_is_limited_to_the_selected_installed_wsl_account() {
+        let mut settings = WslSettings {
+            companion_installed: Some(true),
+            targets: vec![
+                Target::new("Ubuntu", "one", "/home/one").unwrap(),
+                Target::new("Ubuntu", "two", "/home/two").unwrap(),
+            ],
+            ..Default::default()
+        };
+        settings.preferences.distribution = Some("Ubuntu".into());
+        settings.preferences.user = Some("one".into());
+        assert_eq!(settings.selected_guardian(), Some(false));
+        settings.preferences.guarded_accounts.insert(("Ubuntu".into(), "one".into()));
+        assert_eq!(settings.selected_guardian(), Some(true));
+        settings.preferences.user = Some("two".into());
+        assert_eq!(settings.selected_guardian(), Some(false));
+        settings.companion_installed = None;
+        assert_eq!(settings.selected_guardian(), None);
+    }
+
     #[test]
     fn installation_progress_accepts_only_fixed_phases_and_bounds_history() {
         let target = Target::new("Ubuntu Test", "guest", "/home/guest").unwrap();

@@ -84,7 +84,11 @@ boot/PID file or lock metadata proves liveness, and there is no second owner or
 legacy fallback.
 
 Route is bound by the accepting listener and resolved server-side; helper strings
-and managed frames confer no authority. Each route keeps its existing logical
+and managed frames confer no authority.
+A guarded WSL scope uses the distro returned by the guest's native wslpath
+translation of the root. A supplied WSL_DISTRO_NAME is a consistency check.
+An absent or mismatched native identity refuses guarded WSL scope admission;
+the legacy WSL path keeps its existing behavior. Each route keeps its existing logical
 service ID and exact fence validation. One account `Terminals` registry and cap
 serves all routes with per-run logical-scope checks; Files and Projects/Store stay
 route-local, and WSL-only or SSH-only handlers follow the admitted route. Before
@@ -118,6 +122,10 @@ same-UID operator CLI, and connection-owned forwarding from an upgraded ordinary
 helper. A data bridge cannot invoke account stop. An ordinary helper does not
 start a guardian or acquire guarded capabilities, and verifies that the admitted
 logical service ID matches its existing scope before returning the handshake.
+The guarded bridge verifies the same scoped service ID and matches the guardian
+and boot IDs returned by the private socket handshake before handing the
+managed connection to the client. Direct CLI admission checks the same
+guardian/boot pair. A mismatch closes the connection before project admission.
 
 Companion-private CLI and GUI use the same operations and authenticated admission.
 Account-level catalog metadata is visible to the authenticated owning user, but

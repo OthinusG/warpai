@@ -238,6 +238,15 @@ window once there is no live guarded/legacy work, active request or retained out
 The bounded ended-output window may postpone idle exit; do not remain permanently
 resident because an old catalog row exists. No auto-start/login service by default.
 
+## Future-launch preferences
+
+Store SSH opt-ins by the verified logical service ID of the selected account,
+and WSL opt-ins by the selected distribution and user. An old development
+boolean is never applied to an unrelated account. Opt-in changes future
+launch intent. The collaboration panel continues to use the ordinary managed
+transport, which can follow a verified same-scope guardian owner without
+turning a normal project read into a guarded launch.
+
 ## Platform and compatibility gates
 
 SSH Unix hosts need independence from launching TTY/SIGHUP and host login-session

@@ -338,24 +338,31 @@ async fn connect(
     project: &Option<String>,
 ) -> Result<(HostClient, String, String), i32> {
     let active = route();
-    let stream = match guardian::probe(active).await {
-        Ok((stream, _, _)) => stream,
+    let (stream, guardian, boot) = match guardian::probe(active).await {
+        Ok(connected) => connected,
         Err(_) => {
             eprintln!("Guardian is unavailable for this account.");
             return Err(EXIT_DOMAIN);
         }
     };
-    let root = project.as_deref();
-    let client = match HostClient::connect_unix(stream, root).await {
+    let mut client = match HostClient::connect_unix(stream, None).await {
         Ok(client) => client,
         Err(_) => {
             eprintln!("Guardian connection or project admission failed.");
             return Err(EXIT_DOMAIN);
         }
     };
-    if !client.is_account_guardian() {
+    if !client.is_account_guardian() || !client.account_fence().is_some_and(|fence| {
+        fence.guardian_id == guardian.to_string() && fence.boot_id == boot.to_string()
+    }) {
         eprintln!("Installed Companion does not provide guardian sessions.");
         return Err(EXIT_DOMAIN);
+    }
+    if let Some(root) = project.as_deref() {
+        if client.open_project(root).await.is_err() {
+            eprintln!("Project admission failed.");
+            return Err(EXIT_DOMAIN);
+        }
     }
     let current_project = client
         .fence()
