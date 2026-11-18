@@ -655,16 +655,31 @@ impl HostClient {
         }
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
+        let intent_guarded = request.guarded;
+        let intent_label = request.label.clone();
         let result = self
             .request(managed_request::Operation::TerminalLaunch(request))
             .await?;
         if let managed_response::Result::TerminalState(state) = result {
-            if self.valid_terminal(&state) && state.session_id == session {
+            if !self.valid_terminal(&state) || state.session_id != session {
+                self.close();
+                return Err(ConnectionError::StaleAttachment);
+            }
+            let policy_matches = if intent_guarded {
+                state.guarded == Some(true)
+                    && !state.attachment_id.is_empty()
+                    && state.attachment_generation > 0
+            } else {
+                state.guarded != Some(true)
+                    && state.attachment_id.is_empty()
+                    && state.attachment_generation == 0
+            };
+            if policy_matches && state.label == intent_label {
                 return Ok(state);
             }
         }
         self.close();
-        Err(ConnectionError::StaleAttachment)
+        Err(ConnectionError::IncompatibleVersion)
     }
 
     pub async fn terminal_control(
@@ -689,13 +704,31 @@ impl HostClient {
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
         let run = request.run_id.clone();
+        let action = TerminalAction::try_from(request.action).ok();
+        let input_sequence = request.input_sequence;
         let result = self
             .request(managed_request::Operation::TerminalControl(request))
             .await?;
         if let managed_response::Result::TerminalState(state) = result {
-            if self.valid_terminal(&state) && state.session_id == session && state.run_id == run {
-                return Ok(state);
+            if !self.valid_terminal(&state)
+                || state.session_id != session
+                || state.run_id != run
+                || (guarded && state.guarded != Some(true))
+            {
+                self.close();
+                return Err(ConnectionError::StaleAttachment);
             }
+            if guarded
+                && action == Some(TerminalAction::TerminalInput)
+                && !state
+                    .input_receipt
+                    .as_ref()
+                    .is_some_and(|receipt| receipt.input_sequence == input_sequence)
+            {
+                self.close();
+                return Err(ConnectionError::IncompatibleVersion);
+            }
+            return Ok(state);
         }
         self.close();
         Err(ConnectionError::StaleAttachment)
@@ -766,7 +799,9 @@ impl HostClient {
                         ConnectionError::PermissionDenied
                     }
                     Ok(ManagedErrorCode::ManagedNotFound) => ConnectionError::NotFound,
-                    Ok(ManagedErrorCode::ManagedConflict) => ConnectionError::Conflict,
+                    Ok(ManagedErrorCode::ManagedConflict)
+                    | Ok(ManagedErrorCode::ManagedInputConflict)
+                    | Ok(ManagedErrorCode::ManagedDeliveryUnknown) => ConnectionError::Conflict,
                     Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
                         ConnectionError::CapacityExceeded
                     }

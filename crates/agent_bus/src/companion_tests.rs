@@ -329,6 +329,25 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
     let mut next = fence.clone();
     next.connection_id = Uuid::new_v4().to_string();
+    let label_only = TerminalLaunch {
+        fence: Some(fence.clone()),
+        session_id: Uuid::new_v4().to_string(),
+        executable: "/bin/sh".into(),
+        arguments: Vec::new(),
+        columns: 80,
+        rows: 24,
+        agent_program: None,
+        working_directory: None,
+        guarded: false,
+        label: Some("legacy-label".into()),
+    };
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::TerminalLaunch(
+            label_only
+        )))),
+        managed_response::Result::Error(ManagedError { code })
+            if code == ManagedErrorCode::ManagedInvalidInput as i32
+    ));
     let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
         managed_request::Operation::TerminalLaunch(TerminalLaunch {
             fence: Some(fence.clone()),
@@ -350,6 +369,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     };
     assert_eq!(launched.guarded, Some(true));
     assert_eq!(launched.label.as_deref(), Some("guarded-test"));
+    assert!(launched.input_receipt.is_none());
     let generation = launched.attachment_generation;
     let attachment = launched.attachment_id.clone();
     let control = |fence: &ManagedFence, action: TerminalAction| TerminalControl {
@@ -416,7 +436,33 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let mut first = control(&next, TerminalAction::TerminalInput);
     first.input = b"hello\n".to_vec();
     first.input_sequence = 1;
-    assert!(companion.terminals.control(first, &next).is_ok());
+    let first = companion.terminals.control(first, &next).unwrap();
+    let first_receipt = first.input_receipt.clone().expect("Accepted input needs a receipt");
+    assert_eq!(first_receipt.input_sequence, 1);
+    assert_eq!(first_receipt.attachment_generation, generation);
+    assert!(Uuid::parse_str(&first_receipt.receipt_id).is_ok());
+    let mut duplicate = control(&next, TerminalAction::TerminalInput);
+    duplicate.input = b"hello\n".to_vec();
+    duplicate.input_sequence = 1;
+    let duplicate = companion.terminals.control(duplicate, &next).unwrap();
+    assert_eq!(
+        duplicate.input_receipt.map(|receipt| receipt.receipt_id),
+        Some(first_receipt.receipt_id.clone())
+    );
+    let mut conflicting = control(&next, TerminalAction::TerminalInput);
+    conflicting.input = b"other\n".to_vec();
+    conflicting.input_sequence = 1;
+    assert!(matches!(
+        companion.terminals.control(conflicting, &next),
+        Err(ManagedErrorCode::ManagedInputConflict)
+    ));
+    let mut skipped = control(&next, TerminalAction::TerminalInput);
+    skipped.input = b"skipped\n".to_vec();
+    skipped.input_sequence = 3;
+    assert!(matches!(
+        companion.terminals.control(skipped, &next),
+        Err(ManagedErrorCode::ManagedInputConflict)
+    ));
     let offset = read_until(&mut companion, &next, "ECHO=hello", 0);
     assert!(companion
         .terminals
@@ -463,7 +509,14 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     };
     second.input = b"again\n".to_vec();
     second.input_sequence = 1;
-    assert!(companion.terminals.control(second, &next).is_ok());
+    let second = companion.terminals.control(second, &next).unwrap();
+    let second_receipt = second.input_receipt.expect("Adopted input needs a receipt");
+    assert_eq!(second_receipt.input_sequence, 1);
+    assert_eq!(
+        second_receipt.attachment_generation,
+        adopted.attachment_generation
+    );
+    assert_ne!(second_receipt.receipt_id, first_receipt.receipt_id);
     let read_adopted = |companion: &mut Companion, fence: &ManagedFence, offset: u64| {
         let control = TerminalControl {
             output_offset: offset,
@@ -545,6 +598,10 @@ fn legacy_stop_requires_the_owning_connection() {
     ))) else {
         panic!("Legacy launch required")
     };
+    assert_eq!(launched.guarded, Some(false));
+    assert!(launched.attachment_id.is_empty());
+    assert_eq!(launched.attachment_generation, 0);
+    assert!(launched.input_receipt.is_none());
     let stop = |fence: &ManagedFence| TerminalControl {
         fence: Some(fence.clone()),
         session_id: launched.session_id.clone(),

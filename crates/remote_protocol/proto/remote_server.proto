@@ -118,6 +118,10 @@ enum ManagedErrorCode {
   MANAGED_CONFLICT = 7;
   MANAGED_CAPACITY_EXCEEDED = 8;
   MANAGED_NOT_FOUND = 9;
+  // Same attachment sequence with different bytes, or a skipped/reversed sequence.
+  MANAGED_INPUT_CONFLICT = 10;
+  // The receipt is no longer retained; the input may or may not have been written.
+  MANAGED_DELIVERY_UNKNOWN = 11;
 }
 message ManagedError { ManagedErrorCode code = 1; }
 message ProjectTasksRequest {
@@ -247,6 +251,27 @@ message TerminalState {
   optional string label = 17;
   uint64 attachment_generation = 18;
   string attachment_id = 19;
+  // Receipt for the requested or most recent human input; legacy states omit it.
+  optional InputReceipt input_receipt = 20;
+}
+// Queue acceptance is not native write completion, Agent acknowledgement or task
+// execution. A receipt is a selector, never an authority credential.
+enum InputDisposition {
+  INPUT_DISPOSITION_UNSPECIFIED = 0;
+  INPUT_ACCEPTED = 1;
+  INPUT_WRITING = 2;
+  INPUT_WRITTEN = 3;
+  INPUT_CANCELLED = 4;
+  INPUT_FAILED = 5;
+  INPUT_UNKNOWN = 6;
+}
+message InputReceipt {
+  uint64 attachment_generation = 1;
+  uint64 input_sequence = 2;
+  string receipt_id = 3;
+  InputDisposition disposition = 4;
+  // Bytes handed to the native writer; not proof that the program processed them.
+  uint64 written_bytes = 5;
 }
 // Legacy upstream protocol declarations below are retained for existing callers.
 message Initialize {}
