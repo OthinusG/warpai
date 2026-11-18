@@ -24,7 +24,11 @@ async fn native_windows_remote_shell_preserves_companion_protocol_bytes() {
     HostClient::probe_installed(&profile, native_shell())
         .await
         .expect("Native shell version probe");
-    let mut client = HostClient::open_command(&profile, native_shell())
+    let mut client = HostClient::open_command(
+        &profile,
+        native_shell(),
+        profile.companion_command().unwrap(),
+    )
         .await
         .expect("Native shell binary handshake and project binding");
     let query = crate::companion::TaskCommand::Panel(Default::default());

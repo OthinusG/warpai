@@ -86,7 +86,13 @@ async fn controlled_agent_terminal(profile: &SshProfile) {
         .to_vec();
     input.input_sequence = 1;
     next.terminal_control(input.clone()).await.unwrap();
-    assert!(next.terminal_control(input).await.is_err());
+    let retry = next.terminal_control(input.clone()).await.unwrap();
+    assert_eq!(retry.accepted_input_sequence, 1);
+    input.input.push(b'!');
+    assert_eq!(
+        next.terminal_control(input).await.unwrap_err(),
+        warp_agent_bus::ssh_remote::ConnectionError::Conflict
+    );
     terminal_output(
         &mut next,
         &attached,
