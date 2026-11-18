@@ -11,22 +11,29 @@ registry. Guarded input/resize/read/detach/release now require the exact writer
 tuple, takeover fences the observed generation, and detach/transport loss
 invalidates queued input through a separate writer epoch. A bounded input ledger
 now returns per-attachment receipts for accepted, writing, written, cancelled,
-failed and unknown delivery, rejects conflicting or skipped sequences, and fails
-the writer path closed on write, flush, gate or ledger faults. The service now
-rechecks the Unix peer UID at accept where the kernel exposes it, and retains
-detached ended output for 300 seconds within the 32-session ceiling, evicting the
-oldest ended session only under admission pressure. Client control also requires
-the guarded attachment tuple to be echoed exactly for every non-attach action.
-Unit coverage and two Unix integration tests are written but not compiled or run.
+failed and unknown delivery, keys records by attachment generation and sequence,
+rejects conflicting or skipped sequences, retains unknown delivery as
+non-evictable evidence, and fails the writer path closed on write, flush, gate or
+ledger faults. Cancellation is checked between writes, and queued input skipped
+after revocation or a writer fault is settled instead of remaining pending. The
+service now requires Unix peer credentials to resolve and match its effective UID,
+re-checks the Windows pipe client SID after DACL admission, and retains detached
+ended output for 300 seconds within the 32-session ceiling, evicting the oldest
+ended session only under admission pressure. Client control also requires the
+guarded attachment tuple to be echoed exactly for every non-attach action; a
+session-level stale reply no longer closes other sessions on the multiplexed
+connection, and unconfirmed input delivery is reported explicitly. Unit coverage
+and two Unix integration tests are written but not compiled or run.
 No unified SSH/WSL election, account catalog, snapshot, CLI, desktop opt-in,
 scheduler, packaging/version change or release is implemented. V01-V30 runtime
 acceptance is NOT RUN. No guard client can reach the slice because
 `guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
 baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
 commits `87e18c942630e58c91849532fb132323e0500ab5`,
-`5163030f7535f59f673723c1932563bd186282c3` and
-`99eaa0eb` on `feat/2.0.0`, while `main` remains at the baseline. A read-only peer
-review at the first commit identified remaining P1/P2 work; it is not runtime
+`5163030f7535f59f673723c1932563bd186282c3`, `99eaa0eb`, `33f59ec1` and
+`efe9fd12` on `feat/2.0.0`, while `main` remains at the baseline. A read-only peer
+review at the first commit identified remaining P1/P2 work; the review findings
+were addressed in `efe9fd12`, but this remains source evidence, not runtime
 evidence. Revalidate current HEAD at implementation startup rather than assuming
 an earlier observed repository position is still current.
 
@@ -46,9 +53,9 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch and storage schema pending |
-| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, input epoch and receipt ledger added after review; Unix peer UID admission and 300s ended-output retention written but unverified; unified SSH/WSL election, catalog and native proof pending |
+| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is unverified; unified SSH/WSL election, catalog and native proof pending |
 | S2 compact terminal restoration | not_started | None |
-| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, fail-closed writer faults, exact tuple echo and bounded ended-output retention; snapshots, reconnect transport and operator stop pending |
+| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, and bounded ended-output retention; snapshots, reconnect transport and operator stop pending |
 | S4 SSH optional UI/CLI | not_started | None |
 | S5 mandatory WSL guardian | not_started | None |
 | S6 failure/feature restoration | not_started | None |
@@ -647,6 +654,106 @@ Follow-up tasks / affected gates: S0 account catalog/watch contract; S1 unified
 MEMORY update or reason no durable fact changed: MEMORY records guarded retention
   and input receipts; the 300s ended-output window and Unix peer UID check are
   implementation details recorded here and do not change the scope decision.
+Superseded by: S1-e (fail-closed peer identity, generation-keyed receipts,
+  between-write cancellation and multiplexed-connection error handling).
+```
+
+## S1/S3: review closure for guarded input and peer admission
+
+```text
+Record ID / date: S1-e / 2026-11-18
+Work item and PRD requirements: close P1/P2 review findings in the guarded input,
+  attachment and local admission path (FR-01, FR-03, FR-05, FR-09, FR-12)
+Status: implemented_unverified
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: efe9fd12 on feat/2.0.0; no PR
+
+Problem and observable before/after:
+  Before: the receipt ledger was keyed only by sequence, so an old writer message
+  dequeued after takeover could cancel the same sequence on the new attachment.
+  Unknown delivery was treated as evictable history. write_counted ignored
+  cancellation until the full buffer was written, and queued input skipped after
+  revocation or an I/O fault could remain Accepted indefinitely. Unix peer
+  credential failure admitted the connection, Windows admission relied only on the
+  pipe DACL, legacy ended sessions could extend service life, MANAGED_DELIVERY_UNKNOWN
+  collapsed into ordinary conflict, and a session-level stale reply closed the
+  multiplexed connection for unrelated sessions.
+  After: ledger lookup, reservation, cancellation and completion include the
+  attachment generation; Unknown is retained as non-evictable evidence and causes
+  capacity backpressure instead of silent loss. Counted writes check cancellation
+  between writes, partial cancellation records Unknown, zero-byte cancellation
+  records Cancelled, and skipped queue entries are settled. Ended retention is
+  guarded-only. Unix admission requires credentials to resolve and match the
+  service effective UID; Windows rechecks the named-pipe client process token SID
+  against the current user in addition to the per-user DACL. DELIVERY_UNKNOWN is a
+  distinct client error, and session or attachment stale replies no longer close
+  the connection shared by other sessions. Legacy states without `guarded` must
+  present either an empty attachment ID with generation zero or a valid non-empty
+  tuple.
+Scope: crates/agent_bus/src/companion_service.rs,
+  crates/agent_bus/src/companion_terminals.rs,
+  crates/agent_bus/src/ssh_remote.rs,
+  crates/agent_bus/src/windows_pipe.rs,
+  crates/remote_protocol/src/managed.rs.
+Files and symbols changed:
+  companion_terminals.rs: NativeInput::User.attachment, generation-keyed
+    InputLedger::{find,remove,mark_writing,cancel,finish}, InputState::terminal,
+    WriteEnd, write_counted cancellation predicate, writer queue settlement,
+    Session::receipt, guarded-only retain_session/ended_session
+  companion_service.rs: fail-closed Unix UID/pid admission, Windows current-user
+    versus client-process SID comparison before slot admission
+  windows_pipe.rs: client_user_sid(pid), process handle ownership, current-user
+    client test
+  ssh_remote.rs: ConnectionError::DeliveryUnknown, no close on managed application
+    errors or session-level stale replies, explicit receipt-missing error
+  managed.rs: legacy `guarded=None` tuple coherence
+
+Implementation method:
+  - Ledger records are unique by (attachment_generation, input_sequence). A stale
+    queue entry can only cancel or complete its own generation. Unknown records
+    count toward the 64-receipt ceiling but not the pending-byte budget, so they
+    cannot be evicted while delivery remains unresolved; callers receive Capacity
+    instead of losing the evidence.
+  - write_counted checks the writer epoch or revocation flag before each write
+    syscall. A completion after partial bytes is Unknown because those bytes may
+    have reached the PTY; a pre-write cancellation is Cancelled and does not flush.
+    Entries skipped when the queue is already revoked or failed transition through
+    the same ledger cancellation path rather than staying pending.
+  - Retention records ended_at only for Policy::Guarded. Legacy disconnected ended
+    sessions are removed on the next sweep and cannot keep the service alive.
+  - Unix accept calls peer_cred once, rejects credential retrieval failure and UID
+    mismatch, and reuses that credential for the pid passed to native admission.
+    Windows accepts only when the client PID and both SIDs resolve and match,
+    keeping the DACL as an additional boundary.
+  - HostClient still closes on transport desynchronization (timeout, wrong request
+    ID, malformed or non-managed reply), but a managed StaleAttachment,
+    IncompatibleVersion or DeliveryUnknown reply is returned to the caller without
+    killing unrelated sessions. Input without a matching receipt is DeliveryUnknown.
+Decision and rationale: preserve evidence of uncertain input and one terminal's
+  stale attachment without weakening stream-integrity closure or process identity.
+  Capacity backpressure is preferable to silently discarding an unresolved write.
+Verification:
+  - rustfmt --edition 2021 parsed all changed Rust files with no syntax error;
+    git diff --check reported no whitespace errors.
+  - No cargo check, build or test was run locally: the workspace target is empty
+    and the offline registry lacks required crates (first failure: aho-corasick
+    1.1.3). Unit tests were extended but not executed.
+  - Failures found, fixes applied and rerun receipt: the first write_counted
+    cancellation test expected two bytes; cancellation is checked before each
+    write, so the correct expectation is one byte and the test was corrected.
+    No rerun receipt exists.
+Unverified behavior and remaining risks: no native/CI build or SSH/WSL test
+  exercised these paths. Unknown-ledger capacity can eventually backpressure a
+  session with unresolved delivery rather than reclaiming old evidence. Windows
+  SID comparison and Unix peer_cred behavior are unrun on their native targets.
+  The capability remains unadvertised, and no catalog, list, inspect, watch gap,
+  reconnect transport, operator stop or resource measurement exists. Transport
+  desynchronization still closes the whole connection, which is intentional.
+Follow-up tasks / affected gates: fixed-SHA CI and native Unix/Windows admission
+  tests; S1 unified election/catalog; S3 reconnect and snapshot ordering; S4 CLI.
+MEMORY update or reason no durable fact changed: MEMORY is updated with the
+  fail-closed peer checks, generation-keyed receipts and non-evictable unknown
+  delivery; scope and capability gating are unchanged.
 ```
 
 ## Evidence index
@@ -655,6 +762,7 @@ MEMORY update or reason no durable fact changed: MEMORY records guarded retentio
 | --- | --- | --- | --- |
 | S1/S3 source slice | `87e18c94`, `5163030f` and `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch, bounded receipts, fail-closed writer handling, Unix peer UID admission and 300s ended-output retention written; rustfmt parse and isolated helper type-check only, not compiled or run |
 | S1-d retention/admission | `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Unix peer UID check, ended-output TTL and capacity eviction, exact tuple echo; no workspace build, native test or resource measurement |
+| S1-e review closure | `efe9fd12` on `feat/2.0.0` | implemented_unverified | Generation-keyed ledger, non-evictable Unknown, between-write cancellation, guarded-only retention, fail-closed Unix credentials, Windows client SID recheck, explicit DeliveryUnknown and no connection-wide close for session stale; rustfmt parse and diff check only, no build/test |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |

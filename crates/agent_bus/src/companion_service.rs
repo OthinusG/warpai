@@ -173,8 +173,7 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
             continue;
         };
         let directory = directory.clone();
-        // A vanished peer must not terminate other sessions. Native admission
-        // rejects a missing PID; ordinary control still uses the private endpoint.
+        // Native ownership and admission both require a resolvable same-user peer.
         #[cfg(unix)]
         let peer_pid = {
             let Ok(credentials) = stream.peer_cred() else {

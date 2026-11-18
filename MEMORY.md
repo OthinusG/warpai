@@ -206,12 +206,14 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   auto-fetch on reconnect; private CLI/no PATH writes. Owner requires bare resume
   current/unique/MRU; bare stop stops all account guarded runs without confirmation.
   CLI only list/resume/stop + help/version; extra Herdr tools need a proven gap.
-  Methods/ledger: specs/2.0.0/README.md. Unverified 2026-11-18 slice: guarded
-  session retention plus exact attachment fence, CAS takeover, input epoch and a
-  bounded per-attachment write-receipt ledger in the Companion terminal registry;
-  Unix peer-UID admission and 300s ended-output retention with capacity eviction;
-  guarded_remote_sessions_v1 stays unadvertised until native proof; unified
-  election, catalog, CLI and WSL lifetime remain pending.
+  Methods/ledger: specs/2.0.0/README.md. Unverified 2026-11-18 slice
+  (source through efe9fd12): guarded session retention plus exact attachment
+  fence, CAS takeover, writer epoch and a bounded generation-keyed write-receipt
+  ledger with non-evictable unknown delivery and between-write cancellation;
+  fail-closed Unix peer UID and Windows client-SID recheck; guarded-only 300s
+  ended-output retention; session-level stale or unknown delivery does not close
+  the shared connection; guarded_remote_sessions_v1 stays unadvertised until
+  native proof; unified election, catalog, CLI and WSL lifetime remain pending.
   No desktop auto-deployment.
   Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
