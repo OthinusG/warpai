@@ -85,6 +85,22 @@ fn managed_agent_child() {
         println!("MCP_NATIVE_RUN={}", registered["run"].as_str().unwrap());
     }
     println!("REMOTE_ROOT={}", std::env::current_dir().unwrap().display());
+    use warp_agent_bus::{transport::*, Operation};
+    let rpc = |operation| {
+        call(
+            &std::env::var(ENDPOINT).unwrap(),
+            &Request {
+                protocol_major: PROTOCOL_MAJOR,
+                terminal: std::env::var(TERMINAL).unwrap(),
+                capability: std::env::var(CAPABILITY).unwrap(),
+                run: agent_run.clone(),
+                defer_initial_ready: false,
+                native_activity: None,
+                directory: None,
+                operation,
+            },
+        ).unwrap()
+    };
     let mut operation_sequence = 0;
     loop {
         let mut line = String::new();
@@ -99,6 +115,33 @@ fn managed_agent_child() {
                 let terminal = std::env::var(warp_agent_bus::transport::TERMINAL).unwrap();
                 let terminal = Uuid::parse_str(&terminal).unwrap();
                 std::fs::write(format!("agent-wake-{terminal}-{id}"), agent_run.as_deref().unwrap()).unwrap();
+                let inbox = rpc(Operation::AgentInbox { cursor: None, limit: None });
+                let notice = inbox["messages"].as_array().unwrap().iter()
+                    .find(|message| message["id"] == id.to_string());
+                if let Some(notice) = notice.filter(|message| message["kind"] == "assignment") {
+                    let task_id = notice["task_id"].as_str().unwrap().to_owned();
+                    let task = rpc(Operation::TaskGet { task_id: task_id.clone() });
+                    if task["description"] == "Owned detached task fixture" {
+                        let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+                        while !std::path::Path::new("owned-bridges-closed").is_file() {
+                            assert!(std::time::Instant::now() < until);
+                            std::thread::sleep(std::time::Duration::from_millis(20));
+                        }
+                        let revision = task["revision"].as_u64().unwrap().try_into().unwrap();
+                        let started = rpc(Operation::TaskStart { task_id: task_id.clone(), revision,
+                            expected_version: None, request_id: Uuid::new_v4().to_string() });
+                        assert_eq!(started["state"], "running");
+                        let attempt = started["attempt_id"].as_str().unwrap();
+                        let submitted = rpc(Operation::TaskSubmit { task_id: task_id.clone(), revision,
+                            result: "Finished during the bridge gap".into(), evidence: "Owned native PTY fixture".into(),
+                            handoff: None, expected_version: None, attempt_id: Some(attempt.into()),
+                            request_id: Uuid::new_v4().to_string(), evidence_ids: vec![] });
+                        assert_eq!(submitted["state"], "submitted");
+                        let task_id = Uuid::parse_str(&task_id).unwrap();
+                        std::fs::write(format!("agent-task-{terminal}-{task_id}"),
+                            serde_json::json!({"attempt":attempt, "run":agent_run}).to_string()).unwrap();
+                    }
+                }
             }
             let Some(start) = value.find('{') else { continue; };
             value = &value[start..];
@@ -106,23 +149,8 @@ fn managed_agent_child() {
         match value {
             "Unicode 空格;$(never-execute)" => println!("UNICODE_INPUT_VERIFIED"),
             value => {
-                use warp_agent_bus::transport::*;
                 operation_sequence += 1;
-                let operation: warp_agent_bus::Operation = serde_json::from_str(value).unwrap();
-                let result = call(
-                    &std::env::var(ENDPOINT).unwrap(),
-                    &Request {
-                        protocol_major: PROTOCOL_MAJOR,
-                        terminal: std::env::var(TERMINAL).unwrap(),
-                        capability: std::env::var(CAPABILITY).unwrap(),
-                        run: agent_run.clone(),
-                        defer_initial_ready: false,
-                        native_activity: None,
-                        directory: None,
-                        operation,
-                    },
-                )
-                .unwrap();
+                let result = rpc(serde_json::from_str(value).unwrap());
                 let result = fixture_receipt(&result);
                 println!("FIXTURE_RESULT_{operation_sequence}={result}");
             }
@@ -137,7 +165,8 @@ fn fixture_receipt(result: &serde_json::Value) -> serde_json::Value {
         "context_summary":result["content"]["summary"], "handoff_ref":result["handoff_ref"], "handoff_snapshot":serde_json::json!({"task_id":result["content"]["snapshot"]["task_id"],
             "attempt_id":result["content"]["snapshot"]["attempt_id"],"reason":result["content"]["snapshot"]["reason"],
             "binding":{"terminal":result["content"]["snapshot"]["binding"]["terminal"]}}),
-        "context_refs":result["context_refs"], "handoff_source":result["source"], "id":result["id"],"state":result["state"],"attempt_id":result["attempt_id"],
+        "context_refs":result["context_refs"], "handoff_source":result["source"], "id":result["id"],"state":result["state"],
+        "attempt_id":result.get("attempt_id").unwrap_or(&result["attempts"][0]["id"]),
         "kind":result["kind"],"reply_to":result["reply_to"],"to":result["to"],"from":result["from"],"ready":result["ready"],
         "messages":result["messages"].as_array().map(|messages| messages.iter()
             .map(|message| serde_json::json!({"id":message["id"]})).collect::<Vec<_>>()),

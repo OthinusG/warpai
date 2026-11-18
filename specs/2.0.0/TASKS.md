@@ -152,6 +152,9 @@ The controlled Unix SSH fixture must prove that a direct peer message reaches
 the same registered Agent after its writer disconnects. Verify an exact message
 receipt from the native PTY child before opening a replacement receiver bridge,
 then verify retained output and the still-unacknowledged inbox entry after attach.
+The same fixture then queues a tracked task for that ready Agent, closes both
+SSH bridges, and requires a task/attempt receipt from the exact native run
+before opening a replacement bridge to inspect the submitted task.
 
 ## S7: low-overhead scheduling and multitasking
 

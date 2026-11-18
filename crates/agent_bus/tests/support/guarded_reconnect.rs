@@ -341,8 +341,8 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
         run
     }
 
-    async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState, sequence: u64, operation: Operation) -> serde_json::Value {
-        bridge.terminal(TerminalControl {
+    async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &mut TerminalState, sequence: u64, operation: Operation) -> serde_json::Value {
+        *run = bridge.terminal(TerminalControl {
             input: format!("{}\r", serde_json::to_string(&operation).unwrap()).into_bytes(),
             input_sequence: run.accepted_input_sequence + 1,
             ..control(fence, run, TerminalAction::TerminalInput)
@@ -352,15 +352,25 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
         serde_json::from_str(output.split_once(&marker).unwrap().1.lines().next().unwrap()).unwrap()
     }
 
+    async fn attach(bridge: &mut Bridge, fence: &ManagedFence, run: &TerminalState) -> TerminalState {
+        let attached = bridge.terminal(TerminalControl {
+            attachment_id: String::new(),
+            attachment_generation: 0,
+            ..control(fence, run, TerminalAction::TerminalAttach)
+        }).await;
+        assert_eq!(attached.run_id, run.run_id);
+        attached
+    }
+
     let root = tempfile::tempdir_in(root).unwrap();
     let path = root.path().to_str().unwrap();
     let mut sender = Bridge::connect(command());
     let (sender_fence, account) = sender.open(path).await;
-    let sender_run = launch(&mut sender, &sender_fence, executable).await;
+    let mut sender_run = launch(&mut sender, &sender_fence, executable).await;
     let mut receiver = Bridge::connect(command());
     let (receiver_fence, _) = receiver.open(path).await;
-    let receiver_run = launch(&mut receiver, &receiver_fence, executable).await;
-    let ready = operation(&mut receiver, &receiver_fence, &receiver_run, 1, Operation::AgentReady).await;
+    let mut receiver_run = launch(&mut receiver, &receiver_fence, executable).await;
+    let ready = operation(&mut receiver, &receiver_fence, &mut receiver_run, 1, Operation::AgentReady).await;
     assert_eq!(ready["ready"], true);
 
     receiver.child.kill().await.unwrap();
@@ -381,7 +391,7 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
         sleep(Duration::from_millis(20)).await;
     }
 
-    let sent = operation(&mut sender, &sender_fence, &sender_run, 1, Operation::AgentSend {
+    let sent = operation(&mut sender, &sender_fence, &mut sender_run, 1, Operation::AgentSend {
         to: format!("fixture-{}", receiver_run.session_id),
         body: "Remote fixture message".into(),
         content: None,
@@ -404,16 +414,53 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
     let (rejoined, _) = receiver.open(path).await;
     assert_eq!(rejoined.service_boot_id, receiver_fence.service_boot_id);
     assert_ne!(rejoined.connection_id, receiver_fence.connection_id);
-    let attached = receiver.terminal(TerminalControl {
-        attachment_id: String::new(),
-        attachment_generation: 0,
-        ..control(&rejoined, &receiver_run, TerminalAction::TerminalAttach)
-    }).await;
-    assert_eq!(attached.run_id, receiver_run.run_id);
+    let mut attached = attach(&mut receiver, &rejoined, &receiver_run).await;
     let retained = output(&mut receiver, &rejoined, &attached, "PEER_NOTIFICATION_RECEIVED").await;
     assert_eq!(retained.matches("PEER_NOTIFICATION_RECEIVED").count(), 1);
-    let inbox = operation(&mut receiver, &rejoined, &attached, 2, Operation::AgentInbox { cursor: None, limit: None }).await;
+    let inbox = operation(&mut receiver, &rejoined, &mut attached, 2, Operation::AgentInbox { cursor: None, limit: None }).await;
     assert!(inbox["messages"].as_array().unwrap().iter().any(|message| message["id"] == id.to_string()));
+
+    operation(&mut receiver, &rejoined, &mut attached, 3, Operation::AgentAck { message_id: id.to_string() }).await;
+    let ready = operation(&mut receiver, &rejoined, &mut attached, 4, Operation::AgentReady).await;
+    assert_eq!(ready["ready"], true);
+    receiver.terminal(control(&rejoined, &attached, TerminalAction::TerminalDetach)).await;
+    receiver.child.kill().await.unwrap();
+    drop(receiver);
+
+    let assigned = operation(&mut sender, &sender_fence, &mut sender_run, 2, Operation::TaskAssign {
+        to: format!("fixture-{}", receiver_run.session_id),
+        description: "Owned detached task fixture".into(),
+        acceptance: "Commit a task receipt before any bridge is reopened".into(),
+        context_refs: vec![], reviewer: None, dependencies: vec![], start_deadline: None,
+        execution_timeout_seconds: None, review_timeout_seconds: None, request_id: Uuid::new_v4().to_string(),
+    }).await;
+    let task = Uuid::parse_str(assigned["id"].as_str().unwrap()).unwrap();
+    assert_eq!(assigned["state"], "queued");
+    sender.terminal(control(&sender_fence, &sender_run, TerminalAction::TerminalDetach)).await;
+    sender.child.kill().await.unwrap();
+    drop(sender);
+    std::fs::write(root.path().join("owned-bridges-closed"), b"").unwrap();
+    let receipt = root.path().join(format!("agent-task-{}-{task}", receiver_run.session_id));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let receipt: serde_json::Value = loop {
+        if let Some(receipt) = std::fs::read(&receipt).ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()) {
+            break receipt;
+        }
+        assert!(Instant::now() < deadline, "The original Agent did not submit the tracked task with both bridges closed");
+        sleep(Duration::from_millis(20)).await;
+    };
+    assert_eq!(receipt["run"], receiver_run.run_id);
+    let attempt = Uuid::parse_str(receipt["attempt"].as_str().unwrap()).unwrap();
+
+    let mut sender = Bridge::connect(command());
+    let (sender_fence, _) = sender.open(path).await;
+    let mut sender_run = attach(&mut sender, &sender_fence, &sender_run).await;
+    let submitted = operation(&mut sender, &sender_fence, &mut sender_run, 3, Operation::TaskGet { task_id: task.to_string() }).await;
+    assert_eq!(submitted["state"], "submitted");
+    assert_eq!(submitted["attempt_id"], attempt.to_string());
+    let mut receiver = Bridge::connect(command());
+    let (rejoined, _) = receiver.open(path).await;
+    let attached = attach(&mut receiver, &rejoined, &attached).await;
     for (bridge, fence, run) in [(&mut sender, &sender_fence, &sender_run), (&mut receiver, &rejoined, &attached)] {
         assert!(bridge.terminal(control(fence, run, TerminalAction::TerminalStop)).await.stop_requested);
         let deadline = Instant::now() + Duration::from_secs(10);
