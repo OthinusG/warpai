@@ -393,8 +393,8 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   source-matched native proof.
 
 - The Unix guardian caps pending prefaces and established bridges separately.
-  Two local operator permits keep account catalog and stop available when all
-  32 bridge channels are occupied.
+  Long-running CLI attachments share bridge slots. Two local control permits
+  keep account catalog and stop available when all 32 bridge slots are occupied.
 
 - Local `ctl resume` can open another project in the helper's logical scope
   through the exact live run and its in-memory root. Root identity is rechecked

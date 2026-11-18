@@ -336,10 +336,15 @@ fn route_name(route: Route) -> &'static str {
 /// Account discovery and bare stop do not require a project admission.
 async fn connect(
     project: &Option<String>,
+    attach: bool,
 ) -> Result<(HostClient, String), i32> {
     let active = route();
-    let (stream, guardian, boot) = match guardian::probe(active).await {
+    let (stream, guardian, boot) = match guardian::probe(active, attach).await {
         Ok(connected) => connected,
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+            eprintln!("Guardian connection capacity is busy. Try again after another attachment closes.");
+            return Err(EXIT_DOMAIN);
+        }
         Err(_) => {
             eprintln!("Guardian is unavailable for this account.");
             return Err(EXIT_DOMAIN);
@@ -402,7 +407,7 @@ pub(crate) async fn rows(client: &mut HostClient, scope_id: &str, project_id: &s
 }
 
 async fn list(project: Option<String>, id: Option<String>) -> i32 {
-    let (mut client, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project, false).await {
         Ok(value) => value,
         Err(code) => return code,
     };
@@ -479,7 +484,7 @@ fn select<'a>(
 }
 
 async fn resume(project: Option<String>, selection: Selection, takeover: bool) -> i32 {
-    let (mut client, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project, true).await {
         Ok(value) => value,
         Err(code) => return code,
     };
@@ -771,7 +776,7 @@ async fn detach(client: &mut HostClient, state: &TerminalState) {
 }
 
 async fn stop(project: Option<String>, selection: Selection) -> i32 {
-    let (mut client, filter) = match connect(&project).await {
+    let (mut client, filter) = match connect(&project, false).await {
         Ok(value) => value,
         Err(code) => return code,
     };

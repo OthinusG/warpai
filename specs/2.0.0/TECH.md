@@ -195,7 +195,8 @@ no second durable task scheduler or automatic Agent spawning is introduced.
 The Unix guardian bounds incomplete prefaces separately from established
 channels. Local account operators have dedicated channel permits, so occupied
 bridge channels cannot consume the capacity for a local catalog/stop operation.
-Preface acceptance still requires the same private socket and peer identity.
+Long-running local CLI attachments use regular bridge permits. Preface
+acceptance still requires the same private socket and peer identity.
 Lifecycle scans skip busy run/output locks and retry on the next maintenance
 tick. A busy run remains retained and cannot be evicted to admit another run.
 

@@ -20,6 +20,7 @@ use tokio::{
 pub const IPC_MAJOR: u16 = 1;
 const MAGIC: [u8; 4] = *b"WAG1";
 const PREFACE_BYTES: usize = 4 + 2 + 1 + 1 + 16 + 16;
+const REPLY_BUSY: u8 = 1;
 const IDLE_EXIT: Duration = Duration::from_secs(60);
 const SLOTS: usize = 32;
 const OPERATOR_SLOTS: usize = 2;
@@ -197,6 +198,7 @@ enum Admission {
     Guarded = 0,
     Operator = 1,
     ConnectionOwned = 2,
+    OperatorSession = 3,
 }
 
 async fn read_preface(stream: &mut UnixStream, route: Route) -> std::io::Result<Admission> {
@@ -207,7 +209,7 @@ async fn read_preface(stream: &mut UnixStream, route: Route) -> std::io::Result<
     if bytes[..4] != MAGIC
         || u16::from_be_bytes([bytes[4], bytes[5]]) != IPC_MAJOR
         || Route::from_code(bytes[6]) != Some(route)
-        || bytes[7] > 2
+        || bytes[7] > Admission::OperatorSession as u8
         || bytes[8..].iter().any(|byte| *byte != 0)
     {
         return Err(std::io::Error::from(ErrorKind::InvalidData));
@@ -215,7 +217,8 @@ async fn read_preface(stream: &mut UnixStream, route: Route) -> std::io::Result<
     Ok(match bytes[7] {
         0 => Admission::Guarded,
         1 => Admission::Operator,
-        _ => Admission::ConnectionOwned,
+        2 => Admission::ConnectionOwned,
+        _ => Admission::OperatorSession,
     })
 }
 
@@ -231,6 +234,13 @@ async fn exchange_preface(
     tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut bytes))
         .await
         .map_err(|_| std::io::Error::from(ErrorKind::TimedOut))??;
+    if bytes[7] == REPLY_BUSY {
+        bytes[7] = 0;
+        if valid_reply(&bytes, route).is_some() {
+            return Err(std::io::Error::from(ErrorKind::WouldBlock));
+        }
+        return Err(std::io::Error::from(ErrorKind::InvalidData));
+    }
     let (guardian, boot) =
         valid_reply(&bytes, route).ok_or_else(|| std::io::Error::from(ErrorKind::InvalidData))?;
     Ok((stream, guardian, boot))
@@ -412,8 +422,15 @@ async fn start_service() -> std::io::Result<()> {
 }
 
 /// Probe-only: never starts a service and never activates a route.
-pub(crate) async fn probe(route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
+pub(crate) async fn probe(route: Route, attach: bool) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     let runtime = runtime_directory()?;
+    if attach {
+        match probe_route_as(&runtime, route, Admission::OperatorSession).await {
+            Err(error)
+                if matches!(error.kind(), ErrorKind::UnexpectedEof | ErrorKind::ConnectionReset) => {}
+            result => return result,
+        }
+    }
     probe_route_as(&runtime, route, Admission::Operator).await
 }
 
@@ -691,9 +708,14 @@ pub(crate) async fn serve_at(
                         return;
                     };
                     let capacity = if admission == Admission::Operator { operators } else { bridges };
-                    let Ok(_slot) = capacity.try_acquire_owned() else { return; };
+                    let mut reply = preface(route, guardian, boot);
+                    let Ok(_slot) = capacity.try_acquire_owned() else {
+                        reply[7] = REPLY_BUSY;
+                        let _ = stream.write_all(&reply).await;
+                        return;
+                    };
                     drop(handshake);
-                    if stream.write_all(&preface(route, guardian, boot)).await.is_err() {
+                    if stream.write_all(&reply).await.is_err() {
                         return;
                     }
                     let _ = serve_channel(
@@ -706,7 +728,7 @@ pub(crate) async fn serve_at(
                         Some(route),
                         Some(catalog),
                         (admission != Admission::ConnectionOwned).then_some(guardian),
-                        admission == Admission::Operator,
+                        matches!(admission, Admission::Operator | Admission::OperatorSession),
                     )
                     .await;
                 });
@@ -1507,7 +1529,7 @@ mod tests {
             assert!(client.open_guarded_project(&row).await.is_err());
         }
         let open_operator = || async {
-            let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::Operator).await.unwrap();
+            let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::OperatorSession).await.unwrap();
             crate::ssh_remote::HostClient::connect_unix(stream, None).await.unwrap()
         };
         let mut operator = open_operator().await;
@@ -1573,9 +1595,12 @@ mod tests {
         ));
         let mut bridges = vec![wait_route(&runtime).await.0];
         for _ in 1..SLOTS {
-            bridges.push(probe_route(&runtime, Route::Ssh).await.unwrap().0);
+            bridges.push(probe_route_as(&runtime, Route::Ssh, Admission::OperatorSession).await.unwrap().0);
         }
-        assert!(probe_route(&runtime, Route::Ssh).await.is_err());
+        for admission in [Admission::Guarded, Admission::OperatorSession] {
+            let error = probe_route_as(&runtime, Route::Ssh, admission).await.unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::WouldBlock);
+        }
         let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::Operator)
             .await
             .unwrap();

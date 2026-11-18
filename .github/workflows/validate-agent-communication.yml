@@ -279,6 +279,7 @@ jobs:
           cargo test -p warpai --lib file_location_respects_remote_path_flavor --locked
       - name: Prepare disposable WSL2
         if: ${{ inputs.wsl_acceptance }}
+        timeout-minutes: 10
         uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
         with:
           distribution: Ubuntu-22.04

@@ -925,6 +925,7 @@ pub async fn serve_guardian_stdio(route: &str) -> Result<(), &'static str> {
             std::io::ErrorKind::Unsupported => "guardian ABI",
             std::io::ErrorKind::PermissionDenied => "guardian IPC or guest image permissions",
             std::io::ErrorKind::TimedOut => "guardian startup deadline",
+            std::io::ErrorKind::WouldBlock => "guardian connection capacity",
             _ => "guardian startup or IPC",
         })?;
     service::forward_stdio(stream, Some(scope), Some((guardian, boot)))

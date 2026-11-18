@@ -1836,6 +1836,22 @@ The macOS arm64 library suite passed with 274 tests and one ignored, and all
 17 protocol tests passed. Native CLI TTY and desktop acceptance remain open. MEMORY.md records the
 boot-local project lookup and scope boundary.
 
+Record ID / date: S7-d / 2026-11-18
+Baseline: `9148fdb9`. Scope: isolate long-lived local attach from account control.
+
+CLI resume uses the new local-session preface mode and regular channel capacity.
+Catalog and stop retain dedicated local control permits. A full pool returns a
+validated busy preface; current clients do not interpret occupied capacity as a
+missing daemon. An older peer that closes the unknown local-session preface can
+still be reached through the original operator mode. Store, session and task
+authorization are unchanged. The real listener fixture fills all regular
+channels, including local sessions, verifies explicit busy on both admission
+modes, then runs an independent catalog and stop request. All 18 guardian
+fixtures pass on macOS arm64. MEMORY.md records the allocation boundary.
+The WSL workflow now caps the setup step at ten minutes. The two completed
+source-matched provisions took under 90 seconds each; run `44304694837` spent
+over eight minutes there before any repository WSL test could execute.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
