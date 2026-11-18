@@ -64,7 +64,7 @@ guardian ownership remain open.
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | in_progress | Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
-| S9 distribution/release | not_started | None |
+| S9 distribution/release | in_progress | Unix and generated WSL installer regressions cover provenance, permissions, repeat install and scope isolation. Native WSL uses the source-matched package. Release artifacts and the complete mixed-version upgrade matrix remain open. |
 
 ## Mandatory method records
 
@@ -1889,6 +1889,9 @@ Windows/WSL job at `acd9e63e` passed the guest build, installation and native
 workspace checks, including both startup orders, distinct logical identities,
 exact-run reconnect and both ordinary workspace cases. MEMORY.md records the
 installed boundary and native receipt.
+The WSL-focused Windows job skips the native app cache upload when it does not
+build or capture the desktop. Its test result can finalize immediately after
+the workspace checks. Full desktop builds retain the cache path.
 
 ## Evidence index
 
