@@ -356,6 +356,27 @@ fn wall_millis() -> i64 {
         .unwrap_or(0)
 }
 
+pub(super) fn sync_attachment(
+    terminals: &terminals::Terminals,
+    catalog: &CatalogHandle,
+    attachment: &terminals::PendingAttachment,
+) {
+    let recorded = catalog.try_lock().is_ok_and(|mut catalog| {
+        catalog.touch_attachment(
+            &attachment.session_id,
+            &attachment.run_id,
+            &attachment.boot_id,
+            &attachment.service_id,
+            attachment.generation,
+        ).unwrap_or(false)
+    });
+    if recorded {
+        terminals.mark_attachment_reported(
+            &attachment.session_id, &attachment.run_id, attachment.generation,
+        );
+    }
+}
+
 /// Sole lifecycle authority reports observed exit once, independent of client reads.
 pub(super) fn sync_ended(terminals: &terminals::Terminals, catalog: &CatalogHandle) {
     let ended = terminals.ended_guarded();
@@ -558,6 +579,9 @@ pub(crate) async fn serve_at(
                 });
             }
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                for attachment in terminals.pending_attachments() {
+                    sync_attachment(&terminals, &catalog, &attachment);
+                }
                 sync_ended(&terminals, &catalog);
                 let mut admitted_new = false;
                 let mut index = 0;

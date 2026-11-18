@@ -371,6 +371,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   specs/2.0.0/IMPLEMENTATION.md. Existing Store locks and exact logical service
   identity fence ordinary-helper forwarding during guardian cutover.
 
+- A guarded writer acknowledgement follows native ownership. Catalog write
+  faults leave the latest exact generation pending in the retained run and
+  maintenance republishes it without replaying attachment.
+
 ## Memory maintenance
 
 Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;

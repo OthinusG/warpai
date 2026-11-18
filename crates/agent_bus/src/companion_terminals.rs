@@ -368,6 +368,17 @@ struct Session {
     service_id: String,
     project_id: String,
     end_reported: bool,
+    #[cfg(unix)]
+    catalog_generation: u64,
+}
+
+#[cfg(unix)]
+pub(super) struct PendingAttachment {
+    pub session_id: String,
+    pub run_id: String,
+    pub boot_id: String,
+    pub service_id: String,
+    pub generation: u64,
 }
 
 /// Exact native identity captured when a guarded run reaches observed exit.
@@ -903,6 +914,8 @@ impl Terminals {
             service_id: fence.service_id.clone(),
             project_id: fence.project_id.clone(),
             end_reported: policy != Policy::Guarded || !catalog_enabled,
+            #[cfg(unix)]
+            catalog_generation: 0,
         };
         let state = session.state(fence, None, None)?;
         sessions.insert(
@@ -1240,6 +1253,41 @@ impl Terminals {
             retained
         });
         active
+    }
+
+    #[cfg(unix)]
+    pub(super) fn pending_attachments(&self) -> Vec<PendingAttachment> {
+        let Ok(owners) = self.owners.lock() else {
+            return Vec::new();
+        };
+        owners.values().filter_map(|owner| {
+            let session = owner.lock().ok()?;
+            let generation = session.writer.attachment.load(Ordering::SeqCst);
+            (session.policy == Policy::Guarded && !session.end_reported
+                && generation > session.catalog_generation).then(|| PendingAttachment {
+                    session_id: session.launch.session_id.clone(),
+                    run_id: session.run_id.clone(),
+                    boot_id: session.boot_id.clone(),
+                    service_id: session.service_id.clone(),
+                    generation,
+                })
+        }).collect()
+    }
+
+    #[cfg(unix)]
+    pub(super) fn mark_attachment_reported(&self, session_id: &str, run_id: &str, generation: u64) {
+        let Ok(owners) = self.owners.lock() else {
+            return;
+        };
+        let Some(owner) = owners.get(session_id) else {
+            return;
+        };
+        let Ok(mut session) = owner.lock() else {
+            return;
+        };
+        if session.run_id == run_id {
+            session.catalog_generation = session.catalog_generation.max(generation);
+        }
     }
 
     /// Native exit plus drained output; no connection read or release is required.

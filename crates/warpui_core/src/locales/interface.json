@@ -1,4 +1,6 @@
 {
+  "Keep remote sessions": ["保留远程会话", "保留遠端工作階段"],
+  "Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.": ["桌面端断开后保留 SSH 终端会话。需要支持会话守护功能的 Companion 版本。", "桌面端中斷連線後保留 SSH 終端機工作階段。需要支援工作階段守護功能的 Companion 版本。"],
   "Archived": ["已归档", "已封存"],
   "Delete this completed task and its evidence permanently. Referenced tasks and unread messages are protected.": ["永久删除此已结束的任务及其证据。被引用的任务和未读消息受到保护。", "永久刪除此已結束的工作及其證據。被引用的工作及未讀訊息受到保護。"],
   "Evidence": ["证据", "證據"],

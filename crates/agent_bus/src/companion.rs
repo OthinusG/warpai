@@ -284,39 +284,23 @@ impl Companion {
     }
 
     #[cfg(unix)]
-    fn record_catalog_control(
-        &self,
-        action: TerminalAction,
-        state: &TerminalState,
-    ) -> Result<(), ManagedErrorCode> {
+    fn record_catalog_control(&self, action: TerminalAction, state: &TerminalState) {
         if state.guarded != Some(true) || action != TerminalAction::TerminalAttach {
-            return Ok(());
+            return;
         }
-        let Some(catalog) = &self.catalog else {
-            return Ok(());
-        };
-        catalog
-            .lock()
-            .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?
-            .touch_attachment(
-                &state.session_id,
-                &state.run_id,
-                &self.fence.service_boot_id,
-                &self.fence.service_id,
-                state.attachment_generation,
-            )
-            .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?;
-        Ok(())
+        if let Some(catalog) = &self.catalog {
+            guardian::sync_attachment(&self.terminals, catalog, &terminals::PendingAttachment {
+                session_id: state.session_id.clone(),
+                run_id: state.run_id.clone(),
+                boot_id: self.fence.service_boot_id.clone(),
+                service_id: self.fence.service_id.clone(),
+                generation: state.attachment_generation,
+            });
+        }
     }
 
     #[cfg(not(unix))]
-    fn record_catalog_control(
-        &self,
-        _action: TerminalAction,
-        _state: &TerminalState,
-    ) -> Result<(), ManagedErrorCode> {
-        Ok(())
-    }
+    fn record_catalog_control(&self, _action: TerminalAction, _state: &TerminalState) {}
 
 }
 
@@ -427,8 +411,14 @@ impl Companion {
                     self.catalog.is_some(),
                     |run_id, reserve| self.record_catalog_launch(&recorded, run_id, None, reserve),
                 )?;
-                self.record_catalog_launch(&recorded, &state.run_id, Some(&state), false)
-                    .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?;
+                #[cfg(unix)]
+                if recorded.guarded && self.catalog.is_some()
+                    && self.record_catalog_launch(&recorded, &state.run_id, Some(&state), false).is_ok()
+                {
+                    self.terminals.mark_attachment_reported(
+                        &state.session_id, &state.run_id, state.attachment_generation,
+                    );
+                }
                 Ok(managed_response::Result::TerminalState(state))
             }
             Some(managed_request::Operation::TerminalControl(request)) => {
@@ -436,7 +426,7 @@ impl Companion {
                 let action = TerminalAction::try_from(request.action).ok();
                 let state = self.terminals.control(request, &self.fence, self.account_guardian.is_some())?;
                 if let Some(action) = action {
-                    self.record_catalog_control(action, &state)?;
+                    self.record_catalog_control(action, &state);
                 }
                 Ok(managed_response::Result::TerminalState(state))
             }

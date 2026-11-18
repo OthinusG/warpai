@@ -196,6 +196,14 @@ sanitized row identity so a reader can discard the correct session.
 | `PersistentRead` | Attachment fence, snapshot ID, output offset, limit | Ordered output tail or explicit gap/resnapshot result |
 | `PersistentStop` | Fence, session/run IDs, authorized operator identity, request ID | Idempotent stop request; later status proves exit or reports uncertainty |
 
+Guarded launch reserves durable run identity before any native spawn. Once a
+reserved run starts or a writer is acquired, the reply returns the native
+writer tuple. If SQLite is temporarily unwritable, the registry retains the latest
+unpublished generation for that run and the existing maintenance pass retries
+the metadata projection. The catalog cannot roll back a newer writer, repeated
+projection does not reorder MRU, and a stale catalog observation grants no
+authority.
+
 Only one writable attachment exists. Multiple GUI views can display metadata but
 are not independent terminal observers in v1. Takeover is explicit and compare-
 and-swap guarded; two competing requests cannot both win. A delayed detach for

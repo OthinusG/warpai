@@ -27,7 +27,7 @@ present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
 | Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
 | Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
 | Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Both installed-helper startup orders and the verified WSL namespace remain open. |
-| Catalog launch/attach write failure | Partial. Reserve exact identity before spawn, cancel a proven failed spawn, keep uncertainty if final persistence fails and publish natural exit before eviction. Attach uses an exact-run monotonic update; post-attach catalog failure remains an unconfirmed projection requiring recovery proof. |
+| Catalog launch/attach write failure | Repaired on the host. Launch reserves exact identity before spawn; an acquired writer returns its native tuple even if the projection write fails. Pending exact generations reconcile on maintenance without changing a newer writer or reordering MRU on replay. |
 | Catalog watch and cursor scoping | Repaired in the working tree. Cursor formats now bind filters. The watch ring stores bounded sanitized rows and preserves removal identity. Fixture coverage includes a changed filter and a real retained-window gap. |
 | Desktop launch, automatic restore, snapshots and shell entry | Launch through a verified opt-in target, restore only exact runs/free writers, recover from output gaps and exercise the private CLI in a real TTY. |
 | Windows and release acceptance | Prove Windows native ownership and real WSL/SSH lifetime, mixed-version install/upgrade, fairness/resource limits, and remaining V01-V30 cases on matched artifacts. |
@@ -1610,6 +1610,23 @@ recovery, session shell bootstrap, native Windows ownership, interactive CLI,
 resource/fairness benchmarks, cross-platform V01-V30 and packaging. See the
 closure checks above. MEMORY.md records the updated capability gate and ownership
 semantics.
+
+Record ID / date: S1-s / 2026-11-18
+Scope: catalog projection recovery and strict interface localization.
+Baseline: `4603a46a` on `feat/2.0.0`.
+
+An established writer returns its native tuple when SQLite is unwritable. The
+registry holds one unpublished generation per retained run, and the existing
+maintenance pass retries its exact account/boot/service/run projection. Durable
+recovery cannot roll back the published generation or revive an ended row. A
+launch still requires durable identity reservation before native spawn. The
+SSH guardian control now has simplified and traditional Chinese translations.
+
+Verification on macOS arm64: SQLite read-only fault fixture, 264 library tests
+passed with one ignored, app binary check and strict interface coverage
+(3,005 pairs; zero unclassified sites). Cloud communication run 44277308190
+failed at its translation gate for `4603a46a`. Native V-case acceptance remains
+open.
 
 ## Evidence index
 

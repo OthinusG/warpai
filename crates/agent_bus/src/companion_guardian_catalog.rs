@@ -470,23 +470,24 @@ impl Catalog {
         boot_id: &str,
         service_id: &str,
         generation: u64,
-    ) -> Result<(), String> {
-        if !self.find(session_id, run_id)?.is_some_and(|row| {
-            row.boot_id == boot_id
-                && row.service_id == service_id
-                && row.state == State::Live
-                && row.attachment_generation < generation
-        }) {
-            return Ok(());
+    ) -> Result<bool, String> {
+        let Some(row) = self.find(session_id, run_id)? else {
+            return Ok(false);
+        };
+        if row.boot_id != boot_id || row.service_id != service_id {
+            return Ok(false);
+        }
+        if row.state == State::Ended || row.attachment_generation >= generation {
+            return Ok(true);
         }
         let generation = i64::try_from(generation)
             .map_err(|_| "Invalid guardian attachment generation".to_owned())?;
         let mru = i64::try_from(self.allocate_seq()?)
             .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
         let updated = sql_query(
-            "UPDATE guardian_catalog_sessions SET attachment_generation=?, mru_seq=? \
+            "UPDATE guardian_catalog_sessions SET attachment_generation=?, mru_seq=?, state='live' \
              WHERE session_id=? AND run_id=? AND boot_id=? AND service_id=? \
-               AND state='live' AND attachment_generation<?",
+               AND state<>'ended' AND attachment_generation<?",
         )
         .bind::<BigInt, _>(generation)
         .bind::<BigInt, _>(mru)
@@ -500,7 +501,7 @@ impl Catalog {
         if updated > 0 {
             self.record_upsert(session_id);
         }
-        Ok(())
+        Ok(updated == 1)
     }
 
     /// Foreground acquisition/selection only; listing and observation never call this.
@@ -588,6 +589,15 @@ impl Catalog {
             events,
             gap: false,
         })
+    }
+
+    #[cfg(test)]
+    pub(super) fn set_query_only(&mut self, readonly: bool) {
+        self.connection.batch_execute(if readonly {
+            "PRAGMA query_only=ON"
+        } else {
+            "PRAGMA query_only=OFF"
+        }).unwrap();
     }
 
     /// Monotonic account revision; pages bound to it become stale after any mutation.

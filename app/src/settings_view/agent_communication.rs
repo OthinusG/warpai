@@ -387,7 +387,7 @@ impl View for CommunicationSettingsView {
             let guardian = builder.checkbox(self.ssh_guardian.clone(), None).check(ssh.preferences.guardian);
             let guardian = if ssh.busy { guardian.disabled() } else { guardian };
             body.add_child(build_toggle_element(
-                render_body_item_label_with_icon::<Action>("Keep remote sessions".into(), warp_core::ui::Icon::History, None, None,
+                render_body_item_label_with_icon::<Action>(warpui::localization::text("Keep remote sessions").into(), warp_core::ui::Icon::History, None, None,
                     LocalOnlyIconState::Hidden, if ssh.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
                 guardian.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::SshGuardian)).finish(),
                 appearance, Some(warpui::localization::text("Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.").into()),

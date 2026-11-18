@@ -721,6 +721,82 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
 
 #[cfg(unix)]
 #[test]
+fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
+    let catalog = std::sync::Arc::new(std::sync::Mutex::new(
+        guardian_catalog::Catalog::open(&state.path().join("catalog.sqlite3")).unwrap(),
+    ));
+    companion.catalog = Some(catalog.clone());
+    companion.account_guardian = Some(Uuid::parse_str(&fence.service_id).unwrap());
+    companion.route = Some(Route::Ssh);
+    let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
+        managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/sh".into(),
+            arguments: vec!["-c".into(), "sleep 30".into()],
+            columns: 80,
+            rows: 24,
+            guarded: true,
+            session_kind: Some(TerminalSessionKind::Command as i32),
+            ..Default::default()
+        }),
+    ))) else {
+        panic!("Guarded launch required");
+    };
+    let control = |action, attachment_id, attachment_generation| request(
+        managed_request::Operation::TerminalControl(TerminalControl {
+            fence: Some(fence.clone()),
+            session_id: launched.session_id.clone(),
+            run_id: launched.run_id.clone(),
+            action: action as i32,
+            attachment_id,
+            attachment_generation,
+            ..Default::default()
+        }),
+    );
+    assert!(matches!(
+        result(companion.handle(control(
+            TerminalAction::TerminalDetach,
+            launched.attachment_id.clone(),
+            launched.attachment_generation,
+        ))),
+        managed_response::Result::TerminalState(_)
+    ));
+    catalog.lock().unwrap().set_query_only(true);
+    let managed_response::Result::TerminalState(attached) = result(companion.handle(control(
+        TerminalAction::TerminalAttach, String::new(), 0,
+    ))) else {
+        panic!("Native attach must return the writer even when SQLite is read-only");
+    };
+    assert!(attached.attachment_generation > launched.attachment_generation);
+    assert!(matches!(
+        result(companion.handle(control(
+            TerminalAction::TerminalRead,
+            attached.attachment_id,
+            attached.attachment_generation,
+        ))),
+        managed_response::Result::TerminalState(_)
+    ));
+    assert_eq!(
+        catalog.lock().unwrap().list().unwrap()[0].attachment_generation,
+        launched.attachment_generation,
+    );
+    let pending = companion.terminals.pending_attachments();
+    assert_eq!(pending.len(), 1);
+    catalog.lock().unwrap().set_query_only(false);
+    guardian::sync_attachment(&companion.terminals, &catalog, &pending[0]);
+    let published = catalog.lock().unwrap().list().unwrap().remove(0);
+    assert_eq!(published.attachment_generation, attached.attachment_generation);
+    assert!(companion.terminals.pending_attachments().is_empty());
+    guardian::sync_attachment(&companion.terminals, &catalog, &pending[0]);
+    assert_eq!(catalog.lock().unwrap().list().unwrap()[0].mru_seq, published.mru_seq);
+}
+
+#[cfg(unix)]
+#[test]
 fn legacy_stop_requires_the_owning_connection() {
     use std::time::{Duration, Instant};
     let root = tempfile::tempdir().unwrap();
