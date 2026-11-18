@@ -59,7 +59,7 @@ guardian ownership remain open.
 | S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
 | S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
-| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect and native CLI TTY, private `ctl list/resume/stop`, and exact live project admission across working directories. Bash/Zsh session-only command is wired into bootstrap. Desktop launch/restore and native Windows shell entry remain open. |
+| S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux/macOS SSH reconnect and native CLI TTY, private `ctl list/resume/stop`, and exact live project admission across working directories. Bash/Zsh session-only command is wired into bootstrap. Desktop launch/restore and native Windows shell entry remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications, direct terminal lookup and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared pool dispatch, bulk fairness and measured resource budgets remain open. |
@@ -1950,7 +1950,10 @@ On macOS, resume and input succeeded but the final restoration marker was
 missing. A full local Darwin PTY attribute comparison reproduced the extra
 `PENDIN` bit after canonical mode returned. The CLI restores attributes and
 flushes pending input without waiting for the output queue. The full attribute
-comparison passes after the fix. Remote macOS verification remains open.
+comparison passes after the fix. On `3d33a7d6`, [run 44328848156](https://github.com/OthinusG/warpai/actions/runs/44328848156)
+passed all three platforms. The macOS OpenSSH job passed the guarded reconnect
+with the outer TTY restoration assertion, then existing direct and jump SFTP
+fixtures. Linux passed its corresponding owned OpenSSH matrix on the same source.
 
 Record ID / date: S4-d / 2026-11-18
 Scope: Bash/Zsh session-only `warpai` command (FR-16, V26).

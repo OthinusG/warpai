@@ -414,7 +414,8 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   keep precedence. Native Windows still needs its guardian and shell path.
 - Darwin leaves `PENDIN` when a raw CLI returning to canonical mode uses only
   `TCSANOW`. Flush pending input after restoring attributes without draining
-  output. Local PTY regression compares all termios fields.
+  output. The full local comparison and real macOS/Linux SSH TTY test passed
+  on `3d33a7d6` (remote run 44328848156).
 
 ## Memory maintenance
 
