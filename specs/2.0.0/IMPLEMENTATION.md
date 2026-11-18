@@ -15,9 +15,12 @@ account catalog, snapshot, CLI, desktop opt-in, scheduler, packaging/version cha
 or release is implemented. V01-V30 runtime acceptance is NOT RUN. No guard client
 can reach the slice because `guarded_remote_sessions_v1` is deliberately not
 advertised. Runtime inspection baseline is
-`db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; all 2.0.0 changes are uncommitted.
-Revalidate current HEAD at implementation startup rather than assuming an earlier
-observed repository position is still current.
+`db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the slice is committed as
+`87e18c942630e58c91849532fb132323e0500ab5` on `feat/2.0.0`, while `main` remains
+at the baseline. A read-only peer review at that commit identified remaining
+P1/P2 work; it is not runtime evidence. Revalidate current HEAD at implementation
+startup rather than assuming an earlier observed repository position is still
+current.
 
 The owner corrected the initial plan: guarding is optional/default-off, native
 local persistence is excluded, SSH and WSL are both core, and resource overhead
@@ -234,7 +237,8 @@ Record ID / date: S0-a / 2026-11-18
 Work item and PRD requirements: S0 inventory and additive contract (FR-02, FR-03)
 Status: implemented_unverified
 Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
-Implementation commit / PR: none; uncommitted worktree changes
+Implementation commit / PR: 87e18c942630e58c91849532fb132323e0500ab5 on
+  feat/2.0.0; no PR
 
 Problem and observable before/after:
   Before: protocol major 1 had only connection-owned launch/control; no launch
@@ -298,7 +302,8 @@ Work item and PRD requirements: S1 guarded native ownership; S3 attach/detach/
   takeover and input ordering (FR-02, FR-03, FR-05)
 Status: implemented_unverified; writer gate/stop/input semantics superseded by S1-b
 Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
-Implementation commit / PR: none; uncommitted worktree changes
+Implementation commit / PR: 87e18c942630e58c91849532fb132323e0500ab5 on
+  feat/2.0.0; no PR
 
 Problem and observable before/after:
   Before: losing the control connection always revoked the session, dropped the
@@ -390,7 +395,8 @@ Work item and PRD requirements: S1 guarded ownership; S3 attachment fence, takeo
   and ordered input (FR-02, FR-03, FR-05)
 Status: implemented_unverified
 Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
-Implementation commit / PR: none; uncommitted worktree changes
+Implementation commit / PR: 87e18c942630e58c91849532fb132323e0500ab5 on
+  feat/2.0.0; no PR
 
 Problem and observable before/after:
   Before (S1-a): guarded Input/Resize/Read/Detach/Release checked only the
