@@ -8,7 +8,7 @@ mod platform;
 #[path = "native_pty_windows.rs"]
 mod platform;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Size {
     pub columns: u16,
     pub rows: u16,

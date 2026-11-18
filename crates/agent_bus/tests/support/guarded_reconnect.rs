@@ -175,6 +175,31 @@ pub async fn verify_guarded_reconnect(
     };
     assert_eq!(attached.run_id, launched.run_id);
     assert!(attached.attachment_generation > launched.attachment_generation);
+    let mut resize = request(&rejoined, &attached, TerminalAction::TerminalResize);
+    resize.columns = 100;
+    resize.rows = 30;
+    resize.resize_sequence = 1;
+    assert_eq!(
+        second
+            .terminal(resize.clone())
+            .await
+            .accepted_resize_sequence,
+        1
+    );
+    assert_eq!(
+        second
+            .terminal(resize.clone())
+            .await
+            .accepted_resize_sequence,
+        1
+    );
+    resize.columns = 101;
+    let conflict = second
+        .call(managed_request::Operation::TerminalControl(resize))
+        .await;
+    assert!(matches!(conflict, managed_response::Result::Error(error)
+        if error.code == ManagedErrorCode::ManagedConflict as i32));
+
     let stale = second
         .call(managed_request::Operation::TerminalControl(request(
             &rejoined,

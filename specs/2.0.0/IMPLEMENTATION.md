@@ -1685,6 +1685,27 @@ isolation fixtures, strict interface localization and macOS app compilation.
 The actual WSL root translation, Windows settings and native appearance still
 require their platform runs.
 
+Record ID / date: S3-a / 2026-11-18
+Scope: guarded viewport sequencing, CLI TTY handling, and launch contention.
+Baseline: `0bba6640` on `feat/2.0.0`.
+
+Guarded resize is individually sequenced per native writer. Identical retries
+echo the accepted sequence without reapplying size, a conflicting replay fails,
+and a replaced writer cannot resize. The CLI completes attachment before
+sending its first viewport resize. It checks local input between retained
+output pages, restores native terminal attributes on exit, and detaches once
+using the last exact tuple. It forwards literal input preceding a detach
+escape in the same read. Native launch reserves a bounded pending ID, then
+releases the shared registry before spawning; other sessions can progress
+while that launch is blocked.
+
+Host proof on macOS arm64: 268 agent bus tests passed (one ignored) and
+17 protocol tests passed. Positive, replay, conflict and stale resize on a real local PTY;
+native termios restoration; concurrent sibling launch under an injected
+blocked launch with duplicate-ID rejection. The Linux OpenSSH and WSL
+fixtures also exercise resize when built from this revision. Full interactive
+TTY, snapshot, shared wake scheduling and native release gates remain open.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

@@ -3,7 +3,7 @@ use super::*;
 use crate::native_pty::{NativePty, Size};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     io::{Read, Write},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -324,9 +324,23 @@ struct StopBatch {
 #[derive(Default)]
 pub(super) struct Terminals {
     owners: Mutex<BTreeMap<String, Owner>>,
+    pending_launches: Mutex<BTreeSet<String>>,
     #[cfg(unix)]
     stop_batches: Mutex<BTreeMap<Uuid, StopBatch>>,
 }
+struct LaunchSlot<'a> {
+    pending: &'a Mutex<BTreeSet<String>>,
+    session_id: String,
+}
+
+impl Drop for LaunchSlot<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.remove(&self.session_id);
+        }
+    }
+}
+
 #[derive(Default)]
 struct Output {
     bytes: VecDeque<u8>,
@@ -360,6 +374,7 @@ struct Session {
     writer: Arc<WriteFence>,
     ledger: Arc<Mutex<InputLedger>>,
     sequence: u64,
+    last_resize: Option<(u64, Size)>,
     failed: Arc<AtomicBool>,
     revoked: Arc<AtomicBool>,
     stop_requested: bool,
@@ -669,10 +684,26 @@ impl Terminals {
             }
             tasks.prepare_agent(program, executable)?;
         }
-        let mut sessions = lock(&self.owners)?;
-        let evict = sessions.len() >= MAX_SESSIONS;
-        prune_sessions(&mut sessions, Instant::now(), evict);
-        if let Some(state) = reconcile(&sessions)? { return Ok(state); }
+        let _slot = {
+            let mut sessions = lock(&self.owners)?;
+            let mut pending = lock(&self.pending_launches)?;
+            let evict = sessions.len() + pending.len() >= MAX_SESSIONS;
+            prune_sessions(&mut sessions, Instant::now(), evict);
+            if let Some(state) = reconcile(&sessions)? {
+                return Ok(state);
+            }
+            if pending.contains(&request.session_id) {
+                return Err(Error::ManagedConflict);
+            }
+            if sessions.len() + pending.len() >= MAX_SESSIONS {
+                return Err(Error::ManagedCapacityExceeded);
+            }
+            pending.insert(request.session_id.clone());
+            LaunchSlot {
+                pending: &self.pending_launches,
+                session_id: request.session_id.clone(),
+            }
+        };
         let run_id = Uuid::new_v4().to_string();
         let binding = request
             .agent_program
@@ -906,6 +937,7 @@ impl Terminals {
             writer: writer_fence,
             ledger,
             sequence: 0,
+            last_resize: None,
             failed,
             revoked,
             stop_requested: false,
@@ -918,7 +950,7 @@ impl Terminals {
             catalog_generation: 0,
         };
         let state = session.state(fence, None, None)?;
-        sessions.insert(
+        lock(&self.owners)?.insert(
             session.launch.session_id.clone(),
             Arc::new(Mutex::new(session)),
         );
@@ -951,7 +983,7 @@ impl Terminals {
         if action != TerminalAction::TerminalInput
             && (!request.input.is_empty() || request.input_sequence != 0)
             || action != TerminalAction::TerminalResize
-                && (request.columns != 0 || request.rows != 0)
+                && (request.columns != 0 || request.rows != 0 || request.resize_sequence != 0)
             || action != TerminalAction::TerminalRead && request.output_offset != 0
             || (!request.attachment_id.is_empty() && !valid_id(&request.attachment_id))
         {
@@ -1032,12 +1064,30 @@ impl Terminals {
                     return Err(Error::ManagedStaleAttachment);
                 }
                 let size = dimensions(request.columns, request.rows)?;
-                session
-                    .pty
-                    .resize(size)
-                    .map_err(path_error)?;
-                if let Some(screen) = &session.screen { lock(screen)?.resize(size.rows, size.columns); }
-                if let Some(binding) = &session.binding { binding.broker.output(&binding.terminal); }
+                if session.policy == Policy::Guarded {
+                    let previous = session.last_resize.map_or(0, |(sequence, _)| sequence);
+                    if request.resize_sequence == previous && previous != 0 {
+                        if session.last_resize != Some((previous, size)) {
+                            return Err(Error::ManagedConflict);
+                        }
+                        return session.state(fence, None, None);
+                    }
+                    if previous.checked_add(1) != Some(request.resize_sequence) {
+                        return Err(Error::ManagedConflict);
+                    }
+                } else if request.resize_sequence != 0 {
+                    return Err(Error::ManagedInvalidInput);
+                }
+                session.pty.resize(size).map_err(path_error)?;
+                if session.policy == Policy::Guarded {
+                    session.last_resize = Some((request.resize_sequence, size));
+                }
+                if let Some(screen) = &session.screen {
+                    lock(screen)?.resize(size.rows, size.columns);
+                }
+                if let Some(binding) = &session.binding {
+                    binding.broker.output(&binding.terminal);
+                }
             }
             TerminalAction::TerminalStop => {
                 // This slice has no authenticated operator role; stop stays writer-bound.
@@ -1086,6 +1136,7 @@ impl Terminals {
                     session.attachment_id = Uuid::new_v4().to_string();
                     // Input sequences and receipts are scoped to one attachment.
                     session.sequence = 0;
+                    session.last_resize = None;
                     session.connection = Some(fence.connection_id.clone());
                 }
             }
@@ -1353,6 +1404,60 @@ impl Terminals {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn pending_native_launch_does_not_hold_the_shared_registry() {
+        let state = tempfile::tempdir().unwrap();
+        let terminals = Terminals::default();
+        let projects = tasks::Projects::new(&state.path().join("private"));
+        let fence = ManagedFence {
+            service_id: Uuid::new_v4().to_string(),
+            service_boot_id: Uuid::new_v4().to_string(),
+            project_id: Uuid::new_v4().to_string(),
+            connection_id: Uuid::new_v4().to_string(),
+        };
+        let launch = TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/cat".into(),
+            columns: 80,
+            rows: 24,
+            ..Default::default()
+        };
+        let (entered, entered_rx) = mpsc::channel();
+        let (resume, resume_rx) = mpsc::channel();
+        std::thread::scope(|scope| {
+            let (terminals, projects, state, fence, launch) =
+                (&terminals, &projects, &state, &fence, &launch);
+            scope.spawn(move || {
+                let result = terminals.launch(
+                    launch.clone(), &fence, state.path(), &projects, false, false,
+                    |_, beginning| {
+                        if beginning {
+                            entered.send(()).unwrap();
+                            resume_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+                        }
+                        Ok(())
+                    },
+                );
+                assert!(result.is_ok());
+            });
+            entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+            let duplicate = terminals.launch(
+                launch.clone(), &fence, state.path(), &projects, false, false,
+                |_, _| panic!("Concurrent retry must not spawn"),
+            );
+            let sibling = terminals.launch(
+                TerminalLaunch { session_id: Uuid::new_v4().to_string(), ..launch.clone() },
+                &fence, state.path(), &projects, false, false,
+                |_, _| Ok(()),
+            );
+            resume.send(()).unwrap();
+            assert_eq!(duplicate.unwrap_err(), Error::ManagedConflict);
+            assert!(sibling.is_ok());
+        });
+    }
+
     #[test]
     fn output_buffer_preserves_absolute_offsets_when_full() {
         let mut output = Output::default();
@@ -1757,6 +1862,7 @@ impl Session {
             },
             output_truncated: requested < first,
             accepted_input_sequence: self.sequence,
+            accepted_resize_sequence: self.last_resize.map_or(0, |(sequence, _)| sequence),
             input_failed: self.failed.load(Ordering::Acquire),
             output_closed: output.closed,
             guarded: Some(guarded),

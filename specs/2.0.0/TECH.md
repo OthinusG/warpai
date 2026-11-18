@@ -238,6 +238,11 @@ window once there is no live guarded/legacy work, active request or retained out
 The bounded ended-output window may postpone idle exit; do not remain permanently
 resident because an old catalog row exists. No auto-start/login service by default.
 
+Pending native launches reserve their exact session ID and count against the
+same account capacity as live PTYs. The registry lock is released before
+native spawn, so a delayed launch cannot block input, reads or stop handling
+for existing runs. Concurrent reuse of a pending ID reports a conflict.
+
 ## Future-launch preferences
 
 Store SSH opt-ins by the verified logical service ID of the selected account,

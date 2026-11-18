@@ -797,6 +797,38 @@ fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
         panic!("Native attach must return the writer even when SQLite is read-only");
     };
     assert!(attached.attachment_generation > launched.attachment_generation);
+    let mut resize = TerminalControl {
+        fence: Some(fence.clone()),
+        session_id: attached.session_id.clone(),
+        run_id: attached.run_id.clone(),
+        attachment_id: attached.attachment_id.clone(),
+        attachment_generation: attached.attachment_generation,
+        action: TerminalAction::TerminalResize as i32,
+        columns: 100,
+        rows: 28,
+        resize_sequence: 1,
+        ..Default::default()
+    };
+    for _ in 0..2 {
+        let managed_response::Result::TerminalState(reply) = result(companion.handle(request(
+            managed_request::Operation::TerminalControl(resize.clone()),
+        ))) else {
+            panic!("Idempotent resize must return an accepted sequence");
+        };
+        assert_eq!(reply.accepted_resize_sequence, 1);
+    }
+    resize.columns = 101;
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::TerminalControl(resize.clone())))),
+        managed_response::Result::Error(error) if error.code == ManagedErrorCode::ManagedConflict as i32
+    ));
+    resize.resize_sequence = 2;
+    resize.attachment_generation = launched.attachment_generation;
+    assert!(matches!(
+        result(companion.handle(request(managed_request::Operation::TerminalControl(resize)))),
+        managed_response::Result::Error(error) if error.code == ManagedErrorCode::ManagedStaleAttachment as i32
+    ));
+
     assert!(matches!(
         result(companion.handle(control(
             TerminalAction::TerminalRead,

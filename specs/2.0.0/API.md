@@ -253,6 +253,10 @@ terminal/shell-block state needed by a later Warpai attachment.
 - Resize has its own monotonic sequence and is ordered against output/model
   revision. Repeat requests with the same dimensions are idempotent; old writers
   and conflicting same-sequence dimensions are rejected.
+  Guarded resize uses `TerminalControl.resize_sequence` (tag 14) and echoes
+  `TerminalState.accepted_resize_sequence` (tag 21). It starts at one for
+  each new writer. The v1 CLI attaches first and sets the viewport using the
+  first resize for that writer.
 - Stop/detach retries are scoped to the exact old run/attachment. An old stop
   receipt never authorizes stopping a newly launched run with a similar label.
 

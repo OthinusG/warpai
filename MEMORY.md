@@ -384,6 +384,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   continuity, exact run/boot rejoin and stale-writer refusal. Full desktop
   and V02/V04 release gates remain open. Details in specs/2.0.0/IMPLEMENTATION.md.
 
+- Guarded resize is idempotently sequenced per writer. Pending PTY launches
+  reserve a session slot before releasing the shared registry for native spawn.
+
 ## Memory maintenance
 
 Keep under 200 lines / 12 KB; receipts go in specs. Preserve evidence;

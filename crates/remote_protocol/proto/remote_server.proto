@@ -351,6 +351,7 @@ message TerminalControl {
   uint64 attachment_generation = 12;
   // Explicitly fence the observed writer generation on a conflicted attach.
   bool takeover = 13;
+  uint64 resize_sequence = 14;
 }
 message TerminalState {
   reserved 4, 5;
@@ -374,6 +375,7 @@ message TerminalState {
   string attachment_id = 19;
   // Receipt for the requested or most recent human input; legacy states omit it.
   optional InputReceipt input_receipt = 20;
+  uint64 accepted_resize_sequence = 21;
 }
 // Queue acceptance is not native write completion, Agent acknowledgement or task
 // execution. A receipt is a selector, never an authority credential.

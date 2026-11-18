@@ -541,7 +541,6 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
             return EXIT_DOMAIN;
         }
     };
-    let dimensions = terminal_size();
     let attach = TerminalControl {
         fence: client.fence().cloned(),
         session_id: current.session_id.clone(),
@@ -554,8 +553,6 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
             0
         },
         takeover,
-        columns: dimensions.0,
-        rows: dimensions.1,
         ..Default::default()
     };
     let mut state = match client.terminal_control(attach).await {
@@ -580,9 +577,17 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
 
 /// Direct TTY attachment; output offsets and input receipts stay authoritative.
 async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 {
-    let raw = RawTerminal::enable();
+    let raw = match RawTerminal::enable(libc::STDIN_FILENO) {
+        Ok(raw) => raw,
+        Err(_) => {
+            eprintln!("Could not configure the local terminal.");
+            detach(client, state).await;
+            return EXIT_DOMAIN;
+        }
+    };
     let result = attach_inner(client, state).await;
     drop(raw);
+    detach(client, state).await;
     result.unwrap_or_else(|code| code)
 }
 
@@ -593,11 +598,31 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
     let mut buffer = [0u8; 4096];
     let mut offset = 0u64;
     let mut sequence = 0u64;
-    let mut input_open = true;
-    let mut dimensions = terminal_size();
+    let mut dimensions = None;
     let mut prefix = false;
     let mut truncated_notice = false;
     loop {
+        let resized = terminal_size();
+        if Some(resized) != dimensions {
+            let resize = TerminalControl {
+                fence: client.fence().cloned(),
+                session_id: state.session_id.clone(),
+                run_id: state.run_id.clone(),
+                action: TerminalAction::TerminalResize as i32,
+                columns: resized.0,
+                rows: resized.1,
+                resize_sequence: state.accepted_resize_sequence.saturating_add(1),
+                attachment_id: state.attachment_id.clone(),
+                attachment_generation: state.attachment_generation,
+                ..Default::default()
+            };
+            let Ok(reply) = client.terminal_control(resize).await else {
+                eprintln!("\r\nSession resize was rejected.");
+                return Err(EXIT_DOMAIN);
+            };
+            *state = reply;
+            dimensions = Some(resized);
+        }
         let control = TerminalControl {
             fence: client.fence().cloned(),
             session_id: state.session_id.clone(),
@@ -621,62 +646,36 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
         };
         if reply.output_truncated && !truncated_notice {
             truncated_notice = true;
-            let _ = stdout
-                .write_all(b"\r\n[earlier output is no longer retained]\r\n")
-                .await;
+            stdout.write_all(b"\r\n[earlier output is no longer retained]\r\n")
+                .await.map_err(|_| EXIT_DOMAIN)?;
         }
-        let _ = stdout.write_all(&reply.output).await;
-        let _ = stdout.flush().await;
+        stdout.write_all(&reply.output).await.map_err(|_| EXIT_DOMAIN)?;
+        stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
         offset = reply.output_offset + reply.output.len() as u64;
         *state = reply;
         if state.processes_active == Some(false)
             && state.output_closed
             && offset == state.output_end
         {
-            detach(client, state).await;
             return Ok(state.exit_code.unwrap_or(EXIT_OK).clamp(0, 255));
         }
-        if offset < state.output_end {
-            continue;
-        }
-        let resized = terminal_size();
-        if resized != dimensions {
-            let resize = TerminalControl {
-                fence: client.fence().cloned(),
-                session_id: state.session_id.clone(),
-                run_id: state.run_id.clone(),
-                action: TerminalAction::TerminalResize as i32,
-                columns: resized.0,
-                rows: resized.1,
-                attachment_id: state.attachment_id.clone(),
-                attachment_generation: state.attachment_generation,
-                ..Default::default()
-            };
-            dimensions = resized;
-            if client.terminal_control(resize).await.is_err() {
-                eprintln!("\r\nSession resize was rejected.");
-                return Err(EXIT_DOMAIN);
-            }
-        }
+        let wait = if offset < state.output_end { Duration::ZERO } else { Duration::from_millis(20) };
         tokio::select! {
-            read = stdin.read(&mut buffer), if input_open => {
+            biased;
+            read = stdin.read(&mut buffer) => {
                 let count = match read {
                     Ok(count) => count,
                     Err(_) => 0,
                 };
                 if count == 0 {
                     // EOF detaches; it never stops the guardian-owned process.
-                    detach(client, state).await;
                     return Ok(EXIT_OK);
                 }
-                let mut send = Vec::with_capacity(count);
-                let (filtered, detach_now) = escape_filter(&buffer[..count], &mut prefix);
-                send.extend(filtered);
-                if detach_now {
-                    detach(client, state).await;
-                    return Ok(EXIT_OK);
-                }
+                let (send, detach_now) = escape_filter(&buffer[..count], &mut prefix);
                 if send.is_empty() {
+                    if detach_now {
+                        return Ok(EXIT_OK);
+                    }
                     continue;
                 }
                 sequence += 1;
@@ -695,17 +694,18 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
                     Ok(reply) => *state = reply,
                     Err(ConnectionError::DeliveryUnknown) => {
                         eprintln!("\r\nInput delivery is unconfirmed; detaching.");
-                        detach(client, state).await;
                         return Err(EXIT_DOMAIN);
                     }
                     Err(_) => {
                         eprintln!("\r\nSession input was rejected; detaching.");
-                        detach(client, state).await;
                         return Err(EXIT_DOMAIN);
                     }
                 }
+                if detach_now {
+                    return Ok(EXIT_OK);
+                }
             }
-            _ = tokio::time::sleep(Duration::from_millis(20)) => ()
+            _ = tokio::time::sleep(wait) => ()
         }
     }
 }
@@ -811,34 +811,36 @@ fn terminal_size() -> (u32, u32) {
     (80, 24)
 }
 
-struct RawTerminal(Option<libc::termios>);
+struct RawTerminal {
+    fd: std::os::fd::RawFd,
+    original: Option<libc::termios>,
+}
 
 impl RawTerminal {
-    fn enable() -> Self {
-        use std::io::IsTerminal;
-        if !std::io::stdin().is_terminal() {
-            return Self(None);
+    fn enable(fd: std::os::fd::RawFd) -> std::io::Result<Self> {
+        if unsafe { libc::isatty(fd) } != 1 {
+            return Ok(Self { fd, original: None });
         }
         unsafe {
-            let mut original: libc::termios = std::mem::zeroed();
-            if libc::tcgetattr(0, &mut original) != 0 {
-                return Self(None);
+            let mut original = std::mem::zeroed();
+            if libc::tcgetattr(fd, &mut original) != 0 {
+                return Err(std::io::Error::last_os_error());
             }
             let mut raw = original;
             libc::cfmakeraw(&mut raw);
-            if libc::tcsetattr(0, libc::TCSANOW, &raw) != 0 {
-                return Self(None);
+            if libc::tcsetattr(fd, libc::TCSANOW, &raw) != 0 {
+                return Err(std::io::Error::last_os_error());
             }
-            Self(Some(original))
+            Ok(Self { fd, original: Some(original) })
         }
     }
 }
 
 impl Drop for RawTerminal {
     fn drop(&mut self) {
-        if let Some(original) = &self.0 {
+        if let Some(original) = &self.original {
             unsafe {
-                libc::tcsetattr(0, libc::TCSANOW, original);
+                libc::tcsetattr(self.fd, libc::TCSANOW, original);
             }
         }
     }
@@ -847,6 +849,33 @@ impl Drop for RawTerminal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn restore_original_terminal_attributes_on_detach() {
+        use std::os::fd::{AsRawFd, FromRawFd};
+        let mut master = -1;
+        let mut slave = -1;
+        let (_master, slave) = unsafe {
+            assert_eq!(
+                libc::openpty(
+                    &mut master, &mut slave, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(),
+                ),
+                0
+            );
+            (std::fs::File::from_raw_fd(master), std::fs::File::from_raw_fd(slave))
+        };
+        let fd = slave.as_raw_fd();
+        let mode = || unsafe {
+            let mut attributes: libc::termios = std::mem::zeroed();
+            assert_eq!(libc::tcgetattr(fd, &mut attributes), 0);
+            attributes.c_lflag & (libc::ICANON | libc::ECHO | libc::ISIG | libc::IEXTEN)
+        };
+        let original = mode();
+        let raw = RawTerminal::enable(fd).unwrap();
+        assert_eq!(mode(), 0);
+        drop(raw);
+        assert_eq!(mode(), original);
+    }
 
     fn args(value: &[&str]) -> Vec<String> {
         value.iter().map(|item| (*item).to_owned()).collect()
