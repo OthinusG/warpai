@@ -243,6 +243,13 @@ same account capacity as live PTYs. The registry lock is released before
 native spawn, so a delayed launch cannot block input, reads or stop handling
 for existing runs. Concurrent reuse of a pending ID reports a conflict.
 
+The PTY reader advances the retained byte offset and the existing native Agent
+screen under one output lock. Resize takes the same lock before the native
+viewport change. This establishes a byte-cut barrier for the screen prototype
+without holding parser state across a network request. Parser-state export,
+shell/block restoration and the bounded paged snapshot format are separate
+S2/S3 closure requirements.
+
 ## Future-launch preferences
 
 Store SSH opt-ins by the verified logical service ID of the selected account,

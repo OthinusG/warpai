@@ -577,6 +577,14 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
 
 /// Direct TTY attachment; output offsets and input receipts stay authoritative.
 async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 {
+    let signals = match TerminationSignals::new() {
+        Ok(signals) => signals,
+        Err(_) => {
+            eprintln!("Could not install terminal cleanup handlers.");
+            detach(client, state).await;
+            return EXIT_DOMAIN;
+        }
+    };
     let raw = match RawTerminal::enable(libc::STDIN_FILENO) {
         Ok(raw) => raw,
         Err(_) => {
@@ -585,10 +593,52 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 
             return EXIT_DOMAIN;
         }
     };
-    let result = attach_inner(client, state).await;
+    let result = tokio::select! {
+        biased;
+        signal = signals.recv() => Err(signal),
+        result = attach_inner(client, state) => Ok(result),
+    };
     drop(raw);
-    detach(client, state).await;
-    result.unwrap_or_else(|code| code)
+    match result {
+        Ok(result) => {
+            detach(client, state).await;
+            result.unwrap_or_else(|code| code)
+        }
+        Err(signal) => {
+            // The in-flight managed frame may be incomplete. Closing the
+            // transport detaches without sending another frame on that stream.
+            client.disconnect();
+            128 + signal
+        }
+    }
+}
+
+struct TerminationSignals {
+    interrupt: tokio::signal::unix::Signal,
+    terminate: tokio::signal::unix::Signal,
+    hangup: tokio::signal::unix::Signal,
+    quit: tokio::signal::unix::Signal,
+}
+
+impl TerminationSignals {
+    fn new() -> std::io::Result<Self> {
+        use tokio::signal::unix::{signal, SignalKind};
+        Ok(Self {
+            interrupt: signal(SignalKind::interrupt())?,
+            terminate: signal(SignalKind::terminate())?,
+            hangup: signal(SignalKind::hangup())?,
+            quit: signal(SignalKind::quit())?,
+        })
+    }
+
+    async fn recv(mut self) -> i32 {
+        tokio::select! {
+            _ = self.interrupt.recv() => libc::SIGINT,
+            _ = self.terminate.recv() => libc::SIGTERM,
+            _ = self.hangup.recv() => libc::SIGHUP,
+            _ = self.quit.recv() => libc::SIGQUIT,
+        }
+    }
 }
 
 async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Result<i32, i32> {

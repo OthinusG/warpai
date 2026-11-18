@@ -44,7 +44,7 @@ present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); v1 SQLite catalog and account RPC tags are on the wire; cutover, operator semantics and compatibility evidence remain open |
 | S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
-| S2 compact terminal restoration | not_started | None |
+| S2 compact terminal restoration | in_progress | Local byte-cut ordering barrier. Decoder and screen/block export/import, lazy snapshots and native fidelity remain open. |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
 | S4 SSH optional UI/CLI | in_progress | Persisted `guardian` opt-in, settings checkbox, guarded transport selection in the remote panel, `ctl list/resume/stop` with exit codes and documented absolute-helper invocation; no session-only shell function and no native remote run |
 | S5 mandatory WSL guardian | in_progress | Linux guest guardian route behind `wsl_companion`, `--guardian-stdio wsl` bridge and Windows client guarded WSL constructors exist; prune/TTL and Windows unsupported messages are host-tested only; no WSL distribution run |
@@ -1705,6 +1705,24 @@ native termios restoration; concurrent sibling launch under an injected
 blocked launch with duplicate-ID rejection. The Linux OpenSSH and WSL
 fixtures also exercise resize when built from this revision. Full interactive
 TTY, snapshot, shared wake scheduling and native release gates remain open.
+
+Record ID / date: S2-a / 2026-11-18
+Scope: ordered native parser/retention cut and POSIX attachment cleanup.
+Baseline: `36bdc6d3` on `feat/2.0.0`.
+
+The existing native Agent screen and bounded retained bytes now share the
+same output lock. A read cannot observe a byte cut ahead of the parser. Resize
+takes the lock across native and parser dimensions. An incomplete Unicode
+sequence stays in the parser while the exact retained byte count advances;
+this makes the need for saved decoder state explicit. The CLI restores the
+local raw TTY on handled SIGINT, SIGTERM, SIGHUP and SIGQUIT. If a signal
+interrupts a managed frame, it closes the transport and lets the guardian
+detach the writer instead of writing another potentially misframed request.
+
+Host proof: the real local cut fixture handles split Unicode and exact
+retained bytes. The CLI tests include actual PTY terminal attributes and
+escape parsing. Snapshot format/import, block state and interactive native
+signal acceptance remain open.
 
 ## Evidence index
 

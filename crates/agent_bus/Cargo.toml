@@ -27,7 +27,7 @@ serde_json.workspace = true
 sha2.workspace = true
 subtle = "=2.6.1"
 schemars.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util", "io-std", "process"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util", "io-std", "process", "signal"] }
 uuid.workspace = true
 unicode-segmentation = "=1.11.0"
 remote_protocol.workspace = true

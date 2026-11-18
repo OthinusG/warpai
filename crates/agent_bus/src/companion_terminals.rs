@@ -346,16 +346,21 @@ struct Output {
     bytes: VecDeque<u8>,
     end: u64,
     closed: bool,
+    screen: Option<crate::screen_detection::native::NativeScreen>,
 }
 impl Output {
     fn append(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        self.end = self
+        let end = self
             .end
             .checked_add(bytes.len() as u64)
             .ok_or(Error::ManagedUnavailable)?;
         self.bytes.extend(bytes);
         let discard = self.bytes.len().saturating_sub(BUFFER_BYTES);
         self.bytes.drain(..discard);
+        if let Some(screen) = &mut self.screen {
+            screen.process(bytes);
+        }
+        self.end = end;
         Ok(())
     }
 }
@@ -367,7 +372,6 @@ struct Session {
     binding: Option<tasks::RunBinding>,
     pty: NativePty,
     output: Arc<Mutex<Output>>,
-    screen: Option<Arc<Mutex<crate::screen_detection::native::NativeScreen>>>,
     input: mpsc::SyncSender<NativeInput>,
     connection: Option<String>,
     attachment_id: String,
@@ -751,16 +755,18 @@ impl Terminals {
         };
         let mut reader = pty.reader.try_clone().map_err(path_error)?;
         let mut writer = pty.writer.try_clone().map_err(path_error)?;
-        let output = Arc::new(Mutex::new(Output::default()));
-        let screen = binding.as_ref().map(|_| Arc::new(Mutex::new(
-            crate::screen_detection::native::NativeScreen::new(size.rows, size.columns))));
+        let output = Arc::new(Mutex::new(Output {
+            screen: binding.as_ref().map(|_| {
+                crate::screen_detection::native::NativeScreen::new(size.rows, size.columns)
+            }),
+            ..Default::default()
+        }));
         let revoked = Arc::new(AtomicBool::new(false));
         let writer_fence = Arc::new(WriteFence::default());
         let ledger = Arc::new(Mutex::new(InputLedger::default()));
         let (input, receiver) = mpsc::sync_channel::<NativeInput>(16);
         let failed = Arc::new(AtomicBool::new(false));
         let collected = output.clone();
-        let captured = screen.clone();
         let observed = binding.as_ref().map(|binding| (binding.broker.clone(), binding.terminal.clone()));
         std::thread::spawn(move || {
             let mut buffer = [0; 8192];
@@ -776,19 +782,16 @@ impl Terminals {
                     let Ok(mut output) = collected.lock() else { return; };
                     if output.append(&buffer[..count]).is_err() { break; }
                 }
-                if let Some(screen) = &captured {
-                    if let Ok(mut screen) = screen.lock() { screen.process(&buffer[..count]); }
-                }
                 if let Some((broker, terminal)) = &observed { broker.output(terminal); }
             }
             if let Ok(mut output) = collected.lock() {
                 output.closed = true;
             }
         });
-        if let (Some(binding), Some(screen)) = (&binding, &screen) {
+        if let Some(binding) = &binding {
             let broker = binding.broker.clone();
             let terminal = binding.terminal.clone();
-            let screen = screen.clone();
+            let output = output.clone();
             let stopped = revoked.clone();
             let input = input.clone();
             std::thread::spawn(move || {
@@ -798,7 +801,9 @@ impl Terminals {
                     std::thread::sleep(std::time::Duration::from_millis(300));
                     let Some(context) = broker.screen_context(&terminal) else { break; };
                     if !sampled.as_ref().is_some_and(|previous| context.same_screen(previous)) {
-                        let activity = screen.lock().ok().and_then(|screen| screen.activity(&context));
+                        let activity = output.lock().ok().and_then(|output| {
+                            output.screen.as_ref()?.activity(&context)
+                        });
                         if let Some(activity) = activity {
                             if broker.observe_screen(&terminal, &context, activity) { sampled = Some(context); }
                         }
@@ -807,7 +812,8 @@ impl Terminals {
                         if !broker.wake_valid(&wake) { broker.finish_wake(&wake, false); continue; }
                         let bytes = if paste {
                             let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
-                            if screen.lock().is_ok_and(|screen| screen.bracketed_paste()) {
+                            if output.lock().is_ok_and(|output| output.screen.as_ref()
+                                .is_some_and(|screen| screen.bracketed_paste())) {
                                 [b"\x1b[200~".as_slice(), text.as_bytes(), b"\x1b[201~".as_slice()].concat()
                             } else { text.into_bytes() }
                         } else { b"\r".to_vec() };
@@ -930,7 +936,6 @@ impl Terminals {
             binding,
             pty,
             output,
-            screen,
             input,
             connection: Some(fence.connection_id.clone()),
             attachment_id: Uuid::new_v4().to_string(),
@@ -1078,12 +1083,15 @@ impl Terminals {
                 } else if request.resize_sequence != 0 {
                     return Err(Error::ManagedInvalidInput);
                 }
-                session.pty.resize(size).map_err(path_error)?;
+                {
+                    let mut output = lock(&session.output)?;
+                    session.pty.resize(size).map_err(path_error)?;
+                    if let Some(screen) = &mut output.screen {
+                        screen.resize(size.rows, size.columns);
+                    }
+                }
                 if session.policy == Policy::Guarded {
                     session.last_resize = Some((request.resize_sequence, size));
-                }
-                if let Some(screen) = &session.screen {
-                    lock(screen)?.resize(size.rows, size.columns);
                 }
                 if let Some(binding) = &session.binding {
                     binding.broker.output(&binding.terminal);
@@ -1456,6 +1464,22 @@ mod tests {
             assert_eq!(duplicate.unwrap_err(), Error::ManagedConflict);
             assert!(sibling.is_ok());
         });
+    }
+
+    #[test]
+    fn screen_and_retained_bytes_advance_to_the_same_cut() {
+        let mut output = Output {
+            screen: Some(crate::screen_detection::native::NativeScreen::new(24, 80)),
+            ..Default::default()
+        };
+        let text = "多语言".as_bytes();
+        output.append(&text[..1]).unwrap();
+        assert_eq!(output.end, 1);
+        assert!(output.screen.as_ref().unwrap().test_contents().is_empty());
+        output.append(&text[1..]).unwrap();
+        assert_eq!(output.end, text.len() as u64);
+        assert_eq!(output.bytes.iter().copied().collect::<Vec<_>>(), text);
+        assert_eq!(output.screen.as_ref().unwrap().test_contents(), "多语言");
     }
 
     #[test]

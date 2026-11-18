@@ -29,6 +29,8 @@ impl NativeScreen {
     pub(crate) fn process(&mut self, bytes: &[u8]) { self.0.process(bytes); }
     pub(crate) fn resize(&mut self, rows: u16, columns: u16) { self.0.screen_mut().set_size(rows, columns); }
     pub(crate) fn bracketed_paste(&self) -> bool { self.0.screen().bracketed_paste() }
+    #[cfg(test)]
+    pub(crate) fn test_contents(&self) -> String { self.0.screen().contents() }
     pub(crate) fn activity(&self, context: &ScreenContext) -> Option<Activity> {
         let screen = self.0.screen();
         let (rows, columns) = screen.size();
