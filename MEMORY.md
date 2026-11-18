@@ -360,22 +360,16 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Untargeted remote-peer polls must not bump WSL/SSH generations or abort auto-warpify.
   Both bootstrap/generation repairs shipped in 1.7.8; details in the Oct30 archive.
 
-- 2.0.0 guardian is opt-in/default-off (`guardian` preference); guarded clients
-  run the installed companion with `--guardian-stdio ssh|wsl` and require the
-  account fence plus `guarded_remote_sessions_v1`/`account_catalog`. Native
-  Windows refuses guardian flags and `ctl` explicitly.
-- The account catalog stores non-secret metadata only (no paths/argv/env/screen/
-  attachment tokens). Therefore `ctl resume` resolves bare selection within the
-  opened project; another project needs `--project <root>`.
-- `warpai-companion ctl list|resume|stop` never starts a daemon; exit 0 success/
-  empty, 1 domain/partial/unconfirmed, 2 syntax or ambiguous name. Detach is
-  `Ctrl+B Q`, doubled prefix forwards one literal prefix. The session-only
-  `warpai` shell function is not installed; use the absolute helper path.
-- Bare stop is account-wide; explicit `--project` narrows it. Watch cursors are
-  `boot:revision` with explicit gap/relist; ended rows prune at 24h on the idle
-  tick; attach refreshes `attachment_generation` for takeover.
-- 2.0.0 evidence is host-only (261 lib + 17 protocol tests on macOS arm64);
-  V01-V30 and all real SSH/WSL/Windows runs are NOT RUN.
+- 2.0.0 guardian stays default-off. Installed helpers withhold the guarded
+  capability until native proof; macOS Unix fixtures can negotiate it in test
+  builds. Native Windows refuses guardian flags and `ctl`.
+- Companion CLI `ctl list|resume|stop` probes only. Bare resume uses the opened
+  project; another project needs its root for admission. Bare stop is
+  account-wide and operator-only, with boot-scoped receipts. The session-only
+  shell function, real WSL/SSH coexistence and V01-V30 remain open.
+- S1-r review/repairs and source-matched host receipts are in
+  specs/2.0.0/IMPLEMENTATION.md. Existing Store locks and exact logical service
+  identity fence ordinary-helper forwarding during guardian cutover.
 
 ## Memory maintenance
 

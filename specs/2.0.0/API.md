@@ -113,6 +113,12 @@ service IDs as equal. Same-account SSH/WSL helpers elect/discover one compatible
 guardian through private IPC; logical ManagedFence/MCP/Store scopes remain distinct.
 A new guardian boot invalidates all attachments and catalog watch cursors.
 
+The private WAG1 request mode distinguishes the guarded data bridge, direct
+same-UID operator CLI, and connection-owned forwarding from an upgraded ordinary
+helper. A data bridge cannot invoke account stop. An ordinary helper does not
+start a guardian or acquire guarded capabilities, and verifies that the admitted
+logical service ID matches its existing scope before returning the handshake.
+
 Companion-private CLI and GUI use the same operations and authenticated admission.
 Account-level catalog metadata is visible to the authenticated owning user, but
 contains no project task bodies/files/transcripts and grants no task/terminal
@@ -169,6 +175,10 @@ Account catalog discovery uses a new explicit account-authenticated operation wi
 an account fence; it does not fabricate a project ID to satisfy project-required
 validation. Existing project list/read/control APIs remain project-admitted. S0
 freezes the account-catalog/change-watch messages separately from task operations.
+
+List and watch cursors bind the boot, revision and normalized filter values.
+Watch applies the filter before selecting a page, and removals carry the prior
+sanitized row identity so a reader can discard the correct session.
 
 ## Proposed operations
 
@@ -332,6 +342,11 @@ not just current project/Agent/client. Use explicit account-operator authorizati
 existing native ownership checks and per-run receipts; Agent MCP gets no new
 bulk-stop rights. `--project` is an explicit restriction. Native task lifecycle
 remains separate, empty stop succeeds, and partial/unknown outcomes return failure.
+
+The daemon retains up to 1,024 admitted stop receipts per boot. An identical
+request ID and intent replay the captured receipts. A different intent under an
+existing ID conflicts. At capacity, new IDs are refused while existing receipts
+remain readable. Requested-only receipts report an unconfirmed batch.
 
 S0 freezes only activity sequencing, necessary account catalog/status projection,
 normal terminal attach/detach and daemon-owned batch-stop additions beyond the

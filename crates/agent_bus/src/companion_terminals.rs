@@ -314,9 +314,18 @@ impl WriteFence {
     }
 }
 
+#[cfg(unix)]
+struct StopBatch {
+    project_id: Option<String>,
+    target: Option<(String, String)>,
+    runs: Vec<StoppedRun>,
+}
+
 #[derive(Default)]
 pub(super) struct Terminals {
     owners: Mutex<BTreeMap<String, Owner>>,
+    #[cfg(unix)]
+    stop_batches: Mutex<BTreeMap<Uuid, StopBatch>>,
 }
 #[derive(Default)]
 struct Output {
@@ -371,6 +380,7 @@ pub(super) struct EndedSession {
 }
 
 /// One account-owned stop outcome; never proof of task cancellation.
+#[derive(Clone)]
 pub(super) struct StoppedRun {
     pub session_id: String,
     pub run_id: String,
@@ -506,7 +516,7 @@ fn retain_session(session: &mut Session, now: Instant) -> bool {
         }
         match session.ended_at {
             None => session.ended_at = Some(now),
-            Some(ended) if now.saturating_duration_since(ended) >= ENDED_RETENTION => return false,
+            Some(ended) if session.end_reported && now.saturating_duration_since(ended) >= ENDED_RETENTION => return false,
             Some(_) => {}
         }
     } else {
@@ -517,6 +527,9 @@ fn retain_session(session: &mut Session, now: Instant) -> bool {
 
 fn ended_session(session: &mut Session) -> Option<Instant> {
     if session.policy != Policy::Guarded {
+        return None;
+    }
+    if !session.end_reported {
         return None;
     }
     let ended = session.ended_at?;
@@ -561,6 +574,8 @@ impl Terminals {
         root: &Path,
         tasks: &tasks::Projects,
         allow_working_directory: bool,
+        catalog_enabled: bool,
+        reserve: impl Fn(&str, bool) -> Result<(), Error>,
     ) -> Result<TerminalState, Error> {
         if !valid_id(&request.session_id) {
             return Err(Error::ManagedInvalidInput);
@@ -590,7 +605,9 @@ impl Terminals {
             if let Some(owner) = sessions.get(&request.session_id) {
                 let mut session = lock(owner)?;
                 let original = &session.launch;
-                if original.fence.as_ref().map(|f| &f.project_id) != Some(&fence.project_id)
+                if session.service_id != fence.service_id
+                    || session.boot_id != fence.service_boot_id
+                    || session.project_id != fence.project_id
                     || original.executable != request.executable
                     || original.arguments != request.arguments
                     || original.columns != request.columns
@@ -674,7 +691,8 @@ impl Terminals {
                 request.arguments.clone(),
             )
         };
-        let pty = NativePty::spawn_with_environment(
+        reserve(&run_id, true)?;
+        let pty = match NativePty::spawn_with_environment(
             &executable,
             &arguments,
             &working_directory,
@@ -682,8 +700,13 @@ impl Terminals {
             binding
                 .as_ref()
                 .map_or(&[], |binding| binding.environment.as_slice()),
-        )
-        .map_err(path_error)?;
+        ) {
+            Ok(pty) => pty,
+            Err(error) => {
+                reserve(&run_id, false)?;
+                return Err(path_error(error));
+            }
+        };
         let mut reader = pty.reader.try_clone().map_err(path_error)?;
         let mut writer = pty.writer.try_clone().map_err(path_error)?;
         let output = Arc::new(Mutex::new(Output::default()));
@@ -879,7 +902,7 @@ impl Terminals {
             boot_id: fence.service_boot_id.clone(),
             service_id: fence.service_id.clone(),
             project_id: fence.project_id.clone(),
-            end_reported: false,
+            end_reported: policy != Policy::Guarded || !catalog_enabled,
         };
         let state = session.state(fence, None, None)?;
         sessions.insert(
@@ -893,16 +916,22 @@ impl Terminals {
         &self,
         request: TerminalControl,
         fence: &ManagedFence,
+        allow_guarded: bool,
     ) -> Result<TerminalState, Error> {
         let owner = lock(&self.owners)?
             .get(&request.session_id)
             .cloned()
             .ok_or(Error::ManagedStaleAttachment)?;
         let mut session = lock(&owner)?;
-        if session.launch.fence.as_ref().map(|f| &f.project_id) != Some(&fence.project_id)
+        if session.service_id != fence.service_id
+            || session.boot_id != fence.service_boot_id
+            || session.project_id != fence.project_id
             || request.run_id != session.run_id
         {
             return Err(Error::ManagedStaleAttachment);
+        }
+        if session.policy == Policy::Guarded && !allow_guarded {
+            return Err(Error::ManagedFeatureUnavailable);
         }
         let action =
             TerminalAction::try_from(request.action).map_err(|_| Error::ManagedInvalidInput)?;
@@ -1065,7 +1094,8 @@ impl Terminals {
                 if !may_control(&session, fence, &request) {
                     return Err(Error::ManagedStaleAttachment);
                 }
-                if session.pty.exit_code().map_err(path_error)?.is_none()
+                if !session.end_reported
+                    || session.pty.exit_code().map_err(path_error)?.is_none()
                     || session.pty.is_active().map_err(path_error)?
                     || !lock(&session.output)?.closed
                 {
@@ -1093,48 +1123,73 @@ impl Terminals {
     }
 
     /// Account-owned stop of guarded runs; the requesting socket never owns the batch.
+    #[cfg(unix)]
     pub(super) fn stop_guarded(
         &self,
+        request_id: Uuid,
         project_id: Option<&str>,
         target: Option<(&str, &str)>,
     ) -> Result<Vec<StoppedRun>, Error> {
-        let owners = lock(&self.owners)?;
+        let mut batches = lock(&self.stop_batches)?;
+        if let Some(batch) = batches.get(&request_id) {
+            if batch.project_id.as_deref() != project_id
+                || batch.target.as_ref().map(|(id, run)| (id.as_str(), run.as_str())) != target
+            {
+                return Err(Error::ManagedConflict);
+            }
+            return Ok(batch.runs.clone());
+        }
+        // Evicting a receipt within this boot could turn a retry into a new stop-all.
+        const MAX_STOP_BATCHES: usize = 1024;
+        if batches.len() >= MAX_STOP_BATCHES {
+            return Err(Error::ManagedCapacityExceeded);
+        }
+        let owners = lock(&self.owners)?.values().cloned().collect::<Vec<_>>();
         let mut stopped = Vec::new();
-        let mut exact_found = target.is_none();
-        for owner in owners.values() {
-            let Ok(mut session) = owner.lock() else {
-                continue;
+        for owner in owners {
+            let mut session = match owner.lock() {
+                Ok(session) => session,
+                Err(error) => error.into_inner(),
             };
-            if session.policy != Policy::Guarded {
+            if session.policy != Policy::Guarded
+                || project_id.is_some_and(|project| project != session.project_id)
+                || target.is_some_and(|(id, run)| {
+                    id != session.launch.session_id || run != session.run_id
+                })
+            {
                 continue;
             }
-            if project_id.is_some_and(|project| project != session.project_id) {
-                continue;
-            }
-            if let Some((session_id, run_id)) = target {
-                if session.launch.session_id != session_id || session.run_id != run_id {
-                    continue;
-                }
-                exact_found = true;
-            }
-            let exit_code = session.pty.exit_code().map_err(path_error)?;
-            let active = session.pty.is_active().map_err(path_error)?;
-            let stopped_now = if exit_code.is_some() || !active {
-                true
+            let (stop_requested, exit_code) = if owner.is_poisoned() {
+                (false, None)
             } else {
-                session.stop_requested = true;
-                session.pty.stop().is_ok()
+                match session.pty.is_active() {
+                    Ok(false) => (true, session.pty.exit_code().ok().flatten()),
+                    Ok(true) => {
+                        let requested = session.pty.stop().is_ok();
+                        session.stop_requested |= requested;
+                        (requested, None)
+                    }
+                    Err(_) => (false, None),
+                }
             };
             stopped.push(StoppedRun {
                 session_id: session.launch.session_id.clone(),
                 run_id: session.run_id.clone(),
-                stop_requested: stopped_now,
-                exit_code: if stopped_now { exit_code } else { None },
+                stop_requested,
+                exit_code,
             });
         }
-        if !exact_found {
+        if stopped.is_empty() && target.is_some() {
             return Err(Error::ManagedNotFound);
         }
+        batches.insert(
+            request_id,
+            StopBatch {
+                project_id: project_id.map(str::to_owned),
+                target: target.map(|(id, run)| (id.to_owned(), run.to_owned())),
+                runs: stopped.clone(),
+            },
+        );
         Ok(stopped)
     }
 

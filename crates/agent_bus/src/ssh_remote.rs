@@ -350,8 +350,7 @@ impl HostClient {
             return Err(ConnectionError::InvalidProfile);
         }
         Self::probe_installed(profile, Self::wsl_command(profile, distribution, user)?).await?;
-        let mut command = Self::wsl_command(profile, distribution, user)?;
-        command.arg(format!("--guardian-stdio {route}"));
+        let mut command = Self::wsl_guardian_command(profile, distribution, user)?;
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -368,7 +367,18 @@ impl HostClient {
         Ok(client)
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, test))]
+    fn wsl_guardian_command(
+        profile: &SshProfile,
+        distribution: &str,
+        user: &str,
+    ) -> Result<Command, ConnectionError> {
+        let mut command = Self::wsl_command(profile, distribution, user)?;
+        command.args(["--guardian-stdio", "wsl"]);
+        Ok(command)
+    }
+
+    #[cfg(any(windows, test))]
     pub(crate) fn wsl_command(profile: &SshProfile, distribution: &str, user: &str) -> Result<Command, ConnectionError> {
         profile.validate()?;
         if profile.remote_shell != RemoteShell::Posix
@@ -616,14 +626,14 @@ impl HostClient {
                 .ok_or(ConnectionError::ConnectionLost)?,
         )
         .compat();
-        Self::handshake(Some(child), input, output, root).await
+        Self::handshake(Some(child), input, output, Some(root)).await
     }
 
     /// Direct account-guardian socket for the local CLI; no process or shell involved.
     #[cfg(unix)]
     pub async fn connect_unix(
         stream: tokio::net::UnixStream,
-        root: &str,
+        root: Option<&str>,
     ) -> Result<Self, ConnectionError> {
         let (reader, writer) = tokio::io::split(stream);
         Self::handshake(
@@ -639,7 +649,7 @@ impl HostClient {
         child: Option<Child>,
         input: Compat<HostWriter>,
         output: Compat<HostReader>,
-        root: &str,
+        root: Option<&str>,
     ) -> Result<Self, ConnectionError> {
         let mut client = Self {
             child,
@@ -678,32 +688,35 @@ impl HostClient {
         {
             return Err(ConnectionError::IncompatibleVersion);
         }
-        let opened = client
-            .request(managed_request::Operation::ProjectOpen(ProjectOpen {
-                fence: Some(fence.clone()),
-                root: root.into(),
-            }))
-            .await?;
-        let managed_response::Result::ProjectOpened(opened) = opened else {
-            return Err(ConnectionError::CompanionUnavailable);
-        };
-        let Some(project_fence) = opened.fence else {
-            return Err(ConnectionError::StaleAttachment);
-        };
-        if !valid_fence(&project_fence, true)
-            || project_fence.service_id != fence.service_id
-            || project_fence.service_boot_id != fence.service_boot_id
-            || project_fence.connection_id != fence.connection_id
-            || !text(&opened.canonical_root, 4096)
-            || opened.root_identity.len() != 64
-            || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())
-        {
-            return Err(ConnectionError::StaleAttachment);
+        client.fence = Some(fence.clone());
+        if let Some(root) = root {
+            let opened = client
+                .request(managed_request::Operation::ProjectOpen(ProjectOpen {
+                    fence: Some(fence.clone()),
+                    root: root.into(),
+                }))
+                .await?;
+            let managed_response::Result::ProjectOpened(opened) = opened else {
+                return Err(ConnectionError::CompanionUnavailable);
+            };
+            let Some(project_fence) = opened.fence else {
+                return Err(ConnectionError::StaleAttachment);
+            };
+            if !valid_fence(&project_fence, true)
+                || project_fence.service_id != fence.service_id
+                || project_fence.service_boot_id != fence.service_boot_id
+                || project_fence.connection_id != fence.connection_id
+                || !text(&opened.canonical_root, 4096)
+                || opened.root_identity.len() != 64
+                || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                return Err(ConnectionError::StaleAttachment);
+            }
+            client.fence = Some(project_fence);
+            client.canonical_root = opened.canonical_root;
+            client.root_identity = opened.root_identity;
         }
-        client.fence = Some(project_fence);
-        client.canonical_root = opened.canonical_root;
         client.account_id = initialized.account_id;
-        client.root_identity = opened.root_identity;
         client.capabilities = initialized.capabilities;
         client.account_fence = initialized.account_fence;
         Ok(client)
@@ -1233,7 +1246,6 @@ mod tests {
         }
     }
 
-    #[cfg(windows)]
     #[test]
     fn wsl_transport_uses_explicit_guest_and_literal_native_arguments() {
         let profile = SshProfile { target: "wsl".into(), config_file: None,
@@ -1242,6 +1254,10 @@ mod tests {
         let command = HostClient::wsl_command(&profile, "Ubuntu Test", "guest").unwrap();
         let args: Vec<_> = command.as_std().get_args().map(|value| value.to_str().unwrap()).collect();
         assert_eq!(args, ["--distribution", "Ubuntu Test", "--user", "guest", "--exec", &profile.companion_path]);
+        let guarded = HostClient::wsl_guardian_command(&profile, "Ubuntu Test", "guest").unwrap();
+        let guarded_args: Vec<_> = guarded.as_std().get_args().map(|value| value.to_str().unwrap()).collect();
+        assert_eq!(&guarded_args[..args.len()], args);
+        assert_eq!(&guarded_args[args.len()..], ["--guardian-stdio", "wsl"]);
         for (distribution, user) in [("", "guest"), ("--help", "guest"), ("Ubuntu\nother", "guest"), ("Ubuntu", ""), ("Ubuntu", "--root")] {
             assert!(HostClient::wsl_command(&profile, distribution, user).is_err());
         }

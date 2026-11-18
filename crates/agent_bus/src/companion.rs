@@ -57,6 +57,23 @@ fn valid_uuid(value: &str) -> bool {
     Uuid::parse_str(value).is_ok_and(|id| !id.is_nil())
 }
 
+#[cfg(unix)]
+fn catalog_filter_key(filter: &AccountCatalogFilter) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut digest = Sha256::new();
+    digest.update((filter.scope_id.len() as u64).to_be_bytes());
+    digest.update(filter.scope_id.as_bytes());
+    digest.update(filter.project_id.as_bytes());
+    format!("{:x}", digest.finalize())
+}
+
+#[cfg(unix)]
+fn catalog_filter_matches(filter: &AccountCatalogFilter, row: &guardian_catalog::Record) -> bool {
+    (filter.scope_id.is_empty() || filter.scope_id == row.scope_id)
+        && (filter.project_id.is_empty() || filter.project_id == row.project_id)
+}
+
 /// Sanitized catalog projection; never argv, environment, paths or screen bytes.
 #[cfg(unix)]
 fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
@@ -99,6 +116,7 @@ pub struct Companion {
     route: Option<Route>,
     catalog: Option<CatalogHandle>,
     account_guardian: Option<Uuid>,
+    account_operator: bool,
 }
 
 impl Companion {
@@ -120,6 +138,7 @@ impl Companion {
             route: None,
             catalog: None,
             account_guardian: None,
+            account_operator: false,
             identity,
         })
     }
@@ -136,8 +155,10 @@ impl Companion {
         let mut capabilities = vec!["project_open".into(), "managed_agent".into()];
         // Only the account guardian admits retained runs and the account catalog.
         if self.account_guardian.is_some() {
-            capabilities
-                .extend(["guarded_remote_sessions_v1", "account_catalog"].map(str::to_owned));
+            capabilities.push("account_catalog".into());
+            // The native acceptance gate remains closed for installed helpers.
+            #[cfg(test)]
+            capabilities.push("guarded_remote_sessions_v1".into());
         }
         if self.wsl_route() {
             capabilities.push("managed_launch_cwd".into());
@@ -184,11 +205,13 @@ impl Companion {
 
     #[cfg(unix)]
     fn record_catalog_launch(
-        &mut self,
+        &self,
         request: &TerminalLaunch,
-        state: &TerminalState,
+        run_id: &str,
+        state: Option<&TerminalState>,
+        reserve: bool,
     ) -> Result<(), ManagedErrorCode> {
-        if state.guarded != Some(true) {
+        if !request.guarded {
             return Ok(());
         }
         let Some(catalog) = &self.catalog else {
@@ -209,13 +232,27 @@ impl Companion {
         let mut catalog = catalog
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        // Account owner allocates both sequences in mutation order.
+        let existing = catalog
+            .find(&request.session_id, run_id)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        if state.is_none() && !reserve {
+            if existing.is_some_and(|row| row.state == guardian_catalog::State::Unknown) {
+                catalog.remove(&request.session_id)
+                    .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+            }
+            return Ok(());
+        }
+        if state.is_some() && existing.as_ref().is_some_and(|row| {
+            row.state != guardian_catalog::State::Unknown
+        }) {
+            return Ok(());
+        }
         let seq = catalog
             .allocate_seq()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         let record = guardian_catalog::Record {
-            session_id: state.session_id.clone(),
-            run_id: state.run_id.clone(),
+            session_id: request.session_id.clone(),
+            run_id: run_id.into(),
             boot_id: self.fence.service_boot_id.clone(),
             service_id: self.fence.service_id.clone(),
             scope_id: scope_id.into(),
@@ -223,12 +260,12 @@ impl Companion {
             policy: "guarded".into(),
             kind: kind.into(),
             label: request.label.clone(),
-            created_seq: seq,
-            mru_seq: seq,
-            state: guardian_catalog::State::Live,
+            created_seq: existing.map_or(seq, |row| row.created_seq),
+            mru_seq: state.map_or(0, |_| seq),
+            state: state.map_or(guardian_catalog::State::Unknown, |_| guardian_catalog::State::Live),
             observed_ms: now,
             exit_status: None,
-            attachment_generation: state.attachment_generation,
+            attachment_generation: state.map_or(0, |state| state.attachment_generation),
         };
         catalog
             .upsert(&record)
@@ -237,60 +274,50 @@ impl Companion {
 
     #[cfg(not(unix))]
     fn record_catalog_launch(
-        &mut self,
+        &self,
         _request: &TerminalLaunch,
-        _state: &TerminalState,
+        _run_id: &str,
+        _state: Option<&TerminalState>,
+        _reserve: bool,
     ) -> Result<(), ManagedErrorCode> {
         Ok(())
     }
 
     #[cfg(unix)]
     fn record_catalog_control(
-        &mut self,
+        &self,
         action: TerminalAction,
         state: &TerminalState,
     ) -> Result<(), ManagedErrorCode> {
-        if state.guarded != Some(true) {
+        if state.guarded != Some(true) || action != TerminalAction::TerminalAttach {
             return Ok(());
         }
         let Some(catalog) = &self.catalog else {
             return Ok(());
         };
-        let now = unix_millis();
-        let mut catalog = catalog
+        catalog
             .lock()
-            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        if state.processes_active == Some(false) && state.output_closed {
-            catalog
-                .update_state(
-                    &state.session_id,
-                    &state.run_id,
-                    &self.fence.service_boot_id,
-                    &self.fence.service_id,
-                    guardian_catalog::State::Ended,
-                    now,
-                    state.exit_code,
-                )
-                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        } else if action == TerminalAction::TerminalAttach {
-            catalog
-                .touch_attachment(&state.session_id, state.attachment_generation)
-                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-            catalog
-                .touch_mru(&state.session_id)
-                .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        }
+            .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?
+            .touch_attachment(
+                &state.session_id,
+                &state.run_id,
+                &self.fence.service_boot_id,
+                &self.fence.service_id,
+                state.attachment_generation,
+            )
+            .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?;
         Ok(())
     }
 
     #[cfg(not(unix))]
     fn record_catalog_control(
-        &mut self,
+        &self,
         _action: TerminalAction,
         _state: &TerminalState,
     ) -> Result<(), ManagedErrorCode> {
         Ok(())
     }
+
 }
 
 fn unix_millis() -> i64 {
@@ -303,17 +330,17 @@ fn unix_millis() -> i64 {
 impl Companion {
     /// Only the managed oneof reaches this handler; legacy commands never execute.
     pub fn handle(&mut self, request: ClientMessage) -> ServerMessage {
-        let valid_request_id = Uuid::parse_str(&request.request_id).is_ok_and(|id| !id.is_nil());
-        let result = if !valid_request_id {
-            Err(ManagedErrorCode::ManagedInvalidInput)
-        } else if let Some(client_message::Message::Managed(request)) = request.message {
-            self.dispatch(request)
-        } else {
-            Err(ManagedErrorCode::ManagedFeatureUnavailable)
+        let request_id = Uuid::parse_str(&request.request_id).ok().filter(|id| !id.is_nil());
+        let result = match (request_id, request.message) {
+            (Some(id), Some(client_message::Message::Managed(request))) => {
+                self.dispatch(request, id)
+            }
+            (None, _) => Err(ManagedErrorCode::ManagedInvalidInput),
+            _ => Err(ManagedErrorCode::ManagedFeatureUnavailable),
         };
         ServerMessage {
             // Never echo unvalidated peer strings, including oversized request identifiers.
-            request_id: if valid_request_id {
+            request_id: if request_id.is_some() {
                 request.request_id
             } else {
                 String::new()
@@ -331,6 +358,7 @@ impl Companion {
     fn dispatch(
         &mut self,
         request: ManagedRequest,
+        request_id: Uuid,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         match request.operation {
             Some(managed_request::Operation::Initialize(request)) => {
@@ -396,14 +424,17 @@ impl Companion {
                     &self.project.as_ref().unwrap().root,
                     &self.tasks,
                     self.wsl_route(),
+                    self.catalog.is_some(),
+                    |run_id, reserve| self.record_catalog_launch(&recorded, run_id, None, reserve),
                 )?;
-                self.record_catalog_launch(&recorded, &state)?;
+                self.record_catalog_launch(&recorded, &state.run_id, Some(&state), false)
+                    .map_err(|_| ManagedErrorCode::ManagedDeliveryUnknown)?;
                 Ok(managed_response::Result::TerminalState(state))
             }
             Some(managed_request::Operation::TerminalControl(request)) => {
                 self.check_project(request.fence.as_ref())?;
                 let action = TerminalAction::try_from(request.action).ok();
-                let state = self.terminals.control(request, &self.fence)?;
+                let state = self.terminals.control(request, &self.fence, self.account_guardian.is_some())?;
                 if let Some(action) = action {
                     self.record_catalog_control(action, &state)?;
                 }
@@ -451,7 +482,7 @@ impl Companion {
                 self.dispatch_catalog_watch(request)
             }
             Some(managed_request::Operation::AccountStop(request)) => {
-                self.dispatch_account_stop(request)
+                self.dispatch_account_stop(request_id, request)
             }
             None => Err(ManagedErrorCode::ManagedInvalidInput),
         }
@@ -500,33 +531,10 @@ impl Companion {
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
         let revision = catalog.revision();
-        if let Some(scope) = request
-            .filter
-            .as_ref()
-            .map(|filter| filter.scope_id.as_str())
-            .filter(|scope| !scope.is_empty())
-        {
-            if Some(scope) != self.scope_id() {
-                // Unknown logical scopes disclose nothing and allocate no rows.
-                return Ok(managed_response::Result::AccountCatalogPage(
-                    AccountCatalogPage {
-                        rows: Vec::new(),
-                        total: 0,
-                        revision,
-                        next: None,
-                    },
-                ));
-            }
-        }
+        let filter = request.filter.unwrap_or_default();
+        let filter_key = catalog_filter_key(&filter);
         let mut rows = catalog.list().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        if let Some(project) = request
-            .filter
-            .as_ref()
-            .map(|filter| filter.project_id.as_str())
-            .filter(|project| !project.is_empty())
-        {
-            rows.retain(|row| row.project_id == project);
-        }
+        rows.retain(|row| catalog_filter_matches(&filter, row));
         let total = rows.len();
         let after = if request.cursor.is_empty() {
             0
@@ -534,10 +542,14 @@ impl Companion {
             let Some((boot, rest)) = request.cursor.split_once(':') else {
                 return Err(ManagedErrorCode::ManagedConflict);
             };
-            let Some((page_revision, session)) = rest.split_once(':') else {
+            let Some((page_revision, rest)) = rest.split_once(':') else {
+                return Err(ManagedErrorCode::ManagedConflict);
+            };
+            let Some((cursor_filter, session)) = rest.split_once(':') else {
                 return Err(ManagedErrorCode::ManagedConflict);
             };
             if boot != self.fence.service_boot_id
+                || cursor_filter != filter_key
                 || page_revision.parse::<u64>().ok() != Some(revision)
             {
                 return Err(ManagedErrorCode::ManagedConflict);
@@ -550,9 +562,10 @@ impl Companion {
         let page = rows.iter().skip(after).take(limit).collect::<Vec<_>>();
         let next = (after + page.len() < total).then(|| {
             format!(
-                "{}:{}:{}",
+                "{}:{}:{}:{}",
                 self.fence.service_boot_id,
                 revision,
+                filter_key,
                 page.last().expect("non-empty page").session_id
             )
         });
@@ -617,45 +630,33 @@ impl Companion {
             limit @ 1..=32 => usize::try_from(limit).unwrap_or(16),
             _ => return Err(ManagedErrorCode::ManagedInvalidInput),
         };
-        let mut catalog = self
+        let catalog = self
             .catalog
             .as_ref()
             .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        let revision = catalog.revision();
-        if let Some(scope) = request
-            .filter
-            .as_ref()
-            .map(|filter| filter.scope_id.as_str())
-            .filter(|scope| !scope.is_empty())
-        {
-            if Some(scope) != self.scope_id() {
-                return Ok(managed_response::Result::AccountCatalogEvents(
-                    AccountCatalogEvents {
-                        events: Vec::new(),
-                        next: Some(format!("{}:{}", self.fence.service_boot_id, revision)),
-                        gap: false,
-                    },
-                ));
-            }
-        }
+        let filter = request.filter.unwrap_or_default();
+        let filter_key = catalog_filter_key(&filter);
         // An empty cursor establishes the baseline; it never replays history.
         let after = if request.cursor.is_empty() {
-            revision
+            catalog.revision()
         } else {
-            let Some((boot, after)) = request.cursor.split_once(':') else {
+            let Some((boot, rest)) = request.cursor.split_once(':') else {
                 return Err(ManagedErrorCode::ManagedConflict);
             };
-            if boot != self.fence.service_boot_id {
+            let Some((revision, cursor_filter)) = rest.split_once(':') else {
+                return Err(ManagedErrorCode::ManagedConflict);
+            };
+            if boot != self.fence.service_boot_id || cursor_filter != filter_key {
                 return Err(ManagedErrorCode::ManagedConflict);
             }
-            after
+            revision
                 .parse::<u64>()
                 .map_err(|_| ManagedErrorCode::ManagedConflict)?
         };
         let batch = catalog
-            .watch(after, limit)
+            .watch(after, limit, |row| catalog_filter_matches(&filter, row))
             .map_err(|_| ManagedErrorCode::ManagedConflict)?;
         let events = batch
             .events
@@ -665,13 +666,13 @@ impl Companion {
                     guardian_catalog::Change::Upserted => AccountCatalogChange::Upserted as i32,
                     guardian_catalog::Change::Removed => AccountCatalogChange::Removed as i32,
                 },
-                row: row.as_ref().map(catalog_row),
+                row: Some(catalog_row(&row)),
             })
             .collect();
         Ok(managed_response::Result::AccountCatalogEvents(
             AccountCatalogEvents {
                 events,
-                next: Some(format!("{}:{}", self.fence.service_boot_id, batch.next)),
+                next: Some(format!("{}:{}:{}", self.fence.service_boot_id, batch.next, filter_key)),
                 gap: batch.gap,
             },
         ))
@@ -689,26 +690,27 @@ impl Companion {
     #[cfg(unix)]
     fn dispatch_account_stop(
         &mut self,
+        request_id: Uuid,
         request: AccountStop,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         self.check_account_fence(request.fence.as_ref())?;
-        if !request.project_id.is_empty()
-            && (request.project_id.len() > 256
-                || request.project_id.chars().any(char::is_control))
-        {
+        if !self.account_operator {
+            return Err(ManagedErrorCode::ManagedPermissionDenied);
+        }
+        if !request.project_id.is_empty() && !valid_uuid(&request.project_id) {
             return Err(ManagedErrorCode::ManagedInvalidInput);
         }
         let project = (!request.project_id.is_empty()).then_some(request.project_id.as_str());
         let target = match request.target.as_ref() {
-            Some(target) if !target.session_id.is_empty() || !target.run_id.is_empty() => {
+            Some(target) => {
                 if !valid_uuid(&target.session_id) || !valid_uuid(&target.run_id) {
                     return Err(ManagedErrorCode::ManagedInvalidInput);
                 }
                 Some((target.session_id.as_str(), target.run_id.as_str()))
             }
-            _ => None,
+            None => None,
         };
-        let runs = self.terminals.stop_guarded(project, target)?;
+        let runs = self.terminals.stop_guarded(request_id, project, target)?;
         let mut partial = false;
         let receipts = runs
             .into_iter()
@@ -719,6 +721,7 @@ impl Companion {
                 } else if run.exit_code.is_some() {
                     AccountStopOutcome::Observed
                 } else {
+                    partial = true;
                     AccountStopOutcome::Requested
                 };
                 AccountStopReceipt {
@@ -744,6 +747,7 @@ impl Companion {
     #[cfg(not(unix))]
     fn dispatch_account_stop(
         &mut self,
+        _request_id: Uuid,
         _request: AccountStop,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
         Err(ManagedErrorCode::ManagedFeatureUnavailable)
@@ -913,6 +917,7 @@ async fn serve_channel<S>(
     route: Option<Route>,
     catalog: Option<CatalogHandle>,
     account_guardian: Option<Uuid>,
+    account_operator: bool,
 ) -> Result<(), ProtocolError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
@@ -928,6 +933,7 @@ where
     companion.route = route;
     companion.catalog = catalog;
     companion.account_guardian = account_guardian;
+    companion.account_operator = account_operator;
     loop {
         let request =
             match read_message_with_limit::<ClientMessage>(&mut reader, MAX_MANAGED_MESSAGE_SIZE)

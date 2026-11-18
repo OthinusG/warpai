@@ -137,6 +137,7 @@ async fn disconnect_cleans_staging_through_the_framed_service() {
             None,
             None,
             None,
+            false,
         )
         .await
     });
@@ -212,6 +213,7 @@ async fn fragmented_invalid_and_oversized_control_frames_have_no_partial_effects
                 None,
                 None,
                 None,
+                false,
             )
             .await
         });

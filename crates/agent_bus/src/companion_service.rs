@@ -79,14 +79,23 @@ fn start_service() -> std::io::Result<()> {
 pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     let directory = data_directory()?;
     let endpoint = endpoint(&directory)?;
-    let stream = match connect(&endpoint).await {
-        Ok(stream) => stream,
+    let (stream, from_guardian) = match connect(&endpoint).await {
+        Ok(stream) => (stream, false),
         Err(_) => {
+            #[cfg(unix)]
+            if let Ok(Some(stream)) = guardian::probe_connection_owned().await {
+                let scope = identity::Identity::open(&directory)?.service_id;
+                return forward_stdio(stream, Some(scope)).await;
+            }
             start_service()?;
             tokio::time::timeout(Duration::from_secs(10), async {
                 loop {
                     if let Ok(stream) = connect(&endpoint).await {
-                        break stream;
+                        break (stream, false);
+                    }
+                    #[cfg(unix)]
+                    if let Ok(Some(stream)) = guardian::probe_connection_owned().await {
+                        break (stream, true);
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
@@ -95,6 +104,13 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
             .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))?
         }
     };
+    let expected_scope = from_guardian
+        .then(|| identity::Identity::open(&directory).map(|identity| identity.service_id))
+        .transpose()?;
+    forward_stdio(stream, expected_scope).await
+}
+
+async fn forward_stdio(stream: Stream, mut expected_scope: Option<String>) -> Result<(), ProtocolError> {
     let (input, output) = tokio::io::split(stream);
     let mut input = input.compat();
     let mut output = output.compat_write();
@@ -118,6 +134,16 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
         })
         .await
         .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))??;
+        if let Some(expected) = expected_scope.take() {
+            let Some(server_message::Message::Managed(response)) = &reply.message else {
+                return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
+            };
+            if !matches!(&response.result, Some(managed_response::Result::Initialized(initialized))
+                if initialized.fence.as_ref().is_some_and(|fence| fence.service_id == expected))
+            {
+                return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
+            }
+        }
         write_message_with_limit(&mut stdout, &reply, MAX_MANAGED_MESSAGE_SIZE).await?;
     }
 }
@@ -213,7 +239,7 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
         let tasks = tasks.clone();
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid, None, None, None).await;
+            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid, None, None, None, false).await;
         });
     }
     #[cfg(unix)]

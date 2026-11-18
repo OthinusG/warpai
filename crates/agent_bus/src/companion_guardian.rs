@@ -157,13 +157,20 @@ fn valid_reply(bytes: &[u8; PREFACE_BYTES], route: Route) -> Option<(Uuid, Uuid)
     (!guardian.is_nil() && !boot.is_nil()).then_some((guardian, boot))
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Admission {
+    Guarded = 0,
+    Operator = 1,
+    ConnectionOwned = 2,
+}
+
 /// Server side: verify the client preface and answer with the runtime identity.
 async fn accept_preface(
     stream: &mut UnixStream,
     route: Route,
     guardian: Uuid,
     boot: Uuid,
-) -> std::io::Result<()> {
+) -> std::io::Result<Admission> {
     let mut bytes = [0; PREFACE_BYTES];
     tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut bytes))
         .await
@@ -171,19 +178,27 @@ async fn accept_preface(
     if bytes[..4] != MAGIC
         || u16::from_be_bytes([bytes[4], bytes[5]]) != IPC_MAJOR
         || Route::from_code(bytes[6]) != Some(route)
-        || bytes[7] != 0
+        || bytes[7] > 2
         || bytes[8..].iter().any(|byte| *byte != 0)
     {
         return Err(std::io::Error::from(ErrorKind::InvalidData));
     }
-    stream.write_all(&preface(route, guardian, boot)).await
+    stream.write_all(&preface(route, guardian, boot)).await?;
+    Ok(match bytes[7] {
+        0 => Admission::Guarded,
+        1 => Admission::Operator,
+        _ => Admission::ConnectionOwned,
+    })
 }
 
 async fn exchange_preface(
     mut stream: UnixStream,
     route: Route,
+    admission: Admission,
 ) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
-    stream.write_all(&request_preface(route)).await?;
+    let mut request = request_preface(route);
+    request[7] = admission as u8;
+    stream.write_all(&request).await?;
     let mut bytes = [0; PREFACE_BYTES];
     tokio::time::timeout(Duration::from_secs(5), stream.read_exact(&mut bytes))
         .await
@@ -215,19 +230,23 @@ fn private_socket(path: &Path) -> std::io::Result<()> {
 
 /// Client side: verify kernel peer identity, private ownership and the guardian tuple.
 async fn probe_route(runtime: &Path, route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
+    probe_route_as(runtime, route, Admission::Guarded).await
+}
+
+async fn probe_route_as(runtime: &Path, route: Route, admission: Admission) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     private_directory(runtime)?;
     private_socket(&runtime.join(route.socket_name()))?;
     let stream = UnixStream::connect(runtime.join(route.socket_name())).await?;
     if stream.peer_cred()?.uid() != euid() {
         return Err(std::io::Error::from(ErrorKind::PermissionDenied));
     }
-    exchange_preface(stream, route).await
+    exchange_preface(stream, route, admission).await
 }
 
 /// Owner-side stale detection: any responsive listener, regardless of permissions.
 async fn probe_live(runtime: &Path, route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     let stream = UnixStream::connect(runtime.join(route.socket_name())).await?;
-    exchange_preface(stream, route).await
+    exchange_preface(stream, route, Admission::Guarded).await
 }
 
 fn route_absent(error: &std::io::Error) -> bool {
@@ -266,7 +285,22 @@ fn start_service() -> std::io::Result<()> {
 /// Probe-only: never starts a service and never activates a route.
 pub(crate) async fn probe(route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     let runtime = runtime_directory()?;
-    probe_route(&runtime, route).await
+    probe_route_as(&runtime, route, Admission::Operator).await
+}
+
+/// Ordinary helpers join the current owner without enabling guarded features.
+pub(super) async fn probe_connection_owned() -> std::io::Result<Option<UnixStream>> {
+    let route = if cfg!(all(target_os = "linux", feature = "wsl_companion")) {
+        Route::Wsl
+    } else {
+        Route::Ssh
+    };
+    let runtime = runtime_directory()?;
+    match probe_route_as(&runtime, route, Admission::ConnectionOwned).await {
+        Ok((stream, _, _)) => Ok(Some(stream)),
+        Err(error) if route_absent(&error) => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 /// Connect to the live account guardian, starting one only when no owner answers.
@@ -323,28 +357,27 @@ fn wall_millis() -> i64 {
 }
 
 /// Sole lifecycle authority reports observed exit once, independent of client reads.
-fn sync_ended(terminals: &terminals::Terminals, catalog: &CatalogHandle) {
+pub(super) fn sync_ended(terminals: &terminals::Terminals, catalog: &CatalogHandle) {
     let ended = terminals.ended_guarded();
     if ended.is_empty() {
         return;
     }
-    let Ok(mut catalog) = catalog.lock() else {
-        return;
-    };
     let observed = wall_millis();
     for session in ended {
-        if catalog
-            .update_state(
-                &session.session_id,
-                &session.run_id,
-                &session.boot_id,
-                &session.service_id,
-                guardian_catalog::State::Ended,
-                observed,
-                session.exit_code,
-            )
-            .is_ok()
-        {
+        let recorded = catalog.lock().is_ok_and(|mut catalog| {
+            catalog
+                .update_state(
+                    &session.session_id,
+                    &session.run_id,
+                    &session.boot_id,
+                    &session.service_id,
+                    guardian_catalog::State::Ended,
+                    observed,
+                    session.exit_code,
+                )
+                .is_ok()
+        });
+        if recorded {
             terminals.mark_end_reported(&session.session_id, &session.run_id);
         }
     }
@@ -506,9 +539,9 @@ pub(crate) async fn serve_at(
                 // cannot delay accepts or idle accounting.
                 tokio::spawn(async move {
                     let _slot = slot;
-                    if accept_preface(&mut stream, route, guardian, boot).await.is_err() {
+                    let Ok(admission) = accept_preface(&mut stream, route, guardian, boot).await else {
                         return;
-                    }
+                    };
                     let _ = serve_channel(
                         stream,
                         &directory,
@@ -518,7 +551,8 @@ pub(crate) async fn serve_at(
                         peer_pid,
                         Some(route),
                         Some(catalog),
-                        Some(guardian),
+                        (admission != Admission::ConnectionOwned).then_some(guardian),
+                        admission == Admission::Operator,
                     )
                     .await;
                 });
@@ -818,6 +852,51 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn cli_catalog_reads_all_pages_from_the_listener() {
+        let state = tempfile::tempdir().unwrap();
+        let root = state.path().join("guardian");
+        let runtime = state.path().join("run");
+        identity::private_directory(&root).unwrap();
+
+        {
+            let mut catalog = guardian_catalog::Catalog::open(&root.join("catalog.sqlite3")).unwrap();
+            for seq in 1..=40 {
+                catalog.insert(&guardian_catalog::Record {
+                    session_id: Uuid::new_v4().to_string(),
+                    run_id: Uuid::new_v4().to_string(),
+                    boot_id: Uuid::new_v4().to_string(),
+                    service_id: Uuid::new_v4().to_string(),
+                    scope_id: "ssh".into(),
+                    project_id: Uuid::new_v4().to_string(),
+                    policy: "guarded".into(),
+                    kind: "shell".into(),
+                    label: None,
+                    created_seq: seq,
+                    mru_seq: seq,
+                    state: guardian_catalog::State::Unknown,
+                    observed_ms: 0,
+                    exit_status: None,
+                    attachment_generation: 0,
+                }).unwrap();
+            }
+        }
+
+        let server = {
+            let runtime = runtime.clone();
+            let scopes = vec![(Route::Ssh, state.path().join("ssh"))];
+            tokio::spawn(async move { serve_at(root, runtime, scopes).await })
+        };
+        let (stream, _, _) = wait_route(&runtime).await;
+        let mut client = crate::ssh_remote::HostClient::connect_unix(stream, None)
+            .await.unwrap();
+        let rows = crate::companion_ctl::rows(&mut client, "").await.unwrap();
+        assert_eq!(rows.len(), 40);
+        assert_eq!(rows[0].created_seq, 40);
+        assert_eq!(rows[39].created_seq, 1);
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn guardian_watch_and_stop_report_owned_runs() {
         let state = tempfile::tempdir().unwrap();
         let root = state.path().join("guardian");
@@ -830,7 +909,8 @@ mod tests {
             let scopes = vec![(Route::Ssh, state.path().join("ssh"))];
             tokio::spawn(async move { serve_at(root, runtime, scopes).await })
         };
-        let (stream, _, _) = wait_route(&runtime).await;
+        drop(wait_route(&runtime).await);
+        let (stream, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::Operator).await.unwrap();
         let mut client = ManagedClient::new(stream);
         let initialized = match client
             .call(managed_request::Operation::Initialize(ManagedInitialize {
@@ -854,6 +934,26 @@ mod tests {
         };
         let project_fence = opened.fence.unwrap();
         let project_id = project_fence.project_id.clone();
+        let missing_id = Uuid::new_v4().to_string();
+        let failed = client.call(managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(project_fence.clone()),
+            session_id: missing_id.clone(),
+            executable: project.join("missing-executable").to_string_lossy().into_owned(),
+            columns: 80,
+            rows: 24,
+            guarded: true,
+            session_kind: Some(TerminalSessionKind::Command as i32),
+            ..Default::default()
+        })).await;
+        assert!(matches!(failed, managed_response::Result::Error(_)));
+        let managed_response::Result::AccountCatalogPage(empty) = client.call(
+            managed_request::Operation::AccountCatalogList(AccountCatalogList {
+                fence: Some(account.clone()),
+                ..Default::default()
+            })
+        ).await else { panic!("Catalog list required") };
+        assert!(empty.rows.iter().all(|row| row.session_id != missing_id));
+
         let first = launch_guarded(
             &mut client,
             &project_fence,
@@ -902,31 +1002,99 @@ mod tests {
             _ => panic!("Catalog watch required"),
         };
         assert!(!events.gap);
-        assert_eq!(events.events.len(), 1);
+        assert_eq!(events.events.len(), 2);
         assert_eq!(
             events.events[0].change,
             AccountCatalogChange::Upserted as i32
         );
-        let row = events.events[0].row.as_ref().unwrap();
+        let row = events.events.last().unwrap().row.as_ref().unwrap();
+        assert_eq!(row.state, "live");
         assert_eq!(row.session_id, second.session_id);
 
-        let stopped = match client
-            .call(managed_request::Operation::AccountStop(AccountStop {
-                fence: Some(account.clone()),
-                target: None,
-                project_id: project_id.clone(),
+        let (ordinary, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::ConnectionOwned)
+            .await.unwrap();
+        let mut ordinary = ManagedClient::new(ordinary);
+        let managed_response::Result::Initialized(ordinary_init) = ordinary
+            .call(managed_request::Operation::Initialize(ManagedInitialize { protocol_major: 1 }))
+            .await else { panic!("Ordinary initialize required") };
+        assert!(ordinary_init.account_fence.is_none());
+        assert!(ordinary_init.capabilities.iter().all(|cap| cap != "guarded_remote_sessions_v1"));
+        let ordinary_fence = ordinary_init.fence.unwrap();
+        assert_eq!(ordinary_fence.service_boot_id, project_fence.service_boot_id);
+        let managed_response::Result::ProjectOpened(ordinary_project) = ordinary
+            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: Some(ordinary_fence),
+                root: project.to_str().unwrap().into(),
             }))
+            .await else { panic!("Ordinary project open required") };
+        let denied = ordinary.call(managed_request::Operation::TerminalControl(TerminalControl {
+            fence: ordinary_project.fence,
+            session_id: first.session_id.clone(),
+            run_id: first.run_id.clone(),
+            action: TerminalAction::TerminalAttach as i32,
+            ..Default::default()
+        })).await;
+        assert!(matches!(denied, managed_response::Result::Error(error)
+            if error.code == ManagedErrorCode::ManagedFeatureUnavailable as i32));
+
+        let mismatched = client.call(managed_request::Operation::AccountCatalogWatch(
+            AccountCatalogWatch {
+                fence: Some(account.clone()),
+                filter: Some(AccountCatalogFilter {
+                    scope_id: "ssh".to_owned(),
+                    project_id: project_id.clone(),
+                }),
+                cursor: baseline_next.clone(),
+                limit: 16,
+            }
+        )).await;
+        assert!(matches!(mismatched, managed_response::Result::Error(error)
+            if error.code == ManagedErrorCode::ManagedConflict as i32));
+
+        let (bridge, _, _) = wait_route(&runtime).await;
+        let mut bridge = ManagedClient::new(bridge);
+        let managed_response::Result::Initialized(bridge_init) = bridge
+            .call(managed_request::Operation::Initialize(ManagedInitialize { protocol_major: 1 }))
+            .await else { panic!("Bridge initialize required") };
+        let denied = bridge.call(managed_request::Operation::AccountStop(AccountStop {
+            fence: bridge_init.account_fence,
+            target: None,
+            project_id: String::new(),
+        })).await;
+        assert!(matches!(denied, managed_response::Result::Error(error)
+            if error.code == ManagedErrorCode::ManagedPermissionDenied as i32));
+
+        let rejected = client.call(managed_request::Operation::AccountStop(AccountStop {
+            fence: Some(account.clone()),
+            target: Some(AccountStopTarget::default()),
+            project_id: project_id.clone(),
+        })).await;
+        assert!(matches!(rejected, managed_response::Result::Error(error)
+            if error.code == ManagedErrorCode::ManagedInvalidInput as i32));
+        let request_id = Uuid::new_v4();
+        let operation = managed_request::Operation::AccountStop(AccountStop {
+            fence: Some(account.clone()),
+            target: None,
+            project_id: project_id.clone(),
+        });
+        let stopped = match client
+            .call_with_id(request_id, operation.clone())
             .await
         {
             managed_response::Result::AccountStopReceipts(receipts) => receipts,
             _ => panic!("Account stop required"),
         };
-        assert_eq!(stopped.status, AccountStopStatus::Completed as i32);
+        assert_eq!(stopped.status, AccountStopStatus::Partial as i32);
         assert_eq!(stopped.receipts.len(), 2);
         assert!(stopped.receipts.iter().all(|receipt| {
             receipt.outcome == AccountStopOutcome::Requested as i32
                 && receipt.exit_status.is_none()
         }));
+
+        let third = launch_guarded(&mut client, &project_fence, Uuid::new_v4().to_string()).await;
+        let replay = client.call_with_id(request_id, operation).await;
+        assert_eq!(replay, managed_response::Result::AccountStopReceipts(stopped));
+        assert_eq!(inspect_guarded(&mut client, &account, &third).await.state, "live");
 
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
@@ -1045,11 +1213,19 @@ mod tests {
             &mut self,
             operation: managed_request::Operation,
         ) -> managed_response::Result {
+            self.call_with_id(Uuid::new_v4(), operation).await
+        }
+
+        async fn call_with_id(
+            &mut self,
+            request_id: Uuid,
+            operation: managed_request::Operation,
+        ) -> managed_response::Result {
             use remote_protocol::protocol::{
                 read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE,
             };
             let request = ClientMessage {
-                request_id: Uuid::new_v4().to_string(),
+                request_id: request_id.to_string(),
                 message: Some(client_message::Message::Managed(ManagedRequest {
                     operation: Some(operation),
                 })),

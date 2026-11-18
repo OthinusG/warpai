@@ -12,7 +12,7 @@ use std::{path::PathBuf, time::Duration};
 const EXIT_OK: i32 = 0;
 const EXIT_DOMAIN: i32 = 1;
 const EXIT_SYNTAX: i32 = 2;
-const PAGE_LIMIT: u32 = 64;
+const PAGE_LIMIT: u32 = 32;
 const HELP: &str = "\
 warpai list [--project <path>] [--id <session>]
     List guardian sessions for this account.
@@ -25,8 +25,8 @@ warpai stop [<name>] [--id <session>] [--project <path>]
     Stop every guarded run in this account, or one exact resolved run.
 
 Exit codes: 0 success, 1 domain failure or unconfirmed stop, 2 invalid syntax
-or an ambiguous named target. Bare resume/stop cover the current project; pass
---project to target another project root.";
+or an ambiguous named target. Bare stop covers the account. Use --project to
+target a specific project root.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Selection {
@@ -333,36 +333,42 @@ fn route_name(route: Route) -> &'static str {
     }
 }
 
-/// Connect without ever starting a guardian; `--project` selects the opened
-/// root and catalog filter, otherwise the current directory is opened while
-/// account-wide listing stays available.
-async fn connect(project: &Option<String>) -> Result<(HostClient, String, String, String), i32> {
+/// Account discovery and bare stop do not require a project admission.
+async fn connect(
+    project: &Option<String>,
+    needs_project: bool,
+) -> Result<(HostClient, String, String), i32> {
     let active = route();
     let stream = match guardian::probe(active).await {
         Ok((stream, _, _)) => stream,
         Err(_) => {
-            eprintln!("Guardian is not running for this account.");
+            eprintln!("Guardian is unavailable for this account.");
             return Err(EXIT_DOMAIN);
         }
     };
     let root = match project {
-        Some(path) => PathBuf::from(path),
-        None => match std::env::current_dir() {
-            Ok(directory) => directory,
+        Some(path) => Some(PathBuf::from(path)),
+        None if needs_project => match std::env::current_dir() {
+            Ok(directory) => Some(directory),
             Err(_) => {
                 eprintln!("Current project directory is unavailable.");
                 return Err(EXIT_DOMAIN);
             }
         },
+        None => None,
     };
-    let Some(root) = root.to_str() else {
-        eprintln!("Project path is not valid UTF-8.");
-        return Err(EXIT_DOMAIN);
+    let root = match root.as_deref().map(|root| root.to_str()) {
+        Some(Some(root)) => Some(root),
+        Some(None) => {
+            eprintln!("Project path is not valid UTF-8.");
+            return Err(EXIT_DOMAIN);
+        }
+        None => None,
     };
     let client = match HostClient::connect_unix(stream, root).await {
         Ok(client) => client,
         Err(_) => {
-            eprintln!("Project is unavailable on the guardian account: {root}");
+            eprintln!("Guardian connection or project admission failed.");
             return Err(EXIT_DOMAIN);
         }
     };
@@ -374,39 +380,42 @@ async fn connect(project: &Option<String>) -> Result<(HostClient, String, String
         .fence()
         .map(|fence| fence.project_id.clone())
         .unwrap_or_default();
-    if current_project.is_empty() {
-        eprintln!("Project admission was refused.");
-        return Err(EXIT_DOMAIN);
-    }
-    let filter = match project {
-        Some(_) => current_project.clone(),
-        None => String::new(),
-    };
-    Ok((client, current_project, filter, root.to_owned()))
+    let filter = project.as_ref().map_or_else(String::new, |_| current_project.clone());
+    Ok((client, current_project, filter))
 }
 
-async fn rows(client: &mut HostClient, project_id: &str) -> Result<Vec<AccountCatalogRow>, i32> {
-    match client
-        .account_catalog_list(
-            AccountCatalogFilter {
-                scope_id: String::new(),
-                project_id: project_id.to_owned(),
-            },
-            PAGE_LIMIT,
-            String::new(),
-        )
-        .await
-    {
-        Ok(page) => Ok(page.rows),
-        Err(_) => {
-            eprintln!("Guardian catalog is unavailable.");
-            Err(EXIT_DOMAIN)
+pub(crate) async fn rows(client: &mut HostClient, project_id: &str) -> Result<Vec<AccountCatalogRow>, i32> {
+    let filter = AccountCatalogFilter {
+        scope_id: String::new(),
+        project_id: project_id.to_owned(),
+    };
+    let mut cursor = String::new();
+    let mut rows = Vec::new();
+    loop {
+        let Ok(page) = client
+            .account_catalog_list(filter.clone(), PAGE_LIMIT, cursor.clone())
+            .await
+        else {
+            eprintln!("Guardian catalog is unavailable or changed. Try again.");
+            return Err(EXIT_DOMAIN);
+        };
+        let advanced = !page.rows.is_empty();
+        rows.extend(page.rows);
+        match page.next {
+            None => return Ok(rows),
+            Some(next) if advanced && rows.len() < page.total as usize && next != cursor => {
+                cursor = next;
+            }
+            Some(_) => {
+                eprintln!("Guardian catalog returned an invalid page.");
+                return Err(EXIT_DOMAIN);
+            }
         }
     }
 }
 
 async fn list(project: Option<String>, id: Option<String>) -> i32 {
-    let (mut client, _, filter, _) = match connect(&project).await {
+    let (mut client, _, filter) = match connect(&project, false).await {
         Ok(value) => value,
         Err(code) => return code,
     };
@@ -483,11 +492,16 @@ fn select<'a>(
 }
 
 async fn resume(project: Option<String>, selection: Selection, takeover: bool) -> i32 {
-    let (mut client, current_project, filter, _) = match connect(&project).await {
+    let (mut client, current_project, filter) = match connect(&project, true).await {
         Ok(value) => value,
         Err(code) => return code,
     };
-    let rows = match rows(&mut client, &filter).await {
+    let filter = if matches!(selection, Selection::All) {
+        &current_project
+    } else {
+        &filter
+    };
+    let rows = match rows(&mut client, filter).await {
         Ok(rows) => rows,
         Err(code) => return code,
     };
@@ -716,7 +730,7 @@ async fn detach(client: &mut HostClient, state: &TerminalState) {
 }
 
 async fn stop(project: Option<String>, selection: Selection) -> i32 {
-    let (mut client, _, filter, _) = match connect(&project).await {
+    let (mut client, _, filter) = match connect(&project, false).await {
         Ok(value) => value,
         Err(code) => return code,
     };

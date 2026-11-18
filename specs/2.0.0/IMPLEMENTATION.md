@@ -2,85 +2,35 @@
 
 Updated: 2026-11-18. Scope revision: R4 optional SSH/WSL guardian.
 
-## Current truth
+## Current source and evidence
 
-Design documents plus one unverified runtime slice exist. The slice adds additive
-guarded launch policy, retained native lifetime on connection loss, and
-attach/detach/takeover writer fencing in the existing SSH/WSL Companion terminal
-registry. Guarded input/resize/read/detach/release now require the exact writer
-tuple, takeover fences the observed generation, and detach/transport loss
-invalidates queued input through a separate writer epoch. A bounded input ledger
-now returns per-attachment receipts for accepted, writing, written, cancelled,
-failed and unknown delivery, keys records by attachment generation and sequence,
-rejects conflicting or skipped sequences, retains unknown delivery as
-non-evictable evidence, and fails the writer path closed on write, flush, gate or
-ledger faults. Cancellation is checked between writes, and queued input skipped
-after revocation or a writer fault is settled instead of remaining pending. The
-service now requires Unix peer credentials to resolve and match its effective UID,
-re-checks the Windows pipe client SID after DACL admission, and retains detached
-ended output for 300 seconds within the 32-session ceiling, evicting the oldest
-ended session only under admission pressure. Client control also requires the
-guarded attachment tuple to be echoed exactly for every non-attach action; a
-session-level stale reply no longer closes other sessions on the multiplexed
-connection, and unconfirmed input delivery is reported explicitly. A pure
-bounded catalog index prototype (stable descending pages, revision-scoped watch
-ring with explicit gap, MRU resume selection, bounded entries/events) now exists
-with passing isolated tests. A Unix account-global guardian election now exists:
-passwd-home root, one account lock, private per-route sockets, peer-UID-checked
-`WAG1` preface, shared boot identity and route-derived capabilities, backed by
-`guardian/catalog.sqlite3` with identity `0x57474341`/v1 and boot interruption
-marking. Guarded launch, attach and observed exit now populate that catalog, but
-these remain host-verified components: no production client calls
-`guardian::connect`, and the guardian grants no external access. Client probing
-now verifies private directory/socket ownership, mode and kernel peer UID,
-distinguishes absent routes from incompatible owners, never spawns for a
-responsive owner, and treats a stalled preface as a per-connection failure
-instead of blocking dispatch. A single account serializer allocates signed
-monotonic `created_seq`/`mru_seq`, catalog rows are identity-checked on update,
-and the terminals registry reports observed native exit plus drained output to
-the catalog on its existing maintenance tick without requiring a client read.
-An internal installed-helper `--guardian-stdio` bridge forwards verified stdio to
-the account guardian, and additive proto tags 10/11 define account-fenced
-catalog list and inspect with boot/revision-bound cursors; watch (12) and stop
-(13) have frozen wire shapes but return `ManagedFeatureUnavailable`. A host
-fixture now drives the real listener through preface, initialize, project open,
-guarded launch, catalog list, bridge drop, same-boot reconnect, exact attach,
-stop and ended observation without client reads.
-The optional desktop opt-in now exists: a persisted `guardian` preference with a
-settings checkbox makes the remote panel open guarded transports through
-`--guardian-stdio ssh|wsl` instead of the legacy companion command, and guarded
-constructors fail closed unless the account fence plus both capabilities
-arrive. The guardian admits each route only after its legacy scope lock is
-released, retries pending routes on its idle tick, prunes ended catalog rows at
-the 24-hour TTL and remains alive while a route is pending. Watch (12) now pages
-the bounded revision ring with explicit gap/relist, stop (13) issues per-run
-receipts, catalog rows expose `attachment_generation`, and attach refreshes it.
-A private `ctl` dispatcher implements `list`, `resume` and `stop` with
-ID/unique-name/MRU selection, `--project`, `--takeover`, `Ctrl+B Q` detach and
-exit codes 0/1/2; Windows prints an explicit unsupported message for `ctl`,
-`--guardian-service` and `--guardian-stdio`.
-The `warp-agent-bus` and `remote_protocol`
-crates now compile and their full test suites pass on macOS arm64 (261 passed,
-1 ignored; 17 protocol tests), including the real Companion PTY integration
-tests; this is host evidence, not remote SSH/WSL evidence. Bare `resume` resolves
-inside the current project because catalog rows never store paths; resuming
-another project requires `--project`. No session-only shell `warpai` function,
-scheduler, packaging/version change or release is implemented. V01-V30 runtime
-acceptance is NOT RUN: no real SSH daemon, WSL distribution or Windows host has
-executed any part of this slice.
-Runtime inspection baseline is `db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is
-commits `87e18c942630e58c91849532fb132323e0500ab5`,
-`5163030f7535f59f673723c1932563bd186282c3`, `99eaa0eb`, `33f59ec1` and
-`efe9fd12` on `feat/2.0.0`, while `main` remains at the baseline. A read-only peer
-review at the first commit identified remaining P1/P2 work; the review findings
-were addressed in `efe9fd12`, but this remains source evidence, not runtime
-evidence. Revalidate current HEAD at implementation startup rather than assuming
-an earlier observed repository position is still current.
+Audit baseline: `61b3fcac` on `feat/2.0.0`, with `main` at `db280c6b`.
+S1-l through S1-q describe the successive changes since the original baseline.
+The latest committed receipts cover macOS arm64 builds, 261 agent-bus library
+tests (one ignored), 17 protocol tests and a local Unix listener/PTY fixture.
+They do not close any V01-V30 native acceptance case. Historical method records
+below describe their own revisions.
 
-The owner corrected the initial plan: guarding is optional/default-off, native
-local persistence is excluded, SSH and WSL are both core, and resource overhead
-and multi-task/session continuity are primary requirements. This correction
-supersedes the original mandatory-local/optional-WSL design; do not implement it.
+The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
+fencing, a bounded SQLite catalog, a helper bridge, account RPCs and a private
+CLI. A desktop preference selects the guarded transport; the production
+desktop still lacks guarded PTY launch and exact-run restoration. Native
+Windows guarded execution is unsupported on this baseline. WSL guest code is
+present; real WSL lifetime and SSH/WSL first-owner permutations are unverified.
+
+### Audit findings and closure checks
+
+| Gap | Closure check |
+| --- | --- |
+| CLI page limit exceeds wire limit; named selection reads only page one | Repaired in the working tree. CLI reads bounded pages. A real-listener fixture returns 40 rows across two pages without project admission. |
+| WSL bridge flag and route passed as one argv entry | Repaired in the working tree. The argv fixture verifies two distinct arguments. Actual wsl.exe dispatch remains unverified. |
+| Guarded capability advertised before proof | Repaired in the working tree. Installed builds withhold the capability. Test builds use it for the isolated private listener. |
+| Stop operator admission, malformed exact target, replay, and truthful result | Repaired in the working tree. Direct operator mode, strict target, fixed run set, boot-scoped replay and unconfirmed exit status. Native caller-loss and process-tree acceptance remain open. |
+| Store cutover and executable/route election | Partial. The upgraded ordinary bridge joins the owner in connection-owned mode after verifying the logical service ID. Both installed-helper startup orders and the verified WSL namespace remain open. |
+| Catalog launch/attach write failure | Partial. Reserve exact identity before spawn, cancel a proven failed spawn, keep uncertainty if final persistence fails and publish natural exit before eviction. Attach uses an exact-run monotonic update; post-attach catalog failure remains an unconfirmed projection requiring recovery proof. |
+| Catalog watch and cursor scoping | Repaired in the working tree. Cursor formats now bind filters. The watch ring stores bounded sanitized rows and preserves removal identity. Fixture coverage includes a changed filter and a real retained-window gap. |
+| Desktop launch, automatic restore, snapshots and shell entry | Launch through a verified opt-in target, restore only exact runs/free writers, recover from output gaps and exercise the private CLI in a real TTY. |
+| Windows and release acceptance | Prove Windows native ownership and real WSL/SSH lifetime, mixed-version install/upgrade, fairness/resource limits, and remaining V01-V30 cases on matched artifacts. |
 
 ## Work status
 
@@ -92,13 +42,13 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D3 MRU/all-stop defaults and command extension | superseded_command_scope | MRU/all-stop retained; extra commands withdrawn by D4 |
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
-| S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch ring prototype is tested in isolation but not on the wire; storage schema pending |
-| S1 account guardian/native ownership | verified_host_only | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is host-tested but not measured; unified SSH/WSL election, registry-backed durable catalog, on-demand route admission, TTL prune, watch/stop RPC, guarded client transport and the private CLI are implemented and pass the host suites on macOS arm64. No real SSH/WSL/Windows run |
+| S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); v1 SQLite catalog and account RPC tags are on the wire; cutover, operator semantics and compatibility evidence remain open |
+| S1 account guardian/native ownership | in_progress | Local Unix guardian and PTY fixtures cover ownership, fencing, the durable catalog and account RPCs. Installed-helper SSH/WSL election, mixed-version Store cutover and native ownership proof remain open. |
 | S2 compact terminal restoration | not_started | None |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, bounded ended-output retention, catalog `attachment_generation` on attach, and the `ctl resume` attach/detach/split-prefix escape client; snapshots and GUI reconnect selection pending |
 | S4 SSH optional UI/CLI | in_progress | Persisted `guardian` opt-in, settings checkbox, guarded transport selection in the remote panel, `ctl list/resume/stop` with exit codes and documented absolute-helper invocation; no session-only shell function and no native remote run |
 | S5 mandatory WSL guardian | in_progress | Linux guest guardian route behind `wsl_companion`, `--guardian-stdio wsl` bridge and Windows client guarded WSL constructors exist; prune/TTL and Windows unsupported messages are host-tested only; no WSL distribution run |
-| S6 failure/feature restoration | not_started | None |
+| S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
 | S7 resource/fairness scheduling | not_started | None |
 | S8 native acceptance | not_started | None |
 | S9 distribution/release | not_started | None |
@@ -1606,6 +1556,60 @@ Follow-up tasks / affected gates: V21/V22/V23 remain NOT RUN; interactive CLI
   acceptance is pending.
 MEMORY update or reason no durable fact changed: MEMORY records the `ctl`
   surface, the no-path catalog limitation and the absent shell function.
+
+Record ID / date: S1-r / 2026-11-18
+Work item: implementation ledger audit and repair of guardian admission, query,
+lifecycle and stop defects.
+Status: implemented on working tree against `61b3fcac`; see verification below.
+Implementation commit / PR: working-tree changes; no commit or PR.
+
+Implementation and method:
+- CLI uses the wired 32-row limit and walks cursors to completion. Account-wide
+  listing and stop initialize without a project. Bare resume selects within the
+  admitted project; exact opens still require a project root.
+- WSL preserves validated distro/user arguments and passes the bridge flag and
+  route as separate argv entries. The installed build omits the guarded
+  capability while the native gate is open.
+- The private preface distinguishes direct operator, guarded data bridge, and
+  connection-owned forwarding. The latter checks the logical service ID before
+  forwarding Initialize and cannot control retained sessions. Scope ownership
+  remains fenced by the existing Store lock.
+- List/watch cursors bind filter values. Watch filters before paging and retains
+  sanitized event rows, including removals. It tracks evicted revisions
+  separately from gaps in the sequence allocator.
+- A durable unknown reservation precedes guarded native launch. A proven spawn
+  failure removes it. Successful launch commits live state; uncertainty after
+  a native side effect remains explicit. Ended runs are protected from release
+  and eviction until durable observation. Attach updates the exact run and
+  monotonic writer generation in one catalog statement. Reads no longer write
+  exit state.
+- The stop batch captures owned run handles before dispatch, does not hold the
+  registry lock during native stop, and replays receipts by request ID and
+  intent. Requested-only outcomes are partial. The boot-scoped store refuses
+  new IDs after 1,024 admitted batches to preserve exact replay.
+
+Verification on macOS arm64 against this working tree:
+- `cargo test --locked --offline -p warp-agent-bus --lib`: 263 passed, one
+  ignored. The listener exercises 40-row CLI pagination, ordinary and guarded
+  admission, invalid targets, same-ID replay, filtered cursors and natural exit.
+  WSL argument construction is tested without executing wsl.exe.
+- `cargo test --locked --offline -p remote_protocol`: 17 passed.
+- `cargo test --locked --offline -p warp-agent-bus --test managed_agent`: six
+  passed, three child fixtures ignored.
+- `cargo check --locked --offline -p warpai --bin warpai` passed in default and
+  `warp_platform` configurations. `warpai-companion` binary check passed;
+  the built binary returned help and version without opening a guardian.
+- `git diff --check` passed. The available Homebrew compiler is Rust 1.99.0;
+  the repository-pinned Rust 1.92.0 was unavailable on this host.
+- Native case IDs: none. Measurements, platform packages, publishing and native
+  acceptance are outside the available host evidence.
+
+Remaining gates: installed SSH-first/WSL-first owner election and migration-free
+mixed-helper coexistence, desktop guarded launch and reconnect, snapshot/gap
+recovery, session shell bootstrap, native Windows ownership, interactive CLI,
+resource/fairness benchmarks, cross-platform V01-V30 and packaging. See the
+closure checks above. MEMORY.md records the updated capability gate and ownership
+semantics.
 
 ## Evidence index
 

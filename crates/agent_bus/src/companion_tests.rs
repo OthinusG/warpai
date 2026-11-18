@@ -439,7 +439,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
             output_offset: offset,
             ..control(fence, TerminalAction::TerminalRead)
         };
-        companion.terminals.control(control, fence).unwrap()
+        companion.terminals.control(control, fence, true).unwrap()
     };
     let read_until = |companion: &mut Companion, fence: &ManagedFence, needle: &str, mut offset: u64| {
         let deadline = Instant::now() + Duration::from_secs(10);
@@ -462,14 +462,14 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     input.input = b"stale\n".to_vec();
     input.input_sequence = 1;
     assert!(matches!(
-        companion.terminals.control(input, &fence),
+        companion.terminals.control(input, &fence, true),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
     // A detached run has no writer, so exact-tuple resume is admitted; takeovers are
     // only fenced against a live writer (covered after detach below).
     let attached = companion
         .terminals
-        .control(control(&next, TerminalAction::TerminalAttach), &next)
+        .control(control(&next, TerminalAction::TerminalAttach), &next, true)
         .unwrap();
     assert_eq!(attached.guarded, Some(true));
     assert_eq!(attached.attachment_generation, generation);
@@ -477,7 +477,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let mut first = control(&next, TerminalAction::TerminalInput);
     first.input = b"hello\n".to_vec();
     first.input_sequence = 1;
-    let first = companion.terminals.control(first, &next).unwrap();
+    let first = companion.terminals.control(first, &next, true).unwrap();
     let first_receipt = first.input_receipt.clone().expect("Accepted input needs a receipt");
     assert_eq!(first_receipt.input_sequence, 1);
     assert_eq!(first_receipt.attachment_generation, generation);
@@ -485,7 +485,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let mut duplicate = control(&next, TerminalAction::TerminalInput);
     duplicate.input = b"hello\n".to_vec();
     duplicate.input_sequence = 1;
-    let duplicate = companion.terminals.control(duplicate, &next).unwrap();
+    let duplicate = companion.terminals.control(duplicate, &next, true).unwrap();
     assert_eq!(
         duplicate.input_receipt.map(|receipt| receipt.receipt_id),
         Some(first_receipt.receipt_id.clone())
@@ -494,20 +494,20 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     conflicting.input = b"other\n".to_vec();
     conflicting.input_sequence = 1;
     assert!(matches!(
-        companion.terminals.control(conflicting, &next),
+        companion.terminals.control(conflicting, &next, true),
         Err(ManagedErrorCode::ManagedInputConflict)
     ));
     let mut skipped = control(&next, TerminalAction::TerminalInput);
     skipped.input = b"skipped\n".to_vec();
     skipped.input_sequence = 3;
     assert!(matches!(
-        companion.terminals.control(skipped, &next),
+        companion.terminals.control(skipped, &next, true),
         Err(ManagedErrorCode::ManagedInputConflict)
     ));
     let offset = read_until(&mut companion, &next, "ECHO=hello", 0);
     assert!(companion
         .terminals
-        .control(control(&next, TerminalAction::TerminalDetach), &next)
+        .control(control(&next, TerminalAction::TerminalDetach), &next, true)
         .is_ok());
     assert!(matches!(
         companion.terminals.control(
@@ -515,7 +515,8 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
                 output_offset: offset,
                 ..control(&next, TerminalAction::TerminalRead)
             },
-            &next
+            &next,
+            true,
         ),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
@@ -524,7 +525,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     takeover.attachment_id = String::new();
     takeover.attachment_generation = generation;
     takeover.takeover = true;
-    let adopted = companion.terminals.control(takeover, &next).unwrap();
+    let adopted = companion.terminals.control(takeover, &next, true).unwrap();
     assert_eq!(adopted.attachment_generation, generation + 1);
     assert_ne!(adopted.attachment_id, attachment);
     let mut stale_takeover = control(&next, TerminalAction::TerminalAttach);
@@ -532,7 +533,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     stale_takeover.attachment_generation = generation;
     stale_takeover.takeover = true;
     assert!(matches!(
-        companion.terminals.control(stale_takeover, &next),
+        companion.terminals.control(stale_takeover, &next, true),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
     // The superseded tuple cannot control through the adopted connection.
@@ -540,7 +541,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     stale_input.input = b"stale\n".to_vec();
     stale_input.input_sequence = 2;
     assert!(matches!(
-        companion.terminals.control(stale_input, &next),
+        companion.terminals.control(stale_input, &next, true),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
     let mut second = TerminalControl {
@@ -550,7 +551,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     };
     second.input = b"again\n".to_vec();
     second.input_sequence = 1;
-    let second = companion.terminals.control(second, &next).unwrap();
+    let second = companion.terminals.control(second, &next, true).unwrap();
     let second_receipt = second.input_receipt.expect("Adopted input needs a receipt");
     assert_eq!(second_receipt.input_sequence, 1);
     assert_eq!(
@@ -571,7 +572,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
                 ..Default::default()
             }
         };
-        companion.terminals.control(control, fence).unwrap()
+        companion.terminals.control(control, fence, true).unwrap()
     };
     let read_until_adopted = |companion: &mut Companion, fence: &ManagedFence, needle: &str, mut offset: u64| {
         let deadline = Instant::now() + Duration::from_secs(10);
@@ -592,7 +593,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let mut stop = control(&next, TerminalAction::TerminalStop);
     stop.attachment_id = adopted.attachment_id.clone();
     stop.attachment_generation = adopted.attachment_generation;
-    assert!(companion.terminals.control(stop, &next).is_ok());
+    assert!(companion.terminals.control(stop, &next, true).is_ok());
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut exited = None;
     let mut polled = offset;
@@ -610,7 +611,7 @@ fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
     let mut release = control(&next, TerminalAction::TerminalRelease);
     release.attachment_id = adopted.attachment_id.clone();
     release.attachment_generation = adopted.attachment_generation;
-    assert!(companion.terminals.control(release, &next).is_ok());
+    assert!(companion.terminals.control(release, &next, true).is_ok());
 }
 
 #[cfg(unix)]
@@ -706,24 +707,9 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
             if code == ManagedErrorCode::ManagedStaleAttachment as i32
     ));
     let deadline = Instant::now() + Duration::from_secs(10);
-    let mut offset = 0;
     while Instant::now() < deadline {
-        let managed_response::Result::TerminalState(state) = result(companion.handle(request(
-            managed_request::Operation::TerminalControl(TerminalControl {
-                fence: Some(fence.clone()),
-                session_id: launched.session_id.clone(),
-                run_id: launched.run_id.clone(),
-                action: TerminalAction::TerminalRead as i32,
-                output_offset: offset,
-                attachment_id: launched.attachment_id.clone(),
-                attachment_generation: launched.attachment_generation,
-                ..Default::default()
-            }),
-        ))) else {
-            panic!("Guarded read required")
-        };
-        offset = state.output_offset + state.output.len() as u64;
-        if state.output_closed && state.processes_active == Some(false) {
+        guardian::sync_ended(&companion.terminals, &catalog);
+        if catalog.lock().unwrap().list().unwrap()[0].state == guardian_catalog::State::Ended {
             break;
         }
         std::thread::sleep(Duration::from_millis(20));
@@ -774,10 +760,10 @@ fn legacy_stop_requires_the_owning_connection() {
     let mut other = fence.clone();
     other.connection_id = Uuid::new_v4().to_string();
     assert!(matches!(
-        companion.terminals.control(stop(&other), &other),
+        companion.terminals.control(stop(&other), &other, false),
         Err(ManagedErrorCode::ManagedStaleAttachment)
     ));
-    assert!(companion.terminals.control(stop(&fence), &fence).is_ok());
+    assert!(companion.terminals.control(stop(&fence), &fence, false).is_ok());
     let read = |companion: &mut Companion, fence: &ManagedFence, offset: u64| {
         companion
             .terminals
@@ -791,6 +777,7 @@ fn legacy_stop_requires_the_owning_connection() {
                     ..Default::default()
                 },
                 fence,
+                false,
             )
             .unwrap()
     };
@@ -810,7 +797,8 @@ fn legacy_stop_requires_the_owning_connection() {
                         action: TerminalAction::TerminalRelease as i32,
                         ..Default::default()
                     },
-                    &fence
+                    &fence,
+                    false,
                 )
                 .is_ok());
             return;

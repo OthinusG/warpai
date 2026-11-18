@@ -25,13 +25,13 @@ pub enum Change {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Event {
     pub revision: u64,
-    pub session_id: String,
+    pub row: Record,
     pub change: Change,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WatchBatch {
-    pub events: Vec<(Change, Option<Record>)>,
+    pub events: Vec<(Change, Record)>,
     pub next: u64,
     /// Events below the retained window were lost; the caller must relist.
     pub gap: bool,
@@ -107,6 +107,13 @@ pub struct Catalog {
     connection: SqliteConnection,
     next_seq: i64,
     events: VecDeque<Event>,
+    event_floor: u64,
+}
+
+#[derive(QueryableByName)]
+struct SessionId {
+    #[diesel(sql_type = Text)]
+    session_id: String,
 }
 
 #[derive(QueryableByName)]
@@ -119,12 +126,6 @@ struct PragmaValue {
 struct RowCount {
     #[diesel(sql_type = BigInt)]
     count: i64,
-}
-
-#[derive(QueryableByName)]
-struct SessionId {
-    #[diesel(sql_type = Text)]
-    session_id: String,
 }
 
 #[derive(QueryableByName)]
@@ -238,6 +239,7 @@ impl Catalog {
             connection,
             next_seq: seeded.max(mru),
             events: VecDeque::new(),
+            event_floor: seeded.max(mru).max(0) as u64,
         };
         // Existing rows must satisfy the same invariants before any write.
         catalog.list()?;
@@ -264,15 +266,21 @@ impl Catalog {
         self.revision()
     }
 
-    fn record_event(&mut self, session_id: &str, change: Change) {
+    fn record_event(&mut self, row: Record, change: Change) {
         let revision = self.bump_revision();
-        self.events.push_back(Event {
-            revision,
-            session_id: session_id.to_owned(),
-            change,
-        });
-        while self.events.len() > MAX_EVENTS {
-            self.events.pop_front();
+        self.events.push_back(Event { revision, row, change });
+        if self.events.len() > MAX_EVENTS {
+            self.event_floor = self.events.pop_front().expect("event ring exceeds its capacity").revision;
+        }
+    }
+
+    fn record_upsert(&mut self, session_id: &str) {
+        match self.find_session(session_id) {
+            Ok(Some(row)) => self.record_event(row, Change::Upserted),
+            _ => {
+                self.events.clear();
+                self.event_floor = self.bump_revision();
+            }
         }
     }
 
@@ -309,20 +317,14 @@ impl Catalog {
             .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
         if self.count().map_err(unavailable)? >= MAX_ROWS {
             let overflow = self.count().map_err(unavailable)? - MAX_ROWS + 1;
-            let pruned: Vec<String> = sql_query(
-                "SELECT session_id FROM guardian_catalog_sessions WHERE state='ended' \
-                 ORDER BY created_seq LIMIT ?",
-            )
-            .bind::<BigInt, _>(overflow)
-            .get_results::<SessionId>(&mut self.connection)
-            .map_err(unavailable)?
-            .into_iter()
-            .map(|row| row.session_id)
-            .collect();
+            let mut pruned = self.list()?;
+            pruned.retain(|row| row.state == State::Ended);
+            pruned.sort_by(|a, b| a.created_seq.cmp(&b.created_seq).then(a.session_id.cmp(&b.session_id)));
+            pruned.truncate(overflow as usize);
             let removed = sql_query(
                 "DELETE FROM guardian_catalog_sessions WHERE session_id IN (\
                    SELECT session_id FROM guardian_catalog_sessions WHERE state='ended' \
-                   ORDER BY created_seq LIMIT ?)",
+                   ORDER BY created_seq, session_id LIMIT ?)",
             )
             .bind::<BigInt, _>(overflow)
             .execute(&mut self.connection)
@@ -330,8 +332,8 @@ impl Catalog {
             if removed == 0 && self.count().map_err(unavailable)? >= MAX_ROWS {
                 return Err("Guardian catalog capacity reached".into());
             }
-            for session_id in pruned {
-                self.record_event(&session_id, Change::Removed);
+            for row in pruned {
+                self.record_event(row, Change::Removed);
             }
         }
         sql_query(
@@ -360,7 +362,7 @@ impl Catalog {
         )
         .execute(&mut self.connection)
         .map_err(unavailable)?;
-        self.record_event(&record.session_id, Change::Upserted);
+        self.record_upsert(&record.session_id);
         Ok(())
     }
 
@@ -424,7 +426,7 @@ impl Catalog {
             .execute(&mut self.connection)
             .map_err(unavailable)?;
             if updated > 0 {
-                self.record_event(&record.session_id, Change::Upserted);
+                self.record_upsert(&record.session_id);
             }
             return Ok(());
         }
@@ -455,33 +457,55 @@ impl Catalog {
         .bind::<Text, _>(service_id)
         .execute(&mut self.connection)?;
         if updated > 0 {
-            self.record_event(session_id, Change::Upserted);
+            self.record_upsert(session_id);
         }
         Ok(updated)
     }
 
-    /// Writer epochs advance on attach; a takeover must present the observed value.
+    /// An older or replayed writer cannot reorder MRU or roll back the observed epoch.
     pub fn touch_attachment(
         &mut self,
         session_id: &str,
+        run_id: &str,
+        boot_id: &str,
+        service_id: &str,
         generation: u64,
-    ) -> Result<usize, diesel::result::Error> {
-        let generation = i64::try_from(generation).unwrap_or(i64::MAX);
+    ) -> Result<(), String> {
+        if !self.find(session_id, run_id)?.is_some_and(|row| {
+            row.boot_id == boot_id
+                && row.service_id == service_id
+                && row.state == State::Live
+                && row.attachment_generation < generation
+        }) {
+            return Ok(());
+        }
+        let generation = i64::try_from(generation)
+            .map_err(|_| "Invalid guardian attachment generation".to_owned())?;
+        let mru = i64::try_from(self.allocate_seq()?)
+            .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
         let updated = sql_query(
-            "UPDATE guardian_catalog_sessions SET attachment_generation=? \
-             WHERE session_id=? AND state<>'ended'",
+            "UPDATE guardian_catalog_sessions SET attachment_generation=?, mru_seq=? \
+             WHERE session_id=? AND run_id=? AND boot_id=? AND service_id=? \
+               AND state='live' AND attachment_generation<?",
         )
         .bind::<BigInt, _>(generation)
+        .bind::<BigInt, _>(mru)
         .bind::<Text, _>(session_id)
-        .execute(&mut self.connection)?;
+        .bind::<Text, _>(run_id)
+        .bind::<Text, _>(boot_id)
+        .bind::<Text, _>(service_id)
+        .bind::<BigInt, _>(generation)
+        .execute(&mut self.connection)
+        .map_err(unavailable)?;
         if updated > 0 {
-            self.record_event(session_id, Change::Upserted);
+            self.record_upsert(session_id);
         }
-        Ok(updated)
+        Ok(())
     }
 
     /// Foreground acquisition/selection only; listing and observation never call this.
-    pub fn touch_mru(&mut self, session_id: &str) -> Result<u64, String> {
+    #[cfg(test)]
+    fn touch_mru(&mut self, session_id: &str) -> Result<u64, String> {
         let mru = self.allocate_seq()?;
         let mru: i64 = mru
             .try_into()
@@ -495,52 +519,41 @@ impl Catalog {
         .execute(&mut self.connection)
         .map_err(unavailable)?;
         if updated > 0 {
-            self.events.push_back(Event {
-                revision: mru as u64,
-                session_id: session_id.to_owned(),
-                change: Change::Upserted,
-            });
-            while self.events.len() > MAX_EVENTS {
-                self.events.pop_front();
-            }
+            self.record_upsert(session_id);
         }
         Ok(mru as u64)
     }
 
     pub fn remove(&mut self, session_id: &str) -> Result<usize, diesel::result::Error> {
+        let row = self.find_session(session_id).map_err(|error| {
+            diesel::result::Error::DeserializationError(error.into())
+        })?;
         let removed = sql_query("DELETE FROM guardian_catalog_sessions WHERE session_id=?")
             .bind::<Text, _>(session_id)
             .execute(&mut self.connection)?;
-        if removed > 0 {
-            self.record_event(session_id, Change::Removed);
+        if let Some(row) = row {
+            self.record_event(row, Change::Removed);
         }
         Ok(removed)
     }
 
     /// Only resolved ended rows expire; unresolved uncertainty stays until resolved.
     pub fn prune_ended(&mut self, cutoff_ms: i64) -> Result<usize, diesel::result::Error> {
-        let expired: Vec<String> = sql_query(
+        let expired = sql_query(
             "SELECT session_id FROM guardian_catalog_sessions \
              WHERE state='ended' AND observed_ms<?",
         )
         .bind::<BigInt, _>(cutoff_ms)
-        .get_results::<SessionId>(&mut self.connection)?
-        .into_iter()
-        .map(|row| row.session_id)
-        .collect();
-        for session_id in &expired {
-            sql_query("DELETE FROM guardian_catalog_sessions WHERE session_id=?")
-                .bind::<Text, _>(session_id)
-                .execute(&mut self.connection)?;
+        .get_results::<SessionId>(&mut self.connection)?;
+        let mut removed = 0;
+        for row in expired {
+            removed += self.remove(&row.session_id)?;
         }
-        for session_id in &expired {
-            self.record_event(session_id, Change::Removed);
-        }
-        Ok(expired.len())
+        Ok(removed)
     }
 
     /// Cursor-fenced change replay; a lost window demands a fresh listing.
-    pub fn watch(&mut self, after: u64, limit: usize) -> Result<WatchBatch, String> {
+    pub fn watch(&self, after: u64, limit: usize, matches: impl Fn(&Record) -> bool) -> Result<WatchBatch, String> {
         let current = self.revision();
         if after > current {
             return Err("Guardian catalog cursor ahead".into());
@@ -552,28 +565,26 @@ impl Catalog {
                 gap: false,
             });
         }
-        let oldest = self.events.front().map(|event| event.revision);
-        if oldest.is_none_or(|oldest| after + 1 < oldest) {
+        if after < self.event_floor {
             return Ok(WatchBatch {
                 events: Vec::new(),
                 next: current,
                 gap: true,
             });
         }
-        let pending: Vec<Event> = self
-            .events
-            .iter()
-            .filter(|event| event.revision > after)
-            .cloned()
-            .collect();
-        let batch = pending.into_iter().take(limit).collect::<Vec<_>>();
-        let mut events = Vec::with_capacity(batch.len());
-        for event in &batch {
-            let row = self.find_session(&event.session_id)?;
-            events.push((event.change, row));
+        let mut events = Vec::new();
+        let mut next = current;
+        for event in self.events.iter().filter(|event| event.revision > after) {
+            if matches(&event.row) {
+                events.push((event.change, event.row.clone()));
+                if events.len() == limit {
+                    next = event.revision;
+                    break;
+                }
+            }
         }
         Ok(WatchBatch {
-            next: batch.last().map_or(current, |event| event.revision),
+            next,
             events,
             gap: false,
         })
@@ -790,24 +801,30 @@ mod tests {
         first.mru_seq = 1;
         catalog.insert(&first).unwrap();
         let baseline = catalog.revision();
-        assert!(catalog.watch(baseline, 16).unwrap().events.is_empty());
+        catalog.allocate_seq().unwrap();
+        assert!(catalog.watch(baseline, 16, |_| true).unwrap().events.is_empty());
         catalog
             .update_state("a", "run-a", "boot", "service", State::Ended, 2, Some(0))
             .unwrap();
-        let batch = catalog.watch(baseline, 16).unwrap();
+        let batch = catalog.watch(baseline, 16, |_| true).unwrap();
         assert!(!batch.gap);
         assert_eq!(batch.events.len(), 1);
         assert_eq!(batch.events[0].0, Change::Upserted);
         assert_eq!(
-            batch.events[0].1.as_ref().map(|row| row.state),
-            Some(State::Ended)
+            batch.events[0].1.state,
+            State::Ended
         );
         assert_eq!(batch.next, catalog.revision());
-        assert!(catalog.watch(batch.next, 16).unwrap().events.is_empty());
+        assert!(catalog.watch(batch.next, 16, |_| true).unwrap().events.is_empty());
 
         catalog.remove("a").unwrap();
-        let removal = catalog.watch(batch.next, 16).unwrap();
-        assert_eq!(removal.events, vec![(Change::Removed, None)]);
+        let removal = catalog.watch(batch.next, 16, |_| true).unwrap();
+        assert!(!removal.gap);
+        assert!(catalog.watch(batch.next, 16, |row| row.project_id == "other")
+            .unwrap().events.is_empty());
+        assert_eq!(removal.events.len(), 1);
+        assert_eq!(removal.events[0].0, Change::Removed);
+        assert_eq!(removal.events[0].1.session_id, "a");
         catalog.insert(&record("c", State::Live)).unwrap();
         let stale = catalog.revision();
         for observed in 0..=MAX_EVENTS as i64 {
@@ -815,8 +832,8 @@ mod tests {
                 .update_state("c", "run-c", "boot", "service", State::Live, observed, None)
                 .unwrap();
         }
-        assert!(catalog.watch(stale, 16).unwrap().gap);
-        assert!(catalog.watch(catalog.revision() + 1, 16).is_err());
+        assert!(catalog.watch(stale, 16, |_| true).unwrap().gap);
+        assert!(catalog.watch(catalog.revision() + 1, 16, |_| true).is_err());
     }
 
     #[test]
