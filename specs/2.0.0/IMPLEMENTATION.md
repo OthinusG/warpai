@@ -1628,6 +1628,21 @@ passed with one ignored, app binary check and strict interface coverage
 failed at its translation gate for `4603a46a`. Native V-case acceptance remains
 open.
 
+Record ID / date: S1-t / 2026-11-18
+Scope: native guarded SSH/WSL continuity fixtures and cross-platform CI fixes.
+Acceptance planned: run shared fixture logic through disposable OpenSSH and
+real Windows-to-WSL bridges with separate scoped Stores. The WSL test runs
+serially and leaves every fixture bridge closed for 12 seconds before rejoin. Retain one native command through bridge
+loss; compare boot/service/project/session/run identities, recover output from
+the same run, fence the old writer, and stop the exact attached run. Verify the
+installed helper withholds the guarded capability during this test.
+
+The earlier remote companion run 44277309897 found a stale Windows fixture
+call signature and a stale Linux SSH input replay assertion. The Windows test
+now passes the native quoted helper command. The Linux test expects identical
+input to reconcile and different bytes under the same sequence to conflict.
+The new guarded SSH/WSL receipts are recorded after CI.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

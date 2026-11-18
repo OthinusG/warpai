@@ -841,3 +841,35 @@ async fn native_ssh_file_tools_master_revokes_existing_clients_but_not_native_ss
     files.control(ProjectFilesRequest { action: ProjectFileAction::ProjectFileDelete as i32,
         path: relative, ..Default::default() }).await.unwrap();
 }
+#[cfg(unix)]
+#[path = "support/guarded_reconnect.rs"]
+mod guarded_reconnect;
+
+#[cfg(unix)]
+#[tokio::test]
+#[ignore = "requires the disposable Linux OpenSSH fixture"]
+async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
+    fn quote(value: &str) -> String {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
+
+    let config = std::env::var_os("WARP_TEST_SSH_CONFIG").expect("Controlled SSH config");
+    let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
+    let helper = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
+    let state = tempfile::tempdir().unwrap();
+    let remote_command = format!(
+        "exec env {} {} --guardian-stdio ssh",
+        quote(&format!("XDG_DATA_HOME={}", state.path().display())),
+        quote(&helper),
+    );
+    guarded_reconnect::verify_guarded_reconnect(
+        &root,
+        std::time::Duration::ZERO,
+        || {
+            let mut command = tokio::process::Command::new("ssh");
+            command.arg("-F").arg(&config)
+                .args(["-T", "-o", "BatchMode=yes", "--", "warpai-test", &remote_command]);
+            command
+        },
+    ).await;
+}

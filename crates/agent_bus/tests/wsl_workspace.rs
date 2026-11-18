@@ -322,3 +322,29 @@ async fn windows_mounted_directory_supports_files_and_project_attachment() {
     assert!(panel.get("error").is_none(), "Default Users communication workspace must be available: {panel}");
     client.disconnect();
 }
+
+
+#[path = "support/guarded_reconnect.rs"]
+mod guarded_reconnect;
+
+#[tokio::test]
+#[ignore = "requires a provisioned disposable WSL guest"]
+async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
+    let distribution = std::env::var("WARP_TEST_WSL_DISTRIBUTION").expect("Controlled WSL distribution");
+    let user = std::env::var("WARP_TEST_WSL_USER").expect("Controlled WSL user");
+    let root = std::env::var("WARP_TEST_WSL_ROOT").expect("Controlled Linux project");
+    let companion = std::env::var("WARP_TEST_WSL_COMPANION").expect("Source-matched Linux Companion");
+    let data_path = format!("XDG_DATA_HOME=/tmp/warpai-guardian-test-{}", Uuid::new_v4());
+    guarded_reconnect::verify_guarded_reconnect(
+        &root,
+        std::time::Duration::from_secs(12),
+        || {
+            let mut command = tokio::process::Command::new("wsl.exe");
+            command.args([
+                "--distribution", &distribution, "--user", &user,
+                "--exec", "/usr/bin/env", &data_path, &companion, "--guardian-stdio", "wsl",
+            ]);
+            command
+        },
+    ).await;
+}

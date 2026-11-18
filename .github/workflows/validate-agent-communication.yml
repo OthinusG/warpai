@@ -299,7 +299,7 @@ jobs:
           WARP_TEST_WSL_ROOT: /home/warpai-test/project spaces 多语言
           WARP_TEST_WSL_COMPANION: /home/warpai-test/.config/warpai/wsl/bin/warpai-wsl-companion
         run: |
-          cargo test -p warp-agent-bus --test wsl_workspace --locked -- --ignored --nocapture
+          cargo test -p warp-agent-bus --test wsl_workspace --locked -- --ignored --nocapture --test-threads=1
           if ($LASTEXITCODE -ne 0) { throw 'Real WSL workspace acceptance failed' }
       - name: Build Windows native review executable
         if: ${{ inputs.capture_ui || inputs.native_windows_only }}
