@@ -23,13 +23,14 @@ bash /home/warpai-test/rustup-install.sh -y --profile minimal --default-toolchai
 source /home/warpai-test/.cargo/env
 cargo build -p warp-agent-bus --bin warpai-companion --locked
 test "$(target/debug/warpai-companion --version)" = 'warpai-companion 6.1.0 protocol 1'
+install -d -m 700 "$HOME/.config" "$HOME/.config/warpai"
 install -D -m 755 target/debug/warpai-companion "$HOME/.config/warpai/bin/warpai-companion"
 cargo build --release -p warp-agent-bus --bin warpai-wsl-companion --features wsl_companion --locked
 python3 script/companion/package-wsl.py target/release/warpai-wsl-companion "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" "$source_revision"
 payload_directory=$(mktemp -d)
 trap 'rm -rf "$payload_directory"' EXIT
 tar -xzf "$windows_repository/target/wsl-bundle/wsl-companion.tar.gz" -C "$payload_directory"
-sh "$payload_directory/install-unix.sh"
+(umask 002; sh "$payload_directory/install-unix.sh")
 # Debug test executables must use the same pinned Git as the installed guest, not Ubuntu's old Git.
 runtime_directory=$(python3 -c 'import json; print(json.load(open("/home/warpai-test/.config/warpai/wsl/bin/companion-manifest.json"))["runtime_directory"])')
 export PATH="/home/warpai-test/.config/warpai/wsl/bin/$runtime_directory/git/bin:$PATH"

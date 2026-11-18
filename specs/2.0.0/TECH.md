@@ -97,6 +97,12 @@ ordinary native shell launch are regression surfaces, not migration targets.
 
 ## WSL-specific ownership boundary
 
+The packaged installer creates account-owned component directories under a
+private umask and removes legacy group/other write bits on those directories.
+An existing shared parent configuration directory is rejected without changing
+its permissions. This keeps SSH-first verification consistent with the
+installed guest executable, manifest and directory trust checks.
+
 Current WSL native MCP discovery observes foreground Linux processes; that alone
 is not a retained PTY owner. Keep it unchanged for unguarded sessions. A guarded
 launch must enter an explicitly service-owned guest PTY, reuse native vendor MCP

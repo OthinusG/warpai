@@ -75,15 +75,26 @@ def main():
             for path in sorted(payload.rglob("*")) if path.is_file()))
         environment = {**os.environ, "HOME": str(account)}
         def install():
-            return subprocess.run(["sh", str(payload / "install-unix.sh")], env=environment,
+            return subprocess.run(["sh", "-c", 'umask 002; exec sh "$1"', "sh", str(payload / "install-unix.sh")], env=environment,
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         installed = account / ".config/warpai/wsl/bin/warpai-wsl-companion"
         assert install() == 0
         assert installed.read_bytes() == binary.read_bytes()
+        component_directories = (ssh.parent.parent, installed.parent.parent, installed.parent)
+        for directory in component_directories:
+            assert directory.stat().st_mode & 0o022 == 0, directory
+            directory.chmod(0o775)
         assert install() == 0
+        for directory in component_directories:
+            assert directory.stat().st_mode & 0o022 == 0, directory
         assert ssh.read_text() == "Preserve original SSH Companion 4.0.0\n"
         assert former.read_text() == "Preserve former WSL installation\n"
         assert profile.read_text() == "# Preserve shell settings\n"
+        configuration = account / ".config"
+        configuration.chmod(0o775)
+        assert install() != 0
+        assert configuration.stat().st_mode & 0o777 == 0o775
+        configuration.chmod(0o700)
         original = installed.read_bytes()
         original_git = git.read_bytes()
         git.write_text("Corrupt payload\n")

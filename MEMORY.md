@@ -392,6 +392,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   logical service ID matches its legacy Store. Both startup orders require
   source-matched native proof.
 
+- Companion installers create private component directories and repair legacy
+  group/other write bits. SSH-first WSL election requires account-owned
+  installation ancestors without group/other writes and verifies the manifest.
+
 - The Unix guardian caps pending prefaces and established bridges separately.
   Long-running CLI attachments share bridge slots. Two local control permits
   keep account catalog and stop available when all 32 bridge slots are occupied.

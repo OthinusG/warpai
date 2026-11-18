@@ -1866,6 +1866,25 @@ Where no candidate has an MRU sequence, the newest creation sequence wins.
 The host fixtures check creation ordering and distinct run/root error codes.
 No wire, Store or durable memory changes.
 
+Record ID / date: S5-e / 2026-11-18
+Scope: installed WSL helper directory permissions during SSH-first election.
+
+[Two](https://github.com/OthinusG/warpai/actions/runs/44307268038)
+[native WSL runs](https://github.com/OthinusG/warpai/actions/runs/44308187073)
+failed the first SSH bridge at the permission boundary; both ordinary WSL
+workspace cases passed. The packaged installer reproduced the mismatch locally
+under umask `002`: it created group-writable WSL directories that the image
+verifier refuses. The installer now creates private directories and repairs
+group/other write bits on component-owned directories on upgrade. It preserves
+the parent configuration directory and rejects an unsafe parent before repair.
+
+The generated installer fixture now exercises permissive-umask first install,
+upgrade from writable component directories and prior isolation/corruption cases.
+The permission check failed against the old installer and passed against the
+fix. The WSL CI guest installs with the same permissive umask. Exact native
+election still requires a fresh Windows/WSL pass. MEMORY.md records the installed
+boundary.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

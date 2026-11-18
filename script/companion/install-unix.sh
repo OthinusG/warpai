@@ -21,10 +21,22 @@ else
   (cd "$payload_dir" && sha256sum -c SHA256SUMS)
 fi
 install_dir="$HOME/.config/warpai/bin"
+umask 077
+owner_uid=$(id -u)
 # Refuse symlinked installation directories rather than writing outside the account tree.
 for directory in "$HOME/.config" "$HOME/.config/warpai" "$install_dir"; do
   [ ! -L "$directory" ] || { echo 'Warpai installation directory must not be a symlink.' >&2; exit 1; }
   mkdir -p "$directory"
+  [ "$(find "$directory" -prune -type d -user "$owner_uid" -print)" = "$directory" ] || {
+    echo 'Warpai installation directories must be owned by the installing account.' >&2; exit 1;
+  }
+  if [ "$directory" = "$HOME/.config" ]; then
+    [ -z "$(find "$directory" -prune \( -perm -020 -o -perm -002 \) -print)" ] || {
+      echo 'The account configuration directory must not allow group or other writes.' >&2; exit 1;
+    }
+  else
+    chmod go-w "$directory"
+  fi
 done
 staged_binary=$(mktemp "$install_dir/.warpai-companion.XXXXXX")
 staged_manifest=$(mktemp "$install_dir/.companion-manifest.XXXXXX")
