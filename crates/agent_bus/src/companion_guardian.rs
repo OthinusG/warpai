@@ -96,7 +96,7 @@ fn translated_wsl_root(output: &[u8]) -> Option<&str> {
 #[cfg(target_os = "linux")]
 async fn verified_distribution() -> std::io::Result<String> {
     let mut command = tokio::process::Command::new("/usr/bin/wslpath");
-    command.args(["-w", "/"]).kill_on_drop(true);
+    command.args(["-w", "/"]).env_remove("WSL_DISTRO_NAME").kill_on_drop(true);
     let output = tokio::time::timeout(Duration::from_secs(2), command.output())
         .await
         .map_err(|_| std::io::Error::from(ErrorKind::TimedOut))??;
@@ -1725,6 +1725,11 @@ mod tests {
         assert_eq!(page.rows.len(), 1);
         assert_eq!(page.rows[0].session_id, launched.session_id);
         assert_eq!(page.rows[0].state, "live");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while inspect_guarded(&mut client, &account, &launched).await.writer_attached != Some(true) {
+            assert!(Instant::now() < deadline, "Catalog did not observe the attached writer");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
         drop(client);
 
         let (stream, second_guardian, second_boot) = wait_route(&runtime).await;
@@ -1745,6 +1750,11 @@ mod tests {
             .account_fence
             .clone()
             .expect("Guardian advertises account custody");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while inspect_guarded(&mut client, &second_account, &launched).await.writer_attached != Some(false) {
+            assert!(Instant::now() < deadline, "Catalog did not observe the detached writer");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
         let reopened = match client
             .call(managed_request::Operation::ProjectOpen(ProjectOpen {
                 fence: Some(fence),

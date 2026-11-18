@@ -51,7 +51,8 @@ def main():
         wslpath = Path("/usr/bin/wslpath")
         distro = None
         if wslpath.is_file():
-            native = subprocess.check_output([str(wslpath), "-w", "/"], text=True).strip().rstrip("\\")
+            native_environment = {key: value for key, value in os.environ.items() if key != "WSL_DISTRO_NAME"}
+            native = subprocess.check_output([str(wslpath), "-w", "/"], env=native_environment, text=True).strip().rstrip("\\")
             for prefix in ("\\\\wsl.localhost\\", "\\\\wsl$\\"):
                 if native.startswith(prefix):
                     distro = native[len(prefix):]

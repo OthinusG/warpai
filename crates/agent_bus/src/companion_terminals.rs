@@ -1410,6 +1410,18 @@ impl Terminals {
     }
 
     #[cfg(unix)]
+    pub(super) fn writer_attached(&self, row: &guardian_catalog::Record) -> Option<bool> {
+        let owned = self.owners.try_lock().ok()?.get(&row.session_id)?.clone();
+        let session = owned.try_lock().ok()?;
+        (session.policy == Policy::Guarded
+            && session.run_id == row.run_id
+            && session.boot_id == row.boot_id
+            && session.service_id == row.service_id
+            && session.writer.attachment.load(Ordering::SeqCst) == row.attachment_generation)
+            .then_some(session.connection.is_some())
+    }
+
+    #[cfg(unix)]
     pub(super) fn current_guarded_session(&self, peer_pid: u32) -> Option<remote_protocol::proto::CurrentGuardedSession> {
         let pid = libc::pid_t::try_from(peer_pid).ok().filter(|pid| *pid > 0)?;
         let leader = u32::try_from(unsafe { libc::getsid(pid) }).ok()?;

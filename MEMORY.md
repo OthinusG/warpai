@@ -416,6 +416,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   `TCSANOW`. Flush pending input after restoring attributes without draining
   output. The full local comparison and real macOS/Linux SSH TTY test passed
   on `3d33a7d6` (remote run 44328848156).
+- Strip `WSL_DISTRO_NAME` from `wslpath`'s child environment before comparing
+  its native result against the parent hint. Catalog writer occupancy is an
+  optional exact-generation observation outside durable revision and MRU.
 
 ## Memory maintenance
 

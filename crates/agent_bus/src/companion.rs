@@ -95,6 +95,7 @@ fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
         observed_ms: record.observed_ms,
         exit_status: record.exit_status,
         attachment_generation: record.attachment_generation,
+        writer_attached: None,
     }
 }
 
@@ -500,6 +501,15 @@ impl Companion {
     }
 
     #[cfg(unix)]
+    fn catalog_row_with_writer(&self, record: &guardian_catalog::Record) -> AccountCatalogRow {
+        let mut row = catalog_row(record);
+        if record.state == guardian_catalog::State::Live {
+            row.writer_attached = self.terminals.writer_attached(record);
+        }
+        row
+    }
+
+    #[cfg(unix)]
     fn dispatch_catalog_list(
         &mut self,
         request: AccountCatalogList,
@@ -520,6 +530,7 @@ impl Companion {
         let filter = request.filter.unwrap_or_default();
         let filter_key = catalog_filter_key(&filter);
         let mut rows = catalog.list().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        drop(catalog);
         rows.retain(|row| catalog_filter_matches(&filter, row));
         let total = rows.len();
         let after = if request.cursor.is_empty() {
@@ -557,7 +568,7 @@ impl Companion {
         });
         Ok(managed_response::Result::AccountCatalogPage(
             AccountCatalogPage {
-                rows: page.into_iter().map(catalog_row).collect(),
+                rows: page.into_iter().map(|record| self.catalog_row_with_writer(record)).collect(),
                 total: u32::try_from(total).unwrap_or(u32::MAX),
                 revision,
                 next,
@@ -592,7 +603,8 @@ impl Companion {
             .find(&request.session_id, &request.run_id)
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
             .ok_or(ManagedErrorCode::ManagedNotFound)?;
-        Ok(managed_response::Result::AccountCatalogRow(catalog_row(
+        drop(catalog);
+        Ok(managed_response::Result::AccountCatalogRow(self.catalog_row_with_writer(
             &record,
         )))
     }

@@ -55,6 +55,8 @@ The bundled Bash/Zsh bootstrap chooses the installed SSH helper in a managed
 SSH shell and the dedicated guest helper in a native, verified WSL shell. The
 function retains that absolute path for its shell session and verifies the
 owned directories, manifest and binary digest before dispatching each call.
+The WSL path probe removes `WSL_DISTRO_NAME` from the child environment before
+comparing the resulting native path against the original hint.
 
 In an ordinary independently opened SSH/WSL shell, bare `warpai` is not promised
 without PATH/profile changes. The absolute Companion command remains usable.

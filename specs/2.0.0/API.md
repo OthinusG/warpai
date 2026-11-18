@@ -139,6 +139,10 @@ Companion-private CLI and GUI use the same operations and authenticated admissio
 Account-level catalog metadata is visible to the authenticated owning user, but
 contains no project task bodies/files/transcripts and grants no task/terminal
 rights. Opening/control still requires the relevant project/scope/run checks.
+List and inspect may include `writer_attached` (tag 13), sampled from the exact
+live run and cataloged attachment generation. Absence means the writer could
+not be observed, including while the run is busy. This in-memory observation
+does not affect catalog revision, pagination, watch events or writer authority.
 Catalog watches are bounded, revision/cursor-scoped and contain sanitized IDs/state
 only; gaps require bounded relisting. Reconnect restores metadata automatically,
 not every writer/snapshot. Detailed CLI/default/name rules live in [CLI.md](CLI.md).

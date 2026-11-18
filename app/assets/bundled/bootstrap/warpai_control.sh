@@ -9,7 +9,7 @@ function __warpai_enable_control {
     if [ "${WARP_IS_SSH:-}" = 1 ]; then
         executable="$HOME/.config/warpai/bin/warpai-companion"
     elif [ -n "${WSL_DISTRO_NAME:-}" ] && [ -x /usr/bin/wslpath ]; then
-        native=$(/usr/bin/wslpath -w / 2>/dev/null) || return 1
+        native=$(command -p env -u WSL_DISTRO_NAME /usr/bin/wslpath -w / 2>/dev/null) || return 1
         case $native in
             '\\wsl.localhost\'"$WSL_DISTRO_NAME"|'\\wsl.localhost\'"$WSL_DISTRO_NAME"'\'|'\\wsl$\'"$WSL_DISTRO_NAME"|'\\wsl$\'"$WSL_DISTRO_NAME"'\') ;;
             *) return 1 ;;

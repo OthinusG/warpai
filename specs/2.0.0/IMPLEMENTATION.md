@@ -1981,6 +1981,21 @@ uses the ordinary installed-style operator path and establishes the caller
 receives the first stop request. The fixture never depends on a response from
 the caller. Source compiles; native cloud receipt pending.
 
+Record ID / date: S4-e / 2026-11-18
+Scope: non-mutating writer observation and independent WSL name verification.
+
+Account list and inspect return the optional attached/free observation only
+for an exact native session, run, boot, service and attachment generation.
+The observer holds no catalog lock while sampling and returns unknown when a
+registry/session lock is busy. CLI formats this state separately from process
+status. No schema migration, event or MRU mutation. The native listener test
+observes a writer while attached and free after transport loss.
+
+The WSL shell fixture found that the path translator accepts an environment
+hint supplied by its caller. Both native probes strip `WSL_DISTRO_NAME` before
+the translation, then compare against the original hint. This isolates the
+probe from the text it is supposed to validate. Native rerun remains pending.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

@@ -309,8 +309,13 @@ fn row_line(row: &AccountCatalogRow) -> String {
         .exit_status
         .map(|code| format!(" exit={code}"))
         .unwrap_or_default();
+    let writer = match row.writer_attached {
+        Some(true) => "attached",
+        Some(false) => "free",
+        None => "unknown",
+    };
     format!(
-        "{}  {}  {}  {}  project={}  mru={}  gen={}{}",
+        "{}  {}  {}  {}  project={}  mru={}  gen={}  writer={}{}",
         row.session_id,
         label,
         encode_text(&row.kind),
@@ -318,6 +323,7 @@ fn row_line(row: &AccountCatalogRow) -> String {
         encode_text(&row.project_id),
         row.mru_seq,
         row.attachment_generation,
+        writer,
         exit
     )
 }
@@ -1016,6 +1022,7 @@ mod tests {
             observed_ms: 0,
             exit_status: None,
             attachment_generation: 0,
+            writer_attached: None,
         };
         let rows = vec![
             row("a", Some("same"), "live", 5),
@@ -1091,11 +1098,13 @@ mod tests {
             observed_ms: 0,
             exit_status: Some(0),
             attachment_generation: 3,
+            writer_attached: Some(false),
         };
         let line = row_line(&row);
         assert!(line.contains("bad?label"));
         assert!(!line.chars().any(|c| c.is_control()));
         assert!(line.contains("gen=3"));
+        assert!(line.contains("writer=free"));
     }
 
     #[test]
@@ -1113,6 +1122,7 @@ mod tests {
             observed_ms: 0,
             exit_status: Some(0),
             attachment_generation: 2,
+            writer_attached: None,
         };
         assert!(!is_live(&row));
     }
