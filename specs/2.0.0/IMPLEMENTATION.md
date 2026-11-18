@@ -1979,7 +1979,8 @@ inside the first process in registry order. The external fixture checks the
 caller and sibling both reach observed native exit with drained output. This
 uses the ordinary installed-style operator path and establishes the caller
 receives the first stop request. The fixture never depends on a response from
-the caller. Source compiles; native cloud receipt pending.
+the caller. Linux and macOS passed this case on `1b3f5e9a` in
+[run 44332532490](https://github.com/OthinusG/warpai/actions/runs/44332532490).
 
 Record ID / date: S4-e / 2026-11-18
 Scope: non-mutating writer observation and independent WSL name verification.
