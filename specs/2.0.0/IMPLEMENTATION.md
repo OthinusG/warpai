@@ -1643,6 +1643,23 @@ now passes the native quoted helper command. The Linux test expects identical
 input to reconcile and different bytes under the same sequence to conflict.
 The new guarded SSH/WSL receipts are recorded after CI.
 
+Record ID / date: S1-u / 2026-11-18
+Scope: current-session CLI resume without recursively attaching its own PTY.
+Baseline: `91f7a2aa` on `feat/2.0.0`.
+
+Direct same-UID operator admission resolves the socket peer's native Unix
+session leader and compares it with the retained guardian PTY leader.
+`ManagedInitialized.current_guarded_session` (tag 8) reports only exact
+session/run IDs. The ordinary and remote data bridges receive no selector.
+A bare resume in that process session returns success without project opening
+or acquiring a writer. Explicit discovery and attachment continue to use
+the existing project and writer fences.
+
+Host proof: a real Companion-owned PTY reports its native session leader.
+The fixture verifies a positive exact run match and a negative match from the
+test process. The Apple private socket PID lookup compiles on macOS; its
+native CLI interactive acceptance and V29 are still pending.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

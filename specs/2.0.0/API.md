@@ -127,6 +127,12 @@ Catalog watches are bounded, revision/cursor-scoped and contain sanitized IDs/st
 only; gaps require bounded relisting. Reconnect restores metadata automatically,
 not every writer/snapshot. Detailed CLI/default/name rules live in [CLI.md](CLI.md).
 
+A direct operator handshake may report `ManagedInitialized.current_guarded_session`
+(tag 8). The guardian derives this selector from the authenticated local
+peer's OS session leader and the currently owned guarded PTY; remote bridges
+never receive it. A bare resume in that run succeeds without attaching it to
+its own PTY. The selector grants no writer or project authority.
+
 ## Optional policy and launch intent
 
 The client stores a future-launch guardian default per confirmed SSH target or

@@ -7,7 +7,7 @@ use crate::{
     ssh_remote::{ConnectionError, HostClient},
 };
 use remote_protocol::proto::*;
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 const EXIT_OK: i32 = 0;
 const EXIT_DOMAIN: i32 = 1;
@@ -336,7 +336,6 @@ fn route_name(route: Route) -> &'static str {
 /// Account discovery and bare stop do not require a project admission.
 async fn connect(
     project: &Option<String>,
-    needs_project: bool,
 ) -> Result<(HostClient, String, String), i32> {
     let active = route();
     let stream = match guardian::probe(active).await {
@@ -346,25 +345,7 @@ async fn connect(
             return Err(EXIT_DOMAIN);
         }
     };
-    let root = match project {
-        Some(path) => Some(PathBuf::from(path)),
-        None if needs_project => match std::env::current_dir() {
-            Ok(directory) => Some(directory),
-            Err(_) => {
-                eprintln!("Current project directory is unavailable.");
-                return Err(EXIT_DOMAIN);
-            }
-        },
-        None => None,
-    };
-    let root = match root.as_deref().map(|root| root.to_str()) {
-        Some(Some(root)) => Some(root),
-        Some(None) => {
-            eprintln!("Project path is not valid UTF-8.");
-            return Err(EXIT_DOMAIN);
-        }
-        None => None,
-    };
+    let root = project.as_deref();
     let client = match HostClient::connect_unix(stream, root).await {
         Ok(client) => client,
         Err(_) => {
@@ -415,7 +396,7 @@ pub(crate) async fn rows(client: &mut HostClient, project_id: &str) -> Result<Ve
 }
 
 async fn list(project: Option<String>, id: Option<String>) -> i32 {
-    let (mut client, _, filter) = match connect(&project, false).await {
+    let (mut client, _, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };
@@ -492,10 +473,31 @@ fn select<'a>(
 }
 
 async fn resume(project: Option<String>, selection: Selection, takeover: bool) -> i32 {
-    let (mut client, current_project, filter) = match connect(&project, true).await {
+    let (mut client, mut current_project, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };
+    if matches!(selection, Selection::All) && project.is_none()
+        && client.current_guarded_session().is_some()
+    {
+        println!("Already in the current guarded session.");
+        return EXIT_OK;
+    }
+    if project.is_none() {
+        let Ok(directory) = std::env::current_dir() else {
+            eprintln!("Current project directory is unavailable.");
+            return EXIT_DOMAIN;
+        };
+        let Some(root) = directory.to_str() else {
+            eprintln!("Project path is not valid UTF-8.");
+            return EXIT_DOMAIN;
+        };
+        if client.open_project(root).await.is_err() {
+            eprintln!("Current project admission failed.");
+            return EXIT_DOMAIN;
+        }
+        current_project = client.fence().expect("Admitted project fence").project_id.clone();
+    }
     let filter = if matches!(selection, Selection::All) {
         &current_project
     } else {
@@ -509,6 +511,12 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
         Ok(row) => row.clone(),
         Err(code) => return code,
     };
+    if client.current_guarded_session().is_some_and(|current| {
+        current.session_id == selected.session_id && current.run_id == selected.run_id
+    }) {
+        println!("Already in the current guarded session.");
+        return EXIT_OK;
+    }
     if selected.project_id != current_project {
         eprintln!(
             "Session {} belongs to another project; pass --project <root>.",
@@ -730,7 +738,7 @@ async fn detach(client: &mut HostClient, state: &TerminalState) {
 }
 
 async fn stop(project: Option<String>, selection: Selection) -> i32 {
-    let (mut client, _, filter) = match connect(&project, false).await {
+    let (mut client, _, filter) = match connect(&project).await {
         Ok(value) => value,
         Err(code) => return code,
     };

@@ -363,8 +363,9 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - 2.0.0 guardian stays default-off. Installed helpers withhold the guarded
   capability until native proof; macOS Unix fixtures can negotiate it in test
   builds. Native Windows refuses guardian flags and `ctl`.
-- Companion CLI `ctl list|resume|stop` probes only. Bare resume uses the opened
-  project; another project needs its root for admission. Bare stop is
+- Companion CLI `ctl list|resume|stop` probes only. Bare resume first recognizes
+  its native guarded session and otherwise selects in the opened project;
+  another project needs its root for admission. Bare stop is
   account-wide and operator-only, with boot-scoped receipts. The session-only
   shell function, real WSL/SSH coexistence and V01-V30 remain open.
 - S1-r review/repairs and source-matched host receipts are in

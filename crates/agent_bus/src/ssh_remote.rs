@@ -299,6 +299,7 @@ pub struct HostClient {
     output: Compat<HostReader>,
     fence: Option<ManagedFence>,
     account_fence: Option<AccountFence>,
+    current_guarded_session: Option<CurrentGuardedSession>,
     pub canonical_root: String,
     pub account_id: String,
     pub root_identity: String,
@@ -657,6 +658,7 @@ impl HostClient {
             output,
             fence: None,
             account_fence: None,
+            current_guarded_session: None,
             canonical_root: String::new(),
             account_id: String::new(),
             root_identity: String::new(),
@@ -690,36 +692,47 @@ impl HostClient {
         }
         client.fence = Some(fence.clone());
         if let Some(root) = root {
-            let opened = client
-                .request(managed_request::Operation::ProjectOpen(ProjectOpen {
-                    fence: Some(fence.clone()),
-                    root: root.into(),
-                }))
-                .await?;
-            let managed_response::Result::ProjectOpened(opened) = opened else {
-                return Err(ConnectionError::CompanionUnavailable);
-            };
-            let Some(project_fence) = opened.fence else {
-                return Err(ConnectionError::StaleAttachment);
-            };
-            if !valid_fence(&project_fence, true)
-                || project_fence.service_id != fence.service_id
-                || project_fence.service_boot_id != fence.service_boot_id
-                || project_fence.connection_id != fence.connection_id
-                || !text(&opened.canonical_root, 4096)
-                || opened.root_identity.len() != 64
-                || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())
-            {
-                return Err(ConnectionError::StaleAttachment);
-            }
-            client.fence = Some(project_fence);
-            client.canonical_root = opened.canonical_root;
-            client.root_identity = opened.root_identity;
+            client.open_project(root).await?;
         }
         client.account_id = initialized.account_id;
         client.capabilities = initialized.capabilities;
+        client.current_guarded_session = initialized.current_guarded_session.filter(|session| {
+            initialized.account_fence.is_some()
+                && Uuid::parse_str(&session.session_id).is_ok_and(|id| !id.is_nil())
+                && Uuid::parse_str(&session.run_id).is_ok_and(|id| !id.is_nil())
+        });
         client.account_fence = initialized.account_fence;
         Ok(client)
+    }
+
+    pub(crate) async fn open_project(&mut self, root: &str) -> Result<(), ConnectionError> {
+        let fence = self.fence.clone().ok_or(ConnectionError::StaleAttachment)?;
+        let opened = self
+            .request(managed_request::Operation::ProjectOpen(ProjectOpen {
+                fence: Some(fence.clone()),
+                root: root.into(),
+            }))
+            .await?;
+        let managed_response::Result::ProjectOpened(opened) = opened else {
+            return Err(ConnectionError::CompanionUnavailable);
+        };
+        let Some(project_fence) = opened.fence else {
+            return Err(ConnectionError::StaleAttachment);
+        };
+        if !valid_fence(&project_fence, true)
+            || project_fence.service_id != fence.service_id
+            || project_fence.service_boot_id != fence.service_boot_id
+            || project_fence.connection_id != fence.connection_id
+            || !text(&opened.canonical_root, 4096)
+            || opened.root_identity.len() != 64
+            || !opened.root_identity.bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            return Err(ConnectionError::StaleAttachment);
+        }
+        self.fence = Some(project_fence);
+        self.canonical_root = opened.canonical_root;
+        self.root_identity = opened.root_identity;
+        Ok(())
     }
 
     pub(crate) fn restrict_ssh_access(&mut self, epoch: Option<u64>) -> Result<(), ConnectionError> {
@@ -981,6 +994,10 @@ impl HostClient {
         }
         self.close();
         Err(ConnectionError::StaleAttachment)
+    }
+
+    pub(crate) fn current_guarded_session(&self) -> Option<&CurrentGuardedSession> {
+        self.current_guarded_session.as_ref()
     }
 
     pub fn account_fence(&self) -> Option<&AccountFence> {

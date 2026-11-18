@@ -67,6 +67,11 @@ impl NativePty {
     pub fn is_active(&mut self) -> io::Result<bool> {
         self.process.active()
     }
+    #[cfg(unix)]
+    pub(crate) fn session_leader(&self) -> u32 {
+        self.process.session_leader()
+    }
+
     pub fn stop(&mut self) -> io::Result<bool> {
         self.process.stop()
     }

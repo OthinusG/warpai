@@ -353,6 +353,14 @@ impl Companion {
                     return Err(ManagedErrorCode::ManagedIncompatibleVersion);
                 }
                 self.initialized = true;
+                #[cfg(unix)]
+                let current_guarded_session = if self.account_operator {
+                    self.peer_pid.and_then(|pid| self.terminals.current_guarded_session(pid))
+                } else {
+                    None
+                };
+                #[cfg(not(unix))]
+                let current_guarded_session = None;
                 Ok(managed_response::Result::Initialized(ManagedInitialized {
                     protocol_major: PROTOCOL_MAJOR,
                     fence: Some(self.fence.clone()),
@@ -366,6 +374,7 @@ impl Companion {
                         boot_id: self.fence.service_boot_id.clone(),
                         connection_id: self.fence.connection_id.clone(),
                     }),
+                    current_guarded_session,
                 }))
             }
             Some(managed_request::Operation::ProjectOpen(request)) => {

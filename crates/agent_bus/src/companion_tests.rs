@@ -722,6 +722,8 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
 #[cfg(unix)]
 #[test]
 fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
+    use std::time::{Duration, Instant};
+
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
@@ -736,7 +738,7 @@ fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
             fence: Some(fence.clone()),
             session_id: Uuid::new_v4().to_string(),
             executable: "/bin/sh".into(),
-            arguments: vec!["-c".into(), "sleep 30".into()],
+            arguments: vec!["-c".into(), "printf '%s\\n' \"$$\"; exec sleep 30".into()],
             columns: 80,
             rows: 24,
             guarded: true,
@@ -757,6 +759,29 @@ fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
             ..Default::default()
         }),
     );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let pid = loop {
+        let managed_response::Result::TerminalState(state) = result(companion.handle(control(
+            TerminalAction::TerminalRead,
+            launched.attachment_id.clone(),
+            launched.attachment_generation,
+        ))) else {
+            panic!("Guarded read required");
+        };
+        if let Ok(pid) = String::from_utf8_lossy(&state.output).trim().parse::<u32>() {
+            break pid;
+        }
+        assert!(Instant::now() < deadline, "Owned PTY did not report its PID");
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(
+        companion.terminals.current_guarded_session(pid),
+        Some(CurrentGuardedSession {
+            session_id: launched.session_id.clone(),
+            run_id: launched.run_id.clone(),
+        }),
+    );
+    assert!(companion.terminals.current_guarded_session(std::process::id()).is_none());
     assert!(matches!(
         result(companion.handle(control(
             TerminalAction::TerminalDetach,

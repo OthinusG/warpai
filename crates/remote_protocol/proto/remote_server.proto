@@ -107,6 +107,11 @@ message ManagedInitialized {
   string account_id = 6;
   // Present only on account-guardian admission; validated independently of ManagedFence.
   AccountFence account_fence = 7;
+  CurrentGuardedSession current_guarded_session = 8;
+}
+message CurrentGuardedSession {
+  string session_id = 1;
+  string run_id = 2;
 }
 // Binds catalog operations to one verified guardian boot and connection.
 message AccountFence {

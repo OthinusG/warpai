@@ -249,6 +249,25 @@ async fn probe_live(runtime: &Path, route: Route) -> std::io::Result<(UnixStream
     exchange_preface(stream, route, Admission::Guarded).await
 }
 
+#[cfg(target_os = "macos")]
+fn macos_peer_pid(stream: &UnixStream) -> Option<u32> {
+    use std::os::fd::AsRawFd;
+
+    let mut pid: libc::pid_t = 0;
+    let mut length = std::mem::size_of_val(&pid) as libc::socklen_t;
+    let status = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_LOCAL,
+            libc::LOCAL_PEERPID,
+            (&mut pid as *mut libc::pid_t).cast(),
+            &mut length,
+        )
+    };
+    (status == 0 && length as usize == std::mem::size_of_val(&pid) && pid > 0)
+        .then_some(pid as u32)
+}
+
 fn route_absent(error: &std::io::Error) -> bool {
     matches!(
         error.kind(),
@@ -551,6 +570,8 @@ pub(crate) async fn serve_at(
                 let peer_pid = credentials
                     .pid()
                     .and_then(|pid| u32::try_from(pid).ok());
+                #[cfg(target_os = "macos")]
+                let peer_pid = peer_pid.or_else(|| macos_peer_pid(&stream));
                 let directory = scope.directory.clone();
                 let tasks = scope.tasks.clone();
                 let terminals = terminals.clone();

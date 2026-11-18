@@ -1256,6 +1256,21 @@ impl Terminals {
     }
 
     #[cfg(unix)]
+    pub(super) fn current_guarded_session(&self, peer_pid: u32) -> Option<remote_protocol::proto::CurrentGuardedSession> {
+        let pid = libc::pid_t::try_from(peer_pid).ok().filter(|pid| *pid > 0)?;
+        let leader = u32::try_from(unsafe { libc::getsid(pid) }).ok()?;
+        let owners = self.owners.lock().ok()?;
+        owners.values().find_map(|owner| {
+            let session = owner.lock().ok()?;
+            (session.policy == Policy::Guarded && session.pty.session_leader() == leader)
+                .then(|| remote_protocol::proto::CurrentGuardedSession {
+                    session_id: session.launch.session_id.clone(),
+                    run_id: session.run_id.clone(),
+                })
+        })
+    }
+
+    #[cfg(unix)]
     pub(super) fn pending_attachments(&self) -> Vec<PendingAttachment> {
         let Ok(owners) = self.owners.lock() else {
             return Vec::new();

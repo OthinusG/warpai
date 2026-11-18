@@ -113,6 +113,10 @@ pub(super) fn spawn(
     })
 }
 impl Process {
+    pub(super) fn session_leader(&self) -> u32 {
+        self.child.id()
+    }
+
     #[cfg(target_os = "macos")]
     fn group_members(&self) -> io::Result<Vec<sysinfo::Pid>> {
         let mut pids = [0i32; 4096];
