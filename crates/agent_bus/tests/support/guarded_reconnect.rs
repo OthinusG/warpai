@@ -293,3 +293,60 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
     expect_line(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
     assert!(timeout(Duration::from_secs(10), child.wait()).await.unwrap().unwrap().success());
 }
+
+#[cfg(unix)]
+pub async fn verify_cli_stop_survives_caller(root: &str, helper: &str, command: Command) {
+    let mut bridge = Bridge::connect(command);
+    let (fence, _) = bridge.open(root).await;
+    let mut runs = Vec::new();
+    let mut session = *Uuid::new_v4().as_bytes();
+    for (order, script) in [
+        "IFS= read -r trigger; exec \"$1\" ctl stop",
+        "while IFS= read -r line; do :; done",
+    ].into_iter().enumerate() {
+        // The registry dispatches in ID order; terminate the caller first.
+        session[15] = order as u8;
+        let result = bridge.call(managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::from_bytes(session).to_string(),
+            executable: "/bin/sh".into(),
+            arguments: vec!["-c".into(), script.into(), "warpai-fixture".into(), helper.into()],
+            columns: 80,
+            rows: 24,
+            guarded: true,
+            session_kind: Some(TerminalSessionKind::Command as i32),
+            ..Default::default()
+        })).await;
+        let managed_response::Result::TerminalState(state) = result else {
+            panic!("Stop fixture launch failed: {result:?}");
+        };
+        assert_eq!(state.processes_active, Some(true));
+        runs.push(state);
+    }
+    let request = |state: &TerminalState, action: TerminalAction| TerminalControl {
+        fence: Some(fence.clone()),
+        session_id: state.session_id.clone(),
+        run_id: state.run_id.clone(),
+        action: action as i32,
+        attachment_id: state.attachment_id.clone(),
+        attachment_generation: state.attachment_generation,
+        ..Default::default()
+    };
+    bridge.terminal(TerminalControl {
+        input: b"stop\r".to_vec(),
+        input_sequence: 1,
+        ..request(&runs[0], TerminalAction::TerminalInput)
+    }).await;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    for run in runs {
+        loop {
+            let state = bridge.terminal(request(&run, TerminalAction::TerminalRead)).await;
+            if state.output_closed && state.processes_active == Some(false) {
+                assert!(state.exit_code.is_some());
+                break;
+            }
+            assert!(Instant::now() < deadline, "CLI stop must finish both captured runs");
+            sleep(Duration::from_millis(20)).await;
+        }
+    }
+}

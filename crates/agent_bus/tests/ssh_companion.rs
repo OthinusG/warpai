@@ -871,15 +871,14 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
             .args(["-tt", "-o", "BatchMode=yes", "--", "warpai-test", &run]);
         command
     };
+    let bridge = || {
+        let mut command = tokio::process::Command::new("ssh");
+        command.arg("-F").arg(&config)
+            .args(["-T", "-o", "BatchMode=yes", "--", "warpai-test", &remote_command]);
+        command
+    };
     guarded_reconnect::verify_guarded_reconnect(
-        &root,
-        std::time::Duration::from_secs(12),
-        || {
-            let mut command = tokio::process::Command::new("ssh");
-            command.arg("-F").arg(&config)
-                .args(["-T", "-o", "BatchMode=yes", "--", "warpai-test", &remote_command]);
-            command
-        },
-        Some(&tty_resume),
+        &root, std::time::Duration::from_secs(12), bridge, Some(&tty_resume),
     ).await;
+    guarded_reconnect::verify_cli_stop_survives_caller(&root, &helper, bridge()).await;
 }

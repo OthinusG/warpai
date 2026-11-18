@@ -18,6 +18,8 @@ and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
 The controlled Unix SSH fixture exercises the actual installed-style `ctl`
 entry on an allocated SSH TTY. It checks same-process output and input after a
 bridge gap, split detach input, and restoration of the outer terminal settings.
+It also starts a CLI stop inside one of two guarded PTYs and verifies both
+native process exits after the caller loses its own terminal.
 
 ## S0: scope, caller inventory and contract freeze
 

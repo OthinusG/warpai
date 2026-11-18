@@ -1968,6 +1968,16 @@ and metacharacters, three collision types, noninteractive/normal local shells
 and corrupt helper rejection. Remote CI includes the fixture, with native WSL
 guest path checks when run inside WSL. Native Windows requires its guardian.
 
+Record ID / date: S8-c / 2026-11-18
+Scope: V11/V25, caller-loss semantics for account stop.
+
+The controlled Unix case starts two guarded PTYs and invokes bare `ctl stop`
+inside the first process in registry order. The external fixture checks the
+caller and sibling both reach observed native exit with drained output. This
+uses the ordinary installed-style operator path and establishes the caller
+receives the first stop request. The fixture never depends on a response from
+the caller. Source compiles; native cloud receipt pending.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
