@@ -62,7 +62,7 @@ guardian ownership remain open.
 | S4 SSH optional UI/CLI | in_progress | Verified-target `guardian` preference, controlled Linux SSH reconnect, private `ctl list/resume/stop`, and exact live project admission for resume across working directories in one logical scope. Desktop launch/restore, the session-only shell function and native interactive TTY acceptance remain open. |
 | S5 mandatory WSL guardian | in_progress | Native Windows/WSL on `acd9e63e` passed both first-owner orders, guarded bridge loss and exact-run reconnect, and ordinary workspace coexistence. Desktop launch/restore, full upgrade matrix, distro termination and host reboot acceptance remain open. |
 | S6 failure/feature restoration | in_progress | Boot-scoped stop replay and catalog ownership exercised on the host. Real descendant, caller-loss, permission, task and file-transfer recovery remain open. |
-| S7 resource/fairness scheduling | in_progress | Local regressions cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Shared guarded Agent wake scheduling, bulk dispatch fairness and measured resource budgets remain open. |
+| S7 resource/fairness scheduling | in_progress | Guarded wake checks use runtime notifications and quiet/ready deadlines with pacing and periodic reconciliation. Local regressions also cover account control at 32 occupied bridges and a sibling launch while another run holds its session lock. Per-run indexing, bulk fairness and measured resource budgets remain open. |
 | S8 native acceptance | in_progress | Source-matched controlled Linux SSH and Windows WSL receipts above cover portions of the native matrix. Release-aligned desktop, native Windows guardian and resource measurements remain open. |
 | S9 distribution/release | in_progress | Unix and generated WSL installer regressions cover provenance, permissions, repeat install and scope isolation. Native WSL uses the source-matched package. Release artifacts and the complete mixed-version upgrade matrix remain open. |
 
@@ -1892,6 +1892,19 @@ installed boundary and native receipt.
 The WSL-focused Windows job skips the native app cache upload when it does not
 build or capture the desktop. Its test result can finalize immediately after
 the workspace checks. Full desktop builds retain the cache path.
+
+Record ID / date: S7-e / 2026-11-18
+Scope: FR-05/FR-11/FR-12, guarded native wake scheduling.
+
+Guarded Agent wake checks use the existing Tokio timer and blocking pools.
+Broker watch events coalesce Store changes. Per-run notifications handle input
+and committed PTY output without waking siblings for redraws. The shared
+readiness predicate provides the next quiet/ready deadline.
+Successive evaluations are at least 300 ms apart, including draft cancellation,
+paste and Enter. Idle reconciliation uses a five-second deadline.
+Legacy wake checks retain their current loop. The worker test observes an idle
+window with zero extra evaluations, wakes on notification, and verifies pacing
+under a burst. Per-run indexing, native delivery and resource gates remain open.
 
 ## Evidence index
 

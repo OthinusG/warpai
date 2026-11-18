@@ -20,6 +20,41 @@ const MAX_INPUT_BYTES: usize = 4096;
 const MAX_INPUT_RECEIPTS: usize = 64;
 const MAX_PENDING_INPUT_BYTES: usize = 64 * 1024;
 const ENDED_RETENTION: Duration = Duration::from_secs(5 * 60);
+const WAKE_PACING: Duration = Duration::from_millis(300);
+const WAKE_RECONCILE: Duration = Duration::from_secs(5);
+
+async fn drive_guarded_wakes(
+    mut changes: tokio::sync::watch::Receiver<()>,
+    mut native: tokio::sync::watch::Receiver<()>,
+    mut advance: impl FnMut() -> Option<Duration> + Send + 'static,
+) {
+    use tokio::time::{sleep_until, Instant};
+    let mut available_at = Instant::now() + WAKE_PACING;
+    let mut deadline = available_at;
+    loop {
+        tokio::select! {
+            result = changes.changed() => {
+                if result.is_err() { break; }
+                sleep_until(available_at).await;
+            }
+            result = native.changed() => {
+                if result.is_err() { break; }
+                sleep_until(available_at).await;
+            }
+            _ = sleep_until(deadline) => {}
+        }
+        changes.borrow_and_update();
+        native.borrow_and_update();
+        let Ok((step, Some(delay))) = tokio::task::spawn_blocking(move || {
+            let delay = advance();
+            (advance, delay)
+        }).await else { break; };
+        advance = step;
+        let now = Instant::now();
+        available_at = now + WAKE_PACING;
+        deadline = now + delay.max(WAKE_PACING);
+    }
+}
 type Error = ManagedErrorCode;
 type Owner = Arc<Mutex<Session>>;
 
@@ -376,6 +411,7 @@ struct Session {
     binding: Option<tasks::RunBinding>,
     pty: NativePty,
     output: Arc<Mutex<Output>>,
+    wake_signal: Option<tokio::sync::watch::Sender<()>>,
     input: mpsc::SyncSender<NativeInput>,
     connection: Option<String>,
     attachment_id: String,
@@ -781,6 +817,9 @@ impl Terminals {
         let (input, receiver) = mpsc::sync_channel::<NativeInput>(16);
         let failed = Arc::new(AtomicBool::new(false));
         let collected = output.clone();
+        let wake_signal = (request.guarded && binding.is_some() && tokio::runtime::Handle::try_current().is_ok())
+            .then(|| tokio::sync::watch::channel(()).0);
+        let output_signal = wake_signal.clone();
         let observed = binding.as_ref().map(|binding| (binding.broker.clone(), binding.terminal.clone()));
         std::thread::spawn(move || {
             let mut buffer = [0; 8192];
@@ -797,6 +836,7 @@ impl Terminals {
                     if output.append(&buffer[..count]).is_err() { break; }
                 }
                 if let Some((broker, terminal)) = &observed { broker.output(terminal); }
+                if let Some(signal) = &output_signal { let _ = signal.send(()); }
             }
             if let Ok(mut output) = collected.lock() {
                 output.closed = true;
@@ -808,43 +848,57 @@ impl Terminals {
             let output = output.clone();
             let stopped = revoked.clone();
             let input = input.clone();
-            std::thread::spawn(move || {
-                let mut sampled: Option<crate::transport::ScreenContext> = None;
-                let mut delivery: Option<(crate::transport::Wake, bool)> = None;
-                while !stopped.load(Ordering::Acquire) {
-                    std::thread::sleep(std::time::Duration::from_millis(300));
-                    let Some(context) = broker.screen_context(&terminal) else { break; };
-                    if !sampled.as_ref().is_some_and(|previous| context.same_screen(previous)) {
-                        let activity = output.lock().ok().and_then(|output| {
-                            output.screen.as_ref()?.activity(&context)
-                        });
-                        if let Some(activity) = activity {
-                            if broker.observe_screen(&terminal, &context, activity) { sampled = Some(context); }
-                        }
-                    }
-                    if let Some((wake, paste)) = delivery.take() {
-                        if !broker.wake_valid(&wake) { broker.finish_wake(&wake, false); continue; }
-                        let bytes = if paste {
-                            let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
-                            if output.lock().is_ok_and(|output| output.screen.as_ref()
-                                .is_some_and(|screen| screen.bracketed_paste())) {
-                                [b"\x1b[200~".as_slice(), text.as_bytes(), b"\x1b[201~".as_slice()].concat()
-                            } else { text.into_bytes() }
-                        } else { b"\r".to_vec() };
-                        if input.try_send(NativeInput::Peer { wake: wake.clone(), bytes, submit: !paste }).is_err() {
-                            broker.finish_wake(&wake, false);
-                        } else if paste { delivery = Some((wake, false)); }
-                        continue;
-                    }
-                    if let Some(wake) = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal) {
-                        if Uuid::parse_str(&wake.message_id).is_err() || !broker.claim_wake(&wake) { continue; }
-                        if broker.discard_native_draft(&wake)
-                            && input.try_send(NativeInput::Peer { wake: wake.clone(), bytes: b"\x03".to_vec(), submit: false }).is_err() {
-                            broker.finish_wake(&wake, false);
-                        } else { delivery = Some((wake, true)); }
+            let guarded = wake_signal.is_some();
+            let changes = guarded.then(|| broker.native_changes(&terminal));
+            let mut sampled: Option<crate::transport::ScreenContext> = None;
+            let mut delivery: Option<(crate::transport::Wake, bool)> = None;
+            let mut advance = move || {
+                if stopped.load(Ordering::Acquire) { return None; }
+                let context = broker.screen_context(&terminal)?;
+                let mut delay = WAKE_RECONCILE;
+                if !sampled.as_ref().is_some_and(|previous| context.same_screen(previous)) {
+                    let until_quiet = Duration::from_millis(700).saturating_sub(context.quiet());
+                    if !until_quiet.is_zero() { delay = delay.min(until_quiet); }
+                    let activity = output.lock().ok().and_then(|output| {
+                        output.screen.as_ref()?.activity(&context)
+                    });
+                    if let Some(activity) = activity {
+                        if broker.observe_screen(&terminal, &context, activity) { sampled = Some(context); }
                     }
                 }
-            });
+                if let Some((wake, paste)) = delivery.take() {
+                    if !broker.wake_valid(&wake) { broker.finish_wake(&wake, false); return Some(WAKE_PACING); }
+                    let bytes = if paste {
+                        let text = format!("Warpai peer work is waiting (message {}). Call warp_agent_inbox, process this message or task, and acknowledge it through MCP. Before ending your turn, call warp_agent_ready.", wake.message_id);
+                        if output.lock().is_ok_and(|output| output.screen.as_ref()
+                            .is_some_and(|screen| screen.bracketed_paste())) {
+                            [b"\x1b[200~".as_slice(), text.as_bytes(), b"\x1b[201~".as_slice()].concat()
+                        } else { text.into_bytes() }
+                    } else { b"\r".to_vec() };
+                    if input.try_send(NativeInput::Peer { wake: wake.clone(), bytes, submit: !paste }).is_err() {
+                        broker.finish_wake(&wake, false);
+                    } else if paste { delivery = Some((wake, false)); }
+                    return Some(WAKE_PACING);
+                }
+                if let Some(wake) = broker.wakeups().into_iter().find(|wake| wake.terminal == terminal) {
+                    if Uuid::parse_str(&wake.message_id).is_err() || !broker.claim_wake(&wake) { return Some(WAKE_PACING); }
+                    if broker.discard_native_draft(&wake)
+                        && input.try_send(NativeInput::Peer { wake: wake.clone(), bytes: b"\x03".to_vec(), submit: false }).is_err() {
+                        broker.finish_wake(&wake, false);
+                    } else { delivery = Some((wake, true)); }
+                    return Some(WAKE_PACING);
+                }
+                if !guarded { return Some(WAKE_PACING); }
+                Some(delay.min(broker.native_wake_delay(&terminal).unwrap_or(WAKE_RECONCILE)))
+            };
+            if let (Some(changes), Some(signal)) = (changes, wake_signal.clone()) {
+                tokio::spawn(drive_guarded_wakes(changes, signal.subscribe(), advance));
+            } else {
+                std::thread::spawn(move || loop {
+                    std::thread::sleep(WAKE_PACING);
+                    if advance().is_none() { break; }
+                });
+            }
         }
         let write_revoked = revoked.clone();
         let write_failed = failed.clone();
@@ -952,6 +1006,7 @@ impl Terminals {
             binding,
             pty,
             output,
+            wake_signal,
             input,
             connection: Some(fence.connection_id.clone()),
             attachment_id: Uuid::new_v4().to_string(),
@@ -1060,6 +1115,7 @@ impl Terminals {
                     if let Some(binding) = &session.binding {
                         binding.broker.input_bytes(&binding.terminal, &request.input);
                     }
+                    if let Some(signal) = &session.wake_signal { let _ = signal.send(()); }
                     let sequence = request.input_sequence;
                     if session
                         .input
@@ -1112,6 +1168,7 @@ impl Terminals {
                 if let Some(binding) = &session.binding {
                     binding.broker.output(&binding.terminal);
                 }
+                if let Some(signal) = &session.wake_signal { let _ = signal.send(()); }
             }
             TerminalAction::TerminalStop => {
                 // This slice has no authenticated operator role; stop stays writer-bound.
@@ -1446,6 +1503,28 @@ impl Terminals {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn guarded_wakes_sleep_until_change_and_preserve_delivery_pacing() {
+        let (notify, changes) = tokio::sync::watch::channel(());
+        let (native, native_changes) = tokio::sync::watch::channel(());
+        let (observations, mut steps) = tokio::sync::mpsc::unbounded_channel();
+        let worker = tokio::spawn(drive_guarded_wakes(changes, native_changes, move || {
+            observations.send(Instant::now()).unwrap();
+            Some(WAKE_RECONCILE)
+        }));
+        let initial = steps.recv().await.unwrap();
+        assert!(tokio::time::timeout(WAKE_PACING * 2, steps.recv()).await.is_err());
+        notify.send(()).unwrap();
+        let first = tokio::time::timeout(Duration::from_secs(2), steps.recv()).await.unwrap().unwrap();
+        assert!(first.duration_since(initial) >= WAKE_PACING);
+        for _ in 0..32 { native.send(()).unwrap(); }
+        let paced = tokio::time::timeout(Duration::from_secs(2), steps.recv()).await.unwrap().unwrap();
+        assert!(paced.duration_since(first) >= WAKE_PACING);
+        assert!(tokio::time::timeout(WAKE_PACING * 2, steps.recv()).await.is_err());
+        drop(notify);
+        worker.await.unwrap();
+    }
     #[cfg(unix)]
     #[test]
     fn pending_native_launch_does_not_hold_the_shared_registry() {

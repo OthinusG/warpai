@@ -363,11 +363,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - 2.0.0 guardian stays default-off. Installed helpers withhold the guarded
   capability until native proof; macOS Unix fixtures can negotiate it in test
   builds. Native Windows refuses guardian flags and `ctl`.
-- Companion CLI `ctl list|resume|stop` probes only. Bare resume first recognizes
-  its native guarded session and otherwise selects in the opened project;
-  another project needs its root for admission. Bare stop is
-  account-wide and operator-only, with boot-scoped receipts. The session-only
-  shell function, real WSL/SSH coexistence and V01-V30 remain open.
+- Companion CLI `ctl list|resume|stop` probes only. Bare resume recognizes its
+  native guarded session before selecting in the helper's logical scope. Bare
+  stop is account-wide and operator-only, with boot-scoped receipts. The
+  session-only shell function and full V01-V30 release acceptance remain open.
 - S1-r review/repairs and source-matched host receipts are in
   specs/2.0.0/IMPLEMENTATION.md. Existing Store locks and exact logical service
   identity fence ordinary-helper forwarding during guardian cutover.
@@ -404,6 +403,10 @@ Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Local `ctl resume` can open another project in the helper's logical scope
   through the exact live run and its in-memory root. Root identity is rechecked
   and the catalog keeps no path. Project admission does not take the writer.
+
+- Guarded Agent wake checks use runtime notifications and quiet/ready deadlines
+  with 300 ms delivery pacing and five-second idle reconciliation. Native
+  guarded delivery latency and resource benchmarks remain release gates.
 
 ## Memory maintenance
 

@@ -1,8 +1,19 @@
 # Warpai 2.0.0 implementation tasks
 
-Status: R4 optional SSH/WSL guardian; all runtime tasks pending. Each completed
-unit requires a method record in [IMPLEMENTATION.md](IMPLEMENTATION.md), linked to
-requirements and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
+Status: R4 guardian implementation in progress. Each completed unit requires a
+method record in [IMPLEMENTATION.md](IMPLEMENTATION.md), linked to requirements
+and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
+
+## Outstanding implementation
+
+| Area | Remaining code | Acceptance dependency |
+| --- | --- | --- |
+| S1, S5 | Native Windows account guardian for SSH targets | Retain the same ConPTY/Job across Windows SSH bridge loss and verify installation/upgrade |
+| S2, S3 | Complete parser/shell-block snapshot, paging, validation and gap recovery | Import active/alternate screens and split sequences without replaying OSC side effects |
+| S4, S5 | Desktop per-launch choice, guarded launch/detach, catalog/watch, safe previous-view reattach and session-only shell entry | Native EN/ZH static and live views and real CLI TTY |
+| S6 | Restore remote workspace context and reconcile uncertain writes; complete failure/stop semantics | Caller loss, host loss, permissions, descendants, retention and task/file recovery |
+| S7 | Indexed dispatch, bulk fairness and resource accounting | Prove guarded delivery and benchmark actual CPU/RSS/threads with noisy, quiet and blocked sessions |
+| S8, S9 | Release gates, artifact integration and bilingual product documentation | Complete V01–V30 on matched artifacts, mixed-version upgrades and release review |
 
 ## S0: scope, caller inventory and contract freeze
 

@@ -117,6 +117,20 @@ struct Live {
     started: Instant,
     expired: bool,
 }
+
+impl Live {
+    fn wake_ready_at(&self) -> Option<Instant> {
+        if self.waiting || self.paused || self.expired || self.started.elapsed() >= MUTATION_EPOCH
+            || self.blocked || self.wake.is_some()
+            || self.native_activity.is_some_and(|activity| !activity.is_idle())
+        {
+            return None;
+        }
+        Some((self.ready? + Duration::from_millis(750))
+            .max(self.last_output + Duration::from_millis(500))
+            .max(self.last_input + Duration::from_millis(500)))
+    }
+}
 /// A run-scoped delivery claim. PTY submission never acknowledges the underlying message.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wake {
@@ -136,6 +150,7 @@ struct Shared {
     state: Mutex<State>,
     forwarded: Mutex<HashMap<String, Broker>>,
     changed: Condvar,
+    native_changes: tokio::sync::watch::Sender<()>,
     revision: AtomicUsize,
     stopped: AtomicBool,
     connections: AtomicUsize,
@@ -145,6 +160,7 @@ impl Shared {
     fn notify_change(&self) {
         self.revision.fetch_add(1, Ordering::Release);
         self.changed.notify_all();
+        let _ = self.native_changes.send(());
     }
 }
 #[derive(Clone)]
@@ -251,6 +267,7 @@ impl RunningBroker {
                 programs: None,
             }),
             changed: Condvar::new(),
+            native_changes: tokio::sync::watch::channel(()).0,
             revision: AtomicUsize::new(1),
             stopped: AtomicBool::new(false),
             connections: AtomicUsize::new(0),
@@ -825,6 +842,22 @@ impl Broker {
             }
         }
     }
+
+    pub(crate) fn native_changes(&self, terminal: &str) -> tokio::sync::watch::Receiver<()> {
+        if let Some(broker) = self.forwarded(terminal) {
+            return broker.native_changes(terminal);
+        }
+        self.shared.native_changes.subscribe()
+    }
+
+    pub(crate) fn native_wake_delay(&self, terminal: &str) -> Option<Duration> {
+        if let Some(broker) = self.forwarded(terminal) {
+            return broker.native_wake_delay(terminal);
+        }
+        let state = self.shared.state.lock().ok()?;
+        let deadline = state.terminals.get(terminal)?.live.as_ref()?.wake_ready_at()?;
+        deadline.checked_duration_since(Instant::now()).filter(|delay| !delay.is_zero())
+    }
     /// Empty-queue projections can be reused until a mutation; forwarded Stores keep polling.
     pub fn work_revision(&self) -> Option<usize> {
         if !self.shared.forwarded.lock().ok()?.is_empty() { return None; }
@@ -842,16 +875,7 @@ impl Broker {
             .iter()
             .filter_map(|(terminal, binding)| {
                 let live = binding.live.as_ref()?;
-                if live.waiting
-                    || live.paused
-                    || live.expired || live.started.elapsed() >= MUTATION_EPOCH
-                    || live.blocked
-                    || live.wake.is_some()
-                    || live.ready?.elapsed() < Duration::from_millis(750)
-                    || live.last_output.elapsed() < Duration::from_millis(500)
-                    || live.last_input.elapsed() < Duration::from_millis(500)
-                    || live.native_activity.is_some_and(|activity| !activity.is_idle())
-                {
+                if live.wake_ready_at()? > Instant::now() {
                     return None;
                 }
                 let actor = live.agent.as_ref()?;
