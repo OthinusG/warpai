@@ -9,15 +9,19 @@ guarded launch policy, retained native lifetime on connection loss, and
 attach/detach/takeover writer fencing in the existing SSH/WSL Companion terminal
 registry. Guarded input/resize/read/detach/release now require the exact writer
 tuple, takeover fences the observed generation, and detach/transport loss
-invalidates queued input through a separate writer epoch. Unit coverage and two
-Unix integration tests are written but not compiled or run. No guardian election,
-account catalog, snapshot, CLI, desktop opt-in, scheduler, packaging/version change
-or release is implemented. V01-V30 runtime acceptance is NOT RUN. No guard client
-can reach the slice because `guarded_remote_sessions_v1` is deliberately not
-advertised. Runtime inspection baseline is
-`db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the slice is committed as
-`87e18c942630e58c91849532fb132323e0500ab5` on `feat/2.0.0`, while `main` remains
-at the baseline. A read-only peer review at that commit identified remaining
+invalidates queued input through a separate writer epoch. A bounded input ledger
+now returns per-attachment receipts for accepted, writing, written, cancelled,
+failed and unknown delivery, rejects conflicting or skipped sequences, and fails
+the writer path closed on write, flush, gate or ledger faults. Unit coverage and
+two Unix integration tests are written but not compiled or run. No guardian
+election, account catalog, snapshot, CLI, desktop opt-in, scheduler,
+packaging/version change or release is implemented. V01-V30 runtime acceptance is
+NOT RUN. No guard client can reach the slice because `guarded_remote_sessions_v1`
+is deliberately not advertised. Runtime inspection baseline is
+`db280c6b57c3eab7acb8c8e04ab8c8aab084828a`; the source slice is commits
+`87e18c942630e58c91849532fb132323e0500ab5` and
+`5163030f7535f59f673723c1932563bd186282c3` on `feat/2.0.0`, while `main` remains
+at the baseline. A read-only peer review at the first commit identified remaining
 P1/P2 work; it is not runtime evidence. Revalidate current HEAD at implementation
 startup rather than assuming an earlier observed repository position is still
 current.
@@ -38,9 +42,9 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
 | S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch and storage schema pending |
-| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; full writer gate and input epoch added after review; account-global election, catalog and native proof pending |
+| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, input epoch and receipt ledger added after review; account-global election, catalog and native proof pending |
 | S2 compact terminal restoration | not_started | None |
-| S3 attachments and ordered IO | in_progress | Exact attachment tuple for guarded controls, CAS takeover generation and queued-input invalidation; in-flight write uncertainty, snapshots, dispositions and reconnect transport pending |
+| S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, fail-closed writer faults; snapshots, reconnect transport and operator stop pending |
 | S4 SSH optional UI/CLI | not_started | None |
 | S5 mandatory WSL guardian | not_started | None |
 | S6 failure/feature restoration | not_started | None |
@@ -456,11 +460,107 @@ MEMORY update or reason no durable fact changed: no new durable fact beyond the
   existing unverified-slice note.
 ```
 
+## S1/S3: bounded input receipts and writer fault handling
+
+```text
+Record ID / date: S1-c / 2026-11-18
+Work item and PRD requirements: S3 ordered input, idempotent retries, dispositions
+  and uncertain delivery (FR-03, FR-05)
+Status: implemented_unverified
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: 5163030f7535f59f673723c1932563bd186282c3 on
+  feat/2.0.0; no PR
+
+Problem and observable before/after:
+  Before: Input accepted a fixed next sequence only, never returned a native write
+  receipt, conflated queue acceptance with success, used an all-or-nothing
+  write_all and treated every writer fault as an unqualified failure. A retry
+  after an uncertain reply could not distinguish accepted, written, failed or
+  unknown delivery.
+  After: guarded input is validated against the exact attachment tuple and a
+  bounded per-attachment ledger, accepts only the next sequence, returns the
+  accepted or most recent receipt in TerminalState, and distinguishes Accepted,
+  Writing, Written, Cancelled, Failed and Unknown. Identical retries of the
+  accepted tail are idempotent; different bytes, skips and reversals return
+  INPUT_CONFLICT; a missing receipt for a claimed acceptance returns
+  DELIVERY_UNKNOWN.
+Scope: crates/remote_protocol/proto/remote_server.proto,
+  crates/remote_protocol/src/managed.rs, crates/agent_bus/src/ssh_remote.rs,
+  crates/agent_bus/src/companion_terminals.rs, and companion_tests.rs.
+Files and symbols changed:
+  remote_server.proto: InputDisposition, InputReceipt, TerminalState.input_receipt
+    (20), MANAGED_INPUT_CONFLICT (10), MANAGED_DELIVERY_UNKNOWN (11)
+  managed.rs: guarded tuple coherence, label-only policy, receipt validity and
+    receipt-sequence <= accepted-sequence checks
+  ssh_remote.rs: strict launch policy echo and guarded input receipt echo; new
+    error mappings return conflict
+  companion_terminals.rs: InputState/InputRecord/InputLedger, RotateOutcome,
+    NativeInput::User{epoch,sequence}, write_counted, writer fault handling,
+    Session::receipt, attach/detach/disconnect ledger transitions
+  companion_tests.rs: receipt assertions, identical retry, conflicting/skipped
+    sequence, adopted-generation receipt, legacy empty tuple, label-only rejection
+
+Implementation method:
+  - Each attachment owns a ledger of at most 64 records and at most 64 KiB of
+    pending input. A record stores the attachment generation, sequence, random
+    receipt ID, SHA-256 digest, byte length, written length and disposition.
+    Terminal records are evicted before pending records; capacity errors never
+    consume the sequence.
+  - The accepted sequence advances only after the bounded channel accepts the
+    input. A retry of that sequence is idempotent only when the digest and length
+    match the retained record; otherwise it conflicts. A skipped or reversed
+    sequence conflicts without enqueueing. Sequence overflow fails the input path
+    instead of wrapping.
+  - The writer rechecks the attachment epoch under the writer gate, marks the
+    record Writing, performs an explicit short-write loop, flushes, then records
+    Written or Failed with the actual byte count. A flush failure after a complete
+    write is Unknown. A poisoned gate or ledger, a zero write or any other write
+    error fails the input path closed and marks queued records Unknown.
+  - Detach, transport loss and takeover bump the epoch without waiting for a
+    blocked write. Not-yet-started records become Cancelled; an in-flight record
+    is Unknown until finish converges it to Written or Failed. Takeover clears the
+    old ledger only after rotation succeeds and starts the new attachment at
+    sequence 0; exact-tuple reattach keeps the ledger and sequence.
+  - Legacy sessions emit guarded=false with an empty attachment tuple and no
+    receipt. Labels are rejected unless the launch is guarded. The wire fields are
+    additive; no capability is advertised for this slice.
+Decision and rationale: make queue acceptance, native write outcome and
+  uncertainty separate observable states at the existing session lock, while
+  keeping the worker cancellation path non-blocking and the retained state
+  bounded by 64 KiB.
+Verification:
+  - rustfmt --edition 2021 --emit stdout parsed all changed Rust files without a
+    syntax error. No cargo build or test was run locally; the workspace has no
+    local dependency cache, so compilation and the Unix integration tests remain
+    unverified.
+  - Planned unit tests: input_ledger_tracks_terminal_and_pending_states,
+    input_ledger_bounds_pending_bytes_and_entries,
+    counted_writer_reports_short_and_failed_writes,
+    writer_rotation_fails_closed_when_the_gate_is_poisoned,
+    writer_rotation_refuses_an_in_flight_native_write.
+  - Planned Unix integration: guarded_run_survives_connection_loss_behind_one_writer_attachment
+    now asserts receipt sequence/generation/ID, identical-tail retry, conflicting
+    and skipped sequence rejection and a new receipt generation after takeover.
+  - Failures found, fixes applied and rerun receipt: none; source inspection and
+    parser checks only.
+
+Unverified behavior and remaining risks: no native or CI compile of the additive
+  proto/type changes; in-flight cancellation can only be recorded, not recalled;
+  snapshots, reconnect transport, operator-wide stop, Windows/WSL paths and
+  V01-V30 remain unproven; capability stays off. A received Unknown receipt is a
+  queryable outcome, not proof of non-delivery.
+Follow-up tasks / affected gates: S3 reconnect transport and snapshot cut; S4 CLI;
+  S8 native regression and V01-V30; cloud CI must compile the proto and both Unix
+  tests before this record advances.
+MEMORY update or reason no durable fact changed: MEMORY records the receipt ledger
+  as part of the unverified guarded slice.
+```
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
 | --- | --- | --- | --- |
-| S1/S3 source slice | Uncommitted companion diff on `db280c6b` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch and tests written; not compiled or run |
+| S1/S3 source slice | `87e18c94` and `5163030f` on `feat/2.0.0` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch, bounded receipts and fail-closed writer handling written; rustfmt parse only, not compiled or run |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |
