@@ -343,11 +343,13 @@ async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
         ]);
         command
     };
+    eprintln!("Guardian fixture: SSH first, then WSL");
     guarded_reconnect::verify_same_guardian(
         &root,
         guest_command(&user, "/home/warpai-test/.config/warpai/bin/warpai-companion", "ssh", &data_path),
         guest_command(&user, &companion, "wsl", &data_path),
     ).await;
+    eprintln!("Guardian fixture: WSL reconnect after both bridges close");
     guarded_reconnect::verify_guarded_reconnect(
         &root,
         std::time::Duration::from_secs(12),
@@ -355,6 +357,7 @@ async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
     ).await;
 
     let other_data = format!("XDG_DATA_HOME=/tmp/warpai-guardian-test-{}", Uuid::new_v4());
+    eprintln!("Guardian fixture: WSL first, then SSH in another account");
     guarded_reconnect::verify_same_guardian(
         "/home/warpai-other/project",
         guest_command("warpai-other", "/home/warpai-other/.config/warpai/wsl/bin/warpai-wsl-companion", "wsl", &other_data),

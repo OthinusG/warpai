@@ -354,9 +354,11 @@ impl Output {
             .end
             .checked_add(bytes.len() as u64)
             .ok_or(Error::ManagedUnavailable)?;
-        self.bytes.extend(bytes);
-        let discard = self.bytes.len().saturating_sub(BUFFER_BYTES);
+        let retained = &bytes[bytes.len().saturating_sub(BUFFER_BYTES)..];
+        let discard = self.bytes.len().saturating_sub(BUFFER_BYTES - retained.len());
+        // Trim first so appending to a full ring does not double its allocation.
         self.bytes.drain(..discard);
+        self.bytes.extend(retained);
         if let Some(screen) = &mut self.screen {
             screen.process(bytes);
         }
@@ -1530,6 +1532,7 @@ mod tests {
         output.append(b"tail").unwrap();
         assert_eq!(output.end, BUFFER_BYTES as u64 + 4);
         assert_eq!(output.bytes.len(), BUFFER_BYTES);
+        assert_eq!(output.bytes.capacity(), BUFFER_BYTES);
         assert_eq!(
             output
                 .bytes
@@ -1540,6 +1543,12 @@ mod tests {
                 .collect::<Vec<_>>(),
             b"liat"
         );
+        let mut oversized = vec![2; BUFFER_BYTES + 1];
+        oversized[0] = 7;
+        output.append(&oversized).unwrap();
+        assert_eq!(output.end, (2 * BUFFER_BYTES + 5) as u64);
+        assert!(output.bytes.iter().all(|byte| *byte == 2));
+        assert_eq!(output.bytes.capacity(), BUFFER_BYTES);
         output.end = u64::MAX;
         assert!(output.append(b"overflow").is_err());
         assert_eq!(output.bytes.len(), BUFFER_BYTES);

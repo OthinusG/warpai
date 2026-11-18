@@ -874,13 +874,31 @@ fn guardian_route(name: &str) -> Option<Route> {
 /// Installed helper only: bridge verified stdio to the account guardian.
 /// The GUI invokes this flag on the verified installed helper.
 #[cfg(unix)]
-pub async fn serve_guardian_stdio(route: &str) -> Result<(), ProtocolError> {
-    let route =
-        guardian_route(route).ok_or_else(|| std::io::Error::other("Unknown guardian route"))?;
-    let directory = guardian::scope_directory(route).await?;
-    let scope = identity::Identity::open(&directory)?.service_id;
-    let (stream, guardian, boot) = guardian::connect(route).await?;
-    service::forward_stdio(stream, Some(scope), Some((guardian, boot))).await
+pub async fn serve_guardian_stdio(route: &str) -> Result<(), &'static str> {
+    let route = guardian_route(route).ok_or("unknown route")?;
+    let directory = guardian::scope_directory(route)
+        .await
+        .map_err(|_| "route scope")?;
+    let scope = identity::Identity::open(&directory)
+        .map_err(|_| "scope identity")?
+        .service_id;
+    let (stream, guardian, boot) = guardian::connect(route)
+        .await
+        .map_err(|error| match error.kind() {
+            std::io::ErrorKind::InvalidData => "guardian IPC or guest image verification",
+            std::io::ErrorKind::Unsupported => "guardian ABI",
+            std::io::ErrorKind::PermissionDenied => "guardian IPC or guest image permissions",
+            std::io::ErrorKind::TimedOut => "guardian startup deadline",
+            _ => "guardian startup or IPC",
+        })?;
+    service::forward_stdio(stream, Some(scope), Some((guardian, boot)))
+        .await
+        .map_err(|error| match error {
+            ProtocolError::Io(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+                "guardian route identity"
+            }
+            _ => "managed forwarding",
+        })
 }
 
 pub async fn serve_guest_mcp(program: String) -> anyhow::Result<()> {

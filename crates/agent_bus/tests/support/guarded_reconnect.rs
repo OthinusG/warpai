@@ -98,6 +98,7 @@ impl Bridge {
 pub async fn verify_same_guardian(root: &str, first: Command, second: Command) {
     let mut first = Bridge::connect(first);
     let (first_fence, first_owner) = first.open(root).await;
+    eprintln!("Guardian fixture: first route admitted; opening second route");
     let mut second = Bridge::connect(second);
     let (second_fence, second_owner) = second.open(root).await;
     assert_eq!(first_owner.guardian_id, second_owner.guardian_id);

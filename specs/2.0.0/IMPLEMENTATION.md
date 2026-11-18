@@ -16,8 +16,9 @@ Store. `92f31965` added the logical Store preflight. The source-matched [Windows
 and WSL rerun](https://github.com/OthinusG/warpai/actions/runs/44298760969) and
 [remote wire matrix](https://github.com/OthinusG/warpai/actions/runs/44298760965)
 use that source. The matrix passed all three desktop runners, and the Windows
-protocol passed. The native WSL workspace step failed; see its job for the
-current acceptance result. Full V01-V30 acceptance remains open. Historical
+protocol passed. Both ordinary WSL workspace cases passed. The new guarded
+first-owner fixture hit EOF before its reconnect assertions, so this run gives
+no first-owner proof. Full V01-V30 acceptance remains open. Historical
 records below describe their own revisions.
 
 The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
@@ -1799,6 +1800,21 @@ maintenance and a sibling PTY launch both complete before the lock is released.
 The macOS arm64 suite passed with 273 tests and one ignored. A failed WSL
 acceptance run now skips the Windows cache upload so its log can finalize.
 No protocol or Store changes. The earlier MEMORY.md resource notes still apply.
+
+Record ID / date: S5-d / S7-c / 2026-11-18
+Baseline: `cdf15e0d`. Scope: native election failure diagnostics and output ring.
+
+The `92f31965` WSL job recovered both ordinary-workspace cases and hit EOF in
+the guarded fixture. The next fixture prints the startup-order stage. Bridge
+stderr distinguishes static startup and identity failure classes without
+formatting the underlying native paths or protocol payloads.
+
+The output ring discards bytes before extension so a full 256 KiB ring no
+longer doubles its allocation on the next read. The native parser receives
+the complete input and absolute output offsets still advance by its full length.
+The local fixture checks retained bytes, capacity and offsets for both ordinary
+and oversized appends. No wire or Store changes. Native election acceptance and
+total RSS targets remain open. The MEMORY.md resource notes still apply.
 
 ## Evidence index
 

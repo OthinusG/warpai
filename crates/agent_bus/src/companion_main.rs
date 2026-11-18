@@ -178,8 +178,8 @@ pub(crate) async fn run() {
             == Some(std::ffi::OsStr::new("--guardian-stdio"))
     {
         let route = std::env::args().nth(2).unwrap_or_default();
-        if warp_agent_bus::companion::serve_guardian_stdio(&route).await.is_err() {
-            eprintln!("Guardian bridge unavailable");
+        if let Err(stage) = warp_agent_bus::companion::serve_guardian_stdio(&route).await {
+            eprintln!("Guardian bridge unavailable ({stage})");
             std::process::exit(1);
         }
         return;
