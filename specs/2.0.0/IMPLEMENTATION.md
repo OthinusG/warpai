@@ -22,9 +22,14 @@ ended output for 300 seconds within the 32-session ceiling, evicting the oldest
 ended session only under admission pressure. Client control also requires the
 guarded attachment tuple to be echoed exactly for every non-attach action; a
 session-level stale reply no longer closes other sessions on the multiplexed
-connection, and unconfirmed input delivery is reported explicitly. Unit coverage
+connection, and unconfirmed input delivery is reported explicitly. A pure
+bounded catalog index prototype (stable descending pages, revision-scoped watch
+ring with explicit gap, MRU resume selection, bounded entries/events) now exists
+with passing isolated tests, but it is not wired to the terminal registry and
+grants no client access. Unit coverage
 and two Unix integration tests are written but not compiled or run.
-No unified SSH/WSL election, account catalog, snapshot, CLI, desktop opt-in,
+No unified SSH/WSL election, runtime catalog/list/inspect/watch surface,
+snapshot, CLI, desktop opt-in,
 scheduler, packaging/version change or release is implemented. V01-V30 runtime
 acceptance is NOT RUN. No guard client can reach the slice because
 `guarded_remote_sessions_v1` is deliberately not advertised. Runtime inspection
@@ -52,8 +57,8 @@ supersedes the original mandatory-local/optional-WSL design; do not implement it
 | D3 MRU/all-stop defaults and command extension | superseded_command_scope | MRU/all-stop retained; extra commands withdrawn by D4 |
 | D4 minimum justified CLI | verified_documents_only | Core commands/decision matrix, narrowed APIs/tasks and document integrity; runtime pending |
 | D5 implementation prompt archive | verified_documents_only | Step-by-step handoff, current scope, evidence requirements and archive integrity; runtime pending |
-| S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch and storage schema pending |
-| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is unverified; unified SSH/WSL election, catalog and native proof pending |
+| S0 contract/caller inventory | in_progress | Caller/ownership inventory and guarded wire fields frozen ([evidence/S0-baseline.md](evidence/S0-baseline.md)); account catalog/watch ring prototype is tested in isolation but not on the wire; storage schema pending |
+| S1 account guardian/native ownership | in_progress | Guarded policy retains SSH/WSL Companion PTY/threads across connection loss; writer gate, generation-keyed receipt ledger, fail-closed Unix peer identity and Windows client SID recheck are written; 300s ended-output retention is unverified; unified SSH/WSL election, registry-backed catalog and native proof pending |
 | S2 compact terminal restoration | not_started | None |
 | S3 attachments and ordered IO | in_progress | Exact attachment tuple, CAS takeover, bounded input ledger with idempotent sequence and counted write receipts, non-evictable unknown delivery, between-write cancellation, fail-closed writer faults, exact tuple echo, session-level stale replies that preserve the multiplexed connection, and bounded ended-output retention; snapshots, reconnect transport and operator stop pending |
 | S4 SSH optional UI/CLI | not_started | None |
@@ -756,6 +761,95 @@ MEMORY update or reason no durable fact changed: MEMORY is updated with the
   delivery; scope and capability gating are unchanged.
 ```
 
+## S0/S1: bounded catalog index prototype
+
+```text
+Record ID / date: S1-f / 2026-11-18
+Work item and PRD requirements: S0 account catalog/list/watch contract and S4
+  list/resume selection rules, implemented first as a pure bounded index
+Status: implemented_unverified
+Baseline commit: db280c6b57c3eab7acb8c8e04ab8c8aab084828a
+Implementation commit / PR: feat/2.0.0 source commit after this record; no PR
+
+Problem and observable before/after:
+  Before: retained sessions had no discoverable metadata; a later client could
+  not enumerate retained runs, page them stably, observe changes since a revision
+  or choose an MRU resume target without scanning live registry state that is
+  connection-owned. There was no representation separating session ID, run ID,
+  project scope, session kind and state age.
+  After: a self-contained Catalog maintains bounded nonsecret SessionMetadata
+  entries (session/run IDs, scope, project, label, kind, state, state age,
+  creation/activity sequence) with a stable descending cursor over
+  (created_sequence, session_id), boot- and filter-bound cursors, a
+  revision-scoped bounded watch ring that reports an explicit gap instead of
+  pretending contiguous history, MRU resume selection restricted to live runs,
+  and 32-entry/64-event ceilings. It performs no I/O and grants no rights.
+
+Scope: crates/agent_bus/src/companion_catalog.rs (new),
+  crates/agent_bus/src/companion.rs (module registration only).
+
+Files and symbols changed:
+  companion_catalog.rs: SessionKind, SessionState, SessionMetadata,
+    CatalogEntry, CatalogChange, CatalogEvent, CatalogCursor, WatchCursor,
+    CatalogPage, WatchPage, Inspection, CatalogError, PageQuery, InspectQuery,
+    Catalog::{upsert,touch,remove,page,inspect,watch,resume}, tests
+  companion.rs: `pub(crate) mod catalog;`
+
+Implementation method:
+  - Entries are keyed by session ID and merge on upsert so metadata updates do
+    not reset creation sequence or state_since; state_since changes only when the
+    state value changes. Insertion is capped at 32 sessions.
+  - Pages sort by creation sequence descending with session ID as a deterministic
+    tie-break. A cursor carries boot ID, scope and project filter; a mismatch or
+    an unknown boot ID is rejected. The response reports whole-filter totals and
+    a real next cursor, independent of page length, so insertions do not shift an
+    already-consumed page.
+  - Watch is revision- and boot-scoped. Events live in a bounded ring; when the
+    requested revision has been evicted the result reports gap=true with no
+    events so the client must relist rather than assume continuity.
+  - Resume prefers the highest foreground activity sequence, then newest
+    creation, then session ID, and excludes ended/interrupted/unknown states.
+    touch requires an existing live entry before consuming an activity sequence.
+  - Inspection requires the exact scope, project and optional run; a foreign or
+    mismatched record returns NotFound. Listing/inspection perform no writer
+    acquisition and create no snapshots.
+
+Decision and rationale: freeze pagination, watch gap semantics and MRU tie-breaks
+  as pure deterministic logic before account election and wire exposure, so the
+  later registry wiring cannot quietly change client-visible ordering rules.
+
+Verification:
+  - The module compiled as a standalone test crate with a local uuid stub:
+    `rustc --edition 2021 --test crates/agent_bus/src/companion_catalog.rs
+    --extern uuid=<stub>`; all 7 tests passed:
+    stable pages across insertions and page bound; cursor boot/filter binding;
+    revision-scoped watch ring gap; MRU resume excluding ended; state age only on
+    transition; 32-entry/64-event bounds; foreign scope/run rejection.
+  - rustfmt --edition 2021 parsed the new module; git diff --check is clean.
+  - No workspace cargo check, build or test was run: the offline registry lacks
+    required crates (first failure: aho-corasick 1.1.3). This is not evidence that
+    the module links into the workspace crate.
+  - Failures found, fixes applied and rerun receipt: the first isolated harness
+    used include!, which cannot host the module's inner doc comment and
+    #![allow(dead_code)] at harness scope (E0753); compiling the file directly as
+    its own test crate succeeded and produced the passing run above.
+
+Unverified behavior and remaining risks: the catalog is not constructed by
+  Terminals, not populated by launch/attach/takeover/exit transitions, not
+  persisted across guardian boots, and not exposed through any account-admitted
+  operation; therefore no client can use it. Account-wide scope identity and
+  unified SSH/WSL election remain absent, so scope strings are caller-supplied in
+  tests only. `#![allow(dead_code)]` must be removed when the registry wiring
+  lands. Resource accounting (64 MiB ceiling, snapshot serializers) is untouched.
+Follow-up tasks / affected gates: S1 unified account guardian election and
+  logical scope; then wire launch/attach/exit transitions into Catalog and add the
+  account-catalog/change-watch wire messages without advertising
+  `guarded_remote_sessions_v1`; S4 list/resume consume pages after CLI design.
+MEMORY update or reason no durable fact changed: MEMORY records the bounded
+  catalog prototype and that it remains unwired/unexposed; no scope or capability
+  decision changed.
+```
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
@@ -763,6 +857,7 @@ MEMORY update or reason no durable fact changed: MEMORY is updated with the
 | S1/S3 source slice | `87e18c94`, `5163030f` and `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Guarded retention, exact writer gate, CAS takeover, input epoch, bounded receipts, fail-closed writer handling, Unix peer UID admission and 300s ended-output retention written; rustfmt parse and isolated helper type-check only, not compiled or run |
 | S1-d retention/admission | `99eaa0eb` on `feat/2.0.0` | implemented_unverified | Unix peer UID check, ended-output TTL and capacity eviction, exact tuple echo; no workspace build, native test or resource measurement |
 | S1-e review closure | `efe9fd12` on `feat/2.0.0` | implemented_unverified | Generation-keyed ledger, non-evictable Unknown, between-write cancellation, guarded-only retention, fail-closed Unix credentials, Windows client SID recheck, explicit DeliveryUnknown and no connection-wide close for session stale; rustfmt parse and diff check only, no build/test |
+| S1-f catalog prototype | Source commit after this record on `feat/2.0.0` | implemented_unverified | Bounded stable pages, boot/filter-bound cursors, revision-scoped watch ring with explicit gap, MRU resume excluding ended runs, state-age tracking, 32/64 ceilings; 7 isolated `rustc --test` cases passed with a uuid stub; not linked into the workspace crate and not wired to any session |
 | S0 caller/contract freeze | Uncommitted docs/source on `db280c6b` + `evidence/S0-baseline.md` | implemented_unverified | Ownership map, frozen fields/actions, capability withheld; no build |
 | D5 archive integrity | Uncommitted prompt/archive references on current baseline | passed | Links/paths, Steps 0-17, final scope/defaults, S0-S9/V01-V30 and honest pending runtime state |
 | D4 document integrity | Uncommitted R4 framework | passed | Minimal CLI decision matrix, withdrawn API/task removal, 19 requirements/30 cases and integrity |

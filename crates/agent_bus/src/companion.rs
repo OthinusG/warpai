@@ -22,6 +22,8 @@ pub(crate) mod files;
 pub(crate) mod identity;
 #[path = "companion_service.rs"]
 mod service;
+#[path = "companion_catalog.rs"]
+pub(crate) mod catalog;
 #[path = "companion_tasks.rs"]
 mod tasks;
 #[path = "companion_terminals.rs"]
