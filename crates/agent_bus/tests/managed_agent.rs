@@ -215,6 +215,8 @@ async fn background_activity_blocks_release_until_owned_stop() {
             columns: 100,
             rows: 24,
             agent_program: None, working_directory: None,
+            guarded: false,
+            label: None,
         }))
         .await
     else {
@@ -396,6 +398,8 @@ async fn managed_agent_fences_input_project_and_owned_stop() {
         columns: 240,
         rows: 24,
         agent_program: Some("fixture".into()), working_directory: None,
+        guarded: false,
+        label: None,
     };
     let managed_response::Result::TerminalState(state) = first
         .call(managed_request::Operation::TerminalLaunch(launch.clone()))
@@ -513,6 +517,8 @@ async fn disconnected_agent_cannot_be_adopted_by_another_connection() {
         columns: 100,
         rows: 24,
         agent_program: Some("fixture".into()), working_directory: None,
+        guarded: false,
+        label: None,
     };
     let managed_response::Result::TerminalState(state) = first
         .call(managed_request::Operation::TerminalLaunch(launch.clone()))
@@ -574,6 +580,8 @@ async fn two_owned_agents_exchange_message_and_review_task_in_one_remote_project
                 columns: 1000,
                 rows: 24,
                 agent_program: Some("fixture".into()), working_directory: None,
+                guarded: false,
+                label: None,
             }))
             .await
         else {

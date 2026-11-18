@@ -645,6 +645,14 @@ impl HostClient {
         {
             return Err(ConnectionError::FeatureUnavailable);
         }
+        if (request.guarded || request.label.is_some())
+            && !self
+                .capabilities
+                .iter()
+                .any(|cap| cap == "guarded_remote_sessions_v1")
+        {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
         let result = self
@@ -663,6 +671,21 @@ impl HostClient {
         &mut self,
         request: TerminalControl,
     ) -> Result<TerminalState, ConnectionError> {
+        let guarded = request.takeover
+            || request.attachment_generation != 0
+            || !request.attachment_id.is_empty()
+            || matches!(
+                TerminalAction::try_from(request.action),
+                Ok(TerminalAction::TerminalAttach | TerminalAction::TerminalDetach)
+            );
+        if guarded
+            && !self
+                .capabilities
+                .iter()
+                .any(|cap| cap == "guarded_remote_sessions_v1")
+        {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
         self.terminal_scope(&request.fence)?;
         let session = request.session_id.clone();
         let run = request.run_id.clone();

@@ -319,3 +319,284 @@ fn project_tasks_require_current_native_project_before_any_store_access() {
         matches!(result(companion.handle(request(managed_request::Operation::ProjectTasks(query)))), managed_response::Result::Error(ManagedError { code }) if code == ManagedErrorCode::ManagedStaleAttachment as i32)
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn guarded_run_survives_connection_loss_behind_one_writer_attachment() {
+    use std::time::{Duration, Instant};
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
+    let mut next = fence.clone();
+    next.connection_id = Uuid::new_v4().to_string();
+    let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
+        managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/sh".into(),
+            arguments: vec![
+                "-c".into(),
+                "while IFS= read -r line; do printf 'ECHO=%s\\n' \"$line\"; done".into(),
+            ],
+            columns: 80,
+            rows: 24,
+            agent_program: None,
+            working_directory: None,
+            guarded: true,
+            label: Some("guarded-test".into()),
+        }),
+    ))) else {
+        panic!("Guarded launch required")
+    };
+    assert_eq!(launched.guarded, Some(true));
+    assert_eq!(launched.label.as_deref(), Some("guarded-test"));
+    let generation = launched.attachment_generation;
+    let attachment = launched.attachment_id.clone();
+    let control = |fence: &ManagedFence, action: TerminalAction| TerminalControl {
+        fence: Some(fence.clone()),
+        session_id: launched.session_id.clone(),
+        run_id: launched.run_id.clone(),
+        action: action as i32,
+        attachment_id: attachment.clone(),
+        attachment_generation: generation,
+        ..Default::default()
+    };
+    let read = |companion: &mut Companion, fence: &ManagedFence, offset: u64| {
+        let control = TerminalControl {
+            output_offset: offset,
+            ..control(fence, TerminalAction::TerminalRead)
+        };
+        companion.terminals.control(control, fence).unwrap()
+    };
+    let read_until = |companion: &mut Companion, fence: &ManagedFence, needle: &str, mut offset: u64| {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut seen = String::new();
+        while Instant::now() < deadline {
+            let reply = read(companion, fence, offset);
+            seen.push_str(&String::from_utf8_lossy(&reply.output));
+            offset = reply.output_offset + reply.output.len() as u64;
+            if seen.contains(needle) {
+                return offset;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("Missing {needle:?} in {seen:?}")
+    };
+
+    companion.terminals.disconnect(&fence.connection_id);
+    // The dropped connection cannot operate the retained run, and the run stays alive.
+    let mut input = control(&fence, TerminalAction::TerminalInput);
+    input.input = b"stale\n".to_vec();
+    input.input_sequence = 1;
+    assert!(matches!(
+        companion.terminals.control(input, &fence),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    // A guessed or missing writer identity needs an explicit takeover.
+    let mut attach = control(&next, TerminalAction::TerminalAttach);
+    attach.attachment_id = Uuid::new_v4().to_string();
+    assert!(matches!(
+        companion.terminals.control(attach, &next),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    let mut cold = control(&next, TerminalAction::TerminalAttach);
+    cold.attachment_id = String::new();
+    cold.attachment_generation = 0;
+    assert!(matches!(
+        companion.terminals.control(cold, &next),
+        Err(ManagedErrorCode::ManagedConflict)
+    ));
+    let attached = companion
+        .terminals
+        .control(control(&next, TerminalAction::TerminalAttach), &next)
+        .unwrap();
+    assert_eq!(attached.guarded, Some(true));
+    assert_eq!(attached.attachment_generation, generation);
+    assert_eq!(attached.attachment_id, attachment);
+    let mut first = control(&next, TerminalAction::TerminalInput);
+    first.input = b"hello\n".to_vec();
+    first.input_sequence = 1;
+    assert!(companion.terminals.control(first, &next).is_ok());
+    let offset = read_until(&mut companion, &next, "ECHO=hello", 0);
+    assert!(companion
+        .terminals
+        .control(control(&next, TerminalAction::TerminalDetach), &next)
+        .is_ok());
+    assert!(matches!(
+        companion.terminals.control(
+            TerminalControl {
+                output_offset: offset,
+                ..control(&next, TerminalAction::TerminalRead)
+            },
+            &next
+        ),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    // A fresh client restarts the writer epoch only through a fenced takeover.
+    let mut takeover = control(&next, TerminalAction::TerminalAttach);
+    takeover.attachment_id = String::new();
+    takeover.attachment_generation = generation;
+    takeover.takeover = true;
+    let adopted = companion.terminals.control(takeover, &next).unwrap();
+    assert_eq!(adopted.attachment_generation, generation + 1);
+    assert_ne!(adopted.attachment_id, attachment);
+    let mut stale_takeover = control(&next, TerminalAction::TerminalAttach);
+    stale_takeover.attachment_id = String::new();
+    stale_takeover.attachment_generation = generation;
+    stale_takeover.takeover = true;
+    assert!(matches!(
+        companion.terminals.control(stale_takeover, &next),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    // The superseded tuple cannot control through the adopted connection.
+    let mut stale_input = control(&next, TerminalAction::TerminalInput);
+    stale_input.input = b"stale\n".to_vec();
+    stale_input.input_sequence = 2;
+    assert!(matches!(
+        companion.terminals.control(stale_input, &next),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    let mut second = TerminalControl {
+        attachment_id: adopted.attachment_id.clone(),
+        attachment_generation: adopted.attachment_generation,
+        ..control(&next, TerminalAction::TerminalInput)
+    };
+    second.input = b"again\n".to_vec();
+    second.input_sequence = 1;
+    assert!(companion.terminals.control(second, &next).is_ok());
+    let read_adopted = |companion: &mut Companion, fence: &ManagedFence, offset: u64| {
+        let control = TerminalControl {
+            output_offset: offset,
+            ..TerminalControl {
+                fence: Some(fence.clone()),
+                session_id: launched.session_id.clone(),
+                run_id: launched.run_id.clone(),
+                action: TerminalAction::TerminalRead as i32,
+                attachment_id: adopted.attachment_id.clone(),
+                attachment_generation: adopted.attachment_generation,
+                ..Default::default()
+            }
+        };
+        companion.terminals.control(control, fence).unwrap()
+    };
+    let read_until_adopted = |companion: &mut Companion, fence: &ManagedFence, needle: &str, mut offset: u64| {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut seen = String::new();
+        while Instant::now() < deadline {
+            let reply = read_adopted(companion, fence, offset);
+            seen.push_str(&String::from_utf8_lossy(&reply.output));
+            offset = reply.output_offset + reply.output.len() as u64;
+            if seen.contains(needle) {
+                return offset;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("Missing {needle:?} in {seen:?}")
+    };
+    let offset = read_until_adopted(&mut companion, &next, "ECHO=again", offset);
+    // Stop stays writer-bound until an authenticated operator path exists.
+    let mut stop = control(&next, TerminalAction::TerminalStop);
+    stop.attachment_id = adopted.attachment_id.clone();
+    stop.attachment_generation = adopted.attachment_generation;
+    assert!(companion.terminals.control(stop, &next).is_ok());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut exited = None;
+    let mut polled = offset;
+    while Instant::now() < deadline {
+        let reply = read_adopted(&mut companion, &next, polled);
+        polled = reply.output_offset + reply.output.len() as u64;
+        if reply.output_closed && reply.processes_active == Some(false) {
+            exited = Some(reply);
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let exited = exited.expect("Guarded run must exit after stop");
+    assert!(exited.exit_code.is_some());
+    let mut release = control(&next, TerminalAction::TerminalRelease);
+    release.attachment_id = adopted.attachment_id.clone();
+    release.attachment_generation = adopted.attachment_generation;
+    assert!(companion.terminals.control(release, &next).is_ok());
+}
+
+#[cfg(unix)]
+#[test]
+fn legacy_stop_requires_the_owning_connection() {
+    use std::time::{Duration, Instant};
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let (mut companion, fence) = file_attachment(root.path(), &state.path().join("private"));
+    let managed_response::Result::TerminalState(launched) = result(companion.handle(request(
+        managed_request::Operation::TerminalLaunch(TerminalLaunch {
+            fence: Some(fence.clone()),
+            session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/sh".into(),
+            arguments: vec![
+                "-c".into(),
+                "trap 'exit 0' TERM; while :; do sleep 1; done".into(),
+            ],
+            columns: 80,
+            rows: 24,
+            agent_program: None,
+            working_directory: None,
+            guarded: false,
+            label: None,
+        }),
+    ))) else {
+        panic!("Legacy launch required")
+    };
+    let stop = |fence: &ManagedFence| TerminalControl {
+        fence: Some(fence.clone()),
+        session_id: launched.session_id.clone(),
+        run_id: launched.run_id.clone(),
+        action: TerminalAction::TerminalStop as i32,
+        ..Default::default()
+    };
+    let mut other = fence.clone();
+    other.connection_id = Uuid::new_v4().to_string();
+    assert!(matches!(
+        companion.terminals.control(stop(&other), &other),
+        Err(ManagedErrorCode::ManagedStaleAttachment)
+    ));
+    assert!(companion.terminals.control(stop(&fence), &fence).is_ok());
+    let read = |companion: &mut Companion, fence: &ManagedFence, offset: u64| {
+        companion
+            .terminals
+            .control(
+                TerminalControl {
+                    fence: Some(fence.clone()),
+                    session_id: launched.session_id.clone(),
+                    run_id: launched.run_id.clone(),
+                    action: TerminalAction::TerminalRead as i32,
+                    output_offset: offset,
+                    ..Default::default()
+                },
+                fence,
+            )
+            .unwrap()
+    };
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut offset = 0;
+    while Instant::now() < deadline {
+        let reply = read(&mut companion, &fence, offset);
+        offset = reply.output_offset + reply.output.len() as u64;
+        if reply.output_closed && reply.processes_active == Some(false) {
+            assert!(companion
+                .terminals
+                .control(
+                    TerminalControl {
+                        fence: Some(fence.clone()),
+                        session_id: launched.session_id.clone(),
+                        run_id: launched.run_id.clone(),
+                        action: TerminalAction::TerminalRelease as i32,
+                        ..Default::default()
+                    },
+                    &fence
+                )
+                .is_ok());
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    panic!("Legacy run did not exit after stop");
+}

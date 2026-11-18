@@ -192,6 +192,10 @@ message TerminalLaunch {
   optional string agent_program = 7;
   // Preserve native relative CLI arguments when the selected project differs from shell cwd.
   optional string working_directory = 8;
+  // Immutable launch-time policy; guarded runs survive connection loss.
+  bool guarded = 9;
+  // Nonsecret display label; labels are selectors, never task or authority IDs.
+  optional string label = 10;
 }
 enum TerminalAction {
   TERMINAL_ACTION_UNSPECIFIED = 0;
@@ -201,6 +205,10 @@ enum TerminalAction {
   TERMINAL_RESIZE = 5;
   TERMINAL_STOP = 6;
   TERMINAL_RELEASE = 7;
+  // Acquire the single writable attachment; conflicted writers require takeover.
+  TERMINAL_ATTACH = 8;
+  // Release the writable attachment and leave the native run alive.
+  TERMINAL_DETACH = 9;
 }
 message TerminalControl {
   reserved 4;
@@ -213,6 +221,11 @@ message TerminalControl {
   uint64 input_sequence = 8;
   uint32 columns = 9;
   uint32 rows = 10;
+  // Runtime-issued writer identity; empty on legacy connection-owned controls.
+  string attachment_id = 11;
+  uint64 attachment_generation = 12;
+  // Explicitly fence the observed writer generation on a conflicted attach.
+  bool takeover = 13;
 }
 message TerminalState {
   reserved 4, 5;
@@ -229,6 +242,11 @@ message TerminalState {
   bool input_failed = 13;
   bool output_closed = 14;
   optional bool processes_active = 15;
+  // Recorded launch-time policy, writer identity and display label.
+  optional bool guarded = 16;
+  optional string label = 17;
+  uint64 attachment_generation = 18;
+  string attachment_id = 19;
 }
 // Legacy upstream protocol declarations below are retained for existing callers.
 message Initialize {}

@@ -1,6 +1,6 @@
 # Project Memory
 
-Updated 2026-11-17. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
+Updated 2026-11-18. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - MCP renames must migrate local/SSH/WSL persisted add/get/remove argv and
   server_name together; QoderCN may return status-zero for not-found. See specs/RELEASE.md.
@@ -200,7 +200,18 @@ Updated 2026-11-17. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Same selected remote project shares one account-owned Companion Broker/Store.
 - Reuse Explorer/Code View/previews/original Review. Companion carries private Git
   and runtime dependencies; vendor CLI/auth remain user-owned. Keep on-demand
-  startup/60-second idle shutdown; no tray or desktop auto-deployment requirement.
+  startup/60-second idle shutdown. Owner-corrected 2.0 scope: optional/default-off
+  SSH/WSL guardian, no native local persistence; low CPU/RAM, parallel sessions and
+  existing serial per-Agent tasks. One guardian per execution account, not Agent;
+  auto-fetch on reconnect; private CLI/no PATH writes. Owner requires bare resume
+  current/unique/MRU; bare stop stops all account guarded runs without confirmation.
+  CLI only list/resume/stop + help/version; extra Herdr tools need a proven gap.
+  Methods/ledger: specs/2.0.0/README.md. Unverified 2026-11-18 slice: guarded
+  session retention plus exact attachment fence, CAS takeover and input epoch in
+  the Companion terminal registry; guarded_remote_sessions_v1 stays unadvertised
+  until native proof; election, catalog, CLI and WSL lifetime remain pending.
+  No desktop auto-deployment.
+  Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
   traversal/aliases; keep atomic save, no-replace rename, bounded staging/deletion
   and stale-save checks. Never repeat uncertain writes.

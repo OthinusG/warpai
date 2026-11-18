@@ -9,6 +9,10 @@ pub fn valid_terminal_state(state: &crate::proto::TerminalState) -> bool {
     state.fence.as_ref().is_some_and(|f| valid_fence(f, true))
         && valid_id(&state.session_id)
         && valid_id(&state.run_id)
+        && (state.attachment_id.is_empty() || valid_id(&state.attachment_id))
+        && state.label.as_deref().is_none_or(|label| {
+            !label.is_empty() && label.len() <= 128 && !label.chars().any(char::is_control)
+        })
         && !(state.processes_active == Some(false) && state.exit_code.is_none())
         && state.output.len() <= 32 * 1024
         && state
@@ -73,5 +77,14 @@ mod tests {
         assert!(valid_terminal_state(&state));
         state.run_id = Uuid::nil().to_string();
         assert!(!valid_terminal_state(&state));
+        state.run_id = Uuid::new_v4().to_string();
+        state.attachment_id = "not-a-uuid".into();
+        assert!(!valid_terminal_state(&state));
+        state.attachment_id = Uuid::new_v4().to_string();
+        assert!(valid_terminal_state(&state));
+        state.label = Some("terminal\u{7}fence".into());
+        assert!(!valid_terminal_state(&state));
+        state.label = Some("build".into());
+        assert!(valid_terminal_state(&state));
     }
 }

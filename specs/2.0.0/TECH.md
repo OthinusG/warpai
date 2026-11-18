@@ -1,0 +1,261 @@
+# Optional SSH/WSL guardian implementation design
+
+Status: R4 proposed design. Preserve local runtime and unguarded paths. Use
+[API.md](API.md) before coding; [HERDR.md](HERDR.md) records reference choices.
+
+## Ownership and topology
+
+```mermaid
+flowchart LR
+    Desktop[Warpai client] --> Transport[SSH or wsl.exe bridge]
+    CLI[Explicit Companion terminal attach] --> Transport
+    Transport --> Service[Existing account service plus optional guardian]
+    Service --> Catalog[Bounded session catalog]
+    Service --> PTYs[Independent native PTYs and process groups or Jobs]
+    Service --> Projects[Lazy project Brokers and existing Stores]
+    PTYs --> Screen[Minimal headless terminal state]
+    Screen --> Ready[Readiness and guarded input scheduling]
+    Projects --> Ready
+    Ready --> PTYs
+```
+
+One guardian per verified execution OS account hosts all guarded sessions/projects,
+independent of Agent type and client. Use an account-global private endpoint and
+startup election shared by compatible SSH/WSL helpers when they prove the same
+OS user. Distinct distro/kernel/users remain separate. Preserve logical SSH/WSL
+MCP namespaces, adapter capabilities and Store ownership without auto-merging them.
+Existing non-guardian service paths remain unchanged. No per-task/type daemon,
+remote renderer, native-local daemon or local Broker move. See [CLI.md](CLI.md).
+
+Ensure the daemon when guardian is explicitly enabled. Keep a compatible live
+instance across reconnects; a helper lacking a required logical-scope capability
+fails explicitly rather than creating a second guardian. Bound per-scope adapter
+resources inside the shared process and count all of them in overhead measurements.
+
+Each managed session has immutable launch-time policy `connection_owned` or
+`guarded`. The legacy policy retains exact disconnect/release behavior. Guarded
+policy ties PTY/RunBinding/reader/native state to the service's native run, not the
+client connection. A mixed service can host both; disconnect affects each by its
+own policy. Profile defaults never mutate live ownership.
+
+## Current source and proposed changes
+
+| Existing location | Planned focused change |
+| --- | --- |
+| `crates/remote_protocol/proto/remote_server.proto` | Add explicit guarded launch/discovery/attach/control/capability contract |
+| `crates/remote_protocol/src/managed.rs` | Validate guard policy, attachment, snapshot and scoped catalog bounds |
+| `crates/agent_bus/src/companion.rs` | Negotiate/dispatch SSH or guest capabilities with existing account/project fences |
+| `crates/agent_bus/src/companion_service.rs` | Reuse detached service; shared wake/deadline scheduling, retention and idle exit |
+| `crates/agent_bus/src/companion_terminals.rs` | Separate session policy from attachment; preserve guarded run after disconnect |
+| `crates/agent_bus/src/companion_tasks.rs` | Keep guarded RunBinding alive; reuse existing Broker/task engine |
+| `crates/agent_bus/src/companion_guests.rs` | Review WSL guest-native discovery separately from service-owned managed sessions |
+| `crates/agent_bus/src/native_pty_unix.rs` | Host-owned process-group lifetime and verified descendant stop |
+| `crates/agent_bus/src/native_pty_windows.rs` | Remote-host ConPTY/Job ownership independent of SSH launcher |
+| `crates/agent_bus/src/screen_detection/native.rs` | Reuse minimal screen state; export/import assessment without duplicate parser |
+| `crates/agent_bus/src/transport.rs` | Event-triggered Broker wakes, exact-run guards and existing task serialization |
+| `crates/agent_bus/src/companion_main.rs` | Explicit guarded launch/list/attach/detach CLI; keep legacy EOF behavior |
+| `crates/agent_bus/src/wsl_companion_main.rs` | Guest build entry uses the same retained-session semantics in WSL namespace |
+| `app/src/agent_communication/panel.rs` | Optional remote launch choice and authoritative remote session projection |
+| `app/src/agent_communication/ssh_settings.rs` | Scope guardian preference to verified SSH target; future launches only |
+| `app/src/agent_communication/wsl_settings.rs` | Scope preference/selection to verified distro/user; preserve WSL opt-out |
+| `app/src/terminal/cli_agent_sessions/mod.rs` | Remote guarded run identity independent of transient view EntityId |
+| `script/companion/package.py` | Source-matched remote payload and side-by-side compatible runtime updates |
+| `script/companion/package-wsl.py` | Source-matched Linux guest payload; preserve namespace and bundled provenance |
+
+Enumerate callers, feature gates, constructors, fixtures and shutdown paths before
+each edit. Local terminal-manager Drop, local Broker hosting, local MCP scope and
+ordinary native shell launch are regression surfaces, not migration targets.
+
+## Enabling and launching
+
+1. Check the existing SSH/WSL integration switch and confirmed execution identity.
+   Guardian cannot bypass either or start unrelated hosts/distro accounts.
+2. Probe the installed Companion/guest capability. Connect to an existing service
+   before spawning; use startup locking and private IPC. Never unlink a live
+   endpoint due only to timeout or start a second Store owner.
+3. Resolve session policy from explicit launch choice and future-launch profile
+   default. Only the new guarded operation may retain the run. The old launch path
+   remains connection-owned with identical behavior.
+4. Reuse validated original vendor executable/args/cwd/auth and current MCP adapters.
+   Managed shell/command sessions can have no Agent binding. Do not wrap all SSH
+   logins, vendor commands, aliases or native WSL shells automatically.
+5. Save minimal policy/identity metadata, launch the native group/Job, create the
+   exact run binding, then return the attachment. Launch uncertainty reconciles
+   by request/session ID instead of starting another process.
+
+## WSL-specific ownership boundary
+
+Current WSL native MCP discovery observes foreground Linux processes; that alone
+is not a retained PTY owner. Keep it unchanged for unguarded sessions. A guarded
+launch must enter an explicitly service-owned guest PTY, reuse native vendor MCP
+configuration and associate the confirmed Linux process group/birth identity with
+that run. Never inject Windows MCP environment or adopt arbitrary background PIDs.
+
+Use the dedicated `warpai-wsl-companion` payload/namespace and literal `wsl.exe`
+distribution/user/exec arguments. Terminating the Windows bridge or desktop must
+not own/kill the Linux guardian. Verify the guest remains running on supported WSL
+versions after all client bridges exit; use only the minimum necessary guest-side
+keepalive if measurements prove it required. No busy loop or unrelated distro
+startup. `wsl --terminate`, `wsl --shutdown`, Windows shutdown and guest service
+crash remain host/runtime-loss boundaries, with unknown attempts reconciled.
+
+Nested SSH routes use the confirmed final SSH execution host; do not mark the WSL
+outer shell as the owner of a nested remote Agent. Two distro users/projects and
+SSH/WSL namespaces cannot share identity through labels or filesystem path strings.
+
+## Headless feature responsibilities
+
+Keep native PTY output draining, process lifecycle, Agent MCP, existing task Store,
+Broker message/results/attention facts, readiness and guarded peer delivery alive.
+Only keep project Brokers with live guarded runs or active client requests; close
+idle handles/caches under existing data safety rules and recreate lazily.
+
+Do not host a hidden desktop. No GPU/UI rendering, full-window framebuffer,
+usage-dashboard polling, recursive workspace indexing or permanent file watchers.
+SFTP connections and WSL transfers remain client/request-owned. Release transfer
+resources and temporary staging safely on disconnect; preserve uncertain mutation
+receipts instead of replaying writes on reconnect. UI/Review/editor reconnect to
+remote facts on demand; unsaved drafts retain existing client ownership.
+
+Guarded Coordinator rights survive only for the proven same native run. Reconnect
+or focus grants no new task/checkout authority and accepts/integrates no result.
+Permission waits remain blocked. Changes to existing task/MCP acknowledgement,
+revision-aware handoff and review semantics are explicitly out of scope.
+
+## Low CPU and memory implementation
+
+The current Companion wake worker sleeps 300 ms per Agent and scans Broker wakes.
+Retaining many sessions with this loop would multiply idle work. Replace polling
+for the guarded path with shared notifications and nearest-deadline scheduling:
+
+- PTY bytes update the terminal parser once and mark that session dirty. Coalesce
+  redraw bursts before readiness sampling; never skip required idle/submit timing.
+- Broker changes notify the relevant session through the existing task engine.
+  Index pending delivery by terminal/run; do not scan every project on every tick.
+- A shared deadline queue covers quiet windows, paste/Enter delays, process reaping,
+  retention expiry and fallback observation. Sleep until IO, an event or the nearest
+  real deadline. A lost notification must not lose work; recheck state under the
+  same queue synchronization and use a low-frequency safety reconciliation.
+- Use existing shared async runtime and bounded blocking IO where native APIs
+  require it. Do not add one Tokio runtime, polling worker or timer per task.
+  Inventory retained reader/writer threads and stack costs before changing them;
+  move to shared IO only where measured savings justify the native complexity.
+- Keep one minimal terminal state per PTY, reusing readiness state. Allocate output
+  rings as needed. Serialize snapshots only during attach/resync, allow one in
+  flight per session and bound concurrent account-level serializers.
+- Do not preallocate maximum history for every session, copy full screens for
+  every poll, parse each output twice, or recompute panel/task projections when
+  nothing changed. Status listing reads bounded cached facts with evidence age.
+
+Proposed acceptance targets on a documented quiet 2-vCPU reference VM, excluding
+vendor CLI/tests/servers but including guardian threads/parser/Brokers/queues:
+base guardian RSS at most 32 MiB, incremental idle 120x40 session memory at most
+2 MiB, and idle 8-session average CPU at most 0.2% of one core over 60 seconds.
+Use CPU-time deltas, repeat runs and report host noise. These are design targets,
+not claims that Rust/SQLite/OS behavior already meets them. S8 must measure,
+optimize or explicitly revise with evidence before release; no silent target waiver.
+
+Preserve the current maximum 32 sessions as an admission ceiling, not a resource
+reservation. Start with lazy 256 KiB output ring/session, 32 KiB wire pages,
+2 MiB transient serialized snapshot ceiling and 64 MiB account terminal-data cap.
+Count live parser buffers, scrollback, snapshots, queues and retained ended output.
+Trim bounded history/expire snapshots before refusing new sessions; never kill
+running work or discard task facts to meet a display budget. Overall RSS and
+per-project Broker/cache overhead are separately measured and bounded. Initial
+limits require S2/S8 proof with normal/larger viewports and split-screen workloads.
+
+## Multi-session and multi-task scheduling
+
+Distinguish three layers: service hosts many projects; each project has many PTY
+sessions; each Agent has its existing recipient/task queue. Parallel tasks use
+independent Agent sessions. One Agent's tracked execution remains serial;
+submission releases the execution slot while review remains pending as in 1.9.0.
+
+Use per-session IO/input queues plus a shared fair ready queue. Round-robin only
+ready sessions, with a proposed 64 KiB output-drain budget per turn and bounded
+control work before checking deadlines. Do not serialize all PTYs behind one
+slow client or hold service-wide locks during blocking writes, snapshot export,
+Git/file operations or network sends. Separate stop/control from bulk output and
+reserve dispatch capacity so floods cannot starve stop, permission attention or
+quiet-session work. Record task IDs/revisions through existing Store operations;
+no second durable task scheduler or automatic Agent spawning is introduced.
+
+Session launch/attach concurrency is bounded, failed attempts release reservations,
+and stop-one cannot affect sibling sessions. Bare CLI stop and explicit stop-all capture all current-account guarded runs
+without a selector/confirmation, then return per-run receipts; partial failures
+remain visible. An explicit project filter narrows the captured target set.
+Reconnect lists sessions/tasks/attention first, then snapshots only selected PTYs.
+Different projects retain admission and worktree isolation even under shared load.
+
+## Terminal restoration, storage and idle exit
+
+Freeze the smallest native state sufficient for terminal modes, cursor, active/alt
+buffers, bounded history and required shell/block boundaries. Reuse current native
+terminal facilities; headless detection alone does not prove block fidelity.
+Export a versioned snapshot at output offset N and import it without repeating OSC
+side effects. Continue from N with ordered tail, parser-safe split-sequence state,
+resize revisions, digest and explicit resnapshot on output gaps. Plain CLI attach
+may consume an ANSI projection of the same host state without resetting native
+Warpai block metadata or taking a second resize owner.
+
+Keep output/screens/drafts in memory only. Persist minimal nonsecret catalog IDs,
+policy, target/project references, timestamps and proven lifecycle evidence in
+namespaced tables using existing SQLite facilities. Never store argv/environment,
+MCP bearer tokens or relaunch plans. On runtime restart, prior live runs become
+interruption/unknown evidence until explicit guarded reconciliation; no auto-resume.
+
+Retain ended output for a proposed 5 minutes, within the same memory cap and with
+oldest-ended eviction under pressure. Keep durable task results and unresolved
+execution facts independently. A guardian exits after the existing 60-second idle
+window once there is no live guarded/legacy work, active request or retained output.
+The bounded ended-output window may postpone idle exit; do not remain permanently
+resident because an old catalog row exists. No auto-start/login service by default.
+
+## Platform and compatibility gates
+
+SSH Unix hosts need independence from launching TTY/SIGHUP and host login-session
+cleanup policy. Remote Windows needs correct ConPTY/Job ownership and independence
+from the SSH launcher Job; detached flags alone do not prove this. Fail guarded
+launch clearly if safe native ownership is unsupported. WSL guest lifetime needs
+real Windows/WSL acceptance, not Linux SSH proxy tests.
+
+Reuse compatible live runtime versions. Stage helper/dependencies side by side
+when an update would invalidate files used by live runs; GC only unused versions.
+No new local helper installation, AppImage-local daemon survival or local Broker
+cutover work is needed. Preserve existing Windows-bundled WSL guest provenance.
+
+S0 freezes API/policy, unified account ownership and logical namespaces; S2 freezes terminal representation;
+S5 freezes WSL lifecycle/native admission; S7/S8 freeze fairness/resource limits
+from measurements. Detailed chosen/rejected methods and evidence go in the ledger.
+
+## Private CLI and automatic client restoration
+
+Reuse existing Companion/guest binaries with a `ctl` dispatcher. The interactive
+`warpai` spelling is a session-only function in supported Warpai remote shells,
+forwarding argv to the verified absolute executable path. No shell-rc/profile,
+PATH or user command override. Independent SSH/WSL shells use the absolute path.
+See CLI for argument/default/name/collision rules and native TTY cleanup.
+
+Reconnect automatically fetches account-scoped bounded catalog metadata and
+admitted project/task/status projections; change watches are shared per connection
+and cursor-fenced. Restore a prior writer only when free and exact-run-valid.
+Generate full terminal snapshots lazily; a writer conflict is visible and needs
+explicit takeover. No vendor relaunch, implicit task acknowledgement or account
+wildcard stop is part of information restoration.
+
+## Minimal core command implementation
+
+Maintain daemon-serialized MRU activity sequence on foreground attachment/selection;
+list, background refresh and task observation do not change it. Bare resume uses
+current/unique/MRU live target with deterministic fallback, refusing writer theft.
+Bare stop immediately captures current-account guarded runs into a bounded,
+daemon-owned batch that continues if the caller's PTY/socket closes. Retain exact
+per-run receipts; idle shutdown is separate from native run termination.
+
+Only list/resume/stop and installed help/version are public CLI scope. List combines
+cached availability/state with session metadata, using existing catalog and no
+snapshot/observer worker. Creation/naming stay in Warpai UI; detach uses client
+closure or a CLI-local escape; guardian ensure/idle exit stay automatic. Do not
+build separate read/wait/rename/remove/admin APIs, completion generators, aliases
+or a second task/terminal management surface for withdrawn proposals. Preserve
+required internal snapshots, notifications, project APIs and cleanup guards.

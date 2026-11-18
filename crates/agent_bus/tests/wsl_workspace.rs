@@ -49,6 +49,7 @@ async fn real_wsl_workspace_preserves_files_conflicts_git_and_guest_authority() 
     let state = client.terminal_launch(TerminalLaunch {
         fence: client.fence().cloned(), session_id: uuid::Uuid::new_v4().to_string(),
         executable: "/bin/sh".into(), arguments: vec!["-c".into(), "printf 'LAUNCH_CWD=%s\\n' \"$PWD\"; exec /bin/cat".into()], columns: 80, rows: 24, agent_program: None, working_directory: Some("/home/warpai-test".into()),
+        guarded: false, label: None,
     }).await.unwrap();
     let mut other = connection.connect(&profile).await.unwrap();
     assert_eq!(other.fence().unwrap().service_boot_id, boot);
