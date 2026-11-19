@@ -10,6 +10,8 @@ const EXIT_OK: i32 = 0;
 const EXIT_DOMAIN: i32 = 1;
 const EXIT_SYNTAX: i32 = 2;
 const PAGE_LIMIT: u32 = 32;
+/// UTF-8 survives the Windows console and direct Unix PTY paths.
+pub const DETACH_INPUT: &[u8] = "\u{effe}warpai:detach".as_bytes();
 const HELP: &str = "\
 warpai run <program> [args...] [--name <name>]
     Start a guarded task in this remote directory and attach to it.
@@ -21,7 +23,7 @@ warpai list [--project <path>] [--id <session>]
 
 warpai resume [<name>] [--id <session>] [--project <path>] [--takeover]
     Attach the current, unique or last-used live session in this helper's scope.
-    Ctrl+B Q detaches; the remote process keeps running.
+    Use Warpai's Detach guarded task shortcut, or EOF, to leave the task running.
 
 warpai stop [<name>] [--id <session>] [--project <path>]
     Stop every guarded run in this account, or one exact resolved run.
@@ -722,6 +724,8 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
 
 /// Direct TTY attachment; output offsets and input receipts stay authoritative.
 async fn attach_loop(client: &mut HostClient, state: &mut TerminalState, resume: bool) -> i32 {
+    use std::io::IsTerminal;
+    use tokio::io::AsyncWriteExt;
     let signals = match TerminationSignals::new() {
         Ok(signals) => signals,
         Err(_) => {
@@ -742,6 +746,12 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState, resume:
             return EXIT_DOMAIN;
         }
     };
+    let is_terminal = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    let mut stdout = tokio::io::stdout();
+    if is_terminal {
+        let _ = stdout.write_all(b"\x1b]9278;g;1\x07").await;
+        let _ = stdout.flush().await;
+    }
     let mut alternate = false;
     let result = tokio::select! {
         biased;
@@ -749,9 +759,12 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState, resume:
         result = attach_inner(client, state, resume, &mut alternate) => Ok(result),
     };
     if alternate {
-        use tokio::io::AsyncWriteExt;
-        let mut stdout = tokio::io::stdout();
         let _ = stdout.write_all(b"\x1b[?1049l").await;
+    }
+    if is_terminal {
+        let _ = stdout.write_all(b"\x1b]9278;g;0\x07").await;
+    }
+    if alternate || is_terminal {
         let _ = stdout.flush().await;
     }
     drop(raw);
@@ -836,7 +849,7 @@ async fn attach_inner(
     let mut offset = 0u64;
     let mut sequence = 0u64;
     let mut dimensions = None;
-    let mut prefix = false;
+    let mut detach_prefix = 0;
     let mut truncated_notice = false;
     let mut initial = resume;
     let mut projection: Option<NativeScreen> = None;
@@ -961,11 +974,12 @@ async fn attach_inner(
                     Ok(count) => count,
                     Err(_) => 0,
                 };
-                if count == 0 {
+                let (send, detach_now) = if count == 0 {
                     // EOF detaches; it never stops the guardian-owned process.
-                    return Ok(EXIT_OK);
-                }
-                let (send, detach_now) = escape_filter(&buffer[..count], &mut prefix);
+                    (DETACH_INPUT[..detach_prefix].to_vec(), true)
+                } else {
+                    filter_detach_signal(&buffer[..count], &mut detach_prefix)
+                };
                 if send.is_empty() {
                     if detach_now {
                         return Ok(EXIT_OK);
@@ -1004,21 +1018,22 @@ async fn attach_inner(
     }
 }
 
-/// Local detach escape: `Ctrl+B Q` detaches; a doubled prefix forwards one
-/// literal `0x02`. The prefix may arrive split across reads.
-fn escape_filter(bytes: &[u8], prefix: &mut bool) -> (Vec<u8>, bool) {
-    let mut send = Vec::with_capacity(bytes.len());
-    for byte in bytes {
-        if *prefix {
-            *prefix = false;
-            if *byte == b'q' {
+fn filter_detach_signal(bytes: &[u8], matched: &mut usize) -> (Vec<u8>, bool) {
+    let mut send = Vec::with_capacity(bytes.len() + *matched);
+    for &byte in bytes {
+        if byte == DETACH_INPUT[*matched] {
+            *matched += 1;
+            if *matched == DETACH_INPUT.len() {
+                *matched = 0;
                 return (send, true);
             }
-            send.push(*byte);
-        } else if *byte == 0x02 {
-            *prefix = true;
-        } else {
-            send.push(*byte);
+            continue;
+        }
+        send.extend_from_slice(&DETACH_INPUT[..*matched]);
+        // The start byte only occurs once in the signal.
+        *matched = usize::from(byte == DETACH_INPUT[0]);
+        if *matched == 0 {
+            send.push(byte);
         }
     }
     (send, false)
@@ -1417,24 +1432,30 @@ mod tests {
     }
 
     #[test]
-    fn detach_escape_survives_split_reads_and_doubled_prefix() {
-        let mut prefix = false;
-        let (send, detach) = escape_filter(b"ab", &mut prefix);
-        assert_eq!(send, b"ab");
-        assert!(!detach && !prefix);
-        let (send, detach) = escape_filter(&[0x02], &mut prefix);
-        assert!(send.is_empty() && !detach && prefix);
-        let (send, detach) = escape_filter(b"x", &mut prefix);
-        assert_eq!(send, b"x");
-        assert!(!detach && !prefix);
-        let (send, detach) = escape_filter(&[0x02, 0x02], &mut prefix);
-        assert_eq!(send, [0x02]);
-        assert!(!detach && !prefix);
-        let (send, detach) = escape_filter(&[0x02, b'q'], &mut prefix);
-        assert!(send.is_empty() && detach && !prefix);
-        let (send, detach) = escape_filter(&[0x02, b'Q'], &mut prefix);
-        assert_eq!(send, b"Q");
-        assert!(!detach && !prefix);
+    fn detach_signal_survives_split_reads_and_passes_ordinary_input() {
+        let mut matched = 0;
+        assert_eq!(
+            filter_detach_signal(b"abc\x02q\x1b", &mut matched),
+            (b"abc\x02q\x1b".to_vec(), false)
+        );
+        let split = 4;
+        assert_eq!(
+            filter_detach_signal(&DETACH_INPUT[..split], &mut matched),
+            (Vec::new(), false)
+        );
+        assert_eq!(
+            filter_detach_signal(b"x", &mut matched),
+            ([&DETACH_INPUT[..split], b"x"].concat(), false)
+        );
+        assert_eq!(
+            filter_detach_signal(&DETACH_INPUT[..split], &mut matched),
+            (Vec::new(), false)
+        );
+        assert_eq!(
+            filter_detach_signal(&DETACH_INPUT[split..], &mut matched),
+            (Vec::new(), true)
+        );
+        assert_eq!(matched, 0);
     }
 
     #[test]

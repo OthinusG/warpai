@@ -327,7 +327,9 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - The bundled Companion CLI starts the guardian on the first explicit run.
   Other commands use its account catalog. Bare resume tries the current,
   unique, then most recently used live run. Bare stop is account-wide and
-  operator-only, with boot-scoped receipts. The desktop has no guardian client.
+  operator-only, with boot-scoped receipts. The desktop exposes a pane-scoped
+  editable detach action in Settings > Keys. Companion marks live terminal
+  attachments and receives a dedicated UTF-8 detach signal over terminal IO.
 - The CLI renders a bounded redraw from retained output upon attachment and
   forwards subsequent live output. Native process identity, terminal size and
   writer generations remain owned by Companion.

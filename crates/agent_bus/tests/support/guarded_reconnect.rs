@@ -281,7 +281,7 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
     use std::process::Stdio;
     use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
-    async fn expect_marker(output: &mut (impl AsyncRead + Unpin), expected: &str) {
+    async fn expect_marker(output: &mut (impl AsyncRead + Unpin), expected: &str) -> Vec<u8> {
         timeout(Duration::from_secs(10), async {
             let mut text = Vec::new();
             let mut buffer = [0; 256];
@@ -291,23 +291,26 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
                 text.extend_from_slice(&buffer[..count]);
                 let observed = String::from_utf8_lossy(&text);
                 assert!(!observed.contains("GUARDIAN_CLI_TTY_ERROR="), "Native TTY cleanup failed");
-                if observed.contains(expected) { break; }
+                if observed.contains(expected) { return text; }
                 if text.len() > 8192 { text.drain(..4096); }
             }
-        }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"));
+        }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"))
     }
 
     let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped())
         .kill_on_drop(true).spawn().expect("Owned SSH TTY");
     let mut input = child.stdin.take().unwrap();
     let mut output = child.stdout.take().unwrap();
-    expect_marker(&mut output, &format!("GUARDIAN_PID={pid}")).await;
+    let attached = expect_marker(&mut output, &format!("GUARDIAN_PID={pid}")).await;
+    assert!(attached.windows(b"\x1b]9278;g;1\x07".len()).any(|part| part == b"\x1b]9278;g;1\x07"));
     input.write_all(b"through-cli\r").await.unwrap();
     expect_marker(&mut output, "GUARDIAN_ECHO=through-cli").await;
-    input.write_all(b"\x02").await.unwrap();
+    let signal = warp_agent_bus::companion_ctl::DETACH_INPUT;
+    input.write_all(&signal[..3]).await.unwrap();
     sleep(Duration::from_millis(100)).await;
-    input.write_all(b"q").await.unwrap();
-    expect_marker(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
+    input.write_all(&signal[3..]).await.unwrap();
+    let detached = expect_marker(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
+    assert!(detached.windows(b"\x1b]9278;g;0\x07".len()).any(|part| part == b"\x1b]9278;g;0\x07"));
     assert!(timeout(Duration::from_secs(10), child.wait()).await.unwrap().unwrap().success());
 }
 
@@ -617,9 +620,10 @@ pub async fn verify_cli_launch_and_resume(
     let mut input = resumed.stdin.take().unwrap();
     input.write_all(b"after-cli-run\r").await.unwrap();
     wait_for(&mut output, "GUARDIAN_ECHO=after-cli-run").await;
-    input.write_all(b"\x02").await.unwrap();
+    let signal = warp_agent_bus::companion_ctl::DETACH_INPUT;
+    input.write_all(&signal[..3]).await.unwrap();
     sleep(Duration::from_millis(80)).await;
-    input.write_all(b"q").await.unwrap();
+    input.write_all(&signal[3..]).await.unwrap();
     assert!(timeout(Duration::from_secs(10), resumed.wait()).await.unwrap().unwrap().success());
 
     let args = ["stop".into(), label.clone()];

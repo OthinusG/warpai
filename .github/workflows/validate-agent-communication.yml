@@ -253,6 +253,7 @@ jobs:
           cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
           cargo test -p warpai --lib native_bootstrap_reports_remote_shell_pid_on_every_desktop --locked
           cargo test -p warpai --lib remote_powershell_bootstrap --locked
+          cargo test -p warpai --lib parse_guarded_task_attachment_lifetime --locked
           cargo test -p warpai --lib subshell_init_scripts_enable_raw_input_for_injected_bootstrap --locked
           cargo test -p warpai --lib windows_ssh_powershell_seed_is_minified --locked
           cargo test -p warp_terminal remote_powershell_completions_follow_host_os --locked
@@ -484,6 +485,7 @@ jobs:
           cargo test -p warpai --lib terminal::view::wsl_peer::tests --locked
           cargo test -p warpai --lib native_bootstrap_reports_remote_shell_pid_on_every_desktop --locked
           cargo test -p warpai --lib remote_powershell_bootstrap --locked
+          cargo test -p warpai --lib parse_guarded_task_attachment_lifetime --locked
           cargo test -p warpai --lib subshell_init_scripts_enable_raw_input_for_injected_bootstrap --locked
           cargo test -p warpai --lib windows_ssh_powershell_seed_is_minified --locked
           cargo test -p warp_terminal remote_powershell_completions_follow_host_os --locked

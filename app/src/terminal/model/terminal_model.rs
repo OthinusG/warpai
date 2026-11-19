@@ -462,6 +462,7 @@ pub struct TerminalModel {
     pub blocklist_has_been_cleared: bool,
 
     alt_screen_active: bool,
+    guarded_task_attached: bool,
 
     /// Stack of saved window titles. When a title is popped from this stack, the `title` for the
     /// term is set.
@@ -1130,6 +1131,7 @@ impl TerminalModel {
             block_list,
             blocklist_has_been_cleared: false,
             alt_screen_active: false,
+            guarded_task_attached: false,
             title_stack: Vec::new(),
             title: None,
             agent_progress: None,
@@ -1935,6 +1937,10 @@ impl TerminalModel {
         self.alt_screen_active
     }
 
+    pub(crate) fn has_guarded_task_attachment(&self) -> bool {
+        self.guarded_task_attached
+    }
+
     pub fn set_pending_shell_launch_data(&mut self, shell_launch_data: ShellLaunchData) {
         self.active_shell_launch_data = Some(shell_launch_data.clone());
         self.pending_shell_launch_data = Some(shell_launch_data);
@@ -2456,6 +2462,10 @@ pub enum HandlerEvent {
 }
 
 impl ansi::Handler for TerminalModel {
+    fn guarded_task_attachment(&mut self, attached: bool) {
+        self.guarded_task_attached = attached;
+    }
+
     fn set_title(&mut self, title: Option<String>) {
         if title.is_none() { self.agent_progress = None; }
         // Don't set the tab title if the title event is for a running in-band command.
@@ -2821,6 +2831,7 @@ impl ansi::Handler for TerminalModel {
     }
 
     fn command_finished(&mut self, data: CommandFinishedValue) {
+        self.guarded_task_attached = false;
         // If we ssh from a doesn't-understand-bracketed-paste shell into one
         // that enables it, then get disconnected, we'll be stuck in a state
         // of bracketed paste being enabled, but the local shell doesn't know
@@ -2878,6 +2889,7 @@ impl ansi::Handler for TerminalModel {
     }
 
     fn precmd(&mut self, data: PrecmdValue) {
+        self.guarded_task_attached = false;
         self.ignore_bootstrapping_messages = false;
         let session_id = data.session_id;
         let mut env_vars = HashMap::new();
@@ -2895,6 +2907,7 @@ impl ansi::Handler for TerminalModel {
     }
 
     fn preexec(&mut self, data: PreexecValue) {
+        self.guarded_task_attached = false;
         delegate!(self.preexec(data));
         self.emit_handler_event(HandlerEvent::Preexec);
     }

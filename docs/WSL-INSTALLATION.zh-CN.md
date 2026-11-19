@@ -278,6 +278,7 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 ## 让 WSL 任务在断开后继续运行
 
 在 Warpai 内已集成的 Bash 或 Zsh 中运行 `warpai run 程序 参数 --name task1`。
-按 Ctrl+B 再按 Q 可分离任务，也可以直接关闭 Warpai。以原发行版和用户重新进入后，
+按 Ctrl+B 再按小写 q 可分离任务，也可以在 Warpai 的「设置 > 快捷键」中修改
+「分离守护任务」。直接关闭 Warpai 后任务也会继续运行。以原发行版和用户重新进入后，
 使用 `warpai list`、`warpai resume task1` 或 `warpai stop task1` 管理原任务。
 关闭 WSL 或终止对应发行版会结束原进程。

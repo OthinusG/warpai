@@ -140,7 +140,8 @@ for complete installation, MCP configuration and troubleshooting steps.
 
 In the participating Bash, Zsh or PowerShell shell inside Warpai, start a
 guarded task with `warpai run program arguments --name task1`. Press Ctrl+B
-then Q to detach. The command continues after Warpai closes. Reconnect normally,
+then lowercase q to detach. Edit **Detach guarded task** in **Settings > Keys**
+to change the shortcut. The command continues after Warpai closes. Reconnect normally,
 then use `warpai list`, `warpai resume task1` or `warpai stop task1`. Ordinary
 commands keep their existing lifetime. A host restart ends the native task.
 

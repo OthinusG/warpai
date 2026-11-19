@@ -1193,6 +1193,17 @@ where
 
             // Received a Warp OSC used for shell hooks.
             WARP_OSC_MARKER => {
+                match params {
+                    [_, b"g", b"1"] => {
+                        self.handler.guarded_task_attachment(true);
+                        return;
+                    }
+                    [_, b"g", b"0"] => {
+                        self.handler.guarded_task_attachment(false);
+                        return;
+                    }
+                    _ => (),
+                }
                 let Some(json_marker_char) = params
                     .get(1)
                     .map(|json_marker_bytes| String::from_utf8_lossy(json_marker_bytes))

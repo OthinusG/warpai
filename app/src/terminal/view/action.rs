@@ -205,6 +205,7 @@ pub enum TerminalAction {
     // IMPORTANT: Do not add a binding for ctrl_d, as we don't want this behavior to leak out to
     // parts of the terminal unrelated to the block list
     CtrlD,
+    DetachGuardedTask,
     CtrlC,
     ClearSelectionsWhenShellMode,
     Close,
@@ -522,6 +523,7 @@ impl fmt::Debug for TerminalAction {
             KeyboardSelectText(direction) => write!(f, "KeyboardSelectText({direction:?})"),
             ContextMenu(action) => write!(f, "ContextMenu({action:?})"),
             CtrlD => f.write_str("CtrlD"),
+            DetachGuardedTask => f.write_str("DetachGuardedTask"),
             CtrlC => f.write_str("CtrlC"),
             ClearSelectionsWhenShellMode => {
                 f.write_str("ClearSelectionsWhenShellMode(TerminalAction)")

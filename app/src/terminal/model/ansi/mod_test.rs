@@ -22,9 +22,14 @@ struct MockHandler {
     pluggable_notifications: Vec<(Option<String>, String)>,
     hyperlink_events: Vec<Option<Hyperlink>>,
     cwd_updates: Vec<String>,
+    guarded_attachments: Vec<bool>,
 }
 
 impl Handler for MockHandler {
+    fn guarded_task_attachment(&mut self, attached: bool) {
+        self.guarded_attachments.push(attached);
+    }
+
     fn terminal_attribute(&mut self, attr: Attr) {
         self.attr = Some(attr);
     }
@@ -257,6 +262,7 @@ impl Default for MockHandler {
             pluggable_notifications: Vec::new(),
             hyperlink_events: Vec::new(),
             cwd_updates: Vec::new(),
+            guarded_attachments: Vec::new(),
         }
     }
 }
@@ -750,6 +756,12 @@ fn parse_sourced_rc_file_hook_with_uname() {
         ),
         _ => panic!("incorrect dcs value"),
     }
+}
+
+#[test]
+fn parse_guarded_task_attachment_lifetime() {
+    let (_, handler) = parse_bytes(b"\x1b]9278;g;1\x07\x1b]9278;g;1;extra\x07\x1b]9278;g;0\x07");
+    assert_eq!(handler.guarded_attachments, [true, false]);
 }
 
 #[test]

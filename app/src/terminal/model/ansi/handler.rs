@@ -241,6 +241,8 @@ pub trait Handler {
     /// Callback for the Warp CommandFinished hook.
     fn command_finished(&mut self, _data: CommandFinishedValue) {}
 
+    fn guarded_task_attachment(&mut self, _attached: bool) {}
+
     /// Process a prompt marker control sequence.
     fn prompt_marker(&mut self, _marker: PromptMarker) {}
 

@@ -277,7 +277,8 @@ With WSL configured as above, Warpai provides the same core experience as a loca
 ## Keep a WSL task running
 
 From a participating Bash or Zsh shell in Warpai, use
-`warpai run program arguments --name task1`. You can detach with Ctrl+B Q or
-close the desktop. Reopen the same distribution and user to use `warpai list`,
+`warpai run program arguments --name task1`. Detach with Ctrl+B followed by q,
+or edit **Detach guarded task** in **Settings > Keys**. You can also close the
+desktop. Reopen the same distribution and user to use `warpai list`,
 `warpai resume task1` and `warpai stop task1`. WSL shutdown or distribution
 termination ends the original process.

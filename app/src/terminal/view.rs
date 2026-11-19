@@ -24233,6 +24233,7 @@ impl TypedActionView for TerminalView {
             | ShowInFileExplorer(_)
             | OpenFileInWarp(_)
             | CtrlD
+            | DetachGuardedTask
             | CtrlC
             | ClearSelectionsWhenShellMode
             | Close
@@ -24586,6 +24587,11 @@ impl TypedActionView for TerminalView {
             KeyDown(chars) => self.keydown_on_terminal(chars, ctx),
             TypedCharacters(chars) => self.typed_characters_on_terminal(chars, ctx),
             CtrlD => self.ctrl_d(ctx),
+            DetachGuardedTask => {
+                if self.model.lock().has_guarded_task_attachment() {
+                    self.write_to_pty(&warp_agent_bus::companion_ctl::DETACH_INPUT[..], ctx);
+                }
+            }
             CtrlC => self.handle_ctrl_c_input_event(0, ctx),
             ClearSelectionsWhenShellMode => self.clear_selections_when_shell_mode(ctx),
             ContextMenu(context_action) => self.context_menu_action(context_action, ctx),
@@ -25997,6 +26003,9 @@ impl View for TerminalView {
 
         if model_lock.is_alt_screen_active() {
             context.set.insert("AltScreen");
+        }
+        if model_lock.has_guarded_task_attachment() {
+            context.set.insert("GuardedTaskAttached");
         }
 
         let active_block = model_lock.block_list().active_block();

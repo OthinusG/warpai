@@ -8,7 +8,11 @@
 | `warpai resume --id ID` | Select an exact run when names collide. |
 | `warpai stop task1` | Request termination of the exact task and report native exit when observed. |
 
-Ctrl+B Q detaches and keeps the task running. EOF also detaches. Bare resume
+In Warpai Settings > Keys, edit **Detach guarded task**. Its default is Ctrl+B
+followed by lowercase q. The shortcut applies to the focused guarded task and
+keeps that task running. Rebinding it returns the original keys to the task.
+EOF also detaches.
+Bare resume
 uses the current task, the sole live task, or the most recently used live task
 in the helper's route. Bare stop affects all guarded tasks in the account.
 Explicit takeover requires `--takeover`. List, resume and stop query an

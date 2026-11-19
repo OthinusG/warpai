@@ -23,6 +23,10 @@ writer fencing and native process observation. The existing Agent path can
 keep its headless task notifications. The CLI presents a bounded screen built
 from retained output on attachment and then forwards live terminal IO. It
 never evaluates the program's output as shell input.
+Companion marks the lifetime of an interactive attachment in its terminal
+output. The desktop uses that marker to enable its editable detach action in
+the focused terminal. Invoking the action sends a dedicated UTF-8 detach
+signal. Companion treats ordinary keystrokes as task input.
 
 The catalog stores only identity, optional display name, route/project,
 sequence and observed lifecycle. Review, file transfer, editor, shell model and

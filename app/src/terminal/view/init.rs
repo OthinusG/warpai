@@ -978,6 +978,14 @@ pub fn init(app: &mut AppContext) {
     ]);
 
     app.register_editable_bindings([EditableBinding::new(
+        "terminal:detach_guarded_task",
+        "Detach guarded task",
+        TerminalAction::DetachGuardedTask,
+    )
+    .with_key_binding("ctrl-b q")
+    .with_context_predicate(id!("Terminal") & id!("GuardedTaskAttached") & !id!("IMEOpen"))]);
+
+    app.register_editable_bindings([EditableBinding::new(
         TOGGLE_BLOCK_FILTER_KEYBINDING,
         "Toggle block filter on selected or last block",
         TerminalAction::ToggleBlockFilterOnSelectedOrLastBlock(ToggleBlockFilterSource::Binding),
