@@ -667,5 +667,16 @@ pub async fn verify_cli_launch_and_resume(
     }));
     let args = ["stop".into(), "--id".into(), background_id.into()];
     let stopped = timeout(Duration::from_secs(10), command(&args, false).output()).await.unwrap().unwrap();
-    assert!(stopped.status.success());
+    let receipt = String::from_utf8_lossy(&stopped.stdout);
+    assert!(receipt.contains(background_id) && (receipt.contains(" requested") || receipt.contains(" observed")));
+    let args = ["list".into(), "--id".into(), background_id.into()];
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let list = command(&args, false).output().await.unwrap();
+        assert!(list.status.success());
+        if String::from_utf8_lossy(&list.stdout).lines()
+            .any(|line| line.starts_with(background_id) && line.contains(" ended ")) { break; }
+        assert!(Instant::now() < deadline, "Background task exit must be observed");
+        sleep(Duration::from_millis(50)).await;
+    }
 }
