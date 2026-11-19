@@ -38,7 +38,6 @@ impl<'de> serde::Deserialize<'de> for Cell {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let checkpoint = CellCheckpoint::deserialize(deserializer)?;
         if checkpoint.contents.len() > CONTENT_BYTES
-            || checkpoint.contents.chars().any(char::is_control)
             || !matches!(checkpoint.flags, 0 | IS_WIDE | IS_WIDE_CONTINUATION)
             || !checkpoint.attrs.valid_checkpoint()
         {

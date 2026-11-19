@@ -98,16 +98,6 @@ impl<CB: crate::callbacks::Callbacks> Parser<CB> {
     pub fn callbacks_mut(&mut self) -> &mut CB {
         &mut self.screen.callbacks
     }
-
-    /// Whether the next byte starts at a complete UTF-8 and terminal boundary.
-    pub fn at_input_boundary(&self) -> bool {
-        self.parser.at_input_boundary()
-    }
-
-    /// Rewrite the pending prefix without dispatching any historical action.
-    pub fn incomplete_prefix(&self) -> Option<Vec<u8>> {
-        self.parser.incomplete_prefix()
-    }
 }
 
 impl Default for Parser {

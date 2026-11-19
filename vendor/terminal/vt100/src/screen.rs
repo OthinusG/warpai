@@ -75,57 +75,6 @@ pub(crate) struct ScreenCheckpoint<'a> {
     mouse_protocol_encoding: MouseProtocolEncoding,
 }
 
-/// Immutable access to one native screen buffer, including its retained history.
-pub struct ScreenGrid<'a>(&'a crate::grid::Grid);
-
-impl<'a> ScreenGrid<'a> {
-    /// Viewport size as rows and columns.
-    pub fn size(&self) -> (u16, u16) {
-        let size = self.0.size();
-        (size.rows, size.cols)
-    }
-
-    /// First retained row relative to the shell's first viewport.
-    pub fn retained_start(&self) -> u64 { self.0.retained_start() }
-
-    /// First row in the current viewport in the same coordinate space.
-    pub fn viewport_start(&self) -> u64 { self.0.viewport_start() }
-
-    /// A retained row, addressed by the same index as a shell block anchor.
-    pub fn row(&self, anchor: u64) -> Option<ScreenRow<'a>> {
-        self.0.row_at_anchor(anchor).map(ScreenRow)
-    }
-
-    /// Current and saved cursor positions, relative to the viewport.
-    pub fn cursor_positions(&self) -> ((u16, u16), (u16, u16)) {
-        let current = self.0.pos();
-        let saved = self.0.saved_pos();
-        ((current.row, current.col), (saved.row, saved.col))
-    }
-
-    /// Inclusive top and bottom of the scroll region.
-    pub fn scroll_region(&self) -> (u16, u16) {
-        self.0.scroll_region()
-    }
-
-    /// Current and saved cursor origin modes.
-    pub fn cursor_origin_modes(&self) -> (bool, bool) { self.0.cursor_origin_modes() }
-}
-
-/// Immutable row of a native screen buffer.
-pub struct ScreenRow<'a>(&'a crate::row::Row);
-
-impl<'a> ScreenRow<'a> {
-    /// Width at the time this row was rendered, which can differ in history.
-    pub fn columns(&self) -> u16 { self.0.cols() }
-
-    /// Whether the following row continues this line.
-    pub fn wrapped(&self) -> bool { self.0.wrapped() }
-
-    /// A display cell at the given column.
-    pub fn cell(&self, column: u16) -> Option<&'a crate::Cell> { self.0.get(column) }
-}
-
 impl Screen {
     pub(crate) fn checkpoint(&self) -> ScreenCheckpoint<'_> {
         ScreenCheckpoint {
@@ -166,34 +115,6 @@ impl Screen {
     #[must_use]
     pub fn history_truncated(&self) -> bool {
         self.grid.history_truncated()
-    }
-
-    /// Primary cursor row counted from the beginning of saved shell output.
-    pub fn primary_row_anchor(&self) -> Option<(u64, u16)> {
-        (!self.alternate_screen()).then(|| {
-            let cursor = self.grid.pos();
-            (self.grid.viewport_start().saturating_add(u64::from(cursor.row)), cursor.col)
-        })
-    }
-
-    /// Index of the first retained row, including history before the viewport.
-    pub fn retained_primary_row_start(&self) -> u64 {
-        self.grid.retained_start()
-    }
-
-    /// The primary buffer even while the alternate screen has focus.
-    pub fn primary_grid(&self) -> ScreenGrid<'_> { ScreenGrid(&self.grid) }
-
-    /// The alternate buffer, which may be unallocated before first use.
-    pub fn alternate_grid(&self) -> ScreenGrid<'_> { ScreenGrid(&self.alternate_grid) }
-
-    /// Current and saved drawing templates represented as unoccupied cells.
-    pub fn cursor_templates(&self) -> (crate::Cell, crate::Cell) {
-        let mut current = crate::Cell::new();
-        current.clear(self.attrs);
-        let mut saved = crate::Cell::new();
-        saved.clear(self.saved_attrs);
-        (current, saved)
     }
 
     pub(crate) fn new(
@@ -354,23 +275,6 @@ impl Screen {
     #[must_use]
     pub fn state_formatted(&self) -> Vec<u8> {
         let mut contents = vec![];
-        self.write_contents_formatted(&mut contents);
-        self.write_input_mode_formatted(&mut contents);
-        contents
-    }
-
-    /// Effect-free state for a plain terminal attaching to an existing session.
-    pub fn attachment_formatted(&self, previous_alternate: bool) -> Vec<u8> {
-        let mut contents = Vec::new();
-        if previous_alternate {
-            contents.extend_from_slice(b"\x1b[?1049l");
-        }
-        // Absolute positioning during import must not inherit the outer shell's modes.
-        contents.extend_from_slice(b"\x1b[?6l\x1b[r\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1005l\x1b[?1006l");
-        if self.alternate_screen() {
-            self.grid.write_contents_formatted(&mut contents);
-            contents.extend_from_slice(b"\x1b[?1049h");
-        }
         self.write_contents_formatted(&mut contents);
         self.write_input_mode_formatted(&mut contents);
         contents
@@ -1144,12 +1048,7 @@ impl Screen {
 
     // ESC c
     pub(crate) fn ris(&mut self) {
-        let next_row = self.grid.viewport_start().saturating_add(u64::from(self.grid.size().rows));
-        let keep_history = self.grid.scrollback_len() != 0;
         *self = Self::new(self.grid.size(), self.grid.scrollback_len());
-        if keep_history {
-            self.grid.reset_history_anchor(next_row);
-        }
     }
 
     // csi codes

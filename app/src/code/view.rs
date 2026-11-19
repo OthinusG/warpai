@@ -1,7 +1,4 @@
-use crate::app_state::{CodePaneSnapShot, CodePaneTabSnapshot};
 use crate::code::editor::scroll::ScrollPosition;
-#[cfg(feature = "local_fs")]
-use crate::code::editor_management::RemoteEditorTab;
 use crate::code::editor::view::CodeEditorRenderOptions;
 use crate::code::editor_management::CodeEditorStatus;
 use crate::code::global_buffer_model::GlobalBufferModel;
@@ -243,12 +240,6 @@ pub struct CodeView {
     drag_position: Option<TabBarDragPosition>,
     markdown_mode_segmented_control: Option<ViewHandle<MarkdownToggleView>>,
     pending_remote_saves: HashMap<EntityId, SaveCallback>,
-    #[cfg(feature = "local_fs")]
-    remote_tabs_to_restore: Vec<RemoteEditorTab>,
-    #[cfg(feature = "local_fs")]
-    remote_restore_preferred: Option<usize>,
-    #[cfg(feature = "local_fs")]
-    remote_restore_selection: Option<String>,
 }
 
 impl CodeView {
@@ -266,12 +257,6 @@ impl CodeView {
             drag_position: None,
             markdown_mode_segmented_control: None,
             pending_remote_saves: HashMap::new(),
-            #[cfg(feature = "local_fs")]
-            remote_tabs_to_restore: Vec::new(),
-            #[cfg(feature = "local_fs")]
-            remote_restore_preferred: None,
-            #[cfg(feature = "local_fs")]
-            remote_restore_selection: None,
         }
     }
 
@@ -329,171 +314,25 @@ impl CodeView {
         ctx.notify();
     }
 
-    pub(crate) fn snapshot(&self, app: &AppContext) -> CodePaneSnapShot {
-        let mut tabs: Vec<_> = self.tab_group.iter().map(|tab| CodePaneTabSnapshot { path: tab.path() }).collect();
-        let mut active_tab_index = self.active_tab_index;
-        let mut source = self.source.clone();
-
-        #[cfg(feature = "local_fs")]
-        {
-            let mut pending = Vec::with_capacity(self.remote_tabs_to_restore.len());
-            let mut preferred = None;
-            for entry in &self.remote_tabs_to_restore {
-                let index = entry.index.min(tabs.len());
-                tabs.insert(index, CodePaneTabSnapshot { path: None });
-                if index <= active_tab_index {
-                    active_tab_index += 1;
-                }
-                if self.remote_restore_preferred == Some(entry.index) {
-                    preferred = Some(index);
-                }
-                pending.push(RemoteEditorTab { index, ..entry.clone() });
-            }
-            let files = warp_files::FileModel::as_ref(app);
-            let mut documents: Vec<_> = tabs.iter_mut().enumerate().filter_map(|(index, tab)| {
-                let remote = files.ssh_source(tab.path.as_ref()?)?;
-                tab.path = None;
-                Some(RemoteEditorTab {
-                    index,
-                    workspace: remote.files.workspace_fingerprint(),
-                    path: remote.path.clone(),
-                })
-            }).collect();
-            documents.extend(pending);
-            if !documents.is_empty() {
-                active_tab_index = preferred.unwrap_or(active_tab_index).min(tabs.len().saturating_sub(1));
-                if !source.is_restorable() {
-                    source = CodeSource::New { default_directory: None };
-                }
-                source = CodeSource::RemoteTabs { source: Box::new(source), documents };
-            }
-        }
-        let _ = app;
-        CodePaneSnapShot::Local { tabs, active_tab_index, source: Some(source) }
-    }
-
-    /// Restore local documents immediately and retain remote tabs until admission.
-    #[cfg(feature = "local_fs")]
+    /// Restore a code view from a persisted multi-tab snapshot.
     pub fn restore(
-        tabs: &[CodePaneTabSnapshot],
+        tabs: &[crate::app_state::CodePaneTabSnapshot],
         active_tab_index: usize,
         source: CodeSource,
         ctx: &mut ViewContext<Self>,
     ) -> Self {
-        let (source, mut remote_tabs) = match source {
-            CodeSource::RemoteTabs { source, documents } => (*source, documents),
-            source => (source, Vec::new()),
-        };
-        let source = if source.is_restorable() && !matches!(source, CodeSource::RemoteTabs { .. }) {
-            source
-        } else {
-            CodeSource::New { default_directory: None }
-        };
-        remote_tabs.sort_unstable_by_key(|tab| tab.index);
-        remote_tabs.dedup_by_key(|tab| tab.index);
-        remote_tabs.retain(|tab| {
-            tabs.get(tab.index).is_some_and(|entry| entry.path.is_none())
-                && tab.workspace.len() == 64
-                && tab.workspace.bytes().all(|byte| byte.is_ascii_hexdigit())
-                && !tab.path.is_empty()
-                && tab.path.len() <= 4096
-                && !tab.path.chars().any(char::is_control)
-        });
         let mut view = Self::new_internal(source, ctx);
-        if remote_tabs.iter().any(|tab| tab.index == active_tab_index) {
-            view.remote_restore_preferred = Some(active_tab_index);
-        }
-        let selected = active_tab_index.saturating_sub(
-            remote_tabs.iter().take_while(|tab| tab.index < active_tab_index).count(),
-        );
-        for (index, tab_snapshot) in tabs.iter().enumerate() {
-            if remote_tabs.binary_search_by_key(&index, |tab| tab.index).is_ok() {
-                continue;
-            }
+        for tab_snapshot in tabs {
             let tab_data = view.build_tab_data(tab_snapshot.path.clone(), false, ctx);
             view.tab_group.push(tab_data);
         }
-        view.active_tab_index = selected.min(view.tab_group.len().saturating_sub(1));
-        view.remote_tabs_to_restore = remote_tabs;
-        if !view.remote_tabs_to_restore.is_empty() {
-            ctx.observe(&ActiveSession::handle(ctx), |view, _, ctx| {
-                if ctx.is_self_or_child_focused() {
-                    view.restore_remote_tabs(ctx);
-                }
-            });
-        }
-        view
-    }
-
-    #[cfg(feature = "local_fs")]
-    pub(crate) fn restore_remote_tabs(&mut self, ctx: &mut ViewContext<Self>) {
-        use crate::remote_server::selected_session::{selected_ssh, selection_key};
-        use warp_agent_bus::ssh_files::RemoteFiles;
-
-        if self.remote_tabs_to_restore.is_empty() {
-            return;
-        }
-        let Some((profile, connection)) = selected_ssh(ctx, self.window_id) else {
-            self.remote_restore_selection = None;
-            return;
+        let clamped_index = if view.tab_group.is_empty() {
+            0
+        } else {
+            active_tab_index.min(view.tab_group.len() - 1)
         };
-        let selection = selection_key(&profile, &connection, ctx);
-        if self.remote_restore_selection.as_ref() == Some(&selection) {
-            return;
-        }
-        self.remote_restore_selection = Some(selection.clone());
-        let documents = self.remote_tabs_to_restore.clone();
-        ctx.spawn(async move {
-            let files = RemoteFiles::connect(profile, connection).await?;
-            let fingerprint = files.workspace_fingerprint();
-            let mut prepared = Vec::new();
-            for tab in documents.into_iter().filter(|tab| tab.workspace == fingerprint) {
-                if let Ok((cache, hash)) = files.download(&tab.path).await {
-                    prepared.push((tab, cache, hash));
-                }
-            }
-            Ok::<_, warp_agent_bus::ssh_remote::ConnectionError>((files, prepared))
-        }, move |view, result, ctx| {
-            if view.remote_restore_selection.as_ref() != Some(&selection) {
-                return;
-            }
-            let still_selected = selected_ssh(ctx, view.window_id)
-                .is_some_and(|(profile, connection)| selection_key(&profile, &connection, ctx) == selection);
-            if !still_selected || !ctx.is_self_or_child_focused() {
-                view.remote_restore_selection = None;
-                return;
-            }
-            let Ok((files, prepared)) = result else { return };
-            let mut selected = view.active_tab_index;
-            for (tab, cache, hash) in prepared {
-                let Some(index) = view.remote_tabs_to_restore.iter().position(|pending| pending == &tab) else {
-                    continue;
-                };
-                if warp_files::FileModel::handle(ctx).update(ctx, |model, _| {
-                    model.register_ssh_file(files.clone(), tab.path.clone(), cache.clone(), hash)
-                }).is_err() {
-                    continue;
-                }
-                let position = tab.index.saturating_sub(index).min(view.tab_group.len());
-                let editor = view.build_tab_data(Some(cache), false, ctx);
-                if view.remote_restore_preferred == Some(tab.index) {
-                    view.remote_restore_preferred = None;
-                    selected = position;
-                } else if view.tab_group.is_empty() {
-                    selected = position;
-                } else if position <= selected {
-                    selected += 1;
-                }
-                view.tab_group.insert(position, editor);
-                view.remote_tabs_to_restore.remove(index);
-            }
-            if !view.tab_group.is_empty() {
-                view.set_active_tab_index(selected.min(view.tab_group.len() - 1), ctx);
-                view.set_title_after_content_update(ctx);
-                view.focus(ctx);
-                ctx.emit(CodeViewEvent::Pane(PaneEvent::AppStateChanged));
-            }
-        });
+        view.active_tab_index = clamped_index;
+        view
     }
 
     /// Create a new "preview" code view for when a user is exploring the file tree.
@@ -655,15 +494,6 @@ impl CodeView {
                 me.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx);
                 });
-                if source.as_ref(ctx).file_id().is_some_and(|id| {
-                    warp_files::FileModel::as_ref(ctx).remote_save_needs_confirmation(id)
-                }) {
-                    CodeView::display_save_failure(
-                        ctx.window_id(),
-                        Some(&warp_util::file::FileSaveError::RemoteSaveUnconfirmed),
-                        ctx,
-                    );
-                }
                 ctx.emit(CodeViewEvent::Pane(PaneEvent::AppStateChanged));
             }
             LocalCodeEditorEvent::FailedToLoad { error: err } => {
@@ -831,11 +661,6 @@ impl CodeView {
     pub fn focus(&self, ctx: &mut ViewContext<Self>) {
         if let Some(tab) = self.tab_at(self.active_tab_index) {
             ctx.focus(&tab.editor_view);
-        } else {
-            #[cfg(feature = "local_fs")]
-            if !self.remote_tabs_to_restore.is_empty() {
-                ctx.focus_self();
-            }
         }
     }
 
@@ -2400,16 +2225,6 @@ impl View for CodeView {
         "CodeView"
     }
 
-    #[cfg(feature = "local_fs")]
-    fn on_focus(&mut self, _: &warpui::FocusContext, ctx: &mut ViewContext<Self>) {
-        self.restore_remote_tabs(ctx);
-    }
-
-    #[cfg(feature = "local_fs")]
-    fn on_blur(&mut self, _: &warpui::BlurContext, _: &mut ViewContext<Self>) {
-        self.remote_restore_selection = None;
-    }
-
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         let tab = self.tab_at(self.active_tab_index);
         let body = if let Some(tab) = tab {
@@ -2423,15 +2238,6 @@ impl View for CodeView {
                 _ => ChildView::new(&tab.editor_view).finish(),
             }
         } else {
-            #[cfg(feature = "local_fs")]
-            if !self.remote_tabs_to_restore.is_empty() {
-                let appearance = Appearance::as_ref(app);
-                return Container::new(Text::new_inline(
-                    warpui::localization::text("Reconnect to the original remote workspace to reopen these files.").to_owned(),
-                    appearance.ui_font_family(),
-                    appearance.ui_font_size(),
-                ).finish()).with_padding_top(PADDING).with_padding_left(12.).finish();
-            }
             Empty::new().finish()
         };
 

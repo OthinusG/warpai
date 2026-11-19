@@ -105,67 +105,6 @@ impl<const OSC_RAW_BUF_SIZE: usize> Parser<OSC_RAW_BUF_SIZE> {
         &self.intermediates[..self.intermediate_idx]
     }
 
-    /// Whether subsequent input can be decoded by a fresh parser.
-    #[cfg(feature = "checkpoint")]
-    pub fn at_input_boundary(&self) -> bool {
-        self.state == State::Ground && self.partial_utf8_len == 0
-    }
-
-    /// Encode an unfinished prefix without dispatching a completed action.
-    /// OSC payloads and active DCS data are owned by the calling terminal.
-    #[cfg(feature = "checkpoint")]
-    pub fn incomplete_prefix(&self) -> Option<Vec<u8>> {
-        let mut prefix = match self.state {
-            State::Ground => return Some(self.partial_utf8[..self.partial_utf8_len].to_vec()),
-            State::Escape => return Some(vec![0x1b]),
-            State::EscapeIntermediate => {
-                if self.ignoring {
-                    return None;
-                }
-                let mut bytes = vec![0x1b];
-                bytes.extend(self.intermediates());
-                return Some(bytes);
-            },
-            State::OscString => return Some(b"\x1b]".to_vec()),
-            State::CsiEntry => return Some(b"\x1b[".to_vec()),
-            State::DcsEntry => return Some(b"\x1bP".to_vec()),
-            State::CsiIgnore => return Some(b"\x1b[ 0".to_vec()),
-            State::DcsIgnore => return Some(b"\x1bP 0".to_vec()),
-            State::SosPmApcString | State::DcsPassthrough => return None,
-            State::CsiParam | State::CsiIntermediate => b"\x1b[".to_vec(),
-            State::DcsParam | State::DcsIntermediate => b"\x1bP".to_vec(),
-        };
-        if self.ignoring {
-            // More intermediates than the representation can retain.
-            return None;
-        }
-        let parameters = self.intermediates().iter().copied().filter(|byte| *byte >= 0x3c);
-        prefix.extend(parameters);
-        let mut groups = self.params.iter().peekable();
-        while let Some(group) = groups.next() {
-            for (index, value) in group.iter().enumerate() {
-                if index != 0 {
-                    prefix.push(b':');
-                }
-                prefix.extend_from_slice(value.to_string().as_bytes());
-            }
-            prefix.push(if groups.peek().is_none() && self.params.has_partial_group() {
-                b':'
-            } else {
-                b';'
-            });
-        }
-        if self.param != 0 {
-            prefix.extend_from_slice(self.param.to_string().as_bytes());
-        } else if self.params.is_empty() && matches!(self.state, State::CsiParam | State::DcsParam)
-            && self.intermediates().is_empty()
-        {
-            prefix.push(b'0');
-        }
-        prefix.extend(self.intermediates().iter().copied().filter(|byte| *byte < 0x3c));
-        Some(prefix)
-    }
-
     /// Advance the parser state.
     ///
     /// Requires a [`Perform`] implementation to handle the triggered actions.

@@ -1,20 +1,16 @@
-//! Memory-only terminal state for Companion-owned PTYs and private checkpoints.
-use super::{activity_with_progress, shell::{ShellState, ShellViewport, MAX_SHELL_FRAME_BYTES}};
+//! Memory-only screen evidence for Companion-owned PTYs; never logged or serialized.
+use super::activity_with_progress;
 use bincode::Options;
 use crate::{readiness::Activity, transport::ScreenContext};
 use remote_protocol::managed::TERMINAL_SNAPSHOT_MAX_BYTES;
 use serde::{Deserialize, Serialize};
 
 const MAX_OSC_BYTES: usize = 4096 + 16;
-const CHECKPOINT_VERSION: u16 = 2;
+const CHECKPOINT_VERSION: u16 = 1;
 pub(crate) const GUARDED_SCROLLBACK_ROWS: usize = 128;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
-struct Signals {
-    title: String,
-    progress: String,
-    shell: Option<ShellState>,
-}
+struct Signals { title: String, progress: String }
 
 impl vt100::Callbacks for Signals {
     fn set_window_title(&mut self, _: &mut vt100::Screen, title: &[u8]) {
@@ -30,22 +26,6 @@ impl vt100::Callbacks for Signals {
                 .collect::<Vec<_>>().join(";").chars().take(256).collect();
         }
     }
-    fn dcs_start(&mut self, _: &mut vt100::Screen, intermediates: &[u8], action: char) {
-        if let Some(shell) = &mut self.shell {
-            shell.dcs_start(intermediates, action);
-        }
-    }
-    fn dcs_byte(&mut self, byte: u8) {
-        if let Some(shell) = &mut self.shell {
-            shell.dcs_byte(byte);
-        }
-    }
-    fn dcs_end(&mut self, screen: &mut vt100::Screen) {
-        if let Some(shell) = &mut self.shell {
-            shell.dcs_end(screen);
-        }
-    }
-
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -78,9 +58,8 @@ impl NativeScreen {
     }
 
     fn with_scrollback(rows: u16, columns: u16, history: usize) -> Self {
-        let signals = Signals { shell: (history > 0).then(ShellState::default), ..Default::default() };
         Self {
-            parser: vt100::Parser::new_with_callbacks(rows, columns, history, signals),
+            parser: vt100::Parser::new_with_callbacks(rows, columns, history, Signals::default()),
             escape_pending: false,
             osc: None,
         }
@@ -104,47 +83,26 @@ impl NativeScreen {
             .with_limit(TERMINAL_SNAPSHOT_MAX_BYTES as u64).deserialize(data).ok()?;
         if checkpoint.version != CHECKPOINT_VERSION || checkpoint.signals.title.len() > 4096 * 3
             || checkpoint.signals.progress.len() > 256
-            || !checkpoint.signals.shell.as_ref().is_some_and(ShellState::valid)
-            || matches!(&checkpoint.osc, Some(OscInput::Reading(buffer))
-                if buffer.len() > MAX_SHELL_FRAME_BYTES + 16
-                    || buffer.iter().any(|byte| matches!(byte, 0x07 | 0x18 | 0x1a | 0x1b)))
+            || matches!(&checkpoint.osc, Some(OscInput::Reading(buffer)) if buffer.len() > MAX_OSC_BYTES)
             || checkpoint.escape_pending && checkpoint.osc.is_some()
         {
             return None;
         }
-        let parser = vt100::Parser::from_checkpoint(checkpoint.parser, checkpoint.signals, MAX_SHELL_FRAME_BYTES + 16, GUARDED_SCROLLBACK_ROWS)?;
+        let parser = vt100::Parser::from_checkpoint(checkpoint.parser, checkpoint.signals, MAX_OSC_BYTES, GUARDED_SCROLLBACK_ROWS)?;
         Some(Self { parser, escape_pending: checkpoint.escape_pending, osc: checkpoint.osc })
     }
 
     pub(crate) fn size(&self) -> (u16, u16) { self.parser.screen().size() }
-    pub(crate) fn screen(&self) -> &vt100::Screen { self.parser.screen() }
-    pub(crate) fn shell(&self) -> Option<&ShellState> { self.parser.callbacks().shell.as_ref() }
-    pub(crate) fn at_input_boundary(&self) -> bool {
-        self.osc.is_none() && !self.escape_pending && self.parser.at_input_boundary()
-    }
-    pub(crate) fn incomplete_prefix(&self) -> Option<Vec<u8>> {
-        if let Some(osc) = &self.osc {
-            let OscInput::Reading(payload) = osc else { return None };
-            return Some([b"\x1b]".as_slice(), payload].concat());
-        }
-        if let Some(data) = self.shell().and_then(ShellState::incomplete_dcs) {
-            return Some([b"\x1bP$d".as_slice(), data].concat());
-        }
-        self.parser.incomplete_prefix()
-    }
-    pub(crate) fn history_truncated(&self) -> bool {
-        self.screen().history_truncated() || self.shell().is_some_and(|shell| shell.history_truncated)
-    }
+    pub(crate) fn history_truncated(&self) -> bool { self.parser.screen().history_truncated() }
     pub(crate) fn process(&mut self, mut bytes: &[u8]) {
         // vte's std parser accumulates an OSC until termination. Bound the
         // readiness projection while the native output stream stays intact.
-        let osc_limit = if self.shell().is_some() { MAX_SHELL_FRAME_BYTES + 16 } else { MAX_OSC_BYTES };
         while !bytes.is_empty() {
             if let Some(osc) = &mut self.osc {
                 let end = bytes.iter().position(|&byte| matches!(byte, 0x07 | 0x18 | 0x1a | 0x1b));
                 let payload = &bytes[..end.unwrap_or(bytes.len())];
                 if let OscInput::Reading(buffer) = osc {
-                    if payload.len() <= osc_limit - buffer.len() {
+                    if payload.len() <= MAX_OSC_BYTES - buffer.len() {
                         buffer.extend_from_slice(payload);
                     } else {
                         *osc = OscInput::Discarding;
@@ -152,15 +110,7 @@ impl NativeScreen {
                 }
                 let Some(end) = end else { return; };
                 if let Some(OscInput::Reading(payload)) = self.osc.take() {
-                    let is_shell = payload.starts_with(b"9278;") || payload.starts_with(b"9277;");
-                    if is_shell && self.shell().is_some() {
-                        let viewport = ShellViewport::from_screen(self.parser.screen());
-                        if let Some(shell) = &mut self.parser.callbacks_mut().shell {
-                            shell.osc(viewport, &payload);
-                        }
-                    } else if payload.len() <= MAX_OSC_BYTES {
-                        self.parser.process(&payload);
-                    }
+                    self.parser.process(&payload);
                 }
                 self.parser.process(&[bytes[end]]);
                 self.escape_pending = bytes[end] == 0x1b;
@@ -282,51 +232,6 @@ mod tests {
         let mut invalid = expected.clone();
         invalid.push(0);
         assert!(NativeScreen::from_checkpoint(&invalid).is_none());
-    }
-
-    #[test]
-    fn shell_checkpoint_preserves_dcs_osc_and_key_value_hooks_at_each_cut() {
-        fn encoded(input: &mut Vec<u8>, prefix: &[u8], json: &str, suffix: &[u8]) {
-            input.extend_from_slice(prefix);
-            for byte in json.bytes() {
-                input.extend(format!("{byte:02x}").bytes());
-            }
-            input.extend_from_slice(suffix);
-        }
-        let mut input = Vec::new();
-        encoded(&mut input, b"\x1b]9278;d;",
-            r#"{"hook":"Precmd","value":{"pwd":"/work/项目","ps1":"$ ","session_id":42}}"#, b"\x07");
-        input.extend_from_slice(b"$ \x1b]9278;k;A;Preexec\x07");
-        let command = format!("echo 你好{}\nnext", ";again".repeat(20));
-        input.extend(format!("\x1b]9278;k;B;command;$'{}'\x07",
-            command.replace('\n', "\\n")).bytes());
-        input.extend_from_slice(b"\x1b]9278;k;C\x07\r\nfirst line\r\n");
-        input.extend_from_slice(b"\x1b[?1049hvisual dialog\x1b[?1049l");
-        encoded(&mut input, b"\x1bP$d",
-            r#"{"hook":"CommandFinished","value":{"exit_code":7,"next_block_id":"precmd-42-1"}}"#, b"\x9c");
-        input.extend_from_slice(b"\x1b]9278;k;A;Preexec\x07\x1b]9278;k;B;command;second\x07\x1b]9278;k;C\x07");
-        encoded(&mut input, b"\x1b]9278;d;",
-            r#"{"hook":"InputBuffer","value":{"buffer":"partial 草稿"}}"#, b"\x1b\\");
-
-        let mut uninterrupted = NativeScreen::guarded(12, 80);
-        uninterrupted.process(&input);
-        let expected = uninterrupted.checkpoint().unwrap();
-        let shell = uninterrupted.shell().unwrap();
-        assert_eq!(shell.prompt.as_ref().unwrap().pwd.as_deref(), Some("/work/项目"));
-        assert_eq!(shell.completed.len(), 1);
-        assert_eq!(shell.completed[0].command, command);
-        assert_eq!(shell.completed[0].exit_code, Some(7));
-        assert!(shell.completed[0].end.unwrap().row > shell.completed[0].start.row);
-        assert_eq!(shell.active.as_ref().unwrap().id.as_deref(), Some("precmd-42-1"));
-        assert_eq!(shell.input_buffer.as_deref(), Some("partial 草稿"));
-        for (cut, _) in input.iter().enumerate() {
-            let mut first = NativeScreen::guarded(12, 80);
-            first.process(&input[..cut]);
-            let mut restored = NativeScreen::from_checkpoint(&first.checkpoint().unwrap())
-                .unwrap_or_else(|| panic!("restore at byte {cut}"));
-            restored.process(&input[cut..]);
-            assert_eq!(restored.checkpoint().unwrap(), expected, "cut {cut}");
-        }
     }
 
     #[test]

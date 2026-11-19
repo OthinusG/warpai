@@ -1,5 +1,4 @@
 {
-  "Reconnect to the original remote workspace to reopen these files.": ["请重新连接原远程工作区以重新打开这些文件。", "請重新連線至原遠端工作區以重新開啟這些檔案。"],
   "The remote save could not be confirmed. Reconnect and save explicitly to check it.": ["无法确认远程保存结果。请重新连接，然后手动保存以核验结果。", "無法確認遠端儲存結果。請重新連線，然後手動儲存以核驗結果。"],
   "The remote file changed during the interrupted save. Review it before replacing the draft.": ["远程文件在保存中断期间发生了变化。请先查看远程内容，再决定是否替换草稿。", "遠端檔案在儲存中斷期間發生了變化。請先查看遠端內容，再決定是否取代草稿。"],
   "Retain terminal sessions for this WSL account after the desktop disconnects.": ["桌面端断开后，保留此 WSL 账户的终端会话。", "桌面端中斷連線後，保留此 WSL 帳戶的終端機工作階段。"],

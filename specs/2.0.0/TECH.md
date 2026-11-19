@@ -145,29 +145,14 @@ resources and temporary staging safely on disconnect; preserve uncertain mutatio
 receipts instead of replaying writes on reconnect. UI/Review/editor reconnect to
 remote facts on demand; unsaved drafts retain existing client ownership.
 
-The desktop editor reserves the baseline hash and the intended hash of a file
-commit before sending it. The local remote-editor receipt contains only those
-hashes and is keyed by the confirmed account, logical service, project and
-remote document identity. A fresh, independently verified attachment for the
-same document can recover it after a desktop restart. Draft text and file
-contents retain their existing client policy. Reconnect verifies the original account/project through
+An editor source keeps the baseline hash and the intended hash of an unconfirmed
+file commit in memory. Reconnect verifies the original account/project through
 the existing attachment fence, then checks the remote hash with a read-only
 request. A matching intended hash confirms the observed content, a matching
 baseline permits an explicit save, and another hash preserves the draft and
 requires an explicit reload or conflict decision. Background saves are suspended
-while the receipt is unresolved or awaiting explicit save. Receipt IO failure
-prevents sending a new write. Hold a bounded local lock across each write and
-its receipt transition. The recovered receipt never stores connection
-arguments, credentials, drafts or staged content, and reconnect never
-resubmits an interrupted mutation.
-
-Persist remote editor tab paths and the confirmed workspace fingerprint through
-the existing desktop pane snapshot. Cache paths and transport arguments are
-transient. A restored pane keeps remote tabs dormant until focused and a matching
-remote workspace is verified. Local tabs can restore immediately in the same
-pane. A lookup must not send a file request to a mismatched account or project.
-Restore downloads on demand and bind them to the confirmed remote source so a
-restored tab cannot save a remote path on the desktop filesystem.
+while the receipt is unresolved or awaiting explicit save. No reconnect request
+submits the earlier staged content or persists it in guardian storage.
 
 Guarded Coordinator rights survive only for the proven same native run. Reconnect
 or focus grants no new task/checkout authority and accepts/integrates no result.
@@ -221,13 +206,6 @@ base guardian RSS at most 32 MiB, incremental idle 120x40 session memory at most
 Use CPU-time deltas, repeat runs and report host noise. These are design targets,
 not claims that Rust/SQLite/OS behavior already meets them. S8 must measure,
 optimize or explicitly revise with evidence before release; no silent target waiver.
-
-Use an isolated native registry fixture to measure process RSS, CPU time,
-context switches and threads at 0, 1, 8 and 32 guarded sessions. Its separate
-mixed-load case uses two project roots, a continuous output producer, a blocked
-input pipe and a quiet command, then checks the quiet command's round trip and
-observed stops. The local fixture measures the guardian-side component without
-claiming the release VM, real Agent Broker and mixed-version matrix.
 
 Preserve the current maximum 32 sessions as an admission ceiling, not a resource
 reservation. Start with lazy 256 KiB output ring/session, 32 KiB wire pages,
@@ -304,16 +282,8 @@ Warpai block metadata or taking a second resize owner.
 S2 first needs a lossless round trip for the portable parser and display state.
 Run the same suffix through uninterrupted and restored state at every byte cut
 in split UTF-8, CSI and OSC fixtures, then compare both screens and observe that
-the state-only import emits no effects. Guarded parsing records the bundled
-shell's encoded DCS/OSC and Bash key-value lifecycle hooks in a bounded
-projection. Prompt, native input buffer, command identity, command range, and
-exit status travel with the screen in a single checkpoint. DCS and unfinished
-key-value data survive a split cut. Only primary-screen row anchors are assigned
-to shell commands. Trimmed rows and blocks report their missing history without
-inventing output. Keep shell text in memory and outside the catalog.
-
-Add desktop static import before exposing the guarded data bridge to desktop
-writers.
+the state-only import emits no effects. Add the command/block state and desktop
+static import before exposing the guarded data bridge to desktop writers.
 
 The readiness parser will use source-matched local copies of its pinned VT100
 and VTE dependencies for access to private checkpoint state. Keep their license

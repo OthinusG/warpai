@@ -279,22 +279,18 @@ pub async fn verify_guarded_command(
 
 async fn verify_cli_tty(mut command: Command, pid: u32) {
     use std::process::Stdio;
-    use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+    use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-    async fn expect_marker(output: &mut (impl AsyncRead + Unpin), expected: &str) {
+    async fn expect_line(output: &mut (impl AsyncBufRead + Unpin), expected: &str) {
         timeout(Duration::from_secs(10), async {
-            let mut collected = Vec::new();
-            let mut bytes = [0; 256];
+            let mut line = String::new();
             loop {
-                let count = output.read(&mut bytes).await.unwrap();
-                assert_ne!(count, 0, "Missing {expected}");
-                collected.extend_from_slice(&bytes[..count]);
-                let text = String::from_utf8_lossy(&collected);
-                if text.contains("GUARDIAN_CLI_TTY_ERROR=") {
-                    panic!("Native CLI TTY fixture failed");
+                line.clear();
+                assert_ne!(output.read_line(&mut line).await.unwrap(), 0, "Missing {expected}");
+                if let Some(reason) = line.trim_end().strip_prefix("GUARDIAN_CLI_TTY_ERROR=") {
+                    panic!("Native CLI TTY fixture failed: {reason}");
                 }
-                if text.contains(expected) { break; }
-                if collected.len() > 8192 { collected.drain(..4096); }
+                if line.contains(expected) { break; }
             }
         }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"));
     }
@@ -302,14 +298,14 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
     let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped())
         .kill_on_drop(true).spawn().expect("Owned SSH TTY");
     let mut input = child.stdin.take().unwrap();
-    let mut output = child.stdout.take().unwrap();
-    expect_marker(&mut output, &format!("GUARDIAN_PID={pid}")).await;
+    let mut output = BufReader::new(child.stdout.take().unwrap());
+    expect_line(&mut output, &format!("GUARDIAN_PID={pid}")).await;
     input.write_all(b"through-cli\r").await.unwrap();
-    expect_marker(&mut output, "GUARDIAN_ECHO=through-cli").await;
+    expect_line(&mut output, "GUARDIAN_ECHO=through-cli").await;
     input.write_all(b"\x02").await.unwrap();
     sleep(Duration::from_millis(100)).await;
     input.write_all(b"q").await.unwrap();
-    expect_marker(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
+    expect_line(&mut output, "GUARDIAN_CLI_TTY_RESTORED").await;
     assert!(timeout(Duration::from_secs(10), child.wait()).await.unwrap().unwrap().success());
 }
 

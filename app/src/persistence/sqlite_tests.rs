@@ -321,7 +321,7 @@ fn test_sqlite_round_trips_custom_vertical_tabs_title() {
 }
 
 #[test]
-fn test_sqlite_round_trips_code_pane_with_local_and_remote_tabs() {
+fn test_sqlite_round_trips_code_pane_with_multiple_tabs() {
     let tempdir = tempfile::tempdir().expect("tempdir should be created");
     let database_path = tempdir.path().join("warp.sqlite");
     let mut conn = setup_database(&database_path).expect("database should initialize");
@@ -345,13 +345,8 @@ fn test_sqlite_round_trips_code_pane_with_local_and_remote_tabs() {
                             CodePaneTabSnapshot { path: None },
                         ],
                         active_tab_index: 1,
-                        source: Some(CodeSource::RemoteTabs {
-                            source: Box::new(CodeSource::FileTree { path: PathBuf::from("/tmp/main.rs") }),
-                            documents: vec![crate::code::editor_management::RemoteEditorTab {
-                                index: 2,
-                                workspace: "a".repeat(64),
-                                path: "/workspace/文档.md".into(),
-                            }],
+                        source: Some(CodeSource::FileTree {
+                            path: PathBuf::from("/tmp/main.rs"),
                         }),
                     }),
                 }),
@@ -408,14 +403,7 @@ fn test_sqlite_round_trips_code_pane_with_local_and_remote_tabs() {
     assert_eq!(tabs[0].path, Some(PathBuf::from("/tmp/main.rs")));
     assert_eq!(tabs[1].path, Some(PathBuf::from("/tmp/lib.rs")));
     assert_eq!(tabs[2].path, None);
-    let Some(CodeSource::RemoteTabs { source, documents }) = source else {
-        panic!("Expected remote tab metadata");
-    };
-    assert!(matches!(source.as_ref(), CodeSource::FileTree { .. }));
-    assert_eq!(documents.len(), 1);
-    assert_eq!(documents[0].index, 2);
-    assert_eq!(documents[0].workspace, "a".repeat(64));
-    assert_eq!(documents[0].path, "/workspace/文档.md");
+    assert!(matches!(source, Some(CodeSource::FileTree { .. })));
 }
 
 /// Verifies that a tab group and its membership round-trip through save/restore.

@@ -4,5 +4,3 @@ pub mod protocol;
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/remote_server.rs"));
 }
-
-pub mod ansi_c_decoder;

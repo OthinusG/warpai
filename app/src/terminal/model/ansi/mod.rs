@@ -9,10 +9,11 @@
 //! the terminal, executing actions as a result of CSI or OSC sequences,
 //! executing one of Warp's DCS hooks, etc. [`Handler`] should be implemented by
 //! an app-level model that updates the terminal's state accordingly.
+mod ansi_c_decoder;
 mod dcs_hooks;
 mod handler;
 
-use remote_server::ansi_c_decoder::{is_ansi_c_quoted, parse_ansi_c_quoted_string};
+use ansi_c_decoder::*;
 pub use dcs_hooks::*;
 pub use handler::*;
 use instant::Instant;

@@ -154,7 +154,7 @@ impl Companion {
         // Only the account guardian admits retained runs and the account catalog.
         if self.account_guardian.is_some() {
             capabilities.push("account_catalog".into());
-            capabilities.push("guarded_screen_checkpoint_v2".into());
+            capabilities.push("guarded_screen_checkpoint_v1".into());
             if self.account_operator || cfg!(test) {
                 capabilities.push("guarded_remote_sessions_v1".into());
             }

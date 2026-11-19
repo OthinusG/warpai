@@ -443,14 +443,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Guarded project Broker leases keep live and in-flight work resident. Idle
   listeners can close under age or capacity pressure while Store history stays.
 - The portable native VT screen checkpoint preserves both grids and decoder
-  state across byte cuts. Schema 2 adds shell lifecycle, input and row anchors.
-  Managed pages bind to the original writer and resize sequence. Consumers
-  resnapshot on a tail gap. Desktop terminal import is open.
-- Remote editors keep unresolved save hashes in a private client journal keyed
-  by the verified workspace and document. Reopening the same file recovers its
-  explicit-save fence after restart. Draft text follows the existing editor policy.
-- Workspace snapshots store remote editor descriptors without cache paths.
-  A focused pane downloads them only after its original workspace is verified.
+  state across byte cuts. Managed pages bind to the original writer and resize
+  sequence; consumers resnapshot on a tail gap. App shell-block import is open.
 
 ## Memory maintenance
 

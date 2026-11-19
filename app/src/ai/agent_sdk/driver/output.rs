@@ -1355,7 +1355,6 @@ fn format_agent_text<W: Write>(text: &AIAgentText, w: &mut W) -> io::Result<()> 
                     | Some(CodeSource::New { .. })
                     | Some(CodeSource::FileTree { .. })
                     | Some(CodeSource::SshFile { .. })
-                    | Some(CodeSource::RemoteTabs { .. })
                     | Some(CodeSource::Finder { .. })
                     | None => {}
                 }

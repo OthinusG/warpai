@@ -9,9 +9,7 @@ const WRITE_TEST_PATH: &str = "test_data/test_write/";
 #[cfg(not(target_family = "wasm"))]
 #[test]
 fn interrupted_ssh_save_keeps_its_fence_until_remote_content_is_confirmed() {
-    let mut save = SshSaveFence {
-        baseline: "old".into(), unconfirmed: Some("attempt".into()), receipt_unreadable: false,
-    };
+    let mut save = SshSaveFence { baseline: "old".into(), unconfirmed: Some("attempt".into()) };
     save.observe("old".into()).unwrap();
     assert_eq!(save.baseline, "old");
     assert_eq!(save.unconfirmed.as_deref(), Some("attempt"));
@@ -21,21 +19,6 @@ fn interrupted_ssh_save_keeps_its_fence_until_remote_content_is_confirmed() {
     assert_eq!(save.baseline, "attempt");
     assert_eq!(save.unconfirmed.as_deref(), Some("attempt"));
     assert!(matches!(save.observe("old".into()), Err(FileSaveError::RemoteSaveConflict)));
-}
-
-#[cfg(not(target_family = "wasm"))]
-#[test]
-fn reopening_a_remote_file_restores_the_original_unconfirmed_hashes() {
-    let mut save = SshSaveFence {
-        baseline: "new download".into(), unconfirmed: None, receipt_unreadable: false,
-    };
-    save.apply_receipt(Some(remote_server::EditorSaveReceipt {
-        baseline: "original baseline".into(),
-        intended: "attempt".into(),
-    }));
-    assert_eq!(save.baseline, "original baseline");
-    assert!(matches!(save.observe("new download".into()), Err(FileSaveError::RemoteSaveConflict)));
-    assert_eq!(save.unconfirmed.as_deref(), Some("attempt"));
 }
 
 /// This enum is used so that we can pass the event through the async channel.

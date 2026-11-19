@@ -102,13 +102,6 @@ impl CodeEditorStatus {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct RemoteEditorTab {
-    pub index: usize,
-    pub workspace: String,
-    pub path: String,
-}
-
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum CodeSource {
     /// A new code pane not attached to an existing file.
     New {
@@ -129,11 +122,6 @@ pub enum CodeSource {
     FileTree { path: PathBuf },
     /// A session-bound remote document; the path is an owned local transfer cache.
     SshFile { path: PathBuf, remote_path: String },
-    /// Snapshot-only metadata. Remote entries never occupy a local path slot.
-    RemoteTabs {
-        source: Box<CodeSource>,
-        documents: Vec<RemoteEditorTab>,
-    },
     /// Opened from macOS Finder via "Open With".
     Finder { path: PathBuf },
     /// Opened from a skill.
@@ -155,7 +143,6 @@ impl CodeSource {
             | Self::ProjectRules { .. }
             | Self::FileTree { .. }
             | Self::SshFile { .. }
-            | Self::RemoteTabs { .. }
             | Self::Finder { .. }
             | Self::Skill { .. } => None,
         }
@@ -163,7 +150,7 @@ impl CodeSource {
 
     pub fn path(&self) -> Option<PathBuf> {
         match self {
-            Self::New { .. } | Self::AIAction { .. } | Self::RemoteTabs { .. } => None,
+            Self::New { .. } | Self::AIAction { .. } => None,
             Self::Link { path, .. }
             | Self::ProjectRules { path }
             | Self::FileTree { path }
@@ -205,7 +192,6 @@ impl CodeSource {
             Self::ProjectRules { .. } => "project_rules",
             Self::FileTree { .. } => "file_tree",
             Self::SshFile { .. } => "ssh_file",
-            Self::RemoteTabs { .. } => "ssh_file",
             Self::Finder { .. } => "finder",
             Self::Skill { .. } => "skill",
         }
