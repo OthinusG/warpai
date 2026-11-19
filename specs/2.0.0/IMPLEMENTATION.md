@@ -37,11 +37,19 @@ The 32-run fixture used 9.8 ms of CPU time and 66 threads. These figures exclude
 child processes. In the separate mixed-load test, the quiet task answered in
 2 ms and the busy task's exit was observed 3 ms after stop.
 
-At `ae252a8d916a16c972629febae0a2962940db22e`, the [remote Companion
-workflow](https://github.com/OthinusG/warpai/actions/runs/44478097980) passed
-Linux, macOS and Windows native SSH and installer validation. It verified
-CLI launch, bridge loss, same-PID resume, observed stop and legacy connections.
-The Windows SSH fixture uses the installed Companion through the actual
-PowerShell function for run and resume. Windows and macOS protocol jobs
-passed in the [communication workflow](https://github.com/OthinusG/warpai/actions/runs/44478098306).
-Windows-to-WSL verification is running on the same source.
+Both native acceptance workflows passed at
+`6e27d0e759daf911b001188f9f4051933f04fcfb`:
+
+- Linux, macOS and Windows passed native SSH, installer and legacy connection
+  tests. The fixture verified CLI launch, bridge loss, same-PID resume and
+  observed stop. Windows exercised run and resume through the installed
+  PowerShell function. [Remote Companion CI](https://github.com/OthinusG/warpai/actions/runs/44482504584)
+- Windows-to-WSL passed all three workspace fixtures, including CLI launch and
+  observed stop, all-bridge loss, same-PID resume and both SSH/WSL startup
+  orders. The WSL runner also tested the bundled shell function in the guest.
+  [Windows-to-WSL CI](https://github.com/OthinusG/warpai/actions/runs/44482504436)
+
+On the same application source, the macOS and Windows desktop compile checks
+and platform protocol jobs passed. The WSL fixture was rerun with isolated
+dependency installation after an Ubuntu index download exceeded the previous
+provisioning timeout. [Desktop and protocol CI](https://github.com/OthinusG/warpai/actions/runs/44478098306)
