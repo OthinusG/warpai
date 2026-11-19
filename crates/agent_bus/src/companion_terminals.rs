@@ -470,7 +470,7 @@ struct Session {
     pty: NativePty,
     output: Arc<Mutex<Output>>,
     wake_signal: Option<tokio::sync::watch::Sender<()>>,
-    input: mpsc::SyncSender<NativeInput>,
+    input: Option<mpsc::SyncSender<NativeInput>>,
     connection: Option<String>,
     attachment_id: String,
     writer: Arc<WriteFence>,
@@ -635,6 +635,11 @@ fn may_control(session: &Session, fence: &ManagedFence, request: &TerminalContro
 fn retain_session(session: &mut Session, now: Instant) -> bool {
     let owned = session.pty.is_active().unwrap_or(true);
     if !owned {
+        session.revoked.store(true, Ordering::Release);
+        session.input.take();
+        if let Some(signal) = session.wake_signal.take() {
+            let _ = signal.send(());
+        }
         session.binding.take();
     }
     let Ok(output) = session.output.try_lock() else {
@@ -1082,7 +1087,7 @@ impl Terminals {
             pty,
             output,
             wake_signal,
-            input,
+            input: Some(input),
             connection: Some(fence.connection_id.clone()),
             attachment_id: Uuid::new_v4().to_string(),
             writer: writer_fence,
@@ -1179,6 +1184,7 @@ impl Terminals {
                     {
                         return Err(Error::ManagedUnavailable);
                     }
+                    let input = session.input.as_ref().ok_or(Error::ManagedUnavailable)?;
                     let len = request.input.len();
                     session.ledger.lock().map_err(|_| Error::ManagedUnavailable)?.reserve(
                         attachment,
@@ -1192,8 +1198,7 @@ impl Terminals {
                     }
                     if let Some(signal) = &session.wake_signal { let _ = signal.send(()); }
                     let sequence = request.input_sequence;
-                    if session
-                        .input
+                    if input
                         .try_send(NativeInput::User {
                             attachment,
                             epoch: session.writer.epoch.load(Ordering::SeqCst),

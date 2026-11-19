@@ -676,6 +676,8 @@ pub(crate) async fn serve_at(
     let period = Duration::from_secs(1);
     let mut maintenance = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
     maintenance.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut next_project_reap = Instant::now() + Duration::from_secs(10);
+    let mut project_reaper: Option<tokio::task::JoinHandle<()>> = None;
     loop {
         tokio::select! {
             accepted = receiver.recv() => {
@@ -776,6 +778,17 @@ pub(crate) async fn serve_at(
                         idle_since = Instant::now();
                     }
                 }
+                if Instant::now() >= next_project_reap
+                    && project_reaper.as_ref().is_none_or(tokio::task::JoinHandle::is_finished)
+                {
+                    next_project_reap = Instant::now() + Duration::from_secs(10);
+                    let projects: Vec<_> = admitted.iter().map(|scope| scope.tasks.clone()).collect();
+                    project_reaper = Some(tokio::task::spawn_blocking(move || {
+                        for project in projects {
+                            project.reap_idle_brokers();
+                        }
+                    }));
+                }
                 // Pending legacy scopes are not work; a later connection
                 // re-ensures a guardian and admits them once released.
                 if idle_since.elapsed() >= IDLE_EXIT {
@@ -783,6 +796,9 @@ pub(crate) async fn serve_at(
                 }
             }
         }
+    }
+    if let Some(reaper) = project_reaper {
+        let _ = reaper.await;
     }
     sync_ended(&terminals, &catalog);
     for scope in &admitted {

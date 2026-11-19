@@ -92,6 +92,68 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn idle_guarded_project_reopens_the_same_store_without_retiring_a_live_lease() {
+        use crate::transport::{call, Request, CAPABILITY, PROTOCOL_MAJOR};
+        use std::time::{Duration, Instant};
+
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("project");
+        std::fs::create_dir(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        let projects = Projects::for_guardian(&fixture.path().join("private"), Route::Ssh);
+        let fence = fence();
+        let register = || {
+            let (terminal, run) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
+            let binding = projects.bind_run(&fence, &root, &terminal, &run, "fixture").unwrap();
+            let capability = binding.environment.iter().find(|(key, _)| key == CAPABILITY).unwrap().1.clone();
+            let mut request = Request {
+                protocol_major: PROTOCOL_MAJOR,
+                terminal, capability, run: None, defer_initial_ready: false, native_activity: None,
+                directory: None, operation: Operation::AgentRegister { name: "worker".into() },
+            };
+            assert_eq!(call(&binding.broker.endpoint, &request).unwrap()["run"], run);
+            request.run = Some(run);
+            (binding, request)
+        };
+        let (binding, mut request) = register();
+        request.operation = Operation::AgentSend {
+            to: "worker".into(), body: "Durable mail survives native cache retirement".into(),
+            expects_result: false, content: None, subject: None, thread_id: None, reply_to: None,
+            task_id: None, request_id: Uuid::new_v4().to_string(),
+        };
+        let sent = call(&binding.broker.endpoint, &request).unwrap();
+        let endpoint = binding.broker.endpoint.clone();
+        let age = || {
+            projects.owners.lock().unwrap().get_mut(&fence.project_id).unwrap().last_access =
+                Instant::now() - PROJECT_IDLE_RETENTION - Duration::from_secs(1);
+        };
+        age();
+        projects.reap_idle_brokers();
+        assert!(projects.owners.lock().unwrap().contains_key(&fence.project_id));
+        let request_lease = binding.broker.clone();
+        drop(binding);
+        age();
+        projects.reap_idle_brokers();
+        assert!(projects.owners.lock().unwrap().contains_key(&fence.project_id));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while request_lease.has_connections() {
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        drop(request_lease);
+        age();
+        projects.reap_idle_brokers();
+        assert!(!projects.owners.lock().unwrap().contains_key(&fence.project_id));
+
+        let (replacement, mut request) = register();
+        assert_ne!(replacement.broker.endpoint, endpoint);
+        request.operation = Operation::AgentInbox { cursor: None, limit: None };
+        let inbox = call(&replacement.broker.endpoint, &request).unwrap();
+        assert!(inbox["messages"].as_array().unwrap().iter().any(|item| item["id"] == sent["id"]));
+    }
+
     #[cfg(all(unix, not(feature = "wsl_companion")))]
     #[test]
     fn explicit_remote_mcp_setup_preserves_unrelated_servers_and_rejects_name_collisions() {
@@ -579,17 +641,44 @@ pub(crate) fn decode_result(bytes: &[u8]) -> Option<serde_json::Value> {
 
 pub(super) struct Projects {
     directory: PathBuf,
-    owners: Mutex<BTreeMap<String, (String, RunningBroker)>>,
+    owners: Mutex<BTreeMap<String, ProjectBroker>>,
+    guarded_scope: bool,
     mcp_setup: Mutex<()>,
     pub(super) wsl_scope: bool,
     ssh_bridge: Option<PathBuf>,
     pub(super) guests: super::guests::Guests,
 }
+
+const MAX_PROJECT_BROKERS: usize = 64;
+const PROJECT_IDLE_RETENTION: std::time::Duration = std::time::Duration::from_secs(60);
+
+struct ProjectBroker {
+    root: String,
+    owner: RunningBroker,
+    lease: std::sync::Arc<()>,
+    last_access: std::time::Instant,
+}
+
+impl ProjectBroker {
+    fn checkout(&mut self) -> Broker {
+        self.last_access = std::time::Instant::now();
+        self.borrow()
+    }
+
+    fn borrow(&self) -> Broker {
+        self.owner.broker.with_project_lease(&self.lease)
+    }
+
+    fn idle(&self) -> bool {
+        std::sync::Arc::strong_count(&self.lease) == 1 && !self.owner.broker.has_connections()
+    }
+}
+
 impl Projects {
     pub(super) fn new(directory: &Path) -> Self {
         let wsl_scope = cfg!(feature = "wsl_companion");
         let bridge = (!wsl_scope).then(|| std::env::current_exe().ok()).flatten();
-        Self::for_scope(directory, wsl_scope, bridge)
+        Self::for_scope(directory, wsl_scope, bridge, false)
     }
 
     #[cfg(unix)]
@@ -612,13 +701,14 @@ impl Projects {
                 std::env::current_exe().ok()
             }
         };
-        Self::for_scope(directory, route == Route::Wsl, bridge)
+        Self::for_scope(directory, route == Route::Wsl, bridge, true)
     }
 
-    fn for_scope(directory: &Path, wsl_scope: bool, ssh_bridge: Option<PathBuf>) -> Self {
+    fn for_scope(directory: &Path, wsl_scope: bool, ssh_bridge: Option<PathBuf>, guarded_scope: bool) -> Self {
         Self {
             directory: directory.join("projects"),
             owners: Mutex::new(BTreeMap::new()),
+            guarded_scope,
             mcp_setup: Mutex::new(()),
             wsl_scope,
             ssh_bridge,
@@ -628,6 +718,19 @@ impl Projects {
 
     pub(super) fn supports_ssh_setup(&self) -> bool {
         !self.wsl_scope && self.ssh_bridge.is_some()
+    }
+
+    #[cfg(unix)]
+    pub(super) fn reap_idle_brokers(&self) {
+        let Ok(mut owners) = self.owners.try_lock() else { return; };
+        let now = std::time::Instant::now();
+        owners.retain(|_, project| {
+            if !project.idle() {
+                project.last_access = now;
+                return true;
+            }
+            now.duration_since(project.last_access) < PROJECT_IDLE_RETENTION
+        });
     }
     /// Explicit SSH Agent launches reuse managed MCP setup; guest opt-ins remain WSL-owned.
     pub(super) fn prepare_agent(&self, program: &str, executable: &Path) -> Result<(), ManagedErrorCode> {
@@ -673,13 +776,22 @@ impl Projects {
             .owners
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        if let Some((original, owner)) = owners.get(project_id) {
-            if original != root {
+        if let Some(project) = owners.get_mut(project_id) {
+            if project.root != root {
                 return Err(ManagedErrorCode::ManagedConflict);
             }
-            return Ok(owner.broker.clone());
+            return Ok(project.checkout());
         }
-        if owners.len() >= 64 {
+        if self.guarded_scope && owners.len() >= MAX_PROJECT_BROKERS {
+            let evict = owners.iter().filter(|(_, project)| project.idle())
+                .min_by_key(|(_, project)| project.last_access)
+                .map(|(id, _)| id.clone());
+            if let Some(id) = evict {
+                // Complete shutdown before this registry can reopen the same Store.
+                owners.remove(&id);
+            }
+        }
+        if owners.len() >= MAX_PROJECT_BROKERS {
             return Err(ManagedErrorCode::ManagedCapacityExceeded);
         }
         identity::private_directory(&self.directory).map_err(path_error)?;
@@ -704,12 +816,13 @@ impl Projects {
         }
         let database = directory.join("tasks.sqlite");
         drop(identity::private_file(&database).map_err(path_error)?);
-        // ponytail: reuse one native broker per project/team (64 maximum);
-        // share runtimes only if this measured ceiling becomes too costly.
         let owner =
             RunningBroker::start(&database).map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        let broker = owner.broker.clone();
-        owners.insert(project_id.into(), (root.into(), owner));
+        let mut project = ProjectBroker {
+            root: root.into(), owner, lease: std::sync::Arc::new(()), last_access: std::time::Instant::now(),
+        };
+        let broker = project.checkout();
+        owners.insert(project_id.into(), project);
         Ok(broker)
     }
 
@@ -900,7 +1013,7 @@ impl Projects {
                 return Err(ManagedErrorCode::ManagedInvalidInput);
             }
             let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
-                .values().map(|(_, owner)| owner.broker.clone()).collect();
+                .values().map(ProjectBroker::borrow).collect();
             let mut result = Err(crate::scope_denied("Selected Agent run is no longer active"));
             let receipt = team.worktree_role_receipt(&worker.root, operation).map_err(|_| ManagedErrorCode::ManagedConflict)?;
             if let Some(receipt) = receipt { result = Ok(receipt); }
@@ -919,7 +1032,7 @@ impl Projects {
             }
             if result.is_ok() && matches!(operation, ControllerOperation::WorktreeCoordinator { .. }) {
                 let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
-                    .values().map(|(_, owner)| owner.broker.clone()).collect();
+                    .values().map(ProjectBroker::borrow).collect();
                 for source in sources {
                     team.enroll_worktree_agents(&source, &checkout.root)
                         .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
@@ -939,7 +1052,7 @@ impl Projects {
         } else if matches!(&command, Command::Panel(query) if query.worktree) && root_path.join(".git").exists() {
             let (broker, checkout) = self.worktree_broker(root_path)?;
             let sources: Vec<_> = self.owners.lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?
-                .values().map(|(_, owner)| owner.broker.clone()).collect();
+                .values().map(ProjectBroker::borrow).collect();
             for source in sources {
                 broker.enroll_worktree_agents(&source, &checkout.root)
                     .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
@@ -973,7 +1086,7 @@ impl Projects {
                     value["collaboration_scope"] = serde_json::json!(scope);
                     value["worktree_joined"] = serde_json::json!(broker.worktree_binding(root).ok().flatten().is_some());
                     if worktree {
-                        let sources: Vec<_> = self.owners.lock().map(|owners| owners.values().map(|(_, owner)| owner.broker.clone()).collect()).unwrap_or_default();
+                        let sources: Vec<_> = self.owners.lock().map(|owners| owners.values().map(ProjectBroker::borrow).collect()).unwrap_or_default();
                         let candidates: Vec<_> = sources.into_iter().flat_map(|source| source.worktree_candidates(root).unwrap_or_default()).collect();
                         value["candidates"] = serde_json::json!(candidates);
                     }

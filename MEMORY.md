@@ -437,6 +437,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Guarded launches and resize reserve ring/input buffers and both screen grids
   against a shared 64 MiB charge. Retained runs keep their reservation. This
   bounds the charged data structures and does not measure total process RSS.
+- Guarded project Broker leases keep live and in-flight work resident. Idle
+  listeners can close under age or capacity pressure while Store history stays.
 
 ## Memory maintenance
 

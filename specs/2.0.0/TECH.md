@@ -127,6 +127,11 @@ Keep native PTY output draining, process lifecycle, Agent MCP, existing task Sto
 Broker message/results/attention facts, readiness and guarded peer delivery alive.
 Only keep project Brokers with live guarded runs or active client requests; close
 idle handles/caches under existing data safety rules and recreate lazily.
+Guarded project handles are leased by every live run and in-flight request,
+including forwarded Worktree bindings. A parked project may close its idle
+listener and database without deleting its Store; reopening preserves the
+original root binding and durable task state. Use idle projects as the first
+capacity recovery path. The async guardian accept loop does not join Brokers.
 
 Native wake selection reads only inbox routing metadata through the recipient
 index and stops at the first eligible notice. The Agent's inbox and cooperative

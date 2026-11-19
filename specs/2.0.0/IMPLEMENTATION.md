@@ -2103,6 +2103,19 @@ with a sibling still live. The native SSH fixture retries the rejected resize
 sequence with an ordinary viewport. RSS measurement, snapshots and Broker
 cache accounting remain open.
 
+Record ID / date: S7-l / 2026-11-19
+Scope: retire idle guarded project Brokers and release ended-run IO leases.
+
+Running and forwarded Agent bindings and pending controller calls retain an
+explicit project lease. The guardian periodically retires idle Brokers with no
+leases or connected native clients on its blocking pool. At the 64-owner
+ceiling, admission can retire the oldest idle Broker instead of treating every
+project visited in this boot as permanently resident. Retiring a Broker closes
+its listener before the same registry can reopen its original Store. Native
+exit drops input producers and wake/Agent bindings while retained output stays
+readable. The local regression exercises live and request leases, reclamation,
+new listener identity, and recovery of the exact unacknowledged message.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

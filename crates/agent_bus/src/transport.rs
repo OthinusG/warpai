@@ -185,6 +185,7 @@ impl Shared {
 pub struct Broker {
     shared: Arc<Shared>,
     pub endpoint: String,
+    _project_lease: Option<Arc<()>>,
 }
 /// Live native MCP bindings in a single project.
 #[derive(Clone)]
@@ -294,6 +295,7 @@ impl RunningBroker {
         let broker = Broker {
             shared: shared.clone(),
             endpoint,
+            _project_lease: None,
         };
         let server = broker.clone();
         #[cfg(windows)]
@@ -355,6 +357,13 @@ impl Drop for RunningBroker {
     }
 }
 impl Broker {
+    pub(crate) fn with_project_lease(&self, lease: &Arc<()>) -> Self {
+        Self { _project_lease: Some(lease.clone()), ..self.clone() }
+    }
+
+    pub(crate) fn has_connections(&self) -> bool {
+        self.shared.connections.load(Ordering::Acquire) != 0
+    }
     /// App settings are authoritative; tests may retain an unrestricted broker.
     pub fn set_programs(&self, programs: Option<HashSet<String>>) {
         if let Ok(mut state) = self.shared.state.lock() {
