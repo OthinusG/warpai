@@ -432,6 +432,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   the same Agent after both SSH bridges exited (run 44344251976).
 - Pool-wake dedup checks every pending pool notice already delivered in the
   current run. Earlier unacknowledged direct mail cannot hide a reservation.
+- Bound OSC before the VT readiness parser accumulates it. Keep the original
+  PTY stream and ring offsets for live terminal output.
 
 ## Memory maintenance
 

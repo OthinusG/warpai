@@ -2078,6 +2078,17 @@ The Broker regression claims one of two precomputed candidates, rejects the
 other even with earlier unacknowledged mail, and allows the remaining candidate
 after the first delivery is cancelled.
 
+Record ID / date: S7-j / 2026-11-19
+Scope: bound readiness-parser OSC storage before callback dispatch.
+
+The pinned VT parser's callback limit applied only after the OSC payload had
+already accumulated. The readiness projection now retains at most a bounded
+record and skips oversized strings until native termination. Counters and
+retained terminal output still use the original PTY bytes. Local regressions
+cover oversized split records, recovery, and equivalent visible text, title
+and progress across byte cuts for ordinary records. This does not implement
+snapshot import or the full account terminal-data budget.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

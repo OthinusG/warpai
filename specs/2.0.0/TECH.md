@@ -174,6 +174,9 @@ The connection-owned worker keeps its current timing.
 
 - PTY bytes update the terminal parser once and mark that session dirty. Coalesce
   redraw bursts before readiness sampling; never skip required idle/submit timing.
+- Bound each OSC record passed to the readiness parser before it accumulates the
+  payload. Oversized records leave readiness signals unchanged and do not alter
+  the live PTY stream or its retained bytes.
 - Broker changes notify the relevant session through the existing task engine.
   Index pending delivery by terminal/run; do not scan every project on every tick.
 - A shared deadline queue covers quiet windows, paste/Enter delays, process reaping,
