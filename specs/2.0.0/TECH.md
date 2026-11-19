@@ -211,6 +211,14 @@ running work or discard task facts to meet a display budget. Overall RSS and
 per-project Broker/cache overhead are separately measured and bounded. Initial
 limits require S2/S8 proof with normal/larger viewports and split-screen workloads.
 
+Guarded launch reserves bounded ring, input and readiness-grid storage before
+starting the PTY. Use the actual cell width and charge both screens with room
+for grid growth. Retain the dimension high-water charge across shrink because
+the parser can keep vector capacity. New launches can evict only eligible ended
+runs under pressure. A resize that exceeds the budget leaves the native size and
+accepted resize sequence unchanged. The charge covers these buffers only and is
+not a substitute for measuring total RSS, native IO or future snapshot storage.
+
 ## Multi-session and multi-task scheduling
 
 Distinguish three layers: service hosts many projects; each project has many PTY

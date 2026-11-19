@@ -6,7 +6,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     io::{Read, Write},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc, Arc, Mutex, TryLockError,
     },
     time::{Duration, Instant},
@@ -19,6 +19,7 @@ const MAX_LABEL: usize = 128;
 const MAX_INPUT_BYTES: usize = 4096;
 const MAX_INPUT_RECEIPTS: usize = 64;
 const MAX_PENDING_INPUT_BYTES: usize = 64 * 1024;
+const GUARDED_BUFFER_BUDGET: usize = 64 * 1024 * 1024;
 const ENDED_RETENTION: Duration = Duration::from_secs(5 * 60);
 const WAKE_PACING: Duration = Duration::from_millis(300);
 const WAKE_RECONCILE: Duration = Duration::from_secs(5);
@@ -360,8 +361,64 @@ struct StopBatch {
 pub(super) struct Terminals {
     owners: Mutex<BTreeMap<String, Owner>>,
     pending_launches: Mutex<BTreeSet<String>>,
+    guarded_buffers: Arc<AtomicUsize>,
     #[cfg(unix)]
     stop_batches: Mutex<BTreeMap<Uuid, StopBatch>>,
+}
+
+struct GuardedBuffers {
+    total: Arc<AtomicUsize>,
+    bytes: usize,
+    screen_extent: Option<Size>,
+}
+
+impl GuardedBuffers {
+    fn charge(screen: Option<Size>) -> usize {
+        let screen_bytes = screen.map_or(0, |size| {
+            let rows = usize::from(size.rows);
+            let columns = usize::from(size.columns);
+            // Both grids plus spare vector capacity, row descriptors and bounded OSC state.
+            4 * rows * (columns * std::mem::size_of::<vt100::Cell>() + 32) + 24 * 1024
+        });
+        BUFFER_BYTES + MAX_PENDING_INPUT_BYTES + screen_bytes
+    }
+
+    fn new(total: Arc<AtomicUsize>, screen: Option<Size>) -> Result<Self, Error> {
+        let mut reservation = Self { total, bytes: 0, screen_extent: None };
+        reservation.set_extent(screen)?;
+        Ok(reservation)
+    }
+
+    fn set_extent(&mut self, extent: Option<Size>) -> Result<(), Error> {
+        let bytes = Self::charge(extent);
+        if bytes > self.bytes {
+            let increase = bytes - self.bytes;
+            self.total.fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
+                used.checked_add(increase).filter(|total| *total <= GUARDED_BUFFER_BUDGET)
+            }).map_err(|_| Error::ManagedCapacityExceeded)?;
+        } else if bytes < self.bytes {
+            self.total.fetch_sub(self.bytes - bytes, Ordering::AcqRel);
+        }
+        self.bytes = bytes;
+        self.screen_extent = extent;
+        Ok(())
+    }
+
+    fn reserve_resize(&mut self, size: Size) -> Result<(), Error> {
+        if let Some(extent) = self.screen_extent {
+            self.set_extent(Some(Size {
+                columns: extent.columns.max(size.columns),
+                rows: extent.rows.max(size.rows),
+            }))?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for GuardedBuffers {
+    fn drop(&mut self) {
+        self.total.fetch_sub(self.bytes, Ordering::AcqRel);
+    }
 }
 struct LaunchSlot<'a> {
     pending: &'a Mutex<BTreeSet<String>>,
@@ -382,6 +439,7 @@ struct Output {
     end: u64,
     closed: bool,
     screen: Option<crate::screen_detection::native::NativeScreen>,
+    guarded_buffers: Option<GuardedBuffers>,
 }
 impl Output {
     fn append(&mut self, bytes: &[u8]) -> Result<(), Error> {
@@ -613,7 +671,7 @@ fn ended_session(session: &mut Session) -> Option<Instant> {
 }
 
 /// Expire retention normally; at admission pressure, evict oldest ended output first.
-fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_ended: bool) {
+fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, under_pressure: impl Fn(usize) -> bool) {
     sessions.retain(|_, owner| {
         // A control request can hold the owner after releasing the registry.
         if Arc::strong_count(owner) > 1 {
@@ -624,7 +682,7 @@ fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_en
         };
         retain_session(&mut session, now)
     });
-    if !evict_ended || sessions.len() < MAX_SESSIONS {
+    if !under_pressure(sessions.len()) {
         return;
     }
     let mut ended: Vec<_> = sessions
@@ -639,7 +697,7 @@ fn prune_sessions(sessions: &mut BTreeMap<String, Owner>, now: Instant, evict_en
         .collect();
     ended.sort_by_key(|(ended, _)| *ended);
     for (_, id) in ended {
-        if sessions.len() < MAX_SESSIONS {
+        if !under_pressure(sessions.len()) {
             break;
         }
         sessions.remove(&id);
@@ -713,8 +771,7 @@ impl Terminals {
         };
         {
             let mut sessions = lock(&self.owners)?;
-            let evict = sessions.len() >= MAX_SESSIONS;
-            prune_sessions(&mut sessions, Instant::now(), evict);
+            prune_sessions(&mut sessions, Instant::now(), |count| count >= MAX_SESSIONS);
             if let Some(state) = reconcile(&sessions)? { return Ok(state); }
         }
         if request.working_directory.is_some() && !allow_working_directory {
@@ -730,34 +787,46 @@ impl Terminals {
             Some(_) => return Err(Error::ManagedInvalidInput),
             None => root.to_owned(),
         };
-        if let Some(program) = &request.agent_program {
+        if request.agent_program.is_some() {
             let executable = Path::new(&request.executable);
             if !executable.is_absolute() || request.executable.len() > 4096
                 || request.executable.contains('\0') || request.arguments.len() > 61 {
                 return Err(Error::ManagedInvalidInput);
             }
-            tasks.prepare_agent(program, executable)?;
         }
-        let _slot = {
+        let screen_extent = request.agent_program.is_some().then_some(size);
+        let requested_bytes = if request.guarded { GuardedBuffers::charge(screen_extent) } else { 0 };
+        if requested_bytes > GUARDED_BUFFER_BUDGET {
+            return Err(Error::ManagedCapacityExceeded);
+        }
+        let (_slot, guarded_buffers) = {
             let mut sessions = lock(&self.owners)?;
             let mut pending = lock(&self.pending_launches)?;
-            let evict = sessions.len() + pending.len() >= MAX_SESSIONS;
-            prune_sessions(&mut sessions, Instant::now(), evict);
-            if let Some(state) = reconcile(&sessions)? {
-                return Ok(state);
+            if sessions.contains_key(&request.session_id) {
+                if let Some(state) = reconcile(&sessions)? { return Ok(state); }
             }
             if pending.contains(&request.session_id) {
                 return Err(Error::ManagedConflict);
             }
+            prune_sessions(&mut sessions, Instant::now(), |count| {
+                count + pending.len() >= MAX_SESSIONS
+                    || self.guarded_buffers.load(Ordering::Acquire) + requested_bytes > GUARDED_BUFFER_BUDGET
+            });
             if sessions.len() + pending.len() >= MAX_SESSIONS {
                 return Err(Error::ManagedCapacityExceeded);
             }
+            let guarded_buffers = request.guarded.then(|| {
+                GuardedBuffers::new(self.guarded_buffers.clone(), screen_extent)
+            }).transpose()?;
             pending.insert(request.session_id.clone());
-            LaunchSlot {
+            (LaunchSlot {
                 pending: &self.pending_launches,
                 session_id: request.session_id.clone(),
-            }
+            }, guarded_buffers)
         };
+        if let Some(program) = &request.agent_program {
+            tasks.prepare_agent(program, Path::new(&request.executable))?;
+        }
         let run_id = Uuid::new_v4().to_string();
         let binding = request
             .agent_program
@@ -809,6 +878,7 @@ impl Terminals {
             screen: binding.as_ref().map(|_| {
                 crate::screen_detection::native::NativeScreen::new(size.rows, size.columns)
             }),
+            guarded_buffers,
             ..Default::default()
         }));
         let revoked = Arc::new(AtomicBool::new(false));
@@ -1162,7 +1232,16 @@ impl Terminals {
                 }
                 {
                     let mut output = lock(&session.output)?;
-                    session.pty.resize(size).map_err(path_error)?;
+                    let previous = output.guarded_buffers.as_ref().and_then(|buffers| buffers.screen_extent);
+                    if let Some(buffers) = &mut output.guarded_buffers {
+                        buffers.reserve_resize(size)?;
+                    }
+                    if let Err(error) = session.pty.resize(size) {
+                        if let Some(buffers) = &mut output.guarded_buffers {
+                            buffers.set_extent(previous)?;
+                        }
+                        return Err(path_error(error));
+                    }
                     if let Some(screen) = &mut output.screen {
                         screen.resize(size.rows, size.columns);
                     }
@@ -1378,7 +1457,7 @@ impl Terminals {
         let Ok(mut owners) = self.owners.lock() else {
             return true;
         };
-        prune_sessions(&mut owners, Instant::now(), false);
+        prune_sessions(&mut owners, Instant::now(), |_| false);
         !owners.is_empty()
     }
 
@@ -1520,6 +1599,76 @@ impl Terminals {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guarded_buffer_charge_bounds_parallel_viewports_and_releases_on_drop() {
+        let total = Arc::new(AtomicUsize::new(0));
+        let normal = Size { columns: 120, rows: 40 };
+        let ordinary: Vec<_> = (0..MAX_SESSIONS)
+            .map(|_| GuardedBuffers::new(total.clone(), Some(normal)).unwrap())
+            .collect();
+        assert!(total.load(Ordering::Acquire) < GUARDED_BUFFER_BUDGET);
+        drop(ordinary);
+        assert_eq!(total.load(Ordering::Acquire), 0);
+
+        let large = Size { columns: 512, rows: 512 };
+        let mut retained = GuardedBuffers::new(total.clone(), Some(normal)).unwrap();
+        retained.reserve_resize(large).unwrap();
+        let charged = total.load(Ordering::Acquire);
+        retained.reserve_resize(normal).unwrap();
+        assert_eq!(total.load(Ordering::Acquire), charged, "The parser may still hold large row capacity");
+        assert!(matches!(GuardedBuffers::new(total.clone(), Some(large)), Err(Error::ManagedCapacityExceeded)));
+        assert_eq!(retained.reserve_resize(Size { columns: 1000, rows: 1000 }), Err(Error::ManagedCapacityExceeded));
+        assert_eq!(total.load(Ordering::Acquire), charged, "Rejected growth must preserve the existing reservation");
+        drop(retained);
+        let replacement = GuardedBuffers::new(total.clone(), Some(large)).unwrap();
+        assert_eq!(total.load(Ordering::Acquire), charged);
+        drop(replacement);
+        assert_eq!(total.load(Ordering::Acquire), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn guarded_buffer_pressure_retires_only_disconnected_ended_output() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let terminals = Terminals::default();
+        let projects = tasks::Projects::new(&root);
+        let fence = ManagedFence {
+            service_id: Uuid::new_v4().to_string(),
+            service_boot_id: Uuid::new_v4().to_string(),
+            connection_id: Uuid::new_v4().to_string(),
+            project_id: Uuid::new_v4().to_string(),
+        };
+        let launch = |executable: &str| {
+            terminals.launch(TerminalLaunch {
+                fence: Some(fence.clone()), session_id: Uuid::new_v4().to_string(),
+                executable: executable.into(), columns: 80, rows: 24, guarded: true,
+                session_kind: Some(TerminalSessionKind::Command as i32), ..Default::default()
+            }, &fence, &root, &projects, false, false, |_, _| Ok(())).unwrap()
+        };
+        let ended = launch("/usr/bin/true");
+        let live = launch("/bin/cat");
+        terminals.disconnect(&fence.connection_id);
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let charge = GuardedBuffers::charge(None);
+        loop {
+            let mut owners = terminals.owners.lock().unwrap();
+            prune_sessions(&mut owners, Instant::now(), |_| {
+                terminals.guarded_buffers.load(Ordering::Acquire) > charge
+            });
+            assert!(owners.contains_key(&live.session_id));
+            if !owners.contains_key(&ended.session_id) { break; }
+            assert!(Instant::now() < deadline, "An ended and drained run must release its buffer charge");
+            drop(owners);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while terminals.guarded_buffers.load(Ordering::Acquire) != charge {
+            assert!(Instant::now() < deadline, "The finished reader must release its last reservation reference");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
 
     #[cfg(unix)]
     #[tokio::test]

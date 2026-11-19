@@ -434,6 +434,9 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   current run. Earlier unacknowledged direct mail cannot hide a reservation.
 - Bound OSC before the VT readiness parser accumulates it. Keep the original
   PTY stream and ring offsets for live terminal output.
+- Guarded launches and resize reserve ring/input buffers and both screen grids
+  against a shared 64 MiB charge. Retained runs keep their reservation. This
+  bounds the charged data structures and does not measure total process RSS.
 
 ## Memory maintenance
 

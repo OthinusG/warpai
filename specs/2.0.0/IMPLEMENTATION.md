@@ -2089,6 +2089,20 @@ cover oversized split records, recovery, and equivalent visible text, title
 and progress across byte cuts for ordinary records. This does not implement
 snapshot import or the full account terminal-data budget.
 
+Record ID / date: S7-k / 2026-11-19
+Scope: Linux/macOS guardian reserve for retained PTY buffers (V23, V24).
+
+Guarded launches reserve ring/input storage and both readiness grids before
+provider setup and native spawn. Reservations follow the shared output owner
+across detach and retention. Growth is charged before changing the native size;
+a rejected growth does not advance the resize sequence and a failed native
+resize rolls back its charge. Shrink keeps the conservative vector high-water
+mark. Admission pressure evicts only disconnected, observed-ended native runs.
+Local tests cover 32 normal viewports, rejected growth, release, and eviction
+with a sibling still live. The native SSH fixture retries the rejected resize
+sequence with an ordinary viewport. RSS measurement, snapshots and Broker
+cache accounting remain open.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

@@ -338,7 +338,19 @@ pub async fn verify_detached_agent_delivery(root: &str, executable: &str, comman
             panic!("Guarded Agent launch failed: {result:?}");
         };
         output(bridge, fence, &run, &format!("MCP_NATIVE_RUN={}", run.run_id)).await;
-        run
+        let mut resize = TerminalControl {
+            columns: 1000,
+            rows: 1000,
+            resize_sequence: 1,
+            ..control(fence, &run, TerminalAction::TerminalResize)
+        };
+        let oversized = bridge.call(managed_request::Operation::TerminalControl(resize.clone())).await;
+        assert!(matches!(oversized, managed_response::Result::Error(error)
+            if error.code == ManagedErrorCode::ManagedCapacityExceeded as i32));
+        resize.rows = 24;
+        let resized = bridge.terminal(resize).await;
+        assert_eq!(resized.accepted_resize_sequence, 1);
+        resized
     }
 
     async fn operation(bridge: &mut Bridge, fence: &ManagedFence, run: &mut TerminalState, sequence: u64, operation: Operation) -> serde_json::Value {
