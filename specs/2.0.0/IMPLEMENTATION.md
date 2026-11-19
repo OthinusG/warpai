@@ -53,3 +53,27 @@ On the same application source, the macOS and Windows desktop compile checks
 and platform protocol jobs passed. The WSL fixture was rerun with isolated
 dependency installation after an Ubuntu index download exceeded the previous
 provisioning timeout. [Desktop and protocol CI](https://github.com/OthinusG/warpai/actions/runs/44478098306)
+
+## Task controls and collaboration headings
+
+The CLI accepts program-first launch, optional background launch, short task
+IDs, retained plain-text logs and catalog-only rename. Warpai's Keys settings
+own the editable detach shortcut. Companion marks active attachments, forwards
+ordinary keys and detaches when it receives the dedicated signal. The Agents
+heading now shares the Tasks heading's left origin while agent rows retain
+their inset.
+
+The native SSH matrix passed at `76c656be`, covering Linux, macOS and Windows
+PowerShell. It exercised same-PID reattach, live and ended output, rename by
+short ID, the dedicated detach signal, and background-task termination.
+[Native SSH CI](https://github.com/OthinusG/warpai/actions/runs/44494986053)
+
+The Windows-to-WSL matrix passed on the same revision, including the shared
+management fixture and custody after both bridges closed.
+[Native WSL CI](https://github.com/OthinusG/warpai/actions/runs/44494985483)
+
+The macOS and Windows desktop builds, tests and native captures passed at
+`667d12a1`. The English `live-ssh-task.png` on both platforms shows the
+Agents and Tasks heading icons and labels aligned, with agent rows still
+inset. The later SSH and WSL revision changed only the shutdown test fixture.
+[Desktop CI and visual artifacts](https://github.com/OthinusG/warpai/actions/runs/44492631197)
