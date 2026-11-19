@@ -1,15 +1,10 @@
 //! Memory-only screen evidence for Companion-owned PTYs; never logged or serialized.
 use super::activity_with_progress;
-use bincode::Options;
 use crate::{readiness::Activity, transport::ScreenContext};
-use remote_protocol::managed::TERMINAL_SNAPSHOT_MAX_BYTES;
-use serde::{Deserialize, Serialize};
 
 const MAX_OSC_BYTES: usize = 4096 + 16;
-const CHECKPOINT_VERSION: u16 = 1;
-pub(crate) const GUARDED_SCROLLBACK_ROWS: usize = 128;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default)]
 struct Signals { title: String, progress: String }
 
 impl vt100::Callbacks for Signals {
@@ -28,19 +23,9 @@ impl vt100::Callbacks for Signals {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
 enum OscInput {
     Reading(Vec<u8>),
     Discarding,
-}
-
-#[derive(Serialize, Deserialize)]
-struct ScreenCheckpoint<'a> {
-    version: u16,
-    parser: vt100::Checkpoint<'a>,
-    signals: Signals,
-    escape_pending: bool,
-    osc: Option<OscInput>,
 }
 
 pub(crate) struct NativeScreen {
@@ -50,50 +35,12 @@ pub(crate) struct NativeScreen {
 }
 impl NativeScreen {
     pub(crate) fn new(rows: u16, columns: u16) -> Self {
-        Self::with_scrollback(rows, columns, 0)
-    }
-
-    pub(crate) fn guarded(rows: u16, columns: u16) -> Self {
-        Self::with_scrollback(rows, columns, GUARDED_SCROLLBACK_ROWS)
-    }
-
-    fn with_scrollback(rows: u16, columns: u16, history: usize) -> Self {
         Self {
-            parser: vt100::Parser::new_with_callbacks(rows, columns, history, Signals::default()),
+            parser: vt100::Parser::new_with_callbacks(rows, columns, 0, Signals::default()),
             escape_pending: false,
             osc: None,
         }
     }
-
-    pub(crate) fn checkpoint(&self) -> Option<Vec<u8>> {
-        let checkpoint = ScreenCheckpoint {
-            version: CHECKPOINT_VERSION,
-            parser: self.parser.checkpoint(),
-            signals: self.parser.callbacks().clone(),
-            escape_pending: self.escape_pending,
-            osc: self.osc.clone(),
-        };
-        bincode::DefaultOptions::new().with_limit(TERMINAL_SNAPSHOT_MAX_BYTES as u64)
-            .serialize(&checkpoint).ok()
-    }
-
-    pub(crate) fn from_checkpoint(data: &[u8]) -> Option<Self> {
-        if data.len() > TERMINAL_SNAPSHOT_MAX_BYTES { return None; }
-        let checkpoint: ScreenCheckpoint<'_> = bincode::DefaultOptions::new()
-            .with_limit(TERMINAL_SNAPSHOT_MAX_BYTES as u64).deserialize(data).ok()?;
-        if checkpoint.version != CHECKPOINT_VERSION || checkpoint.signals.title.len() > 4096 * 3
-            || checkpoint.signals.progress.len() > 256
-            || matches!(&checkpoint.osc, Some(OscInput::Reading(buffer)) if buffer.len() > MAX_OSC_BYTES)
-            || checkpoint.escape_pending && checkpoint.osc.is_some()
-        {
-            return None;
-        }
-        let parser = vt100::Parser::from_checkpoint(checkpoint.parser, checkpoint.signals, MAX_OSC_BYTES, GUARDED_SCROLLBACK_ROWS)?;
-        Some(Self { parser, escape_pending: checkpoint.escape_pending, osc: checkpoint.osc })
-    }
-
-    pub(crate) fn size(&self) -> (u16, u16) { self.parser.screen().size() }
-    pub(crate) fn history_truncated(&self) -> bool { self.parser.screen().history_truncated() }
     pub(crate) fn process(&mut self, mut bytes: &[u8]) {
         // vte's std parser accumulates an OSC until termination. Bound the
         // readiness projection while the native output stream stays intact.
@@ -212,50 +159,5 @@ mod tests {
             assert_eq!(bounded.parser.callbacks().title, original.callbacks().title, "cut {cut}");
             assert_eq!(bounded.parser.callbacks().progress, original.callbacks().progress, "cut {cut}");
         }
-    }
-
-    #[test]
-    fn native_checkpoint_preserves_both_screens_history_and_partial_decoder_state() {
-        let mut input = "old title\r\nline two\r\nline three\r\nline four\r\nnormal🐋 ".repeat(4).into_bytes();
-        input.extend_from_slice("\x1b[12;30H\x1b7\x1b[?1049h\x1b[38:2:2:119:255m替代\x1b]0;✦ 🐋 原生会话\x1b\\\x1b[?2004h\x1b[?1049l\x1b8done".as_bytes());
-        let mut uninterrupted = NativeScreen::guarded(12, 40);
-        uninterrupted.process(&input);
-        let expected = uninterrupted.checkpoint().unwrap();
-        for cut in 0..=input.len() {
-            let mut original = NativeScreen::guarded(12, 40);
-            original.process(&input[..cut]);
-            let data = original.checkpoint().unwrap();
-            let mut restored = NativeScreen::from_checkpoint(&data).unwrap_or_else(|| panic!("restore at byte {cut}"));
-            restored.process(&input[cut..]);
-            assert_eq!(restored.checkpoint().unwrap(), expected, "cut {cut}");
-        }
-        let mut invalid = expected.clone();
-        invalid.push(0);
-        assert!(NativeScreen::from_checkpoint(&invalid).is_none());
-    }
-
-    #[test]
-    fn checkpoint_import_emits_effects_only_for_live_suffix() {
-        #[derive(Default)]
-        struct Effects { clipboard: usize, bell: usize }
-        impl vt100::Callbacks for Effects {
-            fn copy_to_clipboard(&mut self, _: &mut vt100::Screen, _: &[u8], _: &[u8]) {
-                self.clipboard += 1;
-            }
-            fn audible_bell(&mut self, _: &mut vt100::Screen) { self.bell += 1; }
-        }
-        let mut original = vt100::Parser::new_with_callbacks(10, 20, 0, Effects::default());
-        original.process(b"\x1b]52;c;eA==\x07\x07visible\x1b]52;c;eQ==");
-        assert_eq!(original.callbacks().clipboard, 1);
-        assert_eq!(original.callbacks().bell, 1);
-        let data = bincode::DefaultOptions::new().serialize(&original.checkpoint()).unwrap();
-        let checkpoint = bincode::DefaultOptions::new().deserialize(&data).unwrap();
-        let mut restored = vt100::Parser::from_checkpoint(checkpoint, Effects::default(), MAX_OSC_BYTES, 0).unwrap();
-        assert_eq!(restored.screen().contents(), "visible");
-        assert_eq!(restored.callbacks().clipboard, 0);
-        assert_eq!(restored.callbacks().bell, 0);
-        restored.process(b"\x07\x07");
-        assert_eq!(restored.callbacks().clipboard, 1);
-        assert_eq!(restored.callbacks().bell, 1);
     }
 }

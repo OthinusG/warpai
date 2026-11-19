@@ -3,7 +3,6 @@ members = [
   "crates/*",
   "app",
 ]
-exclude = ["vendor/terminal/vt100", "vendor/terminal/vte"]
 resolver = "2"
 
 # default-members narrows the set of crates compiled by `cargo build` /

@@ -13389,9 +13389,10 @@ dependencies = [
 [[package]]
 name = "vt100"
 version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054ff75fb8fa83e609e685106df4faeffdf3a735d3c74ebce97ec557d5d36fd9"
 dependencies = [
  "itoa",
- "serde",
  "unicode-width 0.2.1",
  "vte 0.15.0",
 ]
@@ -13408,10 +13409,11 @@ dependencies = [
 [[package]]
 name = "vte"
 version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5924018406ce0063cd67f8e008104968b74b563ee1b85dde3ed1f7cb87d3dbd"
 dependencies = [
  "arrayvec",
  "memchr",
- "serde",
 ]
 
 [[package]]
@@ -13454,7 +13456,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
- "bincode",
  "chrono",
  "diesel",
  "dirs 6.0.0",

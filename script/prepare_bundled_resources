@@ -78,7 +78,6 @@ ADDITIONAL_LICENSES=(
     "Herdr agent status manifests|Apache-2.0|docs/HERDR-LICENSE"
     "Herdr attribution|Apache-2.0|docs/HERDR-NOTICE.md"
     "vt100 terminal parser|MIT|docs/VT100-LICENSE"
-    "VTE 0.15 terminal decoder|MIT|docs/VTE-0.15-LICENSE"
 )
 
 # Build the third-party licenses file unless the NO_LICENSES envvar is set.

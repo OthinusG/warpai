@@ -442,9 +442,6 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   bounds the charged data structures and does not measure total process RSS.
 - Guarded project Broker leases keep live and in-flight work resident. Idle
   listeners can close under age or capacity pressure while Store history stays.
-- The portable native VT screen checkpoint preserves both grids and decoder
-  state across byte cuts. Managed pages bind to the original writer and resize
-  sequence; consumers resnapshot on a tail gap. App shell-block import is open.
 
 ## Memory maintenance
 

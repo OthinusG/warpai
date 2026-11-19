@@ -2,10 +2,6 @@
 use crate::proto::{InputDisposition, ManagedFence};
 use uuid::Uuid;
 pub const PROTOCOL_MAJOR: u32 = 1;
-pub const TERMINAL_SCREEN_SCHEMA: u32 = 1;
-pub const TERMINAL_SNAPSHOT_PAGE_BYTES: usize = 32 * 1024;
-/// Maximum serialized state for one immutable terminal checkpoint.
-pub const TERMINAL_SNAPSHOT_MAX_BYTES: usize = 2 * 1024 * 1024;
 
 /// Terminal bytes are bounded and pinned to an admitted process, never local paths.
 /// Legacy states omit `guarded`; new states must echo the exact ownership policy.
