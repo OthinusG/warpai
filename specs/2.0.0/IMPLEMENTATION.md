@@ -2157,6 +2157,22 @@ fixture can claim the same Store. macOS exercised the shared protocol and
 catalog implementation. Native Windows acceptance remains pending the combined
 CI run.
 
+### Remote editor receipts across desktop restarts
+
+Before submitting a remote editor save, the desktop reserves a private receipt
+containing the original and intended hashes. The key binds the verified logical
+service, native account, project and remote path independent of the current
+transport session. Reopening the same remote document restores the explicit-save
+fence. It can reconcile by reading the current hash. An unrelated remote edit
+preserves the fence until an explicit reload or valid reconciliation. File data,
+drafts, SSH arguments and staging paths are absent from the journal.
+
+The native framed-socket fixture drops the commit reply before and after
+application, recreates the client's receipt reader, and verifies that reopening
+and querying the remote hash never mutates the original file. Receipt locking
+and editor tests cover concurrent admission and mismatched content. Automatic
+Explorer, editor and Review view restoration still needs its desktop entry.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

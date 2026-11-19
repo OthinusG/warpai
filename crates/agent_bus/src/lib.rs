@@ -16,6 +16,7 @@ pub mod transport;
 pub mod companion;
 pub mod companion_ctl;
 pub mod ssh_remote;
+pub mod ssh_editor_receipt;
 pub mod ssh_files;
 pub mod native_pty;
 pub(crate) mod worktrees;

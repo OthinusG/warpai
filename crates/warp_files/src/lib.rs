@@ -145,6 +145,7 @@ impl FileBackend {
 pub struct SshFile {
     pub files: std::sync::Arc<remote_server::RemoteFiles>,
     pub path: String,
+    journal: remote_server::EditorSaveJournal,
     save: futures::lock::Mutex<SshSaveFence>,
 }
 
@@ -153,10 +154,19 @@ pub struct SshFile {
 struct SshSaveFence {
     baseline: String,
     unconfirmed: Option<String>,
+    receipt_unreadable: bool,
 }
 
 #[cfg(not(target_family = "wasm"))]
 impl SshSaveFence {
+    fn apply_receipt(&mut self, receipt: Option<remote_server::EditorSaveReceipt>) {
+        self.receipt_unreadable = false;
+        self.unconfirmed = receipt.map(|receipt| {
+            self.baseline = receipt.baseline;
+            receipt.intended
+        });
+    }
+
     fn observe(&mut self, remote: String) -> Result<(), FileSaveError> {
         if self.baseline != remote && self.unconfirmed.as_deref() != Some(remote.as_str()) {
             return Err(FileSaveError::RemoteSaveConflict);
@@ -175,8 +185,22 @@ impl SshFile {
             .reconnect()
             .await
             .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
-        if save.unconfirmed.is_some() {
+        let receipt_error = |error: io::Error| FileSaveError::RemoteError(error.to_string());
+        if self.journal.read().map_err(receipt_error)?.is_some() {
+            let journal = self.journal.lock().map_err(receipt_error)?;
+            let Some(receipt) = journal.read().map_err(receipt_error)? else {
+                save.unconfirmed = None;
+                return Ok(());
+            };
+            save.apply_receipt(Some(receipt));
             self.observe_remote(&mut save).await?;
+            if let Some(intended) = &save.unconfirmed {
+                if save.baseline == *intended {
+                    journal.write(&save.baseline, intended).map_err(receipt_error)?;
+                }
+            }
+        } else {
+            save.apply_receipt(None);
         }
         Ok(())
     }
@@ -194,6 +218,10 @@ impl SshFile {
         automatic: bool,
     ) -> Result<(), FileSaveError> {
         let mut save = self.save.lock().await;
+        let receipt_error = |error: io::Error| FileSaveError::RemoteError(error.to_string());
+        let journal = self.journal.lock().map_err(receipt_error)?;
+        // Another editor or instance may have opened or resolved the same document.
+        save.apply_receipt(journal.read().map_err(receipt_error)?);
         let digest = remote_server::RemoteFiles::content_hash(content.as_bytes());
         let already_saved = if save.unconfirmed.is_some() {
             if automatic {
@@ -205,8 +233,8 @@ impl SshFile {
             false
         };
 
-        // Record the hash before awaiting a commit so cancellation also leaves a receipt.
         if !already_saved {
+            journal.write(&save.baseline, &digest).map_err(receipt_error)?;
             let previous = save.unconfirmed.replace(digest);
             let result = self.files.save(&self.path, content.as_bytes(), &save.baseline).await;
             save.baseline = match result {
@@ -215,29 +243,39 @@ impl SshFile {
                     return Err(FileSaveError::RemoteSaveUnconfirmed);
                 }
                 Err(error) => {
+                    match &previous {
+                        Some(hash) => journal.write(&save.baseline, hash),
+                        None => journal.clear(),
+                    }.map_err(receipt_error)?;
                     save.unconfirmed = previous;
                     return Err(FileSaveError::RemoteError(error.to_string()));
                 }
             };
         }
-        save.unconfirmed = None;
+        // Keep the durable fence if replacing the rendering cache fails.
         async_fs::write(&cache, content)
             .await
-            .map_err(|error| FileSaveError::IOError { error, path: cache })
+            .map_err(|error| FileSaveError::IOError { error, path: cache })?;
+        journal.clear().map_err(receipt_error)?;
+        save.unconfirmed = None;
+        Ok(())
     }
 
     /// Reload the remote document before discarding edits, updating its save fence.
     pub async fn reload(&self) -> Result<String, FileLoadError> {
         let mut save = self.save.lock().await;
+        let journal = self.journal.lock().map_err(FileLoadError::IOError)?;
         let (cache, downloaded_hash) =
             self.files.download(&self.path).await.map_err(|error| {
                 FileLoadError::IOError(std::io::Error::other(error.to_string()))
             })?;
         let content = FileModel::read_content_for_file(&cache).await?;
+        journal.clear().map_err(FileLoadError::IOError)?;
         save.baseline = downloaded_hash;
-        save.unconfirmed = None;
+        save.apply_receipt(None);
         Ok(content)
     }
+
 }
 
 #[derive(Default)]
@@ -498,13 +536,21 @@ impl FileModel {
             if path != &cache { let _ = std::fs::remove_file(path); }
             false
         });
-        self.ssh_sources.entry(cache).or_insert_with(|| {
-            std::sync::Arc::new(SshFile {
+        if let std::collections::hash_map::Entry::Vacant(entry) = self.ssh_sources.entry(cache) {
+            let journal = files.editor_save_journal(&path)
+                .map_err(|error| FileSaveError::RemoteError(error.to_string()))?;
+            let mut save = SshSaveFence { baseline: hash, unconfirmed: None, receipt_unreadable: false };
+            match journal.read() {
+                Ok(receipt) => save.apply_receipt(receipt),
+                Err(_) => save.receipt_unreadable = true,
+            }
+            entry.insert(std::sync::Arc::new(SshFile {
                 files,
                 path,
-                save: futures::lock::Mutex::new(SshSaveFence { baseline: hash, unconfirmed: None }),
-            })
-        });
+                journal,
+                save: futures::lock::Mutex::new(save),
+            }));
+        }
         Ok(())
     }
 
@@ -538,7 +584,9 @@ impl FileModel {
     pub fn remote_save_needs_confirmation(&self, file_id: FileId) -> bool {
         #[cfg(not(target_family = "wasm"))]
         if let Some(FileBackend::Ssh { source, .. }) = self.file_state.get(file_id) {
-            return source.save.try_lock().is_none_or(|save| save.unconfirmed.is_some());
+            return source.save.try_lock().is_none_or(|save| {
+                save.receipt_unreadable || save.unconfirmed.is_some()
+            });
         }
         false
     }

@@ -445,6 +445,9 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - The portable native VT screen checkpoint preserves both grids and decoder
   state across byte cuts. Managed pages bind to the original writer and resize
   sequence; consumers resnapshot on a tail gap. App shell-block import is open.
+- Remote editors keep unresolved save hashes in a private client journal keyed
+  by the verified workspace and document. Reopening the same file recovers its
+  explicit-save fence after restart. Draft text follows the existing editor policy.
 
 ## Memory maintenance
 

@@ -1,4 +1,5 @@
 //! Existing SSH selection shared by file tools. Content uses the system SFTP client.
+use super::ssh_editor_receipt::EditorSaveJournal;
 use super::ssh_remote::{ConnectionError, HostClient, SshProfile};
 use remote_protocol::proto::*;
 use sha2::{Digest, Sha256};
@@ -92,14 +93,11 @@ impl SshConnection {
         Ok(client)
     }
 
-    /// Opt-in account guardian; only POSIX hosts can host the helper.
+    /// An explicitly selected native account guardian.
     pub async fn connect_guarded(
         &self,
         profile: &SshProfile,
     ) -> Result<HostClient, ConnectionError> {
-        if profile.remote_shell != crate::ssh_remote::RemoteShell::Posix {
-            return Err(ConnectionError::FeatureUnavailable);
-        }
         let epoch = connection_epoch(self)?;
         let mut client = match self {
             #[cfg(windows)]
@@ -460,6 +458,8 @@ pub struct RemoteFiles {
     pub connection: SshConnection,
     pub canonical_root: String,
     pub identity: String,
+    workspace_identity: String,
+    service_id: String,
     client: Mutex<HostClient>,
     connected: AtomicBool,
     access_epoch: AtomicU64,
@@ -535,13 +535,15 @@ impl RemoteFiles {
         if !client.capabilities().iter().any(|c| c == "project_files") {
             return Err(ConnectionError::FeatureUnavailable);
         }
-        let identity = format!(
+        let service_id = client.fence().ok_or(ConnectionError::StaleAttachment)?.service_id.clone();
+        let workspace_identity = format!(
             "{}:{}:{}:{}",
-            connection.scope_key(),
+            if connection.is_wsl() { "wsl" } else { "ssh" },
             client.account_id,
-            client.fence().unwrap().service_id,
+            service_id,
             client.root_identity
         );
+        let identity = format!("{}:{workspace_identity}", connection.scope_key());
         // Verbatim Windows paths reject mixed separators when extending the remote cwd.
         let canonical_root = if matches!(
             profile.remote_shell,
@@ -560,6 +562,8 @@ impl RemoteFiles {
             connection,
             canonical_root,
             identity,
+            workspace_identity,
+            service_id,
             client: Mutex::new(client),
             connected: AtomicBool::new(true),
             access_epoch: AtomicU64::new(epoch.unwrap_or_default()),
@@ -608,6 +612,7 @@ impl RemoteFiles {
         check_ssh_access(epoch)?;
         let mut replacement = self.connection.connect(&self.profile).await?;
         if replacement.account_id != previous.account_id
+            || replacement.fence().is_none_or(|fence| fence.service_id != self.service_id)
             || replacement.root_identity != previous.root_identity
             || replacement.canonical_root != previous.canonical_root
             || !replacement
@@ -637,6 +642,18 @@ impl RemoteFiles {
     }
     pub fn cache_path(&self, path: &str) -> Result<PathBuf, ConnectionError> {
         cache_path(self.cache.path(), &self.relative(path)?)
+    }
+
+    /// The remote account and project survive individual SSH transports and desktop restarts.
+    pub fn editor_save_journal(&self, path: &str) -> Result<EditorSaveJournal, ConnectionError> {
+        let relative = self.relative(path)?;
+        if relative.is_empty() {
+            return Err(ConnectionError::InvalidInput);
+        }
+        let directory = dirs::data_local_dir().ok_or(ConnectionError::CompanionUnavailable)?
+            .join("warpai")
+            .join("remote-editor-receipts");
+        Ok(EditorSaveJournal::new(directory, &[&self.workspace_identity, &relative]))
     }
 
     /// Resolve document links using the remote platform, never the desktop filesystem.
@@ -1057,6 +1074,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn missing_commit_reply_is_unknown_before_or_after_the_remote_write() {
+        use crate::ssh_editor_receipt::{EditorSaveJournal, EditorSaveReceipt};
         use remote_protocol::protocol::{read_client_message, write_server_message};
         use tokio::net::UnixStream;
         use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
@@ -1103,6 +1121,8 @@ mod tests {
                     remote_shell: super::super::ssh_remote::RemoteShell::Posix,
                 },
                 identity: "owned-fixture".into(),
+                workspace_identity: "owned-fixture".into(),
+                service_id: client.fence().unwrap().service_id.clone(),
                 access_epoch: AtomicU64::new(connection_epoch(&connection).unwrap().unwrap()),
                 connection,
                 client: Mutex::new(client),
@@ -1117,6 +1137,13 @@ mod tests {
             }).await.unwrap();
             std::fs::write(&staged.transfer_path, b"attempt").unwrap();
             let attempted = RemoteFiles::content_hash(b"attempt");
+            let journal = || EditorSaveJournal::new(
+                owned.path().join("client-receipts"), &[&files.workspace_identity, "notes.txt"],
+            );
+            {
+                let original = journal();
+                original.lock().unwrap().write(&before, &attempted).unwrap();
+            }
             assert_eq!(files.commit_staged("notes.txt".into(), staged.transfer_id, attempted.clone()).await,
                 Err(ConnectionError::DeliveryUnknown));
             assert!(!files.connected());
@@ -1131,7 +1158,10 @@ mod tests {
                 *previous = replacement;
             }
             files.connected.store(true, Ordering::Release);
-            assert_eq!(files.current_hash(&path).await.unwrap(), if applied { attempted } else { before });
+            let receipt = journal().read().unwrap().unwrap();
+            assert_eq!(receipt, EditorSaveReceipt { baseline: before, intended: attempted });
+            assert_eq!(files.current_hash(&path).await.unwrap(),
+                if applied { receipt.intended } else { receipt.baseline });
             assert_eq!(std::fs::read(original).unwrap(), if applied { b"attempt".as_slice() } else { b"before" });
             drop(files);
             server.await.unwrap();

@@ -10,6 +10,8 @@ pub mod transport;
 
 pub use host_id::HostId;
 #[cfg(not(target_family = "wasm"))]
+pub use warp_agent_bus::ssh_editor_receipt::{EditorSaveJournal, EditorSaveReceipt};
+#[cfg(not(target_family = "wasm"))]
 pub use warp_agent_bus::ssh_files::RemoteFiles;
 #[cfg(not(target_family = "wasm"))]
 pub use warp_agent_bus::ssh_remote::ConnectionError as RemoteFilesError;

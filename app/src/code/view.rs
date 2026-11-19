@@ -494,6 +494,15 @@ impl CodeView {
                 me.pane_configuration.update(ctx, |pane_config, ctx| {
                     pane_config.refresh_pane_header_overflow_menu_items(ctx);
                 });
+                if source.as_ref(ctx).file_id().is_some_and(|id| {
+                    warp_files::FileModel::as_ref(ctx).remote_save_needs_confirmation(id)
+                }) {
+                    CodeView::display_save_failure(
+                        ctx.window_id(),
+                        Some(&warp_util::file::FileSaveError::RemoteSaveUnconfirmed),
+                        ctx,
+                    );
+                }
                 ctx.emit(CodeViewEvent::Pane(PaneEvent::AppStateChanged));
             }
             LocalCodeEditorEvent::FailedToLoad { error: err } => {
