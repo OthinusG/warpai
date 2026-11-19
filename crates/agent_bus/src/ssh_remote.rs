@@ -72,6 +72,47 @@ pub(crate) fn valid_control_socket(socket: &std::path::Path, wsl: bool) -> bool 
 }
 
 impl SshProfile {
+    pub(crate) fn guardian_cli_command(
+        &self,
+        connection: &crate::ssh_files::SshConnection,
+        arguments: &[&str],
+        interactive: bool,
+    ) -> Result<Command, ConnectionError> {
+        use crate::ssh_files::SshConnection;
+        let bytes = serde_json::to_vec(arguments).map_err(|_| ConnectionError::InvalidInput)?;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+        if encoded.len() > 16384 {
+            return Err(ConnectionError::InvalidInput);
+        }
+        #[cfg(windows)]
+        if let SshConnection::Wsl { distribution, user } = connection {
+            let mut command = HostClient::wsl_command(self, distribution, user)?;
+            command.args(["ctl", "--encoded-argv", &encoded]);
+            return Ok(command);
+        }
+        let command = match connection {
+            SshConnection::Multiplexed { socket, wsl } => self.session_command(socket, wsl.as_deref())?,
+            SshConnection::Native { arguments, .. } => self.arguments_command(arguments)?,
+            #[cfg(windows)]
+            SshConnection::Wsl { .. } => unreachable!("handled above"),
+        };
+        let mut cli = Command::new(command.as_std().get_program());
+        crate::session::without_terminal_binding(&mut cli);
+        #[cfg(windows)]
+        if !interactive {
+            cli.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
+        }
+        cli.env_remove("VIBE_MCP_SERVERS").kill_on_drop(true);
+        for argument in command.as_std().get_args() {
+            if interactive && argument == "-T" {
+                cli.arg("-tt");
+            } else {
+                cli.arg(argument);
+            }
+        }
+        cli.arg(self.companion_command_args(&format!(" ctl --encoded-argv {encoded}"))?);
+        Ok(cli)
+    }
     pub fn validate(&self) -> Result<(), ConnectionError> {
         if !target(&self.target)
             || self
@@ -1128,6 +1169,34 @@ mod windows_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guardian_cli_preserves_the_master_and_encodes_literal_arguments() {
+        let profile = SshProfile {
+            target: "fixture".into(),
+            config_file: None,
+            remote_root: "/home/guest/project".into(),
+            companion_path: "/home/guest/it's literal/warpai-companion".into(),
+            remote_shell: RemoteShell::Posix,
+        };
+        let connection = crate::ssh_files::SshConnection::Multiplexed {
+            socket: "~/.ssh/179237952528983".into(),
+            wsl: None,
+        };
+        let rename = ["rename", "--id", "fixture-id", "\"literal ' name\""];
+        let command = profile.guardian_cli_command(&connection, &rename, false).unwrap();
+        let argv: Vec<_> = command.as_std().get_args().map(|arg| arg.to_str().unwrap()).collect();
+        assert!(argv.contains(&"-T"));
+        assert!(argv.contains(&"ProxyCommand=false"));
+        assert!(argv.windows(2).any(|part| part == ["-S", "~/.ssh/179237952528983"]));
+        let encoded = argv.last().unwrap().split_once(" --encoded-argv ").unwrap().1;
+        let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
+        assert_eq!(serde_json::from_slice::<Vec<String>>(&bytes).unwrap(), rename);
+
+        let resume = profile.guardian_cli_command(&connection, &["resume", "--id", "fixture-id"], true).unwrap();
+        assert!(resume.as_std().get_args().any(|arg| arg == "-tt"));
+        assert!(!resume.as_std().get_args().any(|arg| arg == "-T"));
+    }
 
     #[test]
     fn handoff_capability_gate_covers_scoped_requests_and_preserves_legacy_requests() {

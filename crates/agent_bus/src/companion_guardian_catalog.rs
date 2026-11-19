@@ -10,7 +10,7 @@ use diesel::{
 use std::path::Path;
 
 pub const APPLICATION_ID: i32 = 0x5747_4341;
-pub const USER_VERSION: i32 = 1;
+pub const USER_VERSION: i32 = 2;
 const MAX_ROWS: i64 = 64;
 /// Resolved ended rows are catalog history, never retained work.
 pub const ENDED_TTL_MS: i64 = 24 * 60 * 60 * 1000;
@@ -51,6 +51,7 @@ pub struct Record {
     pub policy: String,
     pub kind: String,
     pub label: Option<String>,
+    pub program: Option<String>,
     pub created_seq: u64,
     pub mru_seq: u64,
     pub state: State,
@@ -74,6 +75,7 @@ impl Record {
             && valid_text(&self.project_id, 256)
             && valid_text(&self.policy, 32)
             && valid_text(&self.kind, 32)
+            && self.program.as_deref().is_none_or(|program| valid_text(program, 256))
             && self
                 .label
                 .as_deref()
@@ -124,6 +126,8 @@ struct StoredRow {
     kind: String,
     #[diesel(sql_type = Nullable<Text>)]
     label: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    program: Option<String>,
     #[diesel(sql_type = BigInt)]
     created_seq: i64,
     #[diesel(sql_type = BigInt)]
@@ -156,8 +160,9 @@ impl Catalog {
         let mut connection = SqliteConnection::establish(&path.to_string_lossy())
             .map_err(|_| "Guardian catalog unavailable".to_owned())?;
         if existing {
+            let version = pragma(&mut connection, "user_version").map_err(unavailable)?;
             if pragma(&mut connection, "application_id").map_err(unavailable)? != APPLICATION_ID
-                || pragma(&mut connection, "user_version").map_err(unavailable)? != USER_VERSION
+                || !matches!(version, 1 | USER_VERSION)
             {
                 return Err("Guardian catalog identity mismatch".into());
             }
@@ -165,12 +170,18 @@ impl Catalog {
                 "SELECT COUNT(*) AS count FROM pragma_table_info('guardian_catalog_sessions') \
                  WHERE name IN ('session_id','run_id','boot_id','service_id','scope_id','project_id',\
                    'policy','kind','label','created_seq','mru_seq','state','observed_ms',\
-                   'exit_status','attachment_generation')",
+                   'exit_status','attachment_generation','program')",
             )
             .get_result::<RowCount>(&mut connection)
             .map_err(unavailable)?;
-            if columns.count != 15 {
+            if columns.count != 14 + i64::from(version) {
                 return Err("Guardian catalog schema mismatch".into());
+            }
+            if version == 1 {
+                connection.batch_execute(
+                    "BEGIN IMMEDIATE; ALTER TABLE guardian_catalog_sessions ADD COLUMN program TEXT; \
+                     PRAGMA user_version=2; COMMIT",
+                ).map_err(unavailable)?;
             }
         } else {
             // Identity, version and schema land together or not at all.
@@ -194,7 +205,7 @@ impl Catalog {
                        state TEXT NOT NULL,\
                        observed_ms INTEGER NOT NULL,\
                        exit_status INTEGER,\
-                       attachment_generation INTEGER NOT NULL);\n\
+                       attachment_generation INTEGER NOT NULL, program TEXT);\n\
                      COMMIT"
                 ))
                 .map_err(|_| "Guardian catalog initialization failed".to_owned())?;
@@ -304,8 +315,8 @@ impl Catalog {
         sql_query(
             "INSERT INTO guardian_catalog_sessions(\
                session_id, run_id, boot_id, service_id, scope_id, project_id, policy, kind, label,\
-               created_seq, mru_seq, state, observed_ms, exit_status, attachment_generation\
-             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+               created_seq, mru_seq, state, observed_ms, exit_status, attachment_generation, program\
+             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind::<Text, _>(&record.session_id)
         .bind::<Text, _>(&record.run_id)
@@ -325,6 +336,7 @@ impl Catalog {
             i64::try_from(record.attachment_generation)
                 .map_err(|_| "Invalid guardian catalog sequence".to_owned())?,
         )
+        .bind::<Nullable<Text>, _>(record.program.as_deref())
         .execute(&mut self.connection)
         .map_err(unavailable)?;
         self.bump_revision();
@@ -548,7 +560,7 @@ impl Catalog {
     pub fn list(&mut self) -> Result<Vec<Record>, String> {
         let rows = sql_query(
             "SELECT session_id, run_id, boot_id, service_id, scope_id, project_id, policy, kind, label,\
-             created_seq, mru_seq, state, observed_ms, exit_status, attachment_generation \
+             created_seq, mru_seq, state, observed_ms, exit_status, attachment_generation, program \
              FROM guardian_catalog_sessions \
              ORDER BY mru_seq DESC, created_seq DESC, session_id ASC",
         )
@@ -566,6 +578,7 @@ impl Catalog {
                     policy: row.policy,
                     kind: row.kind,
                     label: row.label,
+                    program: row.program,
                     created_seq: row.created_seq.try_into().ok()?,
                     mru_seq: row.mru_seq.try_into().ok()?,
                     state: State::parse(&row.state)?,
@@ -595,6 +608,7 @@ mod tests {
             policy: "guarded".into(),
             kind: "shell".into(),
             label: Some("label".into()),
+            program: None,
             created_seq: 1,
             mru_seq: 1,
             state,
@@ -658,6 +672,26 @@ mod tests {
                 .unwrap(),
             0
         );
+    }
+
+    #[test]
+    fn opens_v1_catalog_and_preserves_existing_tasks() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("catalog.sqlite3");
+        let mut catalog = Catalog::open(&path).unwrap();
+        catalog.insert(&record("existing", State::Ended)).unwrap();
+        catalog.connection.batch_execute(
+            "ALTER TABLE guardian_catalog_sessions DROP COLUMN program; PRAGMA user_version=1",
+        ).unwrap();
+        drop(catalog);
+        let mut catalog = Catalog::open(&path).unwrap();
+        let existing = catalog.find("existing", "run-existing").unwrap().unwrap();
+        assert_eq!(existing.state, State::Ended);
+        assert_eq!(existing.program, None);
+        let mut new = record("new", State::Live);
+        new.program = Some("python".into());
+        catalog.insert(&new).unwrap();
+        assert_eq!(catalog.find("new", "run-new").unwrap(), Some(new));
     }
 
     #[test]

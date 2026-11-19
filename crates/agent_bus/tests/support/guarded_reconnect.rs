@@ -612,6 +612,13 @@ pub async fn verify_cli_launch_and_resume(
     let list = String::from_utf8_lossy(&all.stdout);
     let id = list.lines().find(|line| line.contains(&label) && line.contains(" live "))
         .and_then(|line| line.split_whitespace().next()).expect("Short ID for the live CLI task");
+    let list = command(&["list".into(), "--json".into()], false).output().await.unwrap();
+    assert!(list.status.success());
+    let rows: Vec<warp_agent_bus::companion_ctl::GuardedProcess> =
+        serde_json::from_slice(&list.stdout).unwrap();
+    assert!(rows.iter().any(|row| row.id.starts_with(id)
+        && row.name.as_deref() == Some(label.as_str())
+        && row.program.as_deref().is_some_and(|program| !program.is_empty())));
 
     let args = ["resume".into(), label.clone()];
     let mut resumed = command(&args, true).stdin(Stdio::piped()).stdout(Stdio::piped())

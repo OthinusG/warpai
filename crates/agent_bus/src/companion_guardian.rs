@@ -964,6 +964,7 @@ mod tests {
                     policy: "guarded".into(),
                     kind: "shell".into(),
                     label: None,
+                    program: None,
                     created_seq: seq,
                     mru_seq: seq,
                     state: guardian_catalog::State::Unknown,

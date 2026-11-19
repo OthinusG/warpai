@@ -210,6 +210,11 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   specs/2.0.0/README.md for the active plan and source-bound verification.
   The CLI supports background launch, short task IDs, read-only retained
   terminal logs and catalog-only renaming.
+- 2.1.0 projects the guardian's route-scoped CLI list in Agent Communication.
+  The confirmed terminal transport owns availability and action selection.
+  Resume queues the CLI PTY command in a new local split, leaving the
+  original pane alone. Catalog v2 keeps the executable basename and
+  preserves v1 tasks without guessing unavailable names.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
   traversal/aliases; keep atomic save, no-replace rename, bounded staging/deletion
   and stale-save checks. Never repeat uncertain writes.

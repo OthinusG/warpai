@@ -165,6 +165,7 @@ message AccountCatalogRow {
   uint64 attachment_generation = 12;
   // Read-only observation for the matching live generation; omitted if unavailable.
   optional bool writer_attached = 13;
+  optional string program = 14;
 }
 message AccountCatalogPage {
   repeated AccountCatalogRow rows = 1;

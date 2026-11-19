@@ -4,6 +4,7 @@ use remote_protocol::proto::*;
 use sha2::{Digest, Sha256};
 use std::{
     path::{Path, PathBuf},
+    process::Stdio,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock, Weak,
@@ -70,6 +71,42 @@ pub enum SshConnection {
     },
 }
 impl SshConnection {
+    pub async fn guardian_cli(
+        &self,
+        profile: &SshProfile,
+        arguments: &[&str],
+    ) -> Result<(i32, Vec<u8>), ConnectionError> {
+        use tokio::io::AsyncReadExt;
+        let epoch = connection_epoch(self)?;
+        let mut command = profile.guardian_cli_command(self, arguments, false)?;
+        let mut child = command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null())
+            .spawn().map_err(|_| ConnectionError::SshUnavailable)?;
+        let stdout = child.stdout.take().ok_or(ConnectionError::ConnectionLost)?;
+        tokio::time::timeout(std::time::Duration::from_secs(15), async {
+            let mut bytes = Vec::new();
+            stdout.take(1024 * 1024 + 1).read_to_end(&mut bytes).await
+                .map_err(|_| ConnectionError::ConnectionLost)?;
+            if bytes.len() > 1024 * 1024 {
+                return Err(ConnectionError::InvalidInput);
+            }
+            let status = child.wait().await.map_err(|_| ConnectionError::ConnectionLost)?;
+            check_ssh_access(epoch)?;
+            Ok((status.code().unwrap_or(-1), bytes))
+        }).await.map_err(|_| ConnectionError::ConnectionLost)?
+    }
+
+    pub fn guardian_resume_argv(
+        &self,
+        profile: &SshProfile,
+        id: uuid::Uuid,
+    ) -> Result<Vec<String>, ConnectionError> {
+        connection_epoch(self)?;
+        let command = profile.guardian_cli_command(self, &["resume", "--id", &id.to_string()], true)?;
+        std::iter::once(command.as_std().get_program()).chain(command.as_std().get_args())
+            .map(|arg| arg.to_str().filter(|arg| !arg.chars().any(char::is_control))
+                .map(str::to_owned).ok_or(ConnectionError::InvalidProfile))
+            .collect()
+    }
     pub fn is_wsl(&self) -> bool {
         #[cfg(windows)]
         { matches!(self, Self::Wsl { .. }) }

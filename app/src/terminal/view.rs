@@ -2533,6 +2533,7 @@ pub struct TerminalView {
     /// next `AfterBlockCompleted`, at which point `Event::PendingCommandCompleted`
     /// is emitted so subscribers know the command has finished.
     awaiting_pending_command_completion: bool,
+    pending_guardian_resume: Option<Vec<String>>,
     /// Commands that should run as separate blocks after the active pending
     /// command finishes successfully.
     pending_command_queue: VecDeque<String>,
@@ -4199,6 +4200,7 @@ impl TerminalView {
             bootstrap_start: None,
             is_login_shell_bootstrapped: false,
             awaiting_pending_command_completion: false,
+            pending_guardian_resume: None,
             pending_command_queue: Default::default(),
             enter_agent_view_after_pending_commands: false,
             slow_bootstrap_banner,
@@ -10276,6 +10278,9 @@ impl TerminalView {
             // prompt area so it's up to date.
             ctx.notify();
         });
+        if self.pending_guardian_resume.is_some() {
+            self.execute_pending_command((), ctx);
+        }
     }
 
     fn handle_terminal_event(&mut self, event: &ModelEvent, ctx: &mut ViewContext<Self>) {
@@ -14330,6 +14335,27 @@ impl TerminalView {
 
     /// Executes a command that was submitted by the user and not yet sent to the shell.
     pub fn execute_pending_command(&mut self, _: (), ctx: &mut ViewContext<Self>) {
+        if self.active_session_is_local(ctx) == Some(true) {
+            if let Some(shell) = self.active_session_shell_type(ctx) {
+                if let Some(arguments) = self.pending_guardian_resume.take() {
+                    use crate::terminal::model::session::command_executor::shell_quote_arg;
+                    let command = arguments.iter().map(|value| {
+                        if shell == ShellType::Fish {
+                            shell_quote_arg(&value.replace('\\', "\\\\"), shell)
+                        } else {
+                            shell_quote_arg(value, shell)
+                        }
+                    })
+                        .collect::<Vec<_>>().join(" ");
+                    let command = if shell == ShellType::PowerShell {
+                        format!("& {command}")
+                    } else {
+                        command
+                    };
+                    self.set_pending_command(&command, ctx);
+                }
+            }
+        }
         let had_pending = self.input.read(ctx, |input, _| input.has_pending_command());
         self.input.update(ctx, |input, ctx| {
             input.execute_pending_command(ctx);
@@ -14339,6 +14365,11 @@ impl TerminalView {
         if had_pending && !self.input.read(ctx, |input, _| input.has_pending_command()) {
             self.awaiting_pending_command_completion = true;
         }
+    }
+
+    pub(crate) fn queue_guardian_resume(&mut self, arguments: Vec<String>, ctx: &mut ViewContext<Self>) {
+        self.pending_guardian_resume = Some(arguments);
+        self.execute_pending_command((), ctx);
     }
 
     // Try to execute the provided command. If we cannot execute it now, set it as the pending

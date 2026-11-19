@@ -18,7 +18,7 @@ warpai run <program> [args...] [--name <name>] [--background]
     The name defaults to the executable's filename.
     Use run -- <program> [args...] to forward every program argument literally.
 
-warpai list [--project <path>] [--id <session>]
+warpai list [--json] [--project <path>] [--id <session>]
     List guardian sessions for this account.
 
 warpai resume [<name>] [--id <session>] [--project <path>] [--takeover]
@@ -56,6 +56,7 @@ pub enum Command {
         background: bool,
     },
     List {
+        json: bool,
         project: Option<String>,
         id: Option<String>,
     },
@@ -276,11 +277,16 @@ fn validate_name(value: &str) -> Result<(), String> {
 }
 
 fn parse_list(arguments: &[String]) -> Result<Command, String> {
+    let (json, arguments) = match arguments {
+        [flag, arguments @ ..] if flag == "--json" => (true, arguments),
+        _ => (false, arguments),
+    };
     let flags = parse_flags(arguments, false, false)?;
     if flags.help {
         return Ok(Command::Help);
     }
     Ok(Command::List {
+        json,
         project: flags.project,
         id: flags.id,
     })
@@ -351,6 +357,25 @@ fn route() -> Route {
 
 /// Entry point; returns the process exit code.
 pub async fn run(arguments: &[String]) -> i32 {
+    use base64::Engine;
+    let decoded;
+    let arguments = if let [flag, payload] = arguments {
+        if flag == "--encoded-argv" {
+            let parsed = (payload.len() <= 16384)
+                .then(|| base64::engine::general_purpose::STANDARD.decode(payload).ok())
+                .flatten()
+                .and_then(|bytes| serde_json::from_slice::<Vec<String>>(&bytes).ok());
+            let Some(parsed) = parsed else {
+                return EXIT_SYNTAX;
+            };
+            decoded = parsed;
+            decoded.as_slice()
+        } else {
+            arguments
+        }
+    } else {
+        arguments
+    };
     let command = match parse(arguments) {
         Ok(command) => command,
         Err(message) => {
@@ -374,7 +399,7 @@ pub async fn run(arguments: &[String]) -> i32 {
         Command::Launch { name, program, arguments, background } => {
             launch(name, &program, arguments, background).await
         }
-        Command::List { project, id } => list(project, id).await,
+        Command::List { json, project, id } => list(project, id, json).await,
         Command::Resume {
             project,
             selection,
@@ -604,18 +629,43 @@ pub(crate) async fn rows(client: &mut HostClient, scope_id: &str, project_id: &s
     }
 }
 
-async fn list(project: Option<String>, id: Option<String>) -> i32 {
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct GuardedProcess {
+    pub id: String,
+    pub name: Option<String>,
+    pub program: Option<String>,
+    pub state: String,
+    pub attached: Option<bool>,
+}
+
+async fn list(project: Option<String>, id: Option<String>, json: bool) -> i32 {
     let (mut client, filter) = match connect(&project, false).await {
         Ok(value) => value,
         Err(code) => return code,
     };
-    let rows = match rows(&mut client, "", &filter).await {
+    let rows = match rows(&mut client, if json { route_name(route()) } else { "" }, &filter).await {
         Ok(rows) => rows,
         Err(code) => return code,
     };
     let shown: Vec<_> = rows.iter()
         .filter(|row| id.as_ref().is_none_or(|id| matches_id(&row.session_id, id)))
         .collect();
+    if json {
+        let processes: Vec<_> = shown.into_iter().map(|row| GuardedProcess {
+            id: row.session_id.clone(),
+            name: row.label.clone(),
+            program: row.program.clone(),
+            state: row.state.clone(),
+            attached: row.writer_attached,
+        }).collect();
+        match serde_json::to_string(&processes) {
+            Ok(serialized) => {
+                println!("{serialized}");
+                return EXIT_OK;
+            }
+            Err(_) => return EXIT_DOMAIN,
+        }
+    }
     if shown.is_empty() {
         println!("No guardian sessions.");
         return EXIT_OK;
@@ -1427,6 +1477,7 @@ mod tests {
         assert_eq!(
             parse(&args(&["list"])).unwrap(),
             Command::List {
+                json: false,
                 project: None,
                 id: None,
             }
@@ -1496,6 +1547,7 @@ mod tests {
             exit_status: None,
             attachment_generation: 0,
             writer_attached: None,
+            program: None,
         };
         let rows = vec![
             row("a", Some("same"), "live", 5),
@@ -1578,6 +1630,7 @@ mod tests {
             exit_status: Some(0),
             attachment_generation: 3,
             writer_attached: Some(false),
+            program: None,
         };
         let line = row_line(&row, &row.session_id);
         assert!(line.contains("bad?label"));
@@ -1625,6 +1678,7 @@ mod tests {
             exit_status: Some(0),
             attachment_generation: 2,
             writer_attached: None,
+            program: None,
         };
         assert!(!is_live(&row));
     }

@@ -8,6 +8,8 @@ mod controls;
 mod usage;
 #[path = "panel_handoff.rs"]
 mod handoff;
+#[path = "panel_processes.rs"]
+mod processes;
 use serde::Deserialize;
 use std::{
     borrow::Cow,
@@ -490,10 +492,12 @@ pub(crate) struct CollaborationPanel {
     last_received: Option<Instant>,
     remote_buttons: [MouseStateHandle; 3],
     remote_connection: Option<SshConnection>,
+    processes: processes::Processes,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Action {
+    GuardedProcess(processes::ProcessAction),
     CopyAgentName(String),
     UsageSettings,
     RefreshUsage,
@@ -619,6 +623,7 @@ impl CollaborationPanel {
             last_received: None,
             remote_buttons: Default::default(),
             remote_connection: None,
+            processes: Default::default(),
         }
     }
 
@@ -775,6 +780,9 @@ impl CollaborationPanel {
             return;
         }
         self.visible = visible;
+        if !visible {
+            self.processes.reset();
+        }
         self.generation += 1;
         self.connected = false;
         if visible && !self.preview {
@@ -798,6 +806,7 @@ impl CollaborationPanel {
             let selected = self.selected_ssh(ctx);
             self.remote = selected.as_ref().map(|(profile, _)| profile.clone());
             self.remote_connection = selected.map(|(_, connection)| connection);
+            self.refresh_processes(ctx);
         }
         let enabled = self.communication_enabled(ctx);
         let context = enabled.then(|| self.current_context(ctx)).flatten();
@@ -1533,6 +1542,10 @@ impl TypedActionView for CollaborationPanel {
     type Action = Action;
     fn handle_action(&mut self, action: &Action, ctx: &mut ViewContext<Self>) {
         match action {
+            Action::GuardedProcess(action) => {
+                self.process_action(action, ctx);
+                return;
+            }
             Action::CopyAgentName(name) => {
                 ctx.clipboard().write(warpui::clipboard::ClipboardContent::plain_text(name.clone()));
                 return;
@@ -1955,7 +1968,7 @@ impl TypedActionView for CollaborationPanel {
                         .and_then(|snapshot| snapshot.agent_cursor.clone())
                 }
                 Action::FirstAgents => self.query.agent_after = None,
-                Action::NextFixture | Action::PreviousFixture | Action::UsageSettings | Action::RefreshUsage | Action::CopyAgentName(_) => {}
+                Action::NextFixture | Action::PreviousFixture | Action::UsageSettings | Action::RefreshUsage | Action::CopyAgentName(_) | Action::GuardedProcess(_) => {}
                 Action::Scroll(delta) => {
                     self.scroll.scroll_by((*delta).into_pixels());
                     ctx.notify();
@@ -2040,6 +2053,9 @@ impl View for CollaborationPanel {
     }
     fn render(&self, app: &AppContext) -> Box<dyn Element> {
         let appearance = Appearance::as_ref(app);
+        if self.processes.is_open() {
+            return self.processes.render(appearance);
+        }
         let builder = appearance.ui_builder();
         let theme = appearance.theme();
         let live = self.live_fixture();
@@ -2054,6 +2070,9 @@ impl View for CollaborationPanel {
             .is_some_and(|form| matches!(form.kind, controls::Kind::Send));
         let mut header = Flex::column().with_spacing(GAP_ROW);
         header.add_child(heading(appearance, warpui::localization::text("Agents Collaboration Mode")));
+        if let Some(entry) = self.processes.entry(appearance) {
+            header.add_child(entry);
+        }
         if !self.preview {
             let mut modes = Flex::row().with_spacing(GAP_ROW);
             for (index, (label, worktree)) in [("Project", false), ("Worktree", true)].into_iter().enumerate() {

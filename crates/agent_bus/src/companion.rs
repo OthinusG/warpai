@@ -93,6 +93,7 @@ fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
         exit_status: record.exit_status,
         attachment_generation: record.attachment_generation,
         writer_attached: None,
+        program: record.program.clone(),
     }
 }
 
@@ -258,6 +259,9 @@ impl Companion {
             policy: "guarded".into(),
             kind: kind.into(),
             label: request.label.clone(),
+            program: Path::new(&request.executable).file_name().and_then(|name| name.to_str())
+                .filter(|name| name.len() <= 256 && !name.chars().any(char::is_control))
+                .map(str::to_owned),
             created_seq: existing.map_or(seq, |row| row.created_seq),
             mru_seq: state.map_or(0, |_| seq),
             state: state.map_or(guardian_catalog::State::Unknown, |_| guardian_catalog::State::Live),
