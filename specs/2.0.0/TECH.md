@@ -161,6 +161,14 @@ its receipt transition. The recovered receipt never stores connection
 arguments, credentials, drafts or staged content, and reconnect never
 resubmits an interrupted mutation.
 
+Persist remote editor tab paths and the confirmed workspace fingerprint through
+the existing desktop pane snapshot. Cache paths and transport arguments are
+transient. A restored pane keeps remote tabs dormant until focused and a matching
+remote workspace is verified. Local tabs can restore immediately in the same
+pane. A lookup must not send a file request to a mismatched account or project.
+Restore downloads on demand and bind them to the confirmed remote source so a
+restored tab cannot save a remote path on the desktop filesystem.
+
 Guarded Coordinator rights survive only for the proven same native run. Reconnect
 or focus grants no new task/checkout authority and accepts/integrates no result.
 Permission waits remain blocked. Changes to existing task/MCP acknowledgement,

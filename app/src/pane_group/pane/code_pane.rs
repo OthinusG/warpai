@@ -2,7 +2,7 @@ use warp_util::path::LineAndColumnArg;
 use warpui::{AppContext, ModelHandle, SingletonEntity, View, ViewContext, ViewHandle};
 
 use crate::{
-    app_state::{CodePaneSnapShot, CodePaneTabSnapshot, LeafContents},
+    app_state::LeafContents,
     code::{
         editor_management::{CodeEditorStatus, CodeManager, CodeSource},
         view::{CodeView, CodeViewEvent},
@@ -208,25 +208,15 @@ impl PaneContent for CodePane {
     }
 
     fn snapshot(&self, app: &AppContext) -> LeafContents {
-        let code_view_ref = self.file_view(app).as_ref(app);
-
-        let tabs: Vec<CodePaneTabSnapshot> = (0..code_view_ref.tab_count())
-            .filter_map(|i| code_view_ref.tab_at(i))
-            .map(|tab| CodePaneTabSnapshot { path: tab.path() })
-            .collect();
-
-        let active_tab_index = code_view_ref.active_tab_index();
-        let source = code_view_ref.source().clone();
-
-        LeafContents::Code(CodePaneSnapShot::Local {
-            tabs,
-            active_tab_index,
-            source: Some(source),
-        })
+        LeafContents::Code(self.file_view(app).as_ref(app).snapshot(app))
     }
 
     fn focus(&self, ctx: &mut ViewContext<PaneGroup>) {
-        self.file_view(ctx).update(ctx, |view, ctx| view.focus(ctx));
+        self.file_view(ctx).update(ctx, |view, ctx| {
+            #[cfg(feature = "local_fs")]
+            view.restore_remote_tabs(ctx);
+            view.focus(ctx);
+        });
     }
 
     fn has_application_focus(&self, ctx: &mut ViewContext<PaneGroup>) -> bool {

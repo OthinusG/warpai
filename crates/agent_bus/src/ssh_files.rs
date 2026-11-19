@@ -644,6 +644,10 @@ impl RemoteFiles {
         cache_path(self.cache.path(), &self.relative(path)?)
     }
 
+    pub fn workspace_fingerprint(&self) -> String {
+        Self::content_hash(self.workspace_identity.as_bytes())
+    }
+
     /// The remote account and project survive individual SSH transports and desktop restarts.
     pub fn editor_save_journal(&self, path: &str) -> Result<EditorSaveJournal, ConnectionError> {
         let relative = self.relative(path)?;

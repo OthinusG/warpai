@@ -448,6 +448,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Remote editors keep unresolved save hashes in a private client journal keyed
   by the verified workspace and document. Reopening the same file recovers its
   explicit-save fence after restart. Draft text follows the existing editor policy.
+- Workspace snapshots store remote editor descriptors without cache paths.
+  A focused pane downloads them only after its original workspace is verified.
 
 ## Memory maintenance
 

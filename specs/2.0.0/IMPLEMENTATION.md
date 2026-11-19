@@ -2170,8 +2170,15 @@ drafts, SSH arguments and staging paths are absent from the journal.
 The native framed-socket fixture drops the commit reply before and after
 application, recreates the client's receipt reader, and verifies that reopening
 and querying the remote hash never mutates the original file. Receipt locking
-and editor tests cover concurrent admission and mismatched content. Automatic
-Explorer, editor and Review view restoration still needs its desktop entry.
+and editor tests cover concurrent admission and mismatched content.
+
+Desktop pane snapshots preserve ordered remote editor descriptors in the
+existing source field. Restoring a pane opens local tabs immediately and waits
+for verified remote context before downloading its remote documents. The
+matching account, project and logical service must still be selected when a
+prepared document is installed in the editor. The existing Explorer and Review
+selection paths keep their visibility and attachment checks. Native restart and
+view-routing evidence remains pending.
 
 ## Evidence index
 
