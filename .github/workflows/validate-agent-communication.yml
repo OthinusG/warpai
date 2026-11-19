@@ -286,7 +286,16 @@ jobs:
           wsl-version: 2
           set-as-default: 'false'
           wsl-shell-user: root
-          additional-packages: build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git git-lfs curl
+      - name: Install WSL build dependencies
+        if: ${{ inputs.wsl_acceptance }}
+        timeout-minutes: 20
+        shell: wsl-bash_Ubuntu-22.04 {0}
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt=(apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+          "${apt[@]}" -o Acquire::Languages=none -o Acquire::IndexTargets::deb::CNF::DefaultEnabled=false update
+          "${apt[@]}" install -y --no-install-recommends build-essential protobuf-compiler pkg-config libssl-dev zlib1g-dev git git-lfs curl
       - name: Build source-matched Linux Companion inside Windows WSL
         if: ${{ inputs.wsl_acceptance }}
         shell: wsl-bash_Ubuntu-22.04 {0}
