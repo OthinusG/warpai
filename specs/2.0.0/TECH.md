@@ -361,6 +361,15 @@ from the SSH launcher Job; detached flags alone do not prove this. Fail guarded
 launch clearly if safe native ownership is unsupported. WSL guest lifetime needs
 real Windows/WSL acceptance, not Linux SSH proxy tests.
 
+On Windows, the SSH account guardian shares the existing SSH Store lock with the
+ordinary Companion service. A distinct private named pipe negotiates the same
+guardian preface and fences as Unix. Both peers verify the pipe peer's native
+account SID. Start the guardian suspended, request job breakaway when the
+launcher is job-bound, and require zero inherited Job memberships before
+resuming. Each guarded ConPTY still owns its own kill-on-close Job. Operator
+current-session detection requires membership of that exact Job. Native tests
+must cover blocked breakaway, same-process reconnect, and legacy fallback.
+
 Reuse compatible live runtime versions. Stage helper/dependencies side by side
 when an update would invalidate files used by live runs; GC only unused versions.
 No new local helper installation, AppImage-local daemon survival or local Broker

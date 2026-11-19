@@ -1,5 +1,5 @@
 //! Durable metadata for guarded sessions, opened only under the guardian lock.
-#![cfg(unix)]
+use super::{terminals, unix_millis, CatalogHandle};
 use diesel::{
     Connection, QueryableByName, RunQueryDsl,
     connection::SimpleConnection,
@@ -893,5 +893,53 @@ mod tests {
             .unwrap();
         drop(connection);
         assert!(Catalog::open(&path).is_err());
+    }
+}
+
+pub(super) fn sync_attachment(
+    terminals: &terminals::Terminals,
+    catalog: &CatalogHandle,
+    attachment: &terminals::PendingAttachment,
+) {
+    let recorded = catalog.try_lock().is_ok_and(|mut catalog| {
+        catalog.touch_attachment(
+            &attachment.session_id,
+            &attachment.run_id,
+            &attachment.boot_id,
+            &attachment.service_id,
+            attachment.generation,
+        ).unwrap_or(false)
+    });
+    if recorded {
+        terminals.mark_attachment_reported(
+            &attachment.session_id, &attachment.run_id, attachment.generation,
+        );
+    }
+}
+
+/// Sole lifecycle authority reports observed exit once, independent of client reads.
+pub(super) fn sync_ended(terminals: &terminals::Terminals, catalog: &CatalogHandle) {
+    let ended = terminals.ended_guarded();
+    if ended.is_empty() {
+        return;
+    }
+    let observed = unix_millis();
+    for session in ended {
+        let recorded = catalog.lock().is_ok_and(|mut catalog| {
+            catalog
+                .update_state(
+                    &session.session_id,
+                    &session.run_id,
+                    &session.boot_id,
+                    &session.service_id,
+                    State::Ended,
+                    observed,
+                    session.exit_code,
+                )
+                .is_ok()
+        });
+        if recorded {
+            terminals.mark_end_reported(&session.session_id, &session.run_id);
+        }
     }
 }

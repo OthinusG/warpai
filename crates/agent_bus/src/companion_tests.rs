@@ -715,7 +715,7 @@ fn guarded_session_lifecycle_is_recorded_in_the_catalog() {
     ));
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
-        guardian::sync_ended(&companion.terminals, &catalog);
+        guardian_catalog::sync_ended(&companion.terminals, &catalog);
         if catalog.lock().unwrap().list().unwrap()[0].state == guardian_catalog::State::Ended {
             break;
         }
@@ -851,11 +851,11 @@ fn guarded_attach_survives_catalog_write_failure_and_reconciles() {
     let pending = companion.terminals.pending_attachments();
     assert_eq!(pending.len(), 1);
     catalog.lock().unwrap().set_query_only(false);
-    guardian::sync_attachment(&companion.terminals, &catalog, &pending[0]);
+    guardian_catalog::sync_attachment(&companion.terminals, &catalog, &pending[0]);
     let published = catalog.lock().unwrap().list().unwrap().remove(0);
     assert_eq!(published.attachment_generation, attached.attachment_generation);
     assert!(companion.terminals.pending_attachments().is_empty());
-    guardian::sync_attachment(&companion.terminals, &catalog, &pending[0]);
+    guardian_catalog::sync_attachment(&companion.terminals, &catalog, &pending[0]);
     assert_eq!(catalog.lock().unwrap().list().unwrap()[0].mru_seq, published.mru_seq);
 }
 

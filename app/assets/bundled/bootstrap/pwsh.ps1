@@ -977,6 +977,66 @@ $null = New-Module -Name Warp-Module -ScriptBlock {
         }
     }
 
+    #region Warpai session control
+    if (($PSEdition -eq 'Desktop' -or $IsWindows) -and
+        $env:SSH_CONNECTION -and $Host.Name -eq 'ConsoleHost' -and
+        -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+        # A process-local function leaves profile files and command lookup untouched.
+        & {
+            $account = [Environment]::GetFolderPath('UserProfile')
+            if (-not [IO.Path]::IsPathRooted($account)) { return }
+            $helper = Join-Path $account '.config\warpai\bin\warpai-companion.exe'
+            if (-not [IO.File]::Exists($helper)) { return }
+            if (Get-Command -Name warpai -ErrorAction SilentlyContinue) {
+                [Console]::Error.WriteLine("Warpai control is also available at $helper ctl")
+                return
+            }
+            function global:warpai {
+                $account = [Environment]::GetFolderPath('UserProfile')
+                $directory = Join-Path $account '.config\warpai\bin'
+                $helper = Join-Path $directory 'warpai-companion.exe'
+                $manifest = Join-Path $directory 'companion-manifest.json'
+                try {
+                    $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+                    $trusted = @($owner, 'S-1-5-18', 'S-1-5-32-544')
+                    $sid = [Security.Principal.SecurityIdentifier]
+                    $rights = [Security.AccessControl.FileSystemRights]
+                    $writeMask = $rights::Write -bor $rights::Delete -bor $rights::DeleteSubdirectoriesAndFiles -bor $rights::ChangePermissions -bor $rights::TakeOwnership
+                    $paths = @($helper, $manifest, $directory, (Split-Path -Parent $directory), (Join-Path $account '.config'), $account)
+                    foreach ($path in $paths) {
+                        $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+                        $isFile = $path -eq $helper -or $path -eq $manifest
+                        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                            $item.PSIsContainer -eq $isFile) {
+                            throw 'Invalid installation path'
+                        }
+                        $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
+                        if ($acl.GetOwner($sid).Value -notin $trusted) { throw 'Untrusted installation owner' }
+                        foreach ($rule in $acl.GetAccessRules($true, $true, $sid)) {
+                            if ($rule.AccessControlType -eq 'Allow' -and
+                                $rule.IdentityReference.Value -notin $trusted -and
+                                ($rule.FileSystemRights -band $writeMask)) {
+                                throw 'Untrusted installation permissions'
+                            }
+                        }
+                    }
+                    if ((Get-Item -LiteralPath $manifest).Length -gt 65536) { throw 'Invalid manifest size' }
+                    $expected = (Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop).sha256
+                    if ($expected -cnotmatch '^[0-9a-f]{64}$' -or
+                        (Get-FileHash -LiteralPath $helper -Algorithm SHA256 -ErrorAction Stop).Hash -ine $expected) {
+                        throw 'Checksum mismatch'
+                    }
+                } catch {
+                    $global:LASTEXITCODE = 1
+                    Write-Error 'Warpai Companion installation is unverified.'
+                    return
+                }
+                & $helper ctl @args
+            }
+        }
+    }
+    #endregion
+
     # Keep per-terminal native launch bindings after profiles update PATH.
     if (-not [String]::IsNullOrEmpty($env:WARP_AGENT_LAUNCH_PATH)) {
         $env:PATH = '{0}{1}{2}' -f $env:WARP_AGENT_LAUNCH_PATH, [IO.Path]::PathSeparator, $env:PATH

@@ -171,9 +171,8 @@ impl SshProfile {
         if !matches!(route, "ssh" | "wsl") {
             return Err(ConnectionError::InvalidProfile);
         }
-        // The guardian is a POSIX account service; Windows hosts stay unsupported.
-        if self.remote_shell != RemoteShell::Posix {
-            return Err(ConnectionError::FeatureUnavailable);
+        if route == "wsl" && self.remote_shell != RemoteShell::Posix {
+            return Err(ConnectionError::InvalidProfile);
         }
         self.companion_command_args(&format!(" --guardian-stdio {route}"))
     }
@@ -242,11 +241,15 @@ fn windows_absolute(path: &str) -> bool {
         || path.starts_with("\\\\")
 }
 
-/// Managed channel over either a spawned companion process or a verified Unix socket.
+#[cfg(unix)]
+type GuardianStream = tokio::net::UnixStream;
+#[cfg(windows)]
+type GuardianStream = tokio::net::windows::named_pipe::NamedPipeClient;
+
+/// Managed channel over a child process or authenticated local IPC.
 enum HostWriter {
     Child(ChildStdin),
-    #[cfg(unix)]
-    Unix(tokio::io::WriteHalf<tokio::net::UnixStream>),
+    Guardian(tokio::io::WriteHalf<GuardianStream>),
 }
 
 impl tokio::io::AsyncWrite for HostWriter {
@@ -257,8 +260,7 @@ impl tokio::io::AsyncWrite for HostWriter {
     ) -> std::task::Poll<std::io::Result<usize>> {
         match self.get_mut() {
             Self::Child(writer) => std::pin::Pin::new(writer).poll_write(context, buffer),
-            #[cfg(unix)]
-            Self::Unix(writer) => std::pin::Pin::new(writer).poll_write(context, buffer),
+            Self::Guardian(writer) => std::pin::Pin::new(writer).poll_write(context, buffer),
         }
     }
 
@@ -268,8 +270,7 @@ impl tokio::io::AsyncWrite for HostWriter {
     ) -> std::task::Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Child(writer) => std::pin::Pin::new(writer).poll_flush(context),
-            #[cfg(unix)]
-            Self::Unix(writer) => std::pin::Pin::new(writer).poll_flush(context),
+            Self::Guardian(writer) => std::pin::Pin::new(writer).poll_flush(context),
         }
     }
 
@@ -279,16 +280,14 @@ impl tokio::io::AsyncWrite for HostWriter {
     ) -> std::task::Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Child(writer) => std::pin::Pin::new(writer).poll_shutdown(context),
-            #[cfg(unix)]
-            Self::Unix(writer) => std::pin::Pin::new(writer).poll_shutdown(context),
+            Self::Guardian(writer) => std::pin::Pin::new(writer).poll_shutdown(context),
         }
     }
 }
 
 enum HostReader {
     Child(ChildStdout),
-    #[cfg(unix)]
-    Unix(tokio::io::ReadHalf<tokio::net::UnixStream>),
+    Guardian(tokio::io::ReadHalf<GuardianStream>),
 }
 
 impl tokio::io::AsyncRead for HostReader {
@@ -299,8 +298,7 @@ impl tokio::io::AsyncRead for HostReader {
     ) -> std::task::Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Child(reader) => std::pin::Pin::new(reader).poll_read(context, buffer),
-            #[cfg(unix)]
-            Self::Unix(reader) => std::pin::Pin::new(reader).poll_read(context, buffer),
+            Self::Guardian(reader) => std::pin::Pin::new(reader).poll_read(context, buffer),
         }
     }
 }
@@ -643,17 +641,24 @@ impl HostClient {
         Self::handshake(Some(child), input, output, Some(root)).await
     }
 
-    /// Direct account-guardian socket for the local CLI; no process or shell involved.
     #[cfg(unix)]
     pub async fn connect_unix(
         stream: tokio::net::UnixStream,
         root: Option<&str>,
     ) -> Result<Self, ConnectionError> {
+        Self::connect_guardian_stream(stream, root).await
+    }
+
+    /// Direct account guardian transport for the authenticated local CLI.
+    pub(crate) async fn connect_guardian_stream(
+        stream: GuardianStream,
+        root: Option<&str>,
+    ) -> Result<Self, ConnectionError> {
         let (reader, writer) = tokio::io::split(stream);
         Self::handshake(
             None,
-            HostWriter::Unix(writer).compat_write(),
-            HostReader::Unix(reader).compat(),
+            HostWriter::Guardian(writer).compat_write(),
+            HostReader::Guardian(reader).compat(),
             root,
         )
         .await
@@ -1449,7 +1454,8 @@ mod tests {
         profile.remote_root = "C:\\project with spaces".into();
         profile.companion_path = "C:\\it's $(danger)\\companion.exe".into();
         assert!(profile.validate().is_ok());
-        let command = profile.companion_command().unwrap();
+        assert_eq!(profile.guardian_command("wsl"), Err(ConnectionError::InvalidProfile));
+        let command = profile.guardian_command("ssh").unwrap();
         let encoded = command.split_whitespace().last().unwrap();
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(encoded)
@@ -1460,7 +1466,7 @@ mod tests {
             .collect();
         assert_eq!(
             String::from_utf16(&words).unwrap(),
-            "& 'C:\\it''s $(danger)\\companion.exe'"
+            "& 'C:\\it''s $(danger)\\companion.exe' --guardian-stdio ssh"
         );
     }
 }

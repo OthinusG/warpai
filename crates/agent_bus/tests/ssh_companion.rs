@@ -842,7 +842,6 @@ async fn native_ssh_file_tools_master_revokes_existing_clients_but_not_native_ss
     files.control(ProjectFilesRequest { action: ProjectFileAction::ProjectFileDelete as i32,
         path: relative, ..Default::default() }).await.unwrap();
 }
-#[cfg(unix)]
 #[path = "support/guarded_reconnect.rs"]
 mod guarded_reconnect;
 
@@ -884,4 +883,44 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
     let agent = std::env::var("WARP_TEST_AGENT_FIXTURE").expect("Owned native Agent fixture executable");
     guarded_reconnect::verify_detached_agent_delivery(&root, &agent, bridge).await;
     guarded_reconnect::verify_cli_stop_survives_caller(&root, &helper, bridge()).await;
+}
+
+#[cfg(windows)]
+#[tokio::test]
+#[ignore = "requires a disposable Windows OpenSSH fixture"]
+async fn controlled_windows_ssh_guardian_retains_exact_conpty() {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let config = std::env::var_os("WARP_TEST_SSH_CONFIG").expect("Controlled SSH config");
+    let root = std::env::var("WARP_TEST_REMOTE_ROOT").expect("Remote fixture root");
+    let helper = std::env::var("WARP_TEST_COMPANION_PATH").expect("Owned companion path");
+    let powershell = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+        .join(r"System32\WindowsPowerShell\v1.0\powershell.exe");
+    let encode = |script: &str| STANDARD.encode(
+        script.encode_utf16().flat_map(u16::to_le_bytes).collect::<Vec<_>>()
+    );
+    let ssh = |terminal: &str, script: &str| {
+        let remote = format!(
+            "powershell.exe -NoLogo -NoProfile -EncodedCommand {}", encode(script)
+        );
+        let mut command = tokio::process::Command::new("ssh");
+        command.arg("-F").arg(&config)
+            .args([terminal, "-o", "BatchMode=yes", "--", "warpai-test", &remote]);
+        command
+    };
+    let helper = helper.replace('\'', "''");
+    let bridge = || ssh("-T", &format!("& '{helper}' --guardian-stdio ssh; exit $LASTEXITCODE"));
+    let resume = |session_id: &str| ssh("-tt", &format!(
+        "$before = [Console]::TreatControlCAsInput; & '{helper}' ctl resume --id '{session_id}'; \
+         if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; \
+         if ([Console]::TreatControlCAsInput -ne $before) {{ exit 12 }}; \
+         [Console]::WriteLine('GUARDIAN_CLI_TTY_RESTORED')"
+    ));
+    guarded_reconnect::verify_guarded_command(
+        &root, std::time::Duration::from_secs(12), bridge, Some(&resume),
+        powershell.to_str().unwrap(),
+        vec![
+            "-NoLogo".into(), "-NoProfile".into(), "-EncodedCommand".into(),
+            encode("$ErrorActionPreference='Stop'; [Console]::WriteLine('GUARDIAN_PID=' + $PID); while ($null -ne ($line = [Console]::ReadLine())) { [Console]::WriteLine('GUARDIAN_ECHO=' + $line) }"),
+        ],
+    ).await;
 }

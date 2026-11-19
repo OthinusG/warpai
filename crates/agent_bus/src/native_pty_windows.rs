@@ -163,6 +163,66 @@ fn environment(executable: &Path, binding: &[(String, String)]) -> io::Result<Ve
     Ok(block)
 }
 
+/// A service must own the PTY Jobs without inheriting any launcher Job.
+fn in_job(process: HANDLE, job: Option<HANDLE>) -> io::Result<bool> {
+    let mut member = windows::core::BOOL::default();
+    unsafe { IsProcessInJob(process, job, &mut member) }.map_err(error)?;
+    Ok(member.as_bool())
+}
+
+pub(super) fn verify_guardian_job() -> io::Result<()> {
+    if in_job(unsafe { GetCurrentProcess() }, None)? {
+        return Err(io::ErrorKind::PermissionDenied.into());
+    }
+    Ok(())
+}
+
+pub(super) fn start_guardian() -> io::Result<()> {
+    let executable = std::env::current_exe()?;
+    let image = HSTRING::from(executable.as_os_str());
+    let mut command = Vec::new();
+    append_quoted(executable.as_os_str(), &mut command);
+    command.extend(" --guardian-service".encode_utf16());
+    command.push(0);
+    let environment = environment(&executable, &[])?;
+    let mut startup = STARTUPINFOW::default();
+    startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    let mut created = PROCESS_INFORMATION::default();
+    let mut flags = CREATE_SUSPENDED | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_UNICODE_ENVIRONMENT;
+    if in_job(unsafe { GetCurrentProcess() }, None)? {
+        flags |= CREATE_BREAKAWAY_FROM_JOB;
+    }
+    unsafe {
+        CreateProcessW(
+            &image,
+            Some(PWSTR(command.as_mut_ptr())),
+            None,
+            None,
+            false,
+            flags,
+            Some(environment.as_ptr().cast()),
+            PCWSTR::null(),
+            &startup,
+            &mut created,
+        ).map_err(error)?;
+        let process = Owned::new(created.hProcess);
+        let thread = Owned::new(created.hThread);
+        let start = in_job(*process, None).and_then(|member| {
+            if member {
+                Err(io::ErrorKind::PermissionDenied.into())
+            } else if ResumeThread(*thread) != 1 {
+                Err(io::Error::last_os_error())
+            } else {
+                Ok(())
+            }
+        });
+        if start.is_err() {
+            let _ = TerminateProcess(*process, 1);
+        }
+        start
+    }
+}
+
 pub(super) fn spawn(
     executable: &Path,
     args: &[String],
@@ -257,6 +317,15 @@ pub(super) fn spawn(
     }
 }
 impl Process {
+    pub(super) fn owns_peer(&self, pid: u32) -> io::Result<bool> {
+        let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }
+            .map_err(error)?;
+        let process = unsafe { Owned::new(process) };
+        let current = crate::transport::windows_pipe::current_user_sid().map_err(io::Error::other)?;
+        let peer = crate::transport::windows_pipe::process_user_sid(*process).map_err(io::Error::other)?;
+        Ok(current == peer && in_job(*process, Some(*self.job))?)
+    }
+
     pub(super) fn active(&self) -> io::Result<bool> {
         let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
         unsafe {
@@ -301,5 +370,50 @@ impl Process {
             }
         }
         Ok(running)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::process::{Command, Stdio};
+
+    #[test]
+    #[ignore = "the parent fixture assigns this process to a closed Job before signaling it"]
+    fn guardian_refusal_child() {
+        let mut ready = [0];
+        std::io::stdin().read_exact(&mut ready).unwrap();
+        assert_eq!(ready, [1]);
+        assert!(in_job(unsafe { GetCurrentProcess() }, None).unwrap());
+        assert!(verify_guardian_job().is_err());
+        assert!(start_guardian().is_err());
+    }
+
+    #[test]
+    fn guardian_refuses_a_launcher_job_without_breakaway() {
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored", "--exact", "native_pty::platform::tests::guardian_refusal_child"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let job = unsafe { Owned::new(CreateJobObjectW(None, PCWSTR::null()).unwrap()) };
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        unsafe {
+            SetInformationJobObject(
+                *job,
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                std::mem::size_of_val(&limits) as u32,
+            ).unwrap();
+            AssignProcessToJobObject(*job, HANDLE(child.as_raw_handle())).unwrap();
+        }
+        child.stdin.take().unwrap().write_all(&[1]).unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
     }
 }

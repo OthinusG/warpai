@@ -362,7 +362,10 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 
 - 2.0.0 guardian stays default-off. Installed helpers advertise the private
   guarded capability to authenticated local operators. The desktop data bridge
-  remains gated; native Windows refuses guardian flags and `ctl`.
+  remains gated pending desktop terminal and shell-block restoration.
+- Windows guardian startup verifies that its suspended service inherits no
+  launcher Job before resuming. Private named-pipe peers check native account
+  SIDs, and the guardian shares the ordinary SSH Store's ownership lock.
 - Companion CLI `ctl list|resume|stop` probes only. Bare resume recognizes its
   native guarded session before selecting in the helper's logical scope. Bare
   stop is account-wide and operator-only, with boot-scoped receipts. Full

@@ -33,17 +33,18 @@ pub(crate) mod guests;
 #[cfg(unix)]
 #[path = "companion_guardian.rs"]
 pub mod guardian;
-#[cfg(unix)]
+#[cfg(windows)]
+#[path = "companion_guardian_windows.rs"]
+pub mod guardian;
+#[path = "companion_guardian_ipc.rs"]
+mod guardian_ipc;
 #[path = "companion_guardian_catalog.rs"]
 pub(crate) mod guardian_catalog;
 pub(crate) use tasks::{decode_result as decode_task_result, MAX_RESULT as MAX_TASK_RESULT};
 pub use tasks::Command as TaskCommand;
 
-#[cfg(unix)]
 pub(crate) type CatalogHandle =
     std::sync::Arc<std::sync::Mutex<guardian_catalog::Catalog>>;
-#[cfg(not(unix))]
-pub(crate) type CatalogHandle = ();
 
 /// Admitted transport route for an account-global guardian connection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,12 +53,10 @@ pub(crate) enum Route {
     Wsl,
 }
 
-#[cfg(unix)]
 fn valid_uuid(value: &str) -> bool {
     Uuid::parse_str(value).is_ok_and(|id| !id.is_nil())
 }
 
-#[cfg(unix)]
 fn catalog_filter_key(filter: &AccountCatalogFilter) -> String {
     use sha2::{Digest, Sha256};
 
@@ -68,14 +67,12 @@ fn catalog_filter_key(filter: &AccountCatalogFilter) -> String {
     format!("{:x}", digest.finalize())
 }
 
-#[cfg(unix)]
 fn catalog_filter_matches(filter: &AccountCatalogFilter, row: &guardian_catalog::Record) -> bool {
     (filter.scope_id.is_empty() || filter.scope_id == row.scope_id)
         && (filter.project_id.is_empty() || filter.project_id == row.project_id)
 }
 
 /// Sanitized catalog projection; never argv, environment, paths or screen bytes.
-#[cfg(unix)]
 fn catalog_row(record: &guardian_catalog::Record) -> AccountCatalogRow {
     AccountCatalogRow {
         session_id: record.session_id.clone(),
@@ -206,7 +203,6 @@ impl Companion {
         })
     }
 
-    #[cfg(unix)]
     fn record_catalog_launch(
         &self,
         request: &TerminalLaunch,
@@ -275,24 +271,12 @@ impl Companion {
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)
     }
 
-    #[cfg(not(unix))]
-    fn record_catalog_launch(
-        &self,
-        _request: &TerminalLaunch,
-        _run_id: &str,
-        _state: Option<&TerminalState>,
-        _reserve: bool,
-    ) -> Result<(), ManagedErrorCode> {
-        Ok(())
-    }
-
-    #[cfg(unix)]
     fn record_catalog_control(&self, action: TerminalAction, state: &TerminalState) {
         if state.guarded != Some(true) || action != TerminalAction::TerminalAttach {
             return;
         }
         if let Some(catalog) = &self.catalog {
-            guardian::sync_attachment(&self.terminals, catalog, &terminals::PendingAttachment {
+            guardian_catalog::sync_attachment(&self.terminals, catalog, &terminals::PendingAttachment {
                 session_id: state.session_id.clone(),
                 run_id: state.run_id.clone(),
                 boot_id: self.fence.service_boot_id.clone(),
@@ -301,9 +285,6 @@ impl Companion {
             });
         }
     }
-
-    #[cfg(not(unix))]
-    fn record_catalog_control(&self, _action: TerminalAction, _state: &TerminalState) {}
 
 }
 
@@ -356,14 +337,11 @@ impl Companion {
                     return Err(ManagedErrorCode::ManagedIncompatibleVersion);
                 }
                 self.initialized = true;
-                #[cfg(unix)]
                 let current_guarded_session = if self.account_operator {
                     self.peer_pid.and_then(|pid| self.terminals.current_guarded_session(pid))
                 } else {
                     None
                 };
-                #[cfg(not(unix))]
-                let current_guarded_session = None;
                 Ok(managed_response::Result::Initialized(ManagedInitialized {
                     protocol_major: PROTOCOL_MAJOR,
                     fence: Some(self.fence.clone()),
@@ -409,7 +387,6 @@ impl Companion {
                     self.catalog.is_some(),
                     |run_id, reserve| self.record_catalog_launch(&recorded, run_id, None, reserve),
                 )?;
-                #[cfg(unix)]
                 if recorded.guarded && self.catalog.is_some()
                     && self.record_catalog_launch(&recorded, &state.run_id, Some(&state), false).is_ok()
                 {
@@ -483,7 +460,6 @@ impl Companion {
         }
     }
 
-    #[cfg(unix)]
     fn check_account_fence(&self, fence: Option<&AccountFence>) -> Result<(), ManagedErrorCode> {
         let Some(guardian) = self.account_guardian else {
             return Err(ManagedErrorCode::ManagedFeatureUnavailable);
@@ -503,12 +479,6 @@ impl Companion {
         Ok(())
     }
 
-    #[cfg(not(unix))]
-    fn check_account_fence(&self, _fence: Option<&AccountFence>) -> Result<(), ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
-    }
-
-    #[cfg(unix)]
     fn catalog_row_with_writer(&self, record: &guardian_catalog::Record) -> AccountCatalogRow {
         let mut row = catalog_row(record);
         if record.state == guardian_catalog::State::Live {
@@ -517,7 +487,6 @@ impl Companion {
         row
     }
 
-    #[cfg(unix)]
     fn dispatch_catalog_list(
         &mut self,
         request: AccountCatalogList,
@@ -584,15 +553,6 @@ impl Companion {
         ))
     }
 
-    #[cfg(not(unix))]
-    fn dispatch_catalog_list(
-        &mut self,
-        _request: AccountCatalogList,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
-    }
-
-    #[cfg(unix)]
     fn dispatch_catalog_inspect(
         &mut self,
         request: AccountCatalogInspect,
@@ -617,15 +577,6 @@ impl Companion {
         )))
     }
 
-    #[cfg(not(unix))]
-    fn dispatch_catalog_inspect(
-        &mut self,
-        _request: AccountCatalogInspect,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
-    }
-
-    #[cfg(unix)]
     fn dispatch_catalog_watch(
         &mut self,
         request: AccountCatalogWatch,
@@ -684,16 +635,8 @@ impl Companion {
         ))
     }
 
-    #[cfg(not(unix))]
-    fn dispatch_catalog_watch(
-        &mut self,
-        _request: AccountCatalogWatch,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
-    }
-
     /// Account-owned stop batch; receipts report requests, never task completion.
-    #[cfg(unix)]
+
     fn dispatch_account_stop(
         &mut self,
         request_id: Uuid,
@@ -750,15 +693,6 @@ impl Companion {
         ))
     }
 
-    #[cfg(not(unix))]
-    fn dispatch_account_stop(
-        &mut self,
-        _request_id: Uuid,
-        _request: AccountStop,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
-    }
-
     fn open_project(
         &mut self,
         root: &Path,
@@ -783,7 +717,6 @@ impl Companion {
         }))
     }
 
-    #[cfg(unix)]
     fn open_guarded_project(
         &mut self,
         request: GuardedProjectOpen,
@@ -802,14 +735,6 @@ impl Companion {
             ManagedErrorCode::ManagedNotFound => ManagedErrorCode::ManagedStaleAttachment,
             error => error,
         })
-    }
-
-    #[cfg(not(unix))]
-    fn open_guarded_project(
-        &mut self,
-        _request: GuardedProjectOpen,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        Err(ManagedErrorCode::ManagedFeatureUnavailable)
     }
 
     fn check_project(&self, fence: Option<&ManagedFence>) -> Result<(), ManagedErrorCode> {
@@ -916,12 +841,10 @@ pub async fn serve_account_service() -> Result<(), ProtocolError> {
     service::serve().await
 }
 
-#[cfg(unix)]
 pub async fn serve_guardian() -> Result<(), ProtocolError> {
     guardian::serve().await
 }
 
-#[cfg(unix)]
 fn guardian_route(name: &str) -> Option<Route> {
     match name {
         "ssh" => Some(Route::Ssh),
@@ -932,7 +855,6 @@ fn guardian_route(name: &str) -> Option<Route> {
 
 /// Installed helper only: bridge verified stdio to the account guardian.
 /// The GUI invokes this flag on the verified installed helper.
-#[cfg(unix)]
 pub async fn serve_guardian_stdio(route: &str) -> Result<(), &'static str> {
     let route = guardian_route(route).ok_or("unknown route")?;
     let directory = guardian::scope_directory(route)

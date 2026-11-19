@@ -24,12 +24,12 @@ passed both startup orders, a 12-second bridge-free reconnect, and both ordinary
 workspace cases on the same runner. Full V01-V30 acceptance remains open.
 Historical records below describe their own revisions.
 
-The branch has a Unix account guardian, scoped Stores, guarded PTY and writer
+The branch has Unix and Windows account guardian implementations, scoped Stores, guarded PTY and writer
 fencing, a bounded SQLite catalog, a helper bridge, account RPCs and a private
 CLI. The SSH and WSL preferences bind a verified remote identity for future
 launches. The normal desktop Remote panel keeps its ordinary workspace channel.
-Production guarded PTY launch, exact-run desktop restoration and native Windows
-guardian ownership remain open.
+Production desktop guarded PTY launch and exact-run desktop restoration remain
+open. Windows guardian ownership requires native acceptance.
 
 ### Audit findings and closure checks
 
@@ -2131,6 +2131,31 @@ forces a ring gap and observes the new available range without concatenation.
 Resize invalidates an earlier cut. Active shell-block and desktop state import
 remain separate work. This private screen checkpoint does not enable the
 desktop guarded launch capability.
+
+### Native Windows guardian and PowerShell control
+
+The Windows SSH guardian reuses the managed account catalog, terminal ownership,
+operator admission and private IPC format. The guardian holds the existing SSH
+Store lock and exposes a private named pipe with native SID verification at
+both endpoints. It starts suspended with the supported Windows Job breakaway
+flag when needed. The launcher verifies zero inherited Job memberships before
+resuming. The service refuses to bind in a Job. A retained terminal owns a
+separate ConPTY and Job. The operator's current-session hint requires membership
+of that exact Job.
+
+Windows PowerShell installs a session-only `warpai` function after profiles
+load in a participating interactive SSH terminal. The function respects existing
+commands and verifies the installed executable and manifest path, ACL and
+checksum before forwarding to the absolute helper. The same Windows console
+mode guard serves direct native Agent and operator TTY attachment.
+
+The controlled Windows OpenSSH fixture now checks exact run/PID and boot
+continuity after all bridges close, TTY detach and mode restoration, resize and
+observed Job exit. A separate Windows fixture verifies refusal inside a Job
+without breakaway permission. The workflow runs guarded SSH before an ordinary
+fixture can claim the same Store. macOS exercised the shared protocol and
+catalog implementation. Native Windows acceptance remains pending the combined
+CI run.
 
 ## Evidence index
 

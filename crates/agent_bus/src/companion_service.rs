@@ -82,9 +82,7 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     let (stream, expected_scope) = match connect(&endpoint).await {
         Ok(stream) => (stream, None),
         Err(_) => {
-            #[cfg(unix)]
             let scope = identity::Identity::open(&directory)?.service_id;
-            #[cfg(unix)]
             if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
                 return forward_stdio(stream, Some(scope), None).await;
             }
@@ -94,7 +92,6 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
                     if let Ok(stream) = connect(&endpoint).await {
                         break (stream, None);
                     }
-                    #[cfg(unix)]
                     if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
                         break (stream, Some(scope.clone()));
                     }
@@ -108,7 +105,6 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     forward_stdio(stream, expected_scope, None).await
 }
 
-#[cfg(unix)]
 pub(super) async fn ordinary_guardian<F>(
     scope: &str,
     probe: impl Fn() -> F,
@@ -242,13 +238,36 @@ mod tests {
 }
 
 pub(super) async fn serve() -> Result<(), ProtocolError> {
+    serve_native(#[cfg(windows)] false).await
+}
+
+#[cfg(windows)]
+pub(super) async fn serve_windows_guardian() -> Result<(), ProtocolError> {
+    serve_native(true).await
+}
+
+async fn serve_native(#[cfg(windows)] guarded: bool) -> Result<(), ProtocolError> {
     let directory = data_directory()?;
     identity::private_directory(&directory)?;
     let lock = identity::private_file(&directory.join("service.lock"))?;
     lock.try_lock().map_err(std::io::Error::other)?;
     files::clean_abandoned(&directory)?;
+    #[cfg(unix)]
     let endpoint = endpoint(&directory)?;
-    let boot = Uuid::new_v4().to_string();
+    #[cfg(windows)]
+    let endpoint = if guarded { guardian::endpoint()? } else { endpoint(&directory)? };
+    let boot = Uuid::new_v4();
+    #[cfg(windows)]
+    let guardian = if guarded {
+        let account = identity::Identity::open(&directory)?.service_id.parse::<Uuid>()
+            .map_err(std::io::Error::other)?;
+        let mut catalog = guardian_catalog::Catalog::open(&directory.join("guardian-catalog.sqlite3"))
+            .map_err(std::io::Error::other)?;
+        catalog.begin_boot(unix_millis()).map_err(std::io::Error::other)?;
+        Some((account, Arc::new(std::sync::Mutex::new(catalog))))
+    } else {
+        None
+    };
     #[cfg(unix)]
     let listener = {
         use std::os::unix::fs::PermissionsExt;
@@ -267,10 +286,40 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
     let slots = Arc::new(Semaphore::new(32));
     let terminals = Arc::new(terminals::Terminals::default());
     let tasks = Arc::new(tasks::Projects::new(&directory));
+    #[cfg(windows)]
+    let handshakes = Arc::new(Semaphore::new(32));
+    #[cfg(windows)]
+    let operators = Arc::new(Semaphore::new(2));
+    #[cfg(windows)]
+    let mut project_reaper = None::<tokio::task::JoinHandle<()>>;
+    #[cfg(windows)]
+    let mut next_project_reap = Instant::now();
+    let mut maintenance = tokio::time::interval(Duration::from_secs(1));
+    maintenance.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut idle_since = Instant::now();
     loop {
         let stream = tokio::select! {
-            _ = tokio::time::sleep(Duration::from_secs(1)) => {
+            _ = maintenance.tick() => {
+                #[cfg(windows)]
+                if let Some((_, catalog)) = &guardian {
+                    for attachment in terminals.pending_attachments() {
+                        guardian_catalog::sync_attachment(&terminals, catalog, &attachment);
+                    }
+                    guardian_catalog::sync_ended(&terminals, catalog);
+                    if let Ok(mut catalog) = catalog.lock() {
+                        let _ = catalog.prune_ended(unix_millis() - guardian_catalog::ENDED_TTL_MS);
+                    }
+                    if handshakes.available_permits() != 32 || operators.available_permits() != 2 {
+                        idle_since = Instant::now();
+                    }
+                    if Instant::now() >= next_project_reap
+                        && project_reaper.as_ref().is_none_or(tokio::task::JoinHandle::is_finished)
+                    {
+                        next_project_reap = Instant::now() + Duration::from_secs(10);
+                        let projects = tasks.clone();
+                        project_reaper = Some(tokio::task::spawn_blocking(move || projects.reap_idle_brokers()));
+                    }
+                }
                 if slots.available_permits() != 32 || terminals.active() { idle_since = Instant::now(); }
                 if tasks.guests.reap_and_active() { idle_since = Instant::now(); }
                 if idle_since.elapsed() >= Duration::from_secs(60) { break; }
@@ -287,9 +336,6 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
                     Ok::<_, std::io::Error>(std::mem::replace(&mut listener, next))
                 }
             } => accepted?,
-        };
-        let Ok(slot) = slots.clone().try_acquire_owned() else {
-            continue;
         };
         let directory = directory.clone();
         // Native ownership and admission both require a resolvable same-user peer.
@@ -327,13 +373,53 @@ pub(super) async fn serve() -> Result<(), ProtocolError> {
             Some(pid)
         };
         idle_since = Instant::now();
-        let boot = boot.clone();
         let terminals = terminals.clone();
         let tasks = tasks.clone();
+        let boot_id = boot.to_string();
+        #[cfg(windows)]
+        if let Some((account, catalog)) = &guardian {
+            let Ok(handshake) = handshakes.clone().try_acquire_owned() else { continue };
+            let slots = slots.clone();
+            let operators = operators.clone();
+            let account = *account;
+            let catalog = catalog.clone();
+            tokio::spawn(async move {
+                use super::guardian_ipc::{preface, read_preface, Admission, REPLY_BUSY};
+                use tokio::io::AsyncWriteExt;
+                let mut stream = stream;
+                let route = Route::Ssh;
+                let Ok(admission) = read_preface(&mut stream, route).await else { return };
+                let capacity = if admission == Admission::Operator { operators } else { slots };
+                let mut reply = preface(route, account, boot);
+                let Ok(_slot) = capacity.try_acquire_owned() else {
+                    reply[7] = REPLY_BUSY;
+                    let _ = stream.write_all(&reply).await;
+                    return;
+                };
+                drop(handshake);
+                if stream.write_all(&reply).await.is_err() {
+                    return;
+                }
+                let _ = serve_channel(
+                    stream, &directory, &boot_id, terminals, tasks, peer_pid, Some(route), Some(catalog),
+                    (admission != Admission::ConnectionOwned).then_some(account),
+                    matches!(admission, Admission::Operator | Admission::OperatorSession),
+                ).await;
+            });
+            continue;
+        }
+        let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
         tokio::spawn(async move {
             let _slot = slot;
-            let _ = serve_channel(stream, &directory, &boot, terminals, tasks, peer_pid, None, None, None, false).await;
+            let _ = serve_channel(stream, &directory, &boot_id, terminals, tasks, peer_pid, None, None, None, false).await;
         });
+    }
+    #[cfg(windows)]
+    if let Some((_, catalog)) = guardian {
+        if let Some(reaper) = project_reaper {
+            let _ = reaper.await;
+        }
+        guardian_catalog::sync_ended(&terminals, &catalog);
     }
     #[cfg(unix)]
     let _ = std::fs::remove_file(&endpoint);

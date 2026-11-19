@@ -356,7 +356,7 @@ async fn connect(
             return Err(EXIT_DOMAIN);
         }
     };
-    let mut client = match HostClient::connect_unix(stream, None).await {
+    let mut client = match HostClient::connect_guardian_stream(stream, None).await {
         Ok(client) => client,
         Err(_) => {
             eprintln!("Guardian connection or project admission failed.");
@@ -593,7 +593,11 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 
             return EXIT_DOMAIN;
         }
     };
-    let raw = match RawTerminal::enable(libc::STDIN_FILENO) {
+    #[cfg(unix)]
+    let raw = RawTerminal::enable(libc::STDIN_FILENO);
+    #[cfg(windows)]
+    let raw = TerminalMode::raw();
+    let raw = match raw {
         Ok(raw) => raw,
         Err(_) => {
             eprintln!("Could not configure the local terminal.");
@@ -621,6 +625,7 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 
     }
 }
 
+#[cfg(unix)]
 struct TerminationSignals {
     interrupt: tokio::signal::unix::Signal,
     terminate: tokio::signal::unix::Signal,
@@ -628,6 +633,7 @@ struct TerminationSignals {
     quit: tokio::signal::unix::Signal,
 }
 
+#[cfg(unix)]
 impl TerminationSignals {
     fn new() -> std::io::Result<Self> {
         use tokio::signal::unix::{signal, SignalKind};
@@ -645,6 +651,29 @@ impl TerminationSignals {
             _ = self.terminate.recv() => libc::SIGTERM,
             _ = self.hangup.recv() => libc::SIGHUP,
             _ = self.quit.recv() => libc::SIGQUIT,
+        }
+    }
+}
+
+#[cfg(windows)]
+struct TerminationSignals {
+    interrupt: tokio::signal::windows::CtrlC,
+    break_event: tokio::signal::windows::CtrlBreak,
+}
+
+#[cfg(windows)]
+impl TerminationSignals {
+    fn new() -> std::io::Result<Self> {
+        Ok(Self {
+            interrupt: tokio::signal::windows::ctrl_c()?,
+            break_event: tokio::signal::windows::ctrl_break()?,
+        })
+    }
+
+    async fn recv(mut self) -> i32 {
+        tokio::select! {
+            _ = self.interrupt.recv() => 2,
+            _ = self.break_event.recv() => 21,
         }
     }
 }
@@ -856,6 +885,7 @@ async fn stop(project: Option<String>, selection: Selection) -> i32 {
     }
 }
 
+#[cfg(unix)]
 fn terminal_size() -> (u32, u32) {
     unsafe {
         let mut size: libc::winsize = std::mem::zeroed();
@@ -869,11 +899,13 @@ fn terminal_size() -> (u32, u32) {
     (80, 24)
 }
 
+#[cfg(unix)]
 struct RawTerminal {
     fd: std::os::fd::RawFd,
     original: Option<libc::termios>,
 }
 
+#[cfg(unix)]
 impl RawTerminal {
     fn enable(fd: std::os::fd::RawFd) -> std::io::Result<Self> {
         if unsafe { libc::isatty(fd) } != 1 {
@@ -894,6 +926,7 @@ impl RawTerminal {
     }
 }
 
+#[cfg(unix)]
 impl Drop for RawTerminal {
     fn drop(&mut self) {
         if let Some(original) = &self.original {
@@ -907,10 +940,74 @@ impl Drop for RawTerminal {
     }
 }
 
+#[cfg(windows)]
+pub struct TerminalMode(
+    Vec<(
+        windows::Win32::Foundation::HANDLE,
+        windows::Win32::System::Console::CONSOLE_MODE,
+    )>,
+);
+#[cfg(windows)]
+impl TerminalMode {
+    pub fn raw() -> anyhow::Result<Self> {
+        use std::io::IsTerminal;
+        use windows::Win32::System::Console::*;
+        let mut modes = Self(Vec::new());
+        if !std::io::stdin().is_terminal() {
+            return Ok(modes);
+        }
+        unsafe {
+            for (id, input) in [(STD_INPUT_HANDLE, true), (STD_OUTPUT_HANDLE, false)] {
+                let handle = GetStdHandle(id)?;
+                let mut original = CONSOLE_MODE::default();
+                GetConsoleMode(handle, &mut original)?;
+                let mode = if input {
+                    (original & !(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT))
+                        | ENABLE_VIRTUAL_TERMINAL_INPUT
+                } else {
+                    original | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                };
+                modes.0.push((handle, original));
+                SetConsoleMode(handle, mode)?;
+            }
+        }
+        Ok(modes)
+    }
+}
+#[cfg(windows)]
+impl Drop for TerminalMode {
+    fn drop(&mut self) {
+        for (handle, original) in &self.0 {
+            unsafe {
+                let _ = windows::Win32::System::Console::SetConsoleMode(*handle, *original);
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+pub fn terminal_size() -> (u32, u32) {
+    unsafe {
+        use windows::Win32::System::Console::*;
+        if let Ok(handle) = GetStdHandle(STD_OUTPUT_HANDLE) {
+            let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
+            if GetConsoleScreenBufferInfo(handle, &mut info).is_ok() {
+                let columns = i32::from(info.srWindow.Right) - i32::from(info.srWindow.Left) + 1;
+                let rows = i32::from(info.srWindow.Bottom) - i32::from(info.srWindow.Top) + 1;
+                if (1..=1000).contains(&columns) && (1..=1000).contains(&rows) {
+                    return (columns as u32, rows as u32);
+                }
+            }
+        }
+    }
+    (80, 24)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn restore_original_terminal_attributes_on_detach() {
         use std::os::fd::{AsRawFd, FromRawFd};

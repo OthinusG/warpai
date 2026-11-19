@@ -118,17 +118,11 @@ pub(crate) async fn run() {
                 std::process::exit(1);
             }
         },
-        #[cfg(unix)]
         Some("ctl") => {
             let code =
                 warp_agent_bus::companion_ctl::run(&std::env::args().skip(2).collect::<Vec<_>>())
                     .await;
             std::process::exit(code);
-        }
-        #[cfg(not(unix))]
-        Some("ctl") => {
-            eprintln!("Guardian session continuity is unavailable on Windows");
-            std::process::exit(2);
         }
         _ => (),
     }
@@ -161,7 +155,6 @@ pub(crate) async fn run() {
         );
         return;
     }
-    #[cfg(unix)]
     if std::env::args_os().len() == 2
         && std::env::args_os().nth(1).as_deref()
             == Some(std::ffi::OsStr::new("--guardian-service"))
@@ -172,7 +165,6 @@ pub(crate) async fn run() {
         }
         return;
     }
-    #[cfg(unix)]
     if std::env::args_os().len() == 3
         && std::env::args_os().nth(1).as_deref()
             == Some(std::ffi::OsStr::new("--guardian-stdio"))
@@ -183,14 +175,6 @@ pub(crate) async fn run() {
             std::process::exit(1);
         }
         return;
-    }
-    #[cfg(not(unix))]
-    if matches!(
-        std::env::args().nth(1).as_deref(),
-        Some("--guardian-service" | "--guardian-stdio")
-    ) {
-        eprintln!("Guardian service mode is unavailable on Windows");
-        std::process::exit(2);
     }
     let service = std::env::args_os().len() == 2
         && std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--service"));
@@ -352,49 +336,9 @@ impl Drop for TerminalMode {
     }
 }
 #[cfg(windows)]
-struct TerminalMode(
-    Vec<(
-        windows::Win32::Foundation::HANDLE,
-        windows::Win32::System::Console::CONSOLE_MODE,
-    )>,
-);
-#[cfg(windows)]
-impl TerminalMode {
-    fn raw() -> anyhow::Result<Self> {
-        use std::io::IsTerminal;
-        use windows::Win32::System::Console::*;
-        let mut modes = Self(Vec::new());
-        if !std::io::stdin().is_terminal() {
-            return Ok(modes);
-        }
-        unsafe {
-            for (id, input) in [(STD_INPUT_HANDLE, true), (STD_OUTPUT_HANDLE, false)] {
-                let handle = GetStdHandle(id)?;
-                let mut original = CONSOLE_MODE::default();
-                GetConsoleMode(handle, &mut original)?;
-                let mode = if input {
-                    (original & !(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT))
-                        | ENABLE_VIRTUAL_TERMINAL_INPUT
-                } else {
-                    original | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-                };
-                modes.0.push((handle, original));
-                SetConsoleMode(handle, mode)?;
-            }
-        }
-        Ok(modes)
-    }
-}
-#[cfg(windows)]
-impl Drop for TerminalMode {
-    fn drop(&mut self) {
-        for (handle, original) in &self.0 {
-            unsafe {
-                let _ = windows::Win32::System::Console::SetConsoleMode(*handle, *original);
-            }
-        }
-    }
-}
+use warp_agent_bus::companion_ctl::{terminal_size, TerminalMode};
+
+#[cfg(unix)]
 fn terminal_size() -> (u32, u32) {
     #[cfg(unix)]
     unsafe {
@@ -404,20 +348,6 @@ fn terminal_size() -> (u32, u32) {
             && (1..=1000).contains(&size.ws_row)
         {
             return (size.ws_col as u32, size.ws_row as u32);
-        }
-    }
-    #[cfg(windows)]
-    unsafe {
-        use windows::Win32::System::Console::*;
-        if let Ok(handle) = GetStdHandle(STD_OUTPUT_HANDLE) {
-            let mut info = CONSOLE_SCREEN_BUFFER_INFO::default();
-            if GetConsoleScreenBufferInfo(handle, &mut info).is_ok() {
-                let columns = i32::from(info.srWindow.Right) - i32::from(info.srWindow.Left) + 1;
-                let rows = i32::from(info.srWindow.Bottom) - i32::from(info.srWindow.Top) + 1;
-                if (1..=1000).contains(&columns) && (1..=1000).contains(&rows) {
-                    return (columns as u32, rows as u32);
-                }
-            }
         }
     }
     (80, 24)

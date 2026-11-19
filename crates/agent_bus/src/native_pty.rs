@@ -72,7 +72,22 @@ impl NativePty {
         self.process.session_leader()
     }
 
+    #[cfg(windows)]
+    pub(crate) fn owns_peer(&self, pid: u32) -> bool {
+        self.process.owns_peer(pid).unwrap_or(false)
+    }
+
     pub fn stop(&mut self) -> io::Result<bool> {
         self.process.stop()
     }
+}
+
+#[cfg(windows)]
+pub(crate) fn start_windows_guardian() -> io::Result<()> {
+    platform::start_guardian()
+}
+
+#[cfg(windows)]
+pub(crate) fn verify_windows_guardian_job() -> io::Result<()> {
+    platform::verify_guardian_job()
 }

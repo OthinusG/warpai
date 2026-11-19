@@ -8,7 +8,7 @@ and native cases in [VERIFY.md](VERIFY.md). No local persistence task.
 
 | Area | Remaining code | Acceptance dependency |
 | --- | --- | --- |
-| S1, S5 | Native Windows account guardian for SSH targets | Retain the same ConPTY/Job across Windows SSH bridge loss and verify installation/upgrade |
+| S1, S5 | Close Windows account guardian acceptance and installation/upgrade | Retain the same ConPTY/Job across Windows SSH bridge loss and reject startup in a non-breakaway Job |
 | S2, S3 | Complete parser/shell-block snapshot, paging, validation and gap recovery | Import active/alternate screens and split sequences without replaying OSC side effects |
 | S4, S5 | Desktop per-launch choice, guarded launch/detach, catalog/watch, safe previous-view reattach and native Windows shell entry | Native EN/ZH static and live views, real CLI TTY and Bash/Zsh bootstrap integration on release artifacts |
 | S6 | Restore remote workspace context and uncertain-write receipts across desktop restarts; complete failure/stop semantics | Host loss, permission waits, descendants, retention and native editor interruption |

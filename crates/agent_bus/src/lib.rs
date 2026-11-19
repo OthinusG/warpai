@@ -14,7 +14,6 @@ pub mod session;
 pub mod storage;
 pub mod transport;
 pub mod companion;
-#[cfg(unix)]
 pub mod companion_ctl;
 pub mod ssh_remote;
 pub mod ssh_files;

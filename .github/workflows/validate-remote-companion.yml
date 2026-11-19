@@ -94,9 +94,13 @@ jobs:
           cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
       - name: Verify ordinary native SSH Agent MCP in a disposable account
+        if: runner.os != 'Windows'
         env:
           WARPAI_DISPOSABLE_MCP_ACCOUNT: 'yes'
         run: cargo test -p warp-agent-bus --test ssh_native_mcp --locked -- --ignored --exact installed_native_mcp_initializes_from_an_ordinary_terminal --nocapture
+      - name: Verify Windows guardian refuses an inherited non-breakaway Job
+        if: runner.os == 'Windows'
+        run: cargo test -p warp-agent-bus --lib native_pty::platform::tests::guardian_refuses_a_launcher_job_without_breakaway --locked -- --exact
       - name: Verify local communication and retained history migrations
         run: |
           cargo test -p warp-agent-bus --lib worktrees::tests --locked
@@ -113,11 +117,12 @@ jobs:
       - name: Verify native SSH and SFTP file tools
         if: runner.os != 'Linux'
         run: |
-          if [[ "$RUNNER_OS" == macOS ]]; then
-            python script/verify-ssh-file-tools.py --guardian
-          else
-            python script/verify-ssh-file-tools.py
-          fi
+          python script/verify-ssh-file-tools.py --guardian
+      - name: Verify ordinary native SSH Agent MCP on Windows
+        if: runner.os == 'Windows'
+        env:
+          WARPAI_DISPOSABLE_MCP_ACCOUNT: 'yes'
+        run: cargo test -p warp-agent-bus --test ssh_native_mcp --locked -- --ignored --exact installed_native_mcp_initializes_from_an_ordinary_terminal --nocapture
       - name: Verify real controlled SSH companion on Linux
         if: runner.os == 'Linux'
         env:

@@ -113,6 +113,20 @@ pub async fn verify_guarded_reconnect(
     command: impl Fn() -> Command,
     tty_resume: Option<&dyn Fn(&str) -> Command>,
 ) {
+    verify_guarded_command(
+        root, bridge_gap, command, tty_resume, "/bin/sh",
+        vec!["-c".into(), "printf 'GUARDIAN_PID=%s\\n' \"$$\"; while IFS= read -r l; do printf 'GUARDIAN_ECHO=%s\\n' \"$l\"; done".into()],
+    ).await;
+}
+
+pub async fn verify_guarded_command(
+    root: &str,
+    bridge_gap: Duration,
+    command: impl Fn() -> Command,
+    tty_resume: Option<&dyn Fn(&str) -> Command>,
+    executable: &str,
+    arguments: Vec<String>,
+) {
     let mut first = Bridge::connect(command());
     let (fence, _) = first.open(root).await;
     let session_id = Uuid::new_v4().to_string();
@@ -120,8 +134,8 @@ pub async fn verify_guarded_reconnect(
         managed_request::Operation::TerminalLaunch(TerminalLaunch {
             fence: Some(fence.clone()),
             session_id: session_id.clone(),
-            executable: "/bin/sh".into(),
-            arguments: vec!["-c".into(), "printf 'GUARDIAN_PID=%s\\n' \"$$\"; while IFS= read -r l; do printf 'GUARDIAN_ECHO=%s\\n' \"$l\"; done".into()],
+            executable: executable.into(),
+            arguments,
             columns: 80,
             rows: 24,
             guarded: true,
@@ -148,8 +162,9 @@ pub async fn verify_guarded_reconnect(
             .await;
         let output = String::from_utf8_lossy(&state.output);
         if let Some(pid) = output.lines().find_map(|line| {
-            line.strip_prefix("GUARDIAN_PID=")?
-                .trim()
+            let (_, pid) = line.split_once("GUARDIAN_PID=")?;
+            let end = pid.find(|character: char| !character.is_ascii_digit()).unwrap_or(pid.len());
+            pid[..end]
                 .parse::<u32>()
                 .ok()
         }) {
@@ -275,7 +290,7 @@ async fn verify_cli_tty(mut command: Command, pid: u32) {
                 if let Some(reason) = line.trim_end().strip_prefix("GUARDIAN_CLI_TTY_ERROR=") {
                     panic!("Native CLI TTY fixture failed: {reason}");
                 }
-                if line.trim_end() == expected { break; }
+                if line.contains(expected) { break; }
             }
         }).await.unwrap_or_else(|_| panic!("TTY deadline waiting for {expected}"));
     }

@@ -352,8 +352,6 @@ impl WriteFence {
         self.epoch.fetch_add(1, Ordering::SeqCst);
     }
 }
-
-#[cfg(unix)]
 struct StopBatch {
     project_id: Option<String>,
     target: Option<(String, String)>,
@@ -366,7 +364,6 @@ pub(super) struct Terminals {
     pending_launches: Mutex<BTreeSet<String>>,
     guarded_buffers: Arc<AtomicUsize>,
     snapshot_serializers: AtomicUsize,
-    #[cfg(unix)]
     stop_batches: Mutex<BTreeMap<Uuid, StopBatch>>,
 }
 
@@ -488,7 +485,6 @@ impl Output {
 }
 struct Session {
     launch: TerminalLaunch,
-    #[cfg(unix)]
     guarded_root: Option<PathBuf>,
     policy: Policy,
     label: Option<String>,
@@ -513,11 +509,8 @@ struct Session {
     service_id: String,
     project_id: String,
     end_reported: bool,
-    #[cfg(unix)]
     catalog_generation: u64,
 }
-
-#[cfg(unix)]
 pub(super) struct PendingAttachment {
     pub session_id: String,
     pub run_id: String,
@@ -1112,7 +1105,6 @@ impl Terminals {
         let label = request.label.clone();
         let mut session = Session {
             launch: request,
-            #[cfg(unix)]
             guarded_root: (policy == Policy::Guarded).then(|| root.to_owned()),
             policy,
             label,
@@ -1137,7 +1129,6 @@ impl Terminals {
             service_id: fence.service_id.clone(),
             project_id: fence.project_id.clone(),
             end_reported: policy != Policy::Guarded || !catalog_enabled,
-            #[cfg(unix)]
             catalog_generation: 0,
         };
         let state = session.state(fence, None, None)?;
@@ -1473,7 +1464,6 @@ impl Terminals {
     }
 
     /// Account-owned stop of guarded runs; the requesting socket never owns the batch.
-    #[cfg(unix)]
     pub(super) fn stop_guarded(
         &self,
         request_id: Uuid,
@@ -1582,8 +1572,6 @@ impl Terminals {
         prune_sessions(&mut owners, Instant::now(), |_| false);
         !owners.is_empty()
     }
-
-    #[cfg(unix)]
     pub(super) fn guarded_project(
         &self,
         fence: &ManagedFence,
@@ -1609,8 +1597,6 @@ impl Terminals {
         }
         Ok((root, session.project_id.clone()))
     }
-
-    #[cfg(unix)]
     pub(super) fn writer_attached(&self, row: &guardian_catalog::Record) -> Option<bool> {
         let owned = self.owners.try_lock().ok()?.get(&row.session_id)?.clone();
         let session = owned.try_lock().ok()?;
@@ -1622,22 +1608,25 @@ impl Terminals {
             .then_some(session.connection.is_some())
     }
 
-    #[cfg(unix)]
     pub(super) fn current_guarded_session(&self, peer_pid: u32) -> Option<remote_protocol::proto::CurrentGuardedSession> {
+        #[cfg(unix)]
         let pid = libc::pid_t::try_from(peer_pid).ok().filter(|pid| *pid > 0)?;
+        #[cfg(unix)]
         let leader = u32::try_from(unsafe { libc::getsid(pid) }).ok()?;
         let owners = self.owners.lock().ok()?;
         owners.values().find_map(|owner| {
             let session = owner.lock().ok()?;
-            (session.policy == Policy::Guarded && session.pty.session_leader() == leader)
+            #[cfg(unix)]
+            let owns_peer = || session.pty.session_leader() == leader;
+            #[cfg(windows)]
+            let owns_peer = || session.pty.owns_peer(peer_pid);
+            (session.policy == Policy::Guarded && owns_peer())
                 .then(|| remote_protocol::proto::CurrentGuardedSession {
                     session_id: session.launch.session_id.clone(),
                     run_id: session.run_id.clone(),
                 })
         })
     }
-
-    #[cfg(unix)]
     pub(super) fn pending_attachments(&self) -> Vec<PendingAttachment> {
         let Ok(owners) = self.owners.lock() else {
             return Vec::new();
@@ -1655,8 +1644,6 @@ impl Terminals {
                 })
         }).collect()
     }
-
-    #[cfg(unix)]
     pub(super) fn mark_attachment_reported(&self, session_id: &str, run_id: &str, generation: u64) {
         let Ok(owners) = self.owners.lock() else {
             return;
@@ -1687,6 +1674,10 @@ impl Terminals {
             if session.pty.is_active().unwrap_or(true) {
                 continue;
             }
+            // ConPTY closes its output pipe only after the owned Job's exit is observed.
+            let Ok(Some(exit_code)) = session.pty.exit_code() else {
+                continue;
+            };
             if !session.output.try_lock().is_ok_and(|output| output.closed) {
                 continue;
             }
@@ -1695,7 +1686,7 @@ impl Terminals {
                 run_id: session.run_id.clone(),
                 boot_id: session.boot_id.clone(),
                 service_id: session.service_id.clone(),
-                exit_code: session.pty.exit_code().ok().flatten(),
+                exit_code: Some(exit_code),
             });
         }
         ended
