@@ -31,6 +31,20 @@ impl<CB: crate::callbacks::Callbacks> WrappedScreen<CB> {
 }
 
 impl<CB: crate::callbacks::Callbacks> vte::Perform for WrappedScreen<CB> {
+    fn hook(&mut self, params: &vte::Params, intermediates: &[u8], ignore: bool, action: char) {
+        if !ignore && params.iter().all(|parameter| parameter == [0]) {
+            self.callbacks.dcs_start(&mut self.screen, intermediates, action);
+        }
+    }
+
+    fn put(&mut self, byte: u8) {
+        self.callbacks.dcs_byte(byte);
+    }
+
+    fn unhook(&mut self) {
+        self.callbacks.dcs_end(&mut self.screen);
+    }
+
     fn print(&mut self, c: char) {
         if c == '\u{fffd}' || ('\u{80}'..'\u{a0}').contains(&c) {
             self.callbacks.unhandled_char(&mut self.screen, c);

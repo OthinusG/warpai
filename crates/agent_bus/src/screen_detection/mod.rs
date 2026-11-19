@@ -6,6 +6,9 @@
 mod manifest;
 mod observation;
 pub(crate) mod native;
+mod shell;
+pub use shell::{ShellBlock, ShellPrompt, ShellRow, ShellState};
+pub(crate) use shell::SHELL_STATE_CHARGE;
 mod region;
 pub use observation::{activity, activity_at_cursor, activity_with_progress};
 

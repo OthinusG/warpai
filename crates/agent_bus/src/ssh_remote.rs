@@ -47,10 +47,56 @@ pub enum ConnectionError {
     NotFound,
 }
 
+pub use crate::screen_detection::{ShellBlock, ShellPrompt, ShellRow, ShellState};
+pub use vt100::{
+    Cell as TerminalCell, Color as TerminalColor, Screen as TerminalScreen,
+    ScreenGrid as TerminalGrid, ScreenRow as TerminalRow, MouseProtocolMode, MouseProtocolEncoding,
+};
+
 /// A digest-checked screen checkpoint and its attachment-scoped cut.
 pub struct TerminalCheckpoint {
     pub header: TerminalSnapshotPage,
     pub data: Vec<u8>,
+    display: crate::screen_detection::native::NativeScreen,
+}
+
+impl TerminalCheckpoint {
+    pub fn screen(&self) -> &TerminalScreen {
+        self.display.screen()
+    }
+
+    pub fn shell(&self) -> &ShellState {
+        self.display.shell().expect("validated guarded shell checkpoint")
+    }
+
+    pub fn incomplete_prefix(&self) -> Option<Vec<u8>> {
+        self.display.incomplete_prefix()
+    }
+
+    pub fn at_input_boundary(&self) -> bool {
+        self.display.at_input_boundary()
+    }
+
+    pub(crate) fn project_live_output(&mut self, bytes: &[u8]) {
+        self.display.process(bytes);
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn from_fixture(rows: u16, columns: u16, output: &[u8]) -> Option<Self> {
+        let mut original = crate::screen_detection::native::NativeScreen::guarded(rows, columns);
+        original.process(output);
+        let data = original.checkpoint()?;
+        let display = crate::screen_detection::native::NativeScreen::from_checkpoint(&data)?;
+        let header = TerminalSnapshotPage {
+            schema: TERMINAL_SCREEN_SCHEMA,
+            rows: u32::from(rows),
+            columns: u32::from(columns),
+            output_cut: output.len() as u64,
+            history_truncated: display.history_truncated(),
+            ..Default::default()
+        };
+        Some(Self { header, data, display })
+    }
 }
 
 pub enum TerminalCheckpointTail {
@@ -1041,7 +1087,7 @@ impl HostClient {
     /// Read an immutable screen cut. Page headers and byte counts are checked before assembly.
     pub async fn terminal_checkpoint(&mut self, state: &TerminalState) -> Result<TerminalCheckpoint, ConnectionError> {
         if state.guarded != Some(true)
-            || !self.capabilities.iter().any(|capability| capability == "guarded_screen_checkpoint_v1")
+            || !self.capabilities.iter().any(|capability| capability == "guarded_screen_checkpoint_v2")
         {
             return Err(ConnectionError::FeatureUnavailable);
         }
@@ -1105,7 +1151,7 @@ impl HostClient {
         {
             return Err(ConnectionError::IncompatibleVersion);
         }
-        Ok(TerminalCheckpoint { header, data })
+        Ok(TerminalCheckpoint { header, data, display: screen })
     }
 
     /// Read a contiguous post-checkpoint tail or return the actual available range.

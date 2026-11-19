@@ -405,7 +405,8 @@ impl GuardedBuffers {
             let columns = usize::from(size.columns);
             // Both grids plus spare vector capacity, row descriptors and bounded OSC state.
             let history = crate::screen_detection::native::GUARDED_SCROLLBACK_ROWS;
-            (4 * rows + 2 * history) * (columns * std::mem::size_of::<vt100::Cell>() + 32) + 24 * 1024
+            (4 * rows + 2 * history) * (columns * std::mem::size_of::<vt100::Cell>() + 32)
+                + crate::screen_detection::SHELL_STATE_CHARGE
         });
         BUFFER_BYTES + MAX_PENDING_INPUT_BYTES + screen_bytes
     }

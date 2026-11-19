@@ -28,6 +28,11 @@ pub struct Params {
 
 impl Params {
     #[cfg(feature = "checkpoint")]
+    pub(crate) fn has_partial_group(&self) -> bool {
+        self.current_subparams != 0
+    }
+
+    #[cfg(feature = "checkpoint")]
     pub(crate) fn valid_checkpoint(&self) -> bool {
         if self.len > MAX_PARAMS || usize::from(self.current_subparams) > self.len {
             return false;

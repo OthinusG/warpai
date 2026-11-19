@@ -1,3 +1,5 @@
+#[cfg(not(target_family = "wasm"))]
+mod guarded_checkpoint;
 mod displayed_output;
 pub mod grid_handler;
 mod grid_storage;

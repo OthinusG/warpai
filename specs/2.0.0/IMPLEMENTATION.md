@@ -2180,6 +2180,31 @@ prepared document is installed in the editor. The existing Explorer and Review
 selection paths keep their visibility and attachment checks. Native restart and
 view-routing evidence remains pending.
 
+### Portable shell lifecycle checkpoint
+
+Screen schema 2 preserves the render-only prompt, native input buffer, active
+command, recent command ranges and observed exit codes. It recognizes the
+bundled shell's hex DCS and OSC messages and Bash key-value hooks. The state
+uses absolute primary-screen row anchors, including scrollback. Both grids
+are available to the client as immutable rows and cells. The parser and
+unfinished shell frame restore together. No shell command or terminal side
+effect runs during decoding or import.
+
+The fixture splits ANSI, Unicode, DCS and linked key-value hooks at every byte.
+It verifies semicolon-rich command text, alternate-screen return, command
+exit and native input restoration. A separate test still admits 32 normal
+guarded viewports under the existing 64 MiB buffer charge.
+
+The application fixture copies both decoded grids into the native grid model
+without invoking ANSI callbacks. It verifies historical rows, color, wide and
+combining cells, saved cursor, alternate content and input modes. The CLI
+starts from a checked cut and emits only a generated display and complete
+post-cut sequences. It carries a valid incomplete prefix until the matching
+live suffix arrives. A ring gap requests a fresh checkpoint. Oversized
+unfinished strings are consumed by the shadow parser before a fresh display
+projection is emitted. Native TTY evidence on this source and desktop
+live attachment and command-block installation remain open.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |

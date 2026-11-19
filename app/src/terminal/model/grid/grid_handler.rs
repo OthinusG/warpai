@@ -483,6 +483,55 @@ impl GridHandler {
         }
     }
 
+    /// Install visible cells and retained history without invoking the ANSI handler.
+    #[cfg(not(target_family = "wasm"))]
+    pub(in crate::terminal::model) fn install_guarded_grid(
+        &mut self,
+        screen: &warp_agent_bus::ssh_remote::TerminalScreen,
+        source: warp_agent_bus::ssh_remote::TerminalGrid<'_>,
+    ) -> bool {
+        use super::guarded_checkpoint::{display_modes, restored_cursor, terminal_row};
+        let dimensions @ (rows, columns) = source.size();
+        if self.visible_rows() != usize::from(rows) || self.columns() != usize::from(columns) {
+            return false;
+        }
+        let viewport = source.viewport_start();
+        let history: Vec<_> = (source.retained_start()..viewport)
+            .filter_map(|anchor| source.row(anchor))
+            .map(|row| {
+                let width = row.columns();
+                terminal_row(Some(row), width)
+            })
+            .collect();
+        self.flat_storage.clear();
+        self.flat_storage.push_rows(&history);
+        for row in 0..rows {
+            self.grid[VisibleRow(usize::from(row))] =
+                terminal_row(source.row(viewport + u64::from(row)), columns);
+        }
+        let (current, saved) = source.cursor_positions();
+        let (template, saved_template) = screen.cursor_templates();
+        self.grid.cursor = restored_cursor(current, dimensions, &template);
+        self.grid.saved_cursor = restored_cursor(saved, dimensions, &saved_template);
+        self.grid.max_cursor_point = (0..rows).rev().find_map(|row| {
+            let row = VisibleRow(usize::from(row));
+            (0..usize::from(columns)).rev()
+                .find(|&column| !self.grid[row][column].is_empty())
+                .map(|column| crate::terminal::model::index::VisiblePoint { row, col: column + 1 })
+        }).unwrap_or_default();
+        self.grid.update_max_cursor();
+        let (top, bottom) = source.scroll_region();
+        self.ansi_handler_state.scroll_region =
+            VisibleRow(usize::from(top))..VisibleRow(usize::from(bottom) + 1);
+        self.ansi_handler_state.mode = display_modes(screen, &source);
+        self.active_hyperlink_id = None;
+        self.hyperlink_registry = Default::default();
+        self.displayed_output = None;
+        self.filter_state = None;
+        self.bottommost_visible_content_row = None;
+        true
+    }
+
     #[cfg(test)]
     pub fn new_for_test(rows: usize, columns: usize) -> Self {
         Self::new_for_test_with_scroll_limit(rows, columns, 0)

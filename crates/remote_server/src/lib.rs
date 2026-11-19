@@ -1,7 +1,7 @@
 pub mod client;
 pub mod host_id;
 pub mod manager;
-pub use remote_protocol::{protocol, proto};
+pub use remote_protocol::{ansi_c_decoder, protocol, proto};
 pub mod repo_metadata_proto;
 pub mod setup;
 #[cfg(not(target_family = "wasm"))]

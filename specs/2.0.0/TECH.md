@@ -222,6 +222,13 @@ Use CPU-time deltas, repeat runs and report host noise. These are design targets
 not claims that Rust/SQLite/OS behavior already meets them. S8 must measure,
 optimize or explicitly revise with evidence before release; no silent target waiver.
 
+Use an isolated native registry fixture to measure process RSS, CPU time,
+context switches and threads at 0, 1, 8 and 32 guarded sessions. Its separate
+mixed-load case uses two project roots, a continuous output producer, a blocked
+input pipe and a quiet command, then checks the quiet command's round trip and
+observed stops. The local fixture measures the guardian-side component without
+claiming the release VM, real Agent Broker and mixed-version matrix.
+
 Preserve the current maximum 32 sessions as an admission ceiling, not a resource
 reservation. Start with lazy 256 KiB output ring/session, 32 KiB wire pages,
 2 MiB transient serialized snapshot ceiling and 64 MiB account terminal-data cap.
@@ -297,8 +304,16 @@ Warpai block metadata or taking a second resize owner.
 S2 first needs a lossless round trip for the portable parser and display state.
 Run the same suffix through uninterrupted and restored state at every byte cut
 in split UTF-8, CSI and OSC fixtures, then compare both screens and observe that
-the state-only import emits no effects. Add the command/block state and desktop
-static import before exposing the guarded data bridge to desktop writers.
+the state-only import emits no effects. Guarded parsing records the bundled
+shell's encoded DCS/OSC and Bash key-value lifecycle hooks in a bounded
+projection. Prompt, native input buffer, command identity, command range, and
+exit status travel with the screen in a single checkpoint. DCS and unfinished
+key-value data survive a split cut. Only primary-screen row anchors are assigned
+to shell commands. Trimmed rows and blocks report their missing history without
+inventing output. Keep shell text in memory and outside the catalog.
+
+Add desktop static import before exposing the guarded data bridge to desktop
+writers.
 
 The readiness parser will use source-matched local copies of its pinned VT100
 and VTE dependencies for access to private checkpoint state. Keep their license

@@ -64,6 +64,12 @@ pub trait Callbacks {
     /// This callback is called when the terminal receives a OSC sequence
     /// (`\e]`) which is otherwise not implemented.
     fn unhandled_osc(&mut self, _: &mut crate::Screen, _params: &[&[u8]]) {}
+    /// Start a device control string without applying any external effect.
+    fn dcs_start(&mut self, _: &mut crate::Screen, _intermediates: &[u8], _action: char) {}
+    /// Pass a byte belonging to the current device control string.
+    fn dcs_byte(&mut self, _byte: u8) {}
+    /// End the current device control string.
+    fn dcs_end(&mut self, _: &mut crate::Screen) {}
 }
 
 impl Callbacks for () {}

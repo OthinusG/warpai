@@ -16,6 +16,7 @@ pub struct Grid {
     scrollback_len: usize,
     scrollback_offset: usize,
     history_truncated: bool,
+    rows_scrolled: u64,
 }
 
 fn bounded_rows<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Vec<crate::row::Row>, D::Error> {
@@ -28,6 +29,25 @@ fn bounded_history<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<
 
 impl Grid {
     pub fn history_truncated(&self) -> bool { self.history_truncated }
+    pub(crate) fn viewport_start(&self) -> u64 { self.rows_scrolled }
+    pub(crate) fn retained_start(&self) -> u64 {
+        self.rows_scrolled.saturating_sub(self.scrollback.len() as u64)
+    }
+    pub(crate) fn reset_history_anchor(&mut self, row: u64) {
+        self.rows_scrolled = row;
+        self.history_truncated = row != 0;
+    }
+    pub(crate) fn row_at_anchor(&self, row: u64) -> Option<&crate::row::Row> {
+        let relative = usize::try_from(row.checked_sub(self.retained_start())?).ok()?;
+        if relative < self.scrollback.len() {
+            self.scrollback.get(relative)
+        } else {
+            self.rows.get(relative - self.scrollback.len())
+        }
+    }
+    pub(crate) fn saved_pos(&self) -> Pos { self.saved_pos }
+    pub(crate) fn cursor_origin_modes(&self) -> (bool, bool) { (self.origin_mode, self.saved_origin_mode) }
+    pub(crate) fn scroll_region(&self) -> (u16, u16) { (self.scroll_top, self.scroll_bottom) }
     pub(crate) fn valid_checkpoint(&self, allow_unallocated: bool, max_history: usize) -> bool {
         (1..=1000).contains(&self.size.rows)
             && (1..=1000).contains(&self.size.cols)
@@ -41,6 +61,8 @@ impl Grid {
             && self.rows.iter().all(|row| row.valid_checkpoint(usize::from(self.size.cols), usize::from(self.size.cols)))
             && self.scrollback_len <= max_history
             && self.scrollback.len() <= self.scrollback_len
+            && self.rows_scrolled >= self.scrollback.len() as u64
+            && self.rows_scrolled <= u64::MAX - u64::from(self.size.rows)
             && self.scrollback_offset <= self.scrollback.len()
             && self.scrollback.iter().all(|row| row.valid_checkpoint(1, 1000))
     }
@@ -59,6 +81,7 @@ impl Grid {
             scrollback_len,
             scrollback_offset: 0,
             history_truncated: false,
+            rows_scrolled: 0,
         }
     }
 
@@ -596,6 +619,7 @@ impl Grid {
                 .insert(usize::from(self.scroll_bottom) + 1, self.new_row());
             let removed = self.rows.remove(usize::from(self.scroll_top));
             if self.scrollback_len > 0 && !self.scroll_region_active() {
+                self.rows_scrolled = self.rows_scrolled.saturating_add(1);
                 self.scrollback.push_back(removed);
                 while self.scrollback.len() > self.scrollback_len {
                     self.scrollback.pop_front();

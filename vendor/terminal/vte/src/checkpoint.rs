@@ -39,6 +39,8 @@ impl<const OSC_BYTES: usize> Parser<OSC_BYTES> {
     /// Restore only validated indices and incomplete bytes. No performer is called.
     pub fn from_checkpoint(checkpoint: Checkpoint, max_osc_bytes: usize) -> Option<Self> {
         if checkpoint.intermediate_idx > MAX_INTERMEDIATES
+            || checkpoint.intermediates[..checkpoint.intermediate_idx]
+                .iter().any(|byte| !matches!(*byte, 0x20..=0x2f | 0x3c..=0x3f))
             || !checkpoint.params.valid_checkpoint()
             || checkpoint.osc_num_params > MAX_OSC_PARAMS
             || checkpoint.osc_raw.len() > max_osc_bytes

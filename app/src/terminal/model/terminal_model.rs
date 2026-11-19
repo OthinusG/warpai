@@ -1923,6 +1923,30 @@ impl TerminalModel {
         }
     }
 
+    /// Seed both native grids from a verified cut without performing historical actions.
+    #[cfg(not(target_family = "wasm"))]
+    pub fn install_guarded_checkpoint(
+        &mut self,
+        checkpoint: &warp_agent_bus::ssh_remote::TerminalCheckpoint,
+    ) -> bool {
+        use crate::terminal::model::grid::Dimensions as _;
+        let screen = checkpoint.screen();
+        let (rows, columns) = screen.size();
+        let primary = self.block_list.active_block().grid_handler();
+        let alternate = self.alt_screen.grid_handler();
+        if [primary, alternate].into_iter().any(|grid| {
+            grid.visible_rows() != usize::from(rows) || grid.columns() != usize::from(columns)
+        }) {
+            return false;
+        }
+        self.block_list.active_block_mut().grid_handler_mut()
+            .install_guarded_grid(screen, screen.primary_grid());
+        self.alt_screen.grid_handler_mut().install_guarded_grid(screen, screen.alternate_grid());
+        self.alt_screen_active = screen.alternate_screen();
+        self.block_list.update_active_block_height();
+        true
+    }
+
     pub fn alt_screen(&self) -> &AltScreen {
         &self.alt_screen
     }

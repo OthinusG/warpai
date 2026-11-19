@@ -4,7 +4,7 @@
 //! interprets remote output as shell text.
 use crate::{
     companion::{guardian, Route},
-    ssh_remote::{ConnectionError, HostClient},
+    ssh_remote::{ConnectionError, HostClient, TerminalCheckpoint},
 };
 use remote_protocol::proto::*;
 use std::time::Duration;
@@ -605,11 +605,13 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 
             return EXIT_DOMAIN;
         }
     };
+    let mut display = AttachmentDisplay::default();
     let result = tokio::select! {
         biased;
         signal = signals.recv() => Err(signal),
-        result = attach_inner(client, state) => Ok(result),
+        result = attach_inner(client, state, &mut display) => Ok(result),
     };
+    display.restore_outer_screen().await;
     drop(raw);
     match result {
         Ok(result) => {
@@ -678,7 +680,89 @@ impl TerminationSignals {
     }
 }
 
-async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Result<i32, i32> {
+#[derive(Default)]
+struct AttachmentDisplay {
+    checkpoint: Option<TerminalCheckpoint>,
+    prefix: Option<Vec<u8>>,
+    alternate: bool,
+    wire_at_boundary: bool,
+}
+
+impl AttachmentDisplay {
+    async fn load(&mut self, checkpoint: TerminalCheckpoint, stdout: &mut tokio::io::Stdout) -> Result<(), i32> {
+        use tokio::io::AsyncWriteExt;
+        let projection = checkpoint.screen().attachment_formatted(self.alternate);
+        stdout.write_all(&projection).await.map_err(|_| EXIT_DOMAIN)?;
+        stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
+        self.alternate = checkpoint.screen().alternate_screen();
+        self.wire_at_boundary = true;
+        self.prefix = checkpoint.incomplete_prefix();
+        self.checkpoint = Some(checkpoint);
+        Ok(())
+    }
+
+    fn completed_live_bytes(&mut self, bytes: &[u8]) -> Vec<u8> {
+        const MAX_UNFINISHED: usize = 24 * 1024;
+        let checkpoint = self.checkpoint.as_mut().expect("live output is read after the cut");
+        if self.prefix.as_ref().is_some_and(Vec::is_empty)
+            && bytes.is_ascii() && !bytes.contains(&0x1b)
+        {
+            checkpoint.project_live_output(bytes);
+            return bytes.to_vec();
+        }
+        let mut completed = Vec::with_capacity(bytes.len());
+        for byte in bytes {
+            checkpoint.project_live_output(std::slice::from_ref(byte));
+            if let Some(prefix) = &mut self.prefix {
+                if prefix.len() < MAX_UNFINISHED {
+                    prefix.push(*byte);
+                } else {
+                    self.prefix = None;
+                }
+            }
+            if !checkpoint.at_input_boundary() {
+                continue;
+            }
+            if let Some(prefix) = &mut self.prefix {
+                completed.append(prefix);
+            } else {
+                // An oversized string cannot be restored as raw history.
+                completed.extend(checkpoint.screen().attachment_formatted(self.alternate));
+                self.prefix = Some(Vec::new());
+            }
+            self.alternate = checkpoint.screen().alternate_screen();
+        }
+        completed
+    }
+
+    async fn write_live(&mut self, bytes: &[u8], stdout: &mut tokio::io::Stdout) -> Result<(), i32> {
+        use tokio::io::AsyncWriteExt;
+        let completed = self.completed_live_bytes(bytes);
+        if completed.is_empty() {
+            return Ok(());
+        }
+        self.wire_at_boundary = false;
+        stdout.write_all(&completed).await.map_err(|_| EXIT_DOMAIN)?;
+        stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
+        self.wire_at_boundary = true;
+        Ok(())
+    }
+
+    async fn restore_outer_screen(&self) {
+        use tokio::io::AsyncWriteExt;
+        if self.wire_at_boundary && self.alternate {
+            let mut stdout = tokio::io::stdout();
+            let _ = stdout.write_all(b"\x1b[?1049l").await;
+            let _ = stdout.flush().await;
+        }
+    }
+}
+
+async fn attach_inner(
+    client: &mut HostClient,
+    state: &mut TerminalState,
+    display: &mut AttachmentDisplay,
+) -> Result<i32, i32> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();
@@ -709,6 +793,23 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
             };
             *state = reply;
             dimensions = Some(resized);
+            display.checkpoint = None;
+        }
+        if display.checkpoint.is_none() {
+            let checkpoint = match client.terminal_checkpoint(state).await {
+                Ok(checkpoint) => checkpoint,
+                Err(_) => {
+                    eprintln!("\r\nA verified terminal checkpoint is unavailable.");
+                    return Err(EXIT_DOMAIN);
+                }
+            };
+            if checkpoint.header.history_truncated && !truncated_notice {
+                truncated_notice = true;
+                stdout.write_all(b"\r\n[earlier output is no longer retained]\r\n")
+                    .await.map_err(|_| EXIT_DOMAIN)?;
+            }
+            offset = checkpoint.header.output_cut;
+            display.load(checkpoint, &mut stdout).await?;
         }
         let control = TerminalControl {
             fence: client.fence().cloned(),
@@ -731,13 +832,11 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
                 return Err(EXIT_DOMAIN);
             }
         };
-        if reply.output_truncated && !truncated_notice {
-            truncated_notice = true;
-            stdout.write_all(b"\r\n[earlier output is no longer retained]\r\n")
-                .await.map_err(|_| EXIT_DOMAIN)?;
+        if reply.output_truncated || reply.output_offset != offset {
+            display.checkpoint = None;
+        } else {
+            display.write_live(&reply.output, &mut stdout).await?;
         }
-        stdout.write_all(&reply.output).await.map_err(|_| EXIT_DOMAIN)?;
-        stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
         offset = reply.output_offset + reply.output.len() as u64;
         *state = reply;
         if state.processes_active == Some(false)
@@ -1006,6 +1105,27 @@ pub fn terminal_size() -> (u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn terminal_attach_writes_completed_live_bytes_without_historical_effects() {
+        let checkpoint = TerminalCheckpoint::from_fixture(
+            5, 40, b"visible\x1b]52;c;b2xk\x07\x1b]52;c;bg",
+        ).unwrap();
+        let projection = checkpoint.screen().attachment_formatted(false);
+        assert!(!projection.windows(4).any(|bytes| bytes == b"\x1b]52"));
+        let mut display = AttachmentDisplay {
+            prefix: checkpoint.incomplete_prefix(),
+            checkpoint: Some(checkpoint),
+            ..Default::default()
+        };
+        assert!(display.completed_live_bytes(b"==").is_empty());
+        assert_eq!(display.completed_live_bytes(b"\x07live"), b"\x1b]52;c;bg==\x07live");
+        let glyph = "中".as_bytes();
+        assert!(display.completed_live_bytes(&glyph[..1]).is_empty());
+        assert_eq!(display.completed_live_bytes(&glyph[1..]), glyph);
+        assert!(display.completed_live_bytes(b"\x1b[38:2:20:40").is_empty());
+        assert_eq!(display.completed_live_bytes(b":60m"), b"\x1b[38:2:20:40:60m");
+    }
 
     #[cfg(unix)]
     #[test]
