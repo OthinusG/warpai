@@ -93,6 +93,9 @@ jobs:
           cargo test -p warp-agent-bus --lib ssh_files::tests --locked
           cargo test -p warp-agent-bus --lib installation::tests --locked
           cargo test -p warp-agent-bus --test ssh_companion --no-run --locked
+      - name: Verify session-local Bash and Zsh controls
+        if: runner.os != 'Windows'
+        run: python3 script/test-warpai-shell-control.py
       - name: Verify ordinary native SSH Agent MCP in a disposable account
         if: runner.os != 'Windows'
         env:
@@ -115,7 +118,7 @@ jobs:
           cargo test -p warp-agent-bus --test coordination --locked
           cargo test -p warp-agent-bus --test local_spaces --locked
       - name: Verify native SSH and SFTP file tools
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
         run: |
           python script/verify-ssh-file-tools.py --guardian
       - name: Verify ordinary native SSH Agent MCP on Windows
@@ -213,6 +216,9 @@ jobs:
           PY
           python3 script/companion/package.py
           python3 script/companion/verify-installation.py
+      - name: Verify installed Windows CLI through native SSH PowerShell
+        if: runner.os == 'Windows'
+        run: python script/verify-ssh-file-tools.py --guardian
       - name: Verify native Windows remote shell protocol
         if: runner.os == 'Windows'
         run: |

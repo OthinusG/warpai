@@ -322,7 +322,6 @@ pub async fn run(arguments: &[String]) -> i32 {
 
 fn resolve_executable(program: &str, root: &Path) -> Option<PathBuf> {
     fn usable(path: PathBuf) -> Option<PathBuf> {
-        let path = path.canonicalize().ok()?;
         let metadata = path.metadata().ok()?;
         if !metadata.is_file() {
             return None;
@@ -344,6 +343,7 @@ fn resolve_executable(program: &str, root: &Path) -> Option<PathBuf> {
         if !crate::wsl_setup::native_executable(&path) {
             return None;
         }
+        // Interpreters such as virtualenv Python use the invoked path to find their environment.
         Some(path)
     }
 
@@ -382,7 +382,7 @@ async fn launch(name: Option<String>, program: &str, arguments: Vec<String>) -> 
         eprintln!("Native executable was not found for this remote account.");
         return EXIT_DOMAIN;
     };
-    if guardian::scope_directory(route()).await.is_err() || guardian::connect(route()).await.is_err() {
+    if guardian::connect(route()).await.is_err() {
         eprintln!("Could not start the native account guardian.");
         return EXIT_DOMAIN;
     }
@@ -1264,6 +1264,18 @@ mod tests {
         ] {
             assert!(parse(&invalid.into_iter().map(str::to_owned).collect::<Vec<_>>()).is_err());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn executable_resolution_preserves_the_invoked_path() {
+        let root = tempfile::tempdir().unwrap();
+        let launcher = root.path().join("task-tool");
+        std::os::unix::fs::symlink("/bin/sh", &launcher).unwrap();
+        assert_eq!(
+            resolve_executable("./task-tool", root.path()),
+            Some(root.path().join("./task-tool"))
+        );
     }
 
     #[test]

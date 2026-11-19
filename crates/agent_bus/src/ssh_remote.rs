@@ -599,7 +599,6 @@ impl HostClient {
         ).await
     }
 
-    #[cfg(unix)]
     pub(crate) async fn open_guarded_project(&mut self, row: &AccountCatalogRow) -> Result<(), ConnectionError> {
         let fence = self.fence.clone().ok_or(ConnectionError::StaleAttachment)?;
         self.open_project_request(

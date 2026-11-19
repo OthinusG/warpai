@@ -720,7 +720,6 @@ impl Projects {
         !self.wsl_scope && self.ssh_bridge.is_some()
     }
 
-    #[cfg(unix)]
     pub(super) fn reap_idle_brokers(&self) {
         let Ok(mut owners) = self.owners.try_lock() else { return; };
         let now = std::time::Instant::now();

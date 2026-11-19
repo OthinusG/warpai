@@ -913,7 +913,7 @@ async fn controlled_windows_ssh_guardian_retains_exact_conpty() {
     );
     let ssh = |terminal: &str, script: &str| {
         let remote = format!(
-            "powershell.exe -NoLogo -NoProfile -EncodedCommand {}", encode(script)
+            "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -EncodedCommand {}", encode(script)
         );
         let mut command = tokio::process::Command::new("ssh");
         command.arg("-F").arg(&config)
@@ -922,6 +922,11 @@ async fn controlled_windows_ssh_guardian_retains_exact_conpty() {
     };
     let helper = helper.replace('\'', "''");
     let bridge = || ssh("-T", &format!("& '{helper}' --guardian-stdio ssh; exit $LASTEXITCODE"));
+    let bootstrap = include_str!("../../../app/assets/bundled/bootstrap/pwsh.ps1")
+        .split_once("#region Warpai session control").unwrap().1
+        .split_once("#endregion").unwrap().0;
+    let bootstrap_file = std::path::Path::new(&root).parent().unwrap().join("warpai-control.ps1");
+    std::fs::write(&bootstrap_file, bootstrap).unwrap();
     let resume = |session_id: &str| ssh("-tt", &format!(
         "$before = [Console]::TreatControlCAsInput; & '{helper}' ctl resume --id '{session_id}'; \
          if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; \
@@ -931,8 +936,14 @@ async fn controlled_windows_ssh_guardian_retains_exact_conpty() {
     let cli = |args: &[String], tty: bool| {
         let literal = |value: &str| format!("'{}'", value.replace('\'', "''"));
         let arguments = args.iter().map(|argument| literal(argument)).collect::<Vec<_>>().join(" ");
+        let invoke = if tty {
+            let source = literal(bootstrap_file.to_str().unwrap());
+            format!(". {source}; if (-not (Get-Command warpai -CommandType Function -ErrorAction SilentlyContinue)) {{ exit 13 }}; warpai {arguments}")
+        } else {
+            format!("& '{helper}' ctl {arguments}")
+        };
         ssh(if tty { "-tt" } else { "-T" }, &format!(
-            "Set-Location -LiteralPath {}; & '{helper}' ctl {arguments}; exit $LASTEXITCODE",
+            "Set-Location -LiteralPath {}; {invoke}; exit $LASTEXITCODE",
             literal(&root),
         ))
     };

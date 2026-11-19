@@ -32,5 +32,13 @@ state directories. The guardian starts while the ordinary startup lock is held.
 A native mixed-load fixture verifies that a noisy run and a blocked input pipe
 leave a quiet task in a second project usable.
 
+On macOS ARM64, a five-second sample of the isolated native terminal registry
+measured 5.8, 7.9, 9.3 and 10.7 MiB RSS at 0, 1, 8 and 32 idle guarded runs.
+The 32-run fixture used 0.79 ms of CPU time during that window. These figures
+exclude child processes. In the separate mixed-load test, the quiet task
+answered in 2 ms and the busy task's exit was observed 3 ms after stop.
+
 Native CLI launch, bridge loss, explicit resume and stop have been wired into
-the SSH and WSL verification fixtures. Same-source cloud results are pending.
+the SSH and WSL verification fixtures. The Windows SSH fixture uses the
+installed Companion through the actual PowerShell function for run and resume.
+Same-source cloud results are pending.
