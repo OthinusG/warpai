@@ -1,9 +1,6 @@
 {
   "The remote save could not be confirmed. Reconnect and save explicitly to check it.": ["无法确认远程保存结果。请重新连接，然后手动保存以核验结果。", "無法確認遠端儲存結果。請重新連線，然後手動儲存以核驗結果。"],
   "The remote file changed during the interrupted save. Review it before replacing the draft.": ["远程文件在保存中断期间发生了变化。请先查看远程内容，再决定是否替换草稿。", "遠端檔案在儲存中斷期間發生了變化。請先查看遠端內容，再決定是否取代草稿。"],
-  "Retain terminal sessions for this WSL account after the desktop disconnects.": ["桌面端断开后，保留此 WSL 账户的终端会话。", "桌面端中斷連線後，保留此 WSL 帳戶的終端機工作階段。"],
-  "Keep remote sessions": ["保留远程会话", "保留遠端工作階段"],
-  "Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.": ["桌面端断开后保留 SSH 终端会话。需要支持会话守护功能的 Companion 版本。", "桌面端中斷連線後保留 SSH 終端機工作階段。需要支援工作階段守護功能的 Companion 版本。"],
   "Archived": ["已归档", "已封存"],
   "Delete this completed task and its evidence permanently. Referenced tasks and unread messages are protected.": ["永久删除此已结束的任务及其证据。被引用的任务和未读消息受到保护。", "永久刪除此已結束的工作及其證據。被引用的工作及未讀訊息受到保護。"],
   "Evidence": ["证据", "證據"],

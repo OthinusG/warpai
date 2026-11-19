@@ -274,3 +274,10 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 - [ ] **Install WSL Companion** 已勾选，且 `warpai-wsl-companion --check-runtime` 通过。
 - [ ] 所需的 Agent 复选框已启用，且 Agent 已在新会话中重启。
 - [ ] 协同面板已绑定 WSL 项目，远端工具工作正常。
+
+## 让 WSL 任务在断开后继续运行
+
+在 Warpai 内已集成的 Bash 或 Zsh 中运行 `warpai run --name task1 -- 程序 参数`。
+按 Ctrl+B 再按 Q 可分离任务，也可以直接关闭 Warpai。以原发行版和用户重新进入后，
+使用 `warpai list`、`warpai resume task1` 或 `warpai stop task1` 管理原任务。
+关闭 WSL 或终止对应发行版会结束原进程。

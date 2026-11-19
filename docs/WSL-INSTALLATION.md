@@ -273,3 +273,11 @@ With WSL configured as above, Warpai provides the same core experience as a loca
 - [ ] **Install WSL Companion** is checked and `warpai-wsl-companion --check-runtime` succeeds.
 - [ ] Required Agent checkboxes are enabled and the Agent was restarted in a new session.
 - [ ] The collaboration panel binds to the WSL project and remote tools work as expected.
+
+## Keep a WSL task running
+
+From a participating Bash or Zsh shell in Warpai, use
+`warpai run --name task1 -- program arguments`. You can detach with Ctrl+B Q or
+close the desktop. Reopen the same distribution and user to use `warpai list`,
+`warpai resume task1` and `warpai stop task1`. WSL shutdown or distribution
+termination ends the original process.

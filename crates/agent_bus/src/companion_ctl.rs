@@ -1,19 +1,19 @@
-//! Private `ctl` dispatcher: list, resume and stop against the account guardian.
-//!
-//! The CLI never starts a guardian, never launches a vendor process and never
-//! interprets remote output as shell text.
+//! Private `ctl` dispatcher for tasks owned by the remote Companion.
 use crate::{
     companion::{guardian, Route},
     ssh_remote::{ConnectionError, HostClient},
 };
 use remote_protocol::proto::*;
-use std::time::Duration;
+use std::{path::{Path, PathBuf}, time::Duration};
 
 const EXIT_OK: i32 = 0;
 const EXIT_DOMAIN: i32 = 1;
 const EXIT_SYNTAX: i32 = 2;
 const PAGE_LIMIT: u32 = 32;
 const HELP: &str = "\
+warpai run [--name <name>] -- <program> [args...]
+    Start a guarded task in this remote directory and attach to it.
+
 warpai list [--project <path>] [--id <session>]
     List guardian sessions for this account.
 
@@ -39,6 +39,11 @@ pub enum Selection {
 pub enum Command {
     Help,
     Version,
+    Launch {
+        name: Option<String>,
+        program: String,
+        arguments: Vec<String>,
+    },
     List {
         project: Option<String>,
         id: Option<String>,
@@ -57,17 +62,44 @@ pub enum Command {
 /// Strict parser: no shell evaluation, `--` ends options, duplicates rejected.
 pub fn parse(arguments: &[String]) -> Result<Command, String> {
     let Some(command) = arguments.first().map(String::as_str) else {
-        return Err("Missing command. Use list, resume or stop.".into());
+        return Err("Missing command. Use run, list, resume or stop.".into());
     };
     let rest = &arguments[1..];
     match command {
         "-h" | "--help" | "help" => Ok(Command::Help),
         "-V" | "--version" | "version" => Ok(Command::Version),
+        "run" => parse_launch(rest),
         "list" => parse_list(rest),
         "resume" => parse_resume(rest),
         "stop" => parse_stop(rest),
         other => Err(format!("Unknown command: {other}")),
     }
+}
+
+fn parse_launch(arguments: &[String]) -> Result<Command, String> {
+    if matches!(arguments, [flag] if flag == "--help" || flag == "-h") {
+        return Ok(Command::Help);
+    }
+    let separator = arguments.iter().position(|argument| argument == "--")
+        .ok_or("Usage: warpai run [--name <name>] -- <program> [args...]")?;
+    let name = match &arguments[..separator] {
+        [] => None,
+        [flag, name] if flag == "--name" => {
+            validate_name(name)?;
+            Some(name.clone())
+        }
+        _ => return Err("Only --name is accepted before --.".into()),
+    };
+    let (program, arguments) = arguments[separator + 1..].split_first()
+        .ok_or("Missing executable after --.")?;
+    if program.is_empty() || program.len() > 4096 || program.chars().any(char::is_control)
+        || arguments.len() > 64
+        || arguments.iter().any(|argument| argument.len() > 8192 || argument.contains('\0'))
+        || arguments.iter().map(String::len).sum::<usize>() > 65536
+    {
+        return Err("Invalid native command or arguments.".into());
+    }
+    Ok(Command::Launch { name, program: program.clone(), arguments: arguments.to_vec() })
 }
 
 struct Flags {
@@ -277,6 +309,7 @@ pub async fn run(arguments: &[String]) -> i32 {
             );
             EXIT_OK
         }
+        Command::Launch { name, program, arguments } => launch(name, &program, arguments).await,
         Command::List { project, id } => list(project, id).await,
         Command::Resume {
             project,
@@ -284,6 +317,102 @@ pub async fn run(arguments: &[String]) -> i32 {
             takeover,
         } => resume(project, selection, takeover).await,
         Command::Stop { project, selection } => stop(project, selection).await,
+    }
+}
+
+fn resolve_executable(program: &str, root: &Path) -> Option<PathBuf> {
+    fn usable(path: PathBuf) -> Option<PathBuf> {
+        let path = path.canonicalize().ok()?;
+        let metadata = path.metadata().ok()?;
+        if !metadata.is_file() {
+            return None;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o111 == 0 {
+                return None;
+            }
+        }
+        #[cfg(windows)]
+        if !path.extension().and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case("exe") || value.eq_ignore_ascii_case("com"))
+        {
+            return None;
+        }
+        #[cfg(all(feature = "wsl_companion", target_os = "linux"))]
+        if !crate::wsl_setup::native_executable(&path) {
+            return None;
+        }
+        Some(path)
+    }
+
+    let program = Path::new(program);
+    if program.is_absolute() || program.components().count() != 1 {
+        return usable(root.join(program));
+    }
+    for entry in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
+        let candidate = root.join(entry).join(program);
+        if let Some(executable) = usable(candidate.clone()) {
+            return Some(executable);
+        }
+        #[cfg(windows)]
+        if candidate.extension().is_none() {
+            if let Some(executable) = usable(candidate.with_extension("exe"))
+                .or_else(|| usable(candidate.with_extension("com")))
+            {
+                return Some(executable);
+            }
+        }
+    }
+    None
+}
+
+async fn launch(name: Option<String>, program: &str, arguments: Vec<String>) -> i32 {
+    let Ok(root) = std::env::current_dir() else {
+        eprintln!("Remote working directory is unavailable.");
+        return EXIT_DOMAIN;
+    };
+    let Some(project) = root.to_str().filter(|path| validate_path(path).is_ok()) else {
+        eprintln!("Remote working directory is invalid.");
+        return EXIT_DOMAIN;
+    };
+    let Some(executable) = resolve_executable(program, &root)
+        .and_then(|file| file.to_str().map(str::to_owned)) else {
+        eprintln!("Native executable was not found for this remote account.");
+        return EXIT_DOMAIN;
+    };
+    if guardian::scope_directory(route()).await.is_err() || guardian::connect(route()).await.is_err() {
+        eprintln!("Could not start the native account guardian.");
+        return EXIT_DOMAIN;
+    }
+    let Ok((mut client, _)) = connect(&Some(project.into()), true).await else {
+        return EXIT_DOMAIN;
+    };
+    let (columns, rows) = terminal_size();
+    let label = name.or_else(|| Path::new(program).file_name().and_then(|value| value.to_str())
+        .filter(|value| validate_name(value).is_ok()).map(str::to_owned));
+    let kind = if arguments.is_empty() && matches!(
+        Path::new(program).file_stem().and_then(|value| value.to_str()),
+        Some("bash" | "zsh" | "sh" | "fish" | "powershell" | "pwsh" | "cmd")
+    ) { TerminalSessionKind::Shell } else { TerminalSessionKind::Command };
+    match client.terminal_launch(TerminalLaunch {
+        fence: client.fence().cloned(),
+        session_id: uuid::Uuid::new_v4().to_string(),
+        executable,
+        arguments,
+        columns,
+        rows,
+        guarded: true,
+        label,
+        session_kind: Some(kind as i32),
+        ..Default::default()
+    }).await {
+        Ok(mut state) => attach_loop(&mut client, &mut state, false).await,
+        Err(error) => {
+            eprintln!("Guarded task could not start ({error}).");
+            EXIT_DOMAIN
+        }
     }
 }
 
@@ -580,11 +709,11 @@ async fn resume(project: Option<String>, selection: Selection, takeover: bool) -
             return EXIT_DOMAIN;
         }
     };
-    attach_loop(&mut client, &mut state).await
+    attach_loop(&mut client, &mut state, true).await
 }
 
 /// Direct TTY attachment; output offsets and input receipts stay authoritative.
-async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 {
+async fn attach_loop(client: &mut HostClient, state: &mut TerminalState, resume: bool) -> i32 {
     let signals = match TerminationSignals::new() {
         Ok(signals) => signals,
         Err(_) => {
@@ -605,11 +734,18 @@ async fn attach_loop(client: &mut HostClient, state: &mut TerminalState) -> i32 
             return EXIT_DOMAIN;
         }
     };
+    let mut alternate = false;
     let result = tokio::select! {
         biased;
         signal = signals.recv() => Err(signal),
-        result = attach_inner(client, state) => Ok(result),
+        result = attach_inner(client, state, resume, &mut alternate) => Ok(result),
     };
+    if alternate {
+        use tokio::io::AsyncWriteExt;
+        let mut stdout = tokio::io::stdout();
+        let _ = stdout.write_all(b"\x1b[?1049l").await;
+        let _ = stdout.flush().await;
+    }
     drop(raw);
     match result {
         Ok(result) => {
@@ -678,7 +814,13 @@ impl TerminationSignals {
     }
 }
 
-async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Result<i32, i32> {
+async fn attach_inner(
+    client: &mut HostClient,
+    state: &mut TerminalState,
+    resume: bool,
+    alternate: &mut bool,
+) -> Result<i32, i32> {
+    use crate::screen_detection::native::NativeScreen;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();
@@ -688,6 +830,8 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
     let mut dimensions = None;
     let mut prefix = false;
     let mut truncated_notice = false;
+    let mut initial = resume;
+    let mut projection: Option<NativeScreen> = None;
     loop {
         let resized = terminal_size();
         if Some(resized) != dimensions {
@@ -709,6 +853,48 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
             };
             *state = reply;
             dimensions = Some(resized);
+            if let Some(screen) = &mut projection {
+                screen.resize(resized.1 as u16, resized.0 as u16);
+            }
+        }
+        if std::mem::take(&mut initial) {
+            let cut = state.output_end;
+            let mut screen = NativeScreen::new(resized.1 as u16, resized.0 as u16);
+            // At most one ring of retained output. Replay into a local parser only.
+            for _ in 0..8 {
+                if offset >= cut {
+                    break;
+                }
+                let reply = client.terminal_control(TerminalControl {
+                    fence: client.fence().cloned(),
+                    session_id: state.session_id.clone(),
+                    run_id: state.run_id.clone(),
+                    action: TerminalAction::TerminalRead as i32,
+                    output_offset: offset,
+                    attachment_id: state.attachment_id.clone(),
+                    attachment_generation: state.attachment_generation,
+                    ..Default::default()
+                }).await.map_err(|_| EXIT_DOMAIN)?;
+                truncated_notice |= reply.output_truncated;
+                let count = reply.output.len()
+                    .min(cut.saturating_sub(reply.output_offset) as usize);
+                if count == 0 {
+                    break;
+                }
+                screen.process(&reply.output[..count]);
+                offset = reply.output_offset + count as u64;
+            }
+            if truncated_notice {
+                stdout.write_all(b"\r\n[earlier output is no longer retained]\r\n")
+                    .await.map_err(|_| EXIT_DOMAIN)?;
+            }
+            if cut > 0 {
+                stdout.write_all(&screen.cli_view(*alternate)).await.map_err(|_| EXIT_DOMAIN)?;
+                *alternate = screen.alternate_screen();
+                offset = cut;
+            }
+            stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
+            projection = Some(screen);
         }
         let control = TerminalControl {
             fence: client.fence().cloned(),
@@ -736,7 +922,20 @@ async fn attach_inner(client: &mut HostClient, state: &mut TerminalState) -> Res
             stdout.write_all(b"\r\n[earlier output is no longer retained]\r\n")
                 .await.map_err(|_| EXIT_DOMAIN)?;
         }
-        stdout.write_all(&reply.output).await.map_err(|_| EXIT_DOMAIN)?;
+        if reply.output_truncated {
+            let mut screen = NativeScreen::new(resized.1 as u16, resized.0 as u16);
+            screen.process(&reply.output);
+            stdout.write_all(&screen.cli_view(*alternate)).await.map_err(|_| EXIT_DOMAIN)?;
+            *alternate = screen.alternate_screen();
+            projection = Some(screen);
+        } else {
+            let screen = projection.get_or_insert_with(|| {
+                NativeScreen::new(resized.1 as u16, resized.0 as u16)
+            });
+            screen.process(&reply.output);
+            *alternate = screen.alternate_screen();
+            stdout.write_all(&reply.output).await.map_err(|_| EXIT_DOMAIN)?;
+        }
         stdout.flush().await.map_err(|_| EXIT_DOMAIN)?;
         offset = reply.output_offset + reply.output.len() as u64;
         *state = reply;
@@ -1047,7 +1246,28 @@ mod tests {
     }
 
     #[test]
-    fn parser_accepts_only_the_three_functional_commands() {
+    fn guarded_launch_preserves_literal_argv_and_validates_the_name() {
+        let args = ["run", "--name", "任务一", "--", "/opt/my program", "", "$HOME", "--"]
+            .map(str::to_owned);
+        assert_eq!(
+            parse(&args).unwrap(),
+            Command::Launch {
+                name: Some("任务一".into()),
+                program: "/opt/my program".into(),
+                arguments: ["", "$HOME", "--"].map(str::to_owned).to_vec(),
+            }
+        );
+        for invalid in [
+            vec!["run", "--", ""],
+            vec!["run", "--name", "  ", "--", "sh"],
+            vec!["run", "sh"],
+        ] {
+            assert!(parse(&invalid.into_iter().map(str::to_owned).collect::<Vec<_>>()).is_err());
+        }
+    }
+
+    #[test]
+    fn parser_accepts_only_the_guardian_commands() {
         assert_eq!(
             parse(&args(&["list"])).unwrap(),
             Command::List {

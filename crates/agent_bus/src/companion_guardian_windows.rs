@@ -1,6 +1,5 @@
 //! Windows guardian election and same-account named-pipe admission.
 use super::{
-    data_directory,
     guardian_ipc::{exchange_preface, Admission},
     service, PathBuf, ProtocolError, Route, Uuid,
 };
@@ -18,7 +17,8 @@ pub(super) async fn scope_directory(route: Route) -> io::Result<PathBuf> {
     if route != Route::Ssh {
         return Err(io::ErrorKind::Unsupported.into());
     }
-    data_directory()
+    Ok(dirs::data_local_dir().ok_or(io::ErrorKind::NotFound)?
+        .join("warpai").join("guardian-scopes").join("ssh"))
 }
 
 pub(super) fn endpoint() -> io::Result<String> {
@@ -57,15 +57,7 @@ pub(crate) async fn probe(route: Route, attach: bool) -> io::Result<(NamedPipeCl
     probe_as(route, if attach { Admission::OperatorSession } else { Admission::Operator }).await
 }
 
-pub(super) async fn probe_connection_owned() -> io::Result<Option<NamedPipeClient>> {
-    match probe_as(Route::Ssh, Admission::ConnectionOwned).await {
-        Ok((stream, _, _)) => Ok(Some(stream)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error),
-    }
-}
-
-pub(super) async fn connect(route: Route) -> io::Result<(NamedPipeClient, Uuid, Uuid)> {
+pub(crate) async fn connect(route: Route) -> io::Result<(NamedPipeClient, Uuid, Uuid)> {
     match probe_as(route, Admission::Guarded).await {
         Err(error) if error.kind() == io::ErrorKind::NotFound => (),
         result => return result,

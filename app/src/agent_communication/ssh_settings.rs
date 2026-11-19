@@ -40,8 +40,8 @@ pub(crate) struct Preferences {
     /// Development preference; never promoted to an unverified account.
     #[serde(default, rename = "guardian", skip_serializing)]
     _legacy_guardian: bool,
-    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
-    guarded_services: BTreeSet<String>,
+    #[serde(default, rename = "guarded_services", skip_serializing)]
+    _legacy_guarded_services: BTreeSet<String>,
 }
 
 #[derive(Default)]
@@ -71,12 +71,6 @@ impl SshSettings {
         self.targets.iter().find(|target| Some(&target.key) == self.preferences.selected.as_ref())
     }
 
-    pub fn selected_guardian(&self) -> Option<bool> {
-        self.selected_target()?;
-        self.verified_service.as_ref().map(|service| {
-            self.preferences.guarded_services.contains(service)
-        })
-    }
 }
 
 pub(crate) fn logged_in_views(app: &AppContext) -> Vec<warpui::ViewHandle<crate::terminal::TerminalView>> {
@@ -149,27 +143,6 @@ impl AgentCommunication {
         ctx.notify();
     }
 
-    pub(crate) fn toggle_ssh_guardian(&mut self, ctx: &mut ModelContext<Self>) {
-        if self.ssh.busy || self.ssh.selected_target().is_none() {
-            return;
-        }
-        let Some(service) = self.ssh.verified_service.clone() else {
-            return;
-        };
-        let guarded = &mut self.ssh.preferences.guarded_services;
-        let was_enabled = guarded.remove(&service);
-        if !was_enabled {
-            guarded.insert(service.clone());
-        }
-        if !self.save_ssh_preferences() {
-            if was_enabled {
-                self.ssh.preferences.guarded_services.insert(service);
-            } else {
-                self.ssh.preferences.guarded_services.remove(&service);
-            }
-        }
-        ctx.notify();
-    }
 
     fn save_ssh_preferences(&mut self) -> bool {
         if self.ssh.path.as_os_str().is_empty() {
@@ -304,19 +277,17 @@ mod tests {
         );
         let legacy: Preferences =
             serde_json::from_str(r#"{"enabled":true,"selected":null}"#).unwrap();
-        assert!(legacy.enabled && legacy.guarded_services.is_empty());
+        assert!(legacy.enabled);
     }
 
     #[test]
-    fn guardian_opt_in_is_scoped_and_legacy_global_opt_in_is_ignored() {
-        let legacy: Preferences =
-            serde_json::from_str(r#"{"enabled":true,"selected":null,"guardian":true}"#).unwrap();
-        assert!(legacy.guarded_services.is_empty());
+    fn superseded_guardian_preferences_keep_ordinary_ssh_enabled() {
         let saved: Preferences = serde_json::from_str(
-            r#"{"enabled":true,"selected":null,"guarded_services":["one"]}"#,
+            r#"{"enabled":true,"selected":null,"guardian":true,"guarded_services":["one"]}"#,
         ).unwrap();
-        assert!(saved.guarded_services.contains("one"));
-        assert!(!saved.guarded_services.contains("two"));
+        assert!(saved.enabled);
+        assert_eq!(serde_json::to_value(&saved).unwrap(),
+            serde_json::json!({"enabled":true,"selected":null}));
     }
 
     #[test]

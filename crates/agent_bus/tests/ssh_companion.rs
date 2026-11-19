@@ -877,6 +877,19 @@ async fn controlled_ssh_guardian_retains_exact_run_across_bridge_exit() {
             .args(["-T", "-o", "BatchMode=yes", "--", "warpai-test", &remote_command]);
         command
     };
+    let cli = |args: &[String], tty: bool| {
+        let arguments = args.iter().map(|argument| quote(argument)).collect::<Vec<_>>().join(" ");
+        let run = format!("cd {} && exec {invocation} ctl {arguments}", quote(&root));
+        let mut command = tokio::process::Command::new("ssh");
+        command.arg("-F").arg(&config)
+            .args([if tty { "-tt" } else { "-T" }, "-o", "BatchMode=yes", "--", "warpai-test", &run]);
+        command
+    };
+    guarded_reconnect::verify_cli_launch_and_resume(
+        cli, "/bin/sh",
+        vec!["-c".into(), "printf 'GUARDIAN_PID=%s\\nSTARTED\\n' \"$$\"; while IFS= read -r line; do printf 'GUARDIAN_ECHO=%s\\n' \"$line\"; done".into()],
+        std::time::Duration::from_secs(12),
+    ).await;
     guarded_reconnect::verify_guarded_reconnect(
         &root, std::time::Duration::from_secs(12), bridge, Some(&tty_resume),
     ).await;
@@ -915,12 +928,24 @@ async fn controlled_windows_ssh_guardian_retains_exact_conpty() {
          if ([Console]::TreatControlCAsInput -ne $before) {{ exit 12 }}; \
          [Console]::WriteLine('GUARDIAN_CLI_TTY_RESTORED')"
     ));
+    let cli = |args: &[String], tty: bool| {
+        let literal = |value: &str| format!("'{}'", value.replace('\'', "''"));
+        let arguments = args.iter().map(|argument| literal(argument)).collect::<Vec<_>>().join(" ");
+        ssh(if tty { "-tt" } else { "-T" }, &format!(
+            "Set-Location -LiteralPath {}; & '{helper}' ctl {arguments}; exit $LASTEXITCODE",
+            literal(&root),
+        ))
+    };
+    let run_arguments = vec![
+        "-NoLogo".into(), "-NoProfile".into(), "-EncodedCommand".into(),
+        encode("$ErrorActionPreference='Stop'; [Console]::WriteLine('GUARDIAN_PID=' + $PID); [Console]::WriteLine('STARTED'); while ($null -ne ($line = [Console]::ReadLine())) { [Console]::WriteLine('GUARDIAN_ECHO=' + $line) }"),
+    ];
+    guarded_reconnect::verify_cli_launch_and_resume(
+        cli, powershell.to_str().unwrap(), run_arguments.clone(), std::time::Duration::from_secs(12),
+    ).await;
     guarded_reconnect::verify_guarded_command(
         &root, std::time::Duration::from_secs(12), bridge, Some(&resume),
         powershell.to_str().unwrap(),
-        vec![
-            "-NoLogo".into(), "-NoProfile".into(), "-EncodedCommand".into(),
-            encode("$ErrorActionPreference='Stop'; [Console]::WriteLine('GUARDIAN_PID=' + $PID); while ($null -ne ($line = [Console]::ReadLine())) { [Console]::WriteLine('GUARDIAN_ECHO=' + $line) }"),
-        ],
+        run_arguments,
     ).await;
 }

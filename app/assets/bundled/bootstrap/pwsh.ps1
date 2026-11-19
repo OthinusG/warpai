@@ -1031,7 +1031,27 @@ $null = New-Module -Name Warp-Module -ScriptBlock {
                     Write-Error 'Warpai Companion installation is unverified.'
                     return
                 }
-                & $helper ctl @args
+                $start = New-Object Diagnostics.ProcessStartInfo
+                $start.FileName = $helper
+                $start.UseShellExecute = $false
+                if ($PWD.Provider.Name -eq 'FileSystem') { $start.WorkingDirectory = $PWD.ProviderPath }
+                $arguments = @('ctl') + $args
+                if ($start.PSObject.Properties['ArgumentList']) {
+                    foreach ($argument in $arguments) { $start.ArgumentList.Add([string]$argument) }
+                } else {
+                    # Windows PowerShell's legacy native binder can lose empty or quoted argv.
+                    $start.Arguments = ($arguments | ForEach-Object {
+                        $quoted = [regex]::Replace([string]$_, '(\\*)"', '$1$1\"')
+                        '"' + [regex]::Replace($quoted, '(\\+)$', '$1$1') + '"'
+                    }) -join ' '
+                }
+                $process = [Diagnostics.Process]::Start($start)
+                try {
+                    $process.WaitForExit()
+                    $global:LASTEXITCODE = $process.ExitCode
+                } finally {
+                    $process.Dispose()
+                }
             }
         }
     }

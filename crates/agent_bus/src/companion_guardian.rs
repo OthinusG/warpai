@@ -111,19 +111,19 @@ async fn verified_distribution() -> std::io::Result<String> {
     Ok(native.to_owned())
 }
 
-/// Existing logical scope for a route; Stores stay route-local.
+/// Guardian scope, independent of ordinary Companion project ownership.
 pub(crate) async fn scope_directory(route: Route) -> std::io::Result<PathBuf> {
     let base = dirs::data_local_dir()
         .ok_or_else(|| std::io::Error::other("Scope data directory unavailable"))?
-        .join("warpai");
+        .join("warpai").join("guardian-scopes");
     match route {
-        Route::Ssh => Ok(base.join("remote")),
+        Route::Ssh => Ok(base.join("ssh")),
         Route::Wsl => {
             #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
             {
                 let distribution = verified_distribution().await?;
                 Ok(base
-                    .join("wsl-remote")
+                    .join("wsl")
                     .join(guests::distribution_namespace(&distribution)?))
             }
             #[cfg(not(all(target_os = "linux", feature = "wsl_companion")))]
@@ -343,20 +343,6 @@ pub(crate) async fn probe(route: Route, attach: bool) -> std::io::Result<(UnixSt
 }
 
 /// Ordinary helpers join the current owner without enabling guarded features.
-pub(super) async fn probe_connection_owned() -> std::io::Result<Option<UnixStream>> {
-    let route = if cfg!(all(target_os = "linux", feature = "wsl_companion")) {
-        Route::Wsl
-    } else {
-        Route::Ssh
-    };
-    let runtime = runtime_directory()?;
-    match probe_route_as(&runtime, route, Admission::ConnectionOwned).await {
-        Ok((stream, _, _)) => Ok(Some(stream)),
-        Err(error) if route_absent(&error) => Ok(None),
-        Err(error) => Err(error),
-    }
-}
-
 /// Connect to the live account guardian, starting one only when no owner answers.
 pub(crate) async fn connect(route: Route) -> std::io::Result<(UnixStream, Uuid, Uuid)> {
     let runtime = runtime_directory()?;
@@ -582,7 +568,7 @@ pub(crate) async fn serve_at(
                         peer_pid,
                         Some(route),
                         Some(catalog),
-                        (admission != Admission::ConnectionOwned).then_some(guardian),
+                        Some(guardian),
                         matches!(admission, Admission::Operator | Admission::OperatorSession),
                     )
                     .await;
@@ -1067,97 +1053,12 @@ mod tests {
             Uuid::new_v4().to_string(),
         )
         .await;
-        let baseline_next = match client
-            .call(managed_request::Operation::AccountCatalogWatch(
-                AccountCatalogWatch {
-                    fence: Some(account.clone()),
-                    filter: Some(AccountCatalogFilter {
-                        scope_id: String::new(),
-                        project_id: String::new(),
-                    }),
-                    cursor: String::new(),
-                    limit: 16,
-                },
-            ))
-            .await
-        {
-            managed_response::Result::AccountCatalogEvents(events) => {
-                assert!(events.events.is_empty());
-                assert!(!events.gap);
-                events.next.unwrap()
-            }
-            _ => panic!("Catalog watch required"),
-        };
         let second = launch_guarded(
             &mut client,
             &project_fence,
             Uuid::new_v4().to_string(),
         )
         .await;
-        let events = match client
-            .call(managed_request::Operation::AccountCatalogWatch(
-                AccountCatalogWatch {
-                    fence: Some(account.clone()),
-                    filter: None,
-                    cursor: baseline_next.clone(),
-                    limit: 16,
-                },
-            ))
-            .await
-        {
-            managed_response::Result::AccountCatalogEvents(events) => events,
-            _ => panic!("Catalog watch required"),
-        };
-        assert!(!events.gap);
-        assert_eq!(events.events.len(), 2);
-        assert_eq!(
-            events.events[0].change,
-            AccountCatalogChange::Upserted as i32
-        );
-        let row = events.events.last().unwrap().row.as_ref().unwrap();
-        assert_eq!(row.state, "live");
-        assert_eq!(row.session_id, second.session_id);
-
-        let (ordinary, _, _) = probe_route_as(&runtime, Route::Ssh, Admission::ConnectionOwned)
-            .await.unwrap();
-        let mut ordinary = ManagedClient::new(ordinary);
-        let managed_response::Result::Initialized(ordinary_init) = ordinary
-            .call(managed_request::Operation::Initialize(ManagedInitialize { protocol_major: 1 }))
-            .await else { panic!("Ordinary initialize required") };
-        assert!(ordinary_init.account_fence.is_none());
-        assert!(ordinary_init.capabilities.iter().all(|cap| cap != "guarded_remote_sessions_v1"));
-        let ordinary_fence = ordinary_init.fence.unwrap();
-        assert_eq!(ordinary_fence.service_boot_id, project_fence.service_boot_id);
-        let managed_response::Result::ProjectOpened(ordinary_project) = ordinary
-            .call(managed_request::Operation::ProjectOpen(ProjectOpen {
-                fence: Some(ordinary_fence),
-                root: project.to_str().unwrap().into(),
-            }))
-            .await else { panic!("Ordinary project open required") };
-        let denied = ordinary.call(managed_request::Operation::TerminalControl(TerminalControl {
-            fence: ordinary_project.fence,
-            session_id: first.session_id.clone(),
-            run_id: first.run_id.clone(),
-            action: TerminalAction::TerminalAttach as i32,
-            ..Default::default()
-        })).await;
-        assert!(matches!(denied, managed_response::Result::Error(error)
-            if error.code == ManagedErrorCode::ManagedFeatureUnavailable as i32));
-
-        let mismatched = client.call(managed_request::Operation::AccountCatalogWatch(
-            AccountCatalogWatch {
-                fence: Some(account.clone()),
-                filter: Some(AccountCatalogFilter {
-                    scope_id: "ssh".to_owned(),
-                    project_id: project_id.clone(),
-                }),
-                cursor: baseline_next.clone(),
-                limit: 16,
-            }
-        )).await;
-        assert!(matches!(mismatched, managed_response::Result::Error(error)
-            if error.code == ManagedErrorCode::ManagedConflict as i32));
-
         let (bridge, _, _) = wait_route(&runtime).await;
         let mut bridge = ManagedClient::new(bridge);
         let managed_response::Result::Initialized(bridge_init) = bridge
@@ -1235,21 +1136,6 @@ mod tests {
         );
         assert!(observed.receipts[0].exit_status.is_some());
 
-        let stale = client
-            .call(managed_request::Operation::AccountCatalogWatch(
-                AccountCatalogWatch {
-                    fence: Some(account),
-                    filter: None,
-                    cursor: format!("{baseline_next}-stale"),
-                    limit: 16,
-                },
-            ))
-            .await;
-        assert!(matches!(
-            stale,
-            managed_response::Result::Error(error)
-                if error.code == ManagedErrorCode::ManagedConflict as i32
-        ));
         server.abort();
     }
 
@@ -1430,38 +1316,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ordinary_bridge_only_joins_its_store_and_starts_uninitialized() {
+    async fn guardian_starts_while_the_ordinary_companion_owns_its_store() {
         let state = tempfile::tempdir().unwrap();
+        let ordinary = state.path().join("remote");
+        let guarded = state.path().join("guardian-scopes/ssh");
+        let ordinary_id = identity::Identity::open(&ordinary).unwrap().service_id;
+        let ordinary_lock = identity::private_file(&ordinary.join("service.lock")).unwrap();
+        ordinary_lock.try_lock().unwrap();
         let runtime = state.path().join("run");
-        let root = state.path().join("guardian");
-        let scoped_store = state.path().join("ssh");
-        let legacy_store = state.path().join("legacy");
-        let scope = identity::Identity::open(&scoped_store).unwrap().service_id;
-        let legacy = identity::Identity::open(&legacy_store).unwrap().service_id;
         let server = tokio::spawn(serve_at(
-            root,
-            runtime.clone(),
-            vec![(Route::Ssh, scoped_store)],
+            state.path().join("guardian"), runtime.clone(), vec![(Route::Ssh, guarded)],
         ));
-        drop(wait_route(&runtime).await);
-        let probe = || async {
-            probe_route_as(&runtime, Route::Ssh, Admission::ConnectionOwned)
-                .await
-                .map(|(stream, _, _)| Some(stream))
-        };
-        assert!(service::ordinary_guardian(&legacy, probe).await.is_none());
-        let stream = service::ordinary_guardian(&scope, probe).await.unwrap();
-        let result = ManagedClient::new(stream)
-            .call(managed_request::Operation::Initialize(ManagedInitialize {
-                protocol_major: PROTOCOL_MAJOR,
-            }))
+        let (stream, _, _) = wait_route(&runtime).await;
+        let initialized = ManagedClient::new(stream)
+            .call(managed_request::Operation::Initialize(ManagedInitialize { protocol_major: PROTOCOL_MAJOR }))
             .await;
-        let managed_response::Result::Initialized(reply) = result else {
-            panic!("A fresh ordinary bridge should initialize");
+        let managed_response::Result::Initialized(initialized) = initialized else {
+            panic!("An independent guardian must initialize");
         };
-        assert_eq!(reply.fence.unwrap().service_id, scope);
-        assert!(reply.account_fence.is_none());
+        assert_ne!(initialized.fence.unwrap().service_id, ordinary_id);
+        assert!(initialized.account_fence.is_some());
         server.abort();
+        drop(ordinary_lock);
     }
 
     #[tokio::test]

@@ -200,53 +200,14 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Same selected remote project shares one account-owned Companion Broker/Store.
 - Reuse Explorer/Code View/previews/original Review. Companion carries private Git
   and runtime dependencies; vendor CLI/auth remain user-owned. Keep on-demand
-  startup/60-second idle shutdown. Owner-corrected 2.0 scope: optional/default-off
-  SSH/WSL guardian, no native local persistence; low CPU/RAM, parallel sessions and
-  existing serial per-Agent tasks. One guardian per execution account, not Agent;
-  auto-fetch on reconnect; private CLI/no PATH writes. Owner requires bare resume
-  current/unique/MRU; bare stop stops all account guarded runs without confirmation.
-  CLI only list/resume/stop + help/version; extra Herdr tools need a proven gap.
-  Methods/ledger: specs/2.0.0/README.md. Unverified 2026-11-18 slice
-  (source through efe9fd12): guarded session retention plus exact attachment
-  fence, CAS takeover, writer epoch and a bounded generation-keyed write-receipt
-  ledger with non-evictable unknown delivery and between-write cancellation;
-  fail-closed Unix peer UID and Windows client-SID recheck; guarded-only 300s
-  ended-output retention; session-level stale or unknown delivery does not close
-  the shared connection; a pure bounded catalog prototype (stable pages,
-  revision-scoped watch gap, MRU resume, state age) is isolated-tested but not
-  wired to sessions or exposed; guarded launches now require explicit
-  session_kind (agent/shell/command) with pre-spawn policy binding checks;
-  a Unix account-global guardian election now derives its root from the passwd
-  home, holds one account lock, binds private per-route sockets under
-  /tmp/warpai-guardian-<euid>, checks peer UID and a WAG1 identity preface, and
-  scopes capabilities by route without merging SSH/WSL Stores; a durable
-  guardian/catalog.sqlite3 (application_id 0x57474341, user_version 1) refuses
-  unknown identity without overwrite, validates schema and rows before writing,
-  marks prior live rows unknown at boot, and now records guarded launch/attach
-  with an account-serial signed sequence before the corresponding ack;
-  guarded exit is observed by the terminals registry on the existing guardian
-  tick (native process gone plus drained output) without requiring a client
-  read, and only after the durable write succeeds;
-  clients verify private directory/socket ownership, mode and kernel peer UID,
-  spawn only for an absent route, and never unlink an incompatible owner;
-  prefaces run off the dispatch loop and zero admitted routes fail closed;
-  an internal installed-helper `warpai-companion --guardian-stdio ssh|wsl`
-  bridges bounded stdio to the guardian (the GUI never starts a guardian);
-  additive proto tags 10/11 provide account-fenced catalog list/inspect with
-  boot/revision-bound cursors, tags 12/13 freeze watch/stop shapes but return
-  feature-unavailable, and `ManagedInitialized.account_fence=7` comes only from
-  guardian admission;
-  these components are host-tested (including a real-listener guarded launch,
-  bridge drop, same-boot reconnect, attach and read-free ended observation), no
-  production client selects the guarded transport, no CLI exists, and retention
-  eviction is not synced to catalog rows;
-  warp-agent-bus, remote_protocol and the warpai
-  binary compile and their host test suites pass on macOS arm64 (remote SSH/WSL
-  still unrun);
-  guarded_remote_sessions_v1 stays unadvertised
-  until native proof; CLI, stop RPC and WSL lifetime remain pending.
-  No desktop auto-deployment.
-  Archived step-by-step execution prompt: specs/2.0.0/AGENT-EXECUTION-PROMPT.md.
+  startup/60-second idle shutdown.
+- 2.0.0 guardian scope is Companion-owned tasks on SSH and direct WSL. Start a
+  task explicitly with `warpai run --name NAME -- PROGRAM [ARGS...]` in an
+  integrated terminal. Reconnect through `warpai resume` and end the owned
+  process tree with `warpai stop`. The desktop opens the ordinary connection.
+  Companion uses an independent private state directory, startup lock, native
+  PTYs and a bounded catalog. SSH and WSL project storage stays scoped. Follow
+  specs/2.0.0/README.md for the active plan and source-bound verification.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
   traversal/aliases; keep atomic save, no-replace rename, bounded staging/deletion
   and stale-save checks. Never repeat uncertain writes.
@@ -360,40 +321,34 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - Untargeted remote-peer polls must not bump WSL/SSH generations or abort auto-warpify.
   Both bootstrap/generation repairs shipped in 1.7.8; details in the Oct30 archive.
 
-- 2.0.0 guardian stays default-off. Installed helpers advertise the private
-  guarded capability to authenticated local operators. The desktop data bridge
-  remains gated pending desktop terminal and shell-block restoration.
 - Windows guardian startup verifies that its suspended service inherits no
   launcher Job before resuming. Private named-pipe peers check native account
-  SIDs, and the guardian shares the ordinary SSH Store's ownership lock.
-- Companion CLI `ctl list|resume|stop` probes only. Bare resume recognizes its
-  native guarded session before selecting in the helper's logical scope. Bare
-  stop is account-wide and operator-only, with boot-scoped receipts. Full
-  V01-V30 release acceptance remains open.
-- S1-r review/repairs and source-matched host receipts are in
-  specs/2.0.0/IMPLEMENTATION.md. Existing Store locks and exact logical service
-  identity fence ordinary-helper forwarding during guardian cutover.
-
+  SIDs. The guardian holds its own startup lock and each run owns a ConPTY Job.
+- The bundled Companion CLI starts the guardian on the first explicit run.
+  Other commands use its account catalog. Bare resume tries the current,
+  unique, then most recently used live run. Bare stop is account-wide and
+  operator-only, with boot-scoped receipts. The desktop has no guardian client.
+- The CLI renders a bounded redraw from retained output upon attachment and
+  forwards subsequent live output. Native process identity, terminal size and
+  writer generations remain owned by Companion.
 - A guarded writer acknowledgement follows native ownership. Catalog write
   faults leave the latest exact generation pending in the retained run and
   maintenance republishes it without replaying attachment.
 
 - Guarded bridge admission matches scoped service and socket guardian/boot
   before project access. WSL guarded routing checks native guest root identity.
-  Future-launch opt-in is per verified SSH service or WSL distro/user; ordinary
+  Explicit launches use the verified SSH account or WSL distro/user. Ordinary
   collaboration retains its connection-owned policy.
 - Linux OpenSSH run 44279117156 at `91f7a2aa` proved guarded bridge-loss
-  continuity, exact run/boot rejoin and stale-writer refusal. Full desktop
-  and V02/V04 release gates remain open. Details in specs/2.0.0/IMPLEMENTATION.md.
+  continuity, exact run/boot rejoin and stale-writer refusal. The current CLI
+  evidence is tracked in specs/2.0.0/IMPLEMENTATION.md.
 
 - Guarded resize is idempotently sequenced per writer. Pending PTY launches
   reserve a session slot before releasing the shared registry for native spawn.
 
 - On WSL, SSH-first selects the owned manifest-checked dual-route guest where
-  both helpers are installed. Ordinary stdio only follows a guardian whose
-  logical service ID matches its legacy Store. Native run 44311567207 at
-  `acd9e63e` passed both startup orders, a bridge-free exact-run reconnect and
-  ordinary workspace coexistence. The full release matrix is tracked in specs.
+  both helpers are installed. Native run 44311567207 at `acd9e63e` proved both
+  startup orders and bridge-free exact-run reconnect for the earlier transport.
 
 - Companion installers create private component directories and repair legacy
   group/other write bits. SSH-first WSL election requires account-owned
@@ -413,9 +368,9 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   that avoids inbox bodies. Pool notices retain project-wide arbitration.
   Native delivery latency and resource benchmarks remain release gates.
 
-- Bash/Zsh managed remote bootstrap installs a session-only `warpai` function
-  with an absolute, manifest-verified SSH or WSL helper. User command collisions
-  keep precedence. Native Windows still needs its guardian and shell path.
+- Bash, Zsh and Windows PowerShell remote bootstrap bind a session-only `warpai`
+  function to an absolute, manifest-verified helper. Existing shell commands
+  keep precedence. Forward arguments literally, including empty arguments.
 - Darwin leaves `PENDIN` when a raw CLI returning to canonical mode uses only
   `TCSANOW`. Flush pending input after restoring attributes without draining
   output. The full local comparison and real macOS/Linux SSH TTY test passed

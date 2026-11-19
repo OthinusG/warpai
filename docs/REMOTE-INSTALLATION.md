@@ -135,3 +135,14 @@ After entering your Linux project directory, Explorer, editing, previews, Review
 and Agent collaboration follow the confirmed WSL project. Distributions, users
 and Windows-local projects remain isolated. See the [WSL installation guide](WSL-INSTALLATION.md)
 for complete installation, MCP configuration and troubleshooting steps.
+
+## Keep an SSH task running
+
+In the participating Bash, Zsh or PowerShell shell inside Warpai, start a
+guarded task with `warpai run --name task1 -- program arguments`. Press Ctrl+B
+then Q to detach. The command continues after Warpai closes. Reconnect normally,
+then use `warpai list`, `warpai resume task1` or `warpai stop task1`. Ordinary
+commands keep their existing lifetime. A host restart ends the native task.
+
+The command comes from the matching Companion and is scoped to the current
+Warpai shell. It does not install a global command or modify shell profiles.

@@ -350,6 +350,21 @@ async fn real_wsl_guardian_retains_exact_run_with_all_bridges_closed() {
         guest_command(&user, "/home/warpai-test/.config/warpai/bin/warpai-companion", "ssh", &data_path),
         guest_command(&user, &companion, "wsl", &data_path),
     ).await;
+    let cli = |arguments: &[String], _: bool| {
+        let mut command = tokio::process::Command::new("wsl.exe");
+        command.args([
+            "--distribution", &distribution, "--user", &user,
+            "--exec", "/usr/bin/env", &data_path, "/bin/sh", "-c",
+            "cd \"$1\" || exit; shift; exec \"$@\"", "warpai-guardian-test",
+            &root, &companion, "ctl",
+        ]).args(arguments);
+        command
+    };
+    guarded_reconnect::verify_cli_launch_and_resume(
+        cli, "/bin/sh",
+        vec!["-c".into(), "printf 'GUARDIAN_PID=%s\\nSTARTED\\n' \"$$\"; while IFS= read -r line; do printf 'GUARDIAN_ECHO=%s\\n' \"$line\"; done".into()],
+        std::time::Duration::from_secs(12),
+    ).await;
     eprintln!("Guardian fixture: WSL reconnect after both bridges close");
     guarded_reconnect::verify_guarded_reconnect(
         &root,

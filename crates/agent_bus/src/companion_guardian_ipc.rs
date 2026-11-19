@@ -57,7 +57,6 @@ pub(super) fn valid_reply(bytes: &[u8; PREFACE_BYTES], route: Route) -> Option<(
 pub(super) enum Admission {
     Guarded = 0,
     Operator = 1,
-    ConnectionOwned = 2,
     OperatorSession = 3,
 }
 
@@ -69,7 +68,7 @@ pub(super) async fn read_preface(stream: &mut (impl AsyncRead + Unpin), route: R
     if bytes[..4] != MAGIC
         || u16::from_be_bytes([bytes[4], bytes[5]]) != IPC_MAJOR
         || Route::from_code(bytes[6]) != Some(route)
-        || bytes[7] > Admission::OperatorSession as u8
+        || !matches!(bytes[7], 0 | 1 | 3)
         || bytes[8..].iter().any(|byte| *byte != 0)
     {
         return Err(std::io::Error::from(ErrorKind::InvalidData));
@@ -77,7 +76,6 @@ pub(super) async fn read_preface(stream: &mut (impl AsyncRead + Unpin), route: R
     Ok(match bytes[7] {
         0 => Admission::Guarded,
         1 => Admission::Operator,
-        2 => Admission::ConnectionOwned,
         _ => Admission::OperatorSession,
     })
 }

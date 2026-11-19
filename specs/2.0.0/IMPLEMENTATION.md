@@ -11,7 +11,7 @@ were removed. Earlier design history remains in Git.
 
 - Unix account election keeps independent native PTYs after SSH or WSL bridge
   exit. Source-matched Linux/macOS SSH evidence is in [44344251976](https://github.com/OthinusG/warpai/actions/runs/44344251976).
-- Windows account election reuses the ordinary Store lock. The service verifies
+- Windows account election uses a separate guardian startup lock. The service verifies
   both named-pipe endpoints by account SID and refuses an inherited launcher Job.
   A guarded terminal owns its ConPTY and process Job. Native acceptance is
   pending on the combined source.
@@ -22,5 +22,15 @@ were removed. Earlier design history remains in Git.
 
 ## Combined verification
 
-Explicit CLI launch, shell integration, reduced runtime and installed native
-verification are in progress. Results here refer to their actual tested source.
+The public terminal commands now include explicit guarded launch and same-run
+attachment. Each command keeps its original argv. Account lists read the
+catalog directly. The unused desktop watch stream, future-launch settings
+and terminal snapshot wire code were removed.
+
+Existing ordinary Companion services and the guardian keep independent
+state directories. The guardian starts while the ordinary startup lock is held.
+A native mixed-load fixture verifies that a noisy run and a blocked input pipe
+leave a quiet task in a second project usable.
+
+Native CLI launch, bridge loss, explicit resume and stop have been wired into
+the SSH and WSL verification fixtures. Same-source cloud results are pending.

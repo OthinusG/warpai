@@ -9,7 +9,8 @@ guardian to start a guarded PTY. The invocation attaches directly. Returning
 from the CLI releases only the connection's writer.
 
 Companion elects one guardian for each operating-system execution account.
-Unix uses a private local socket and independent session. Windows uses a
+The guardian has a separate state directory and startup lock from the ordinary
+Companion. Unix uses a private local socket and independent session. Windows uses a
 same-SID named pipe, a launcher verified outside the original Job, and ConPTY
 with a guardian-owned process Job. Linux SSH and WSL share an owner only when
 the native account is the same. Logical routes, project access and task stores

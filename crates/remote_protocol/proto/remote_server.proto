@@ -47,7 +47,8 @@ message ServerMessage {
 
 // Managed SSH control is explicitly admitted; it never invokes legacy handlers.
 message ManagedRequest {
-  reserved 3, 6;
+  reserved 3, 6, 12;
+  reserved "account_catalog_watch";
   oneof operation {
     ManagedInitialize initialize = 1;
     ProjectOpen project_open = 2;
@@ -58,13 +59,13 @@ message ManagedRequest {
     GuestMcpBind guest_mcp_bind = 9;
     AccountCatalogList account_catalog_list = 10;
     AccountCatalogInspect account_catalog_inspect = 11;
-    AccountCatalogWatch account_catalog_watch = 12;
     AccountStop account_stop = 13;
     GuardedProjectOpen guarded_project_open = 14;
   }
 }
 message ManagedResponse {
-  reserved 3, 6;
+  reserved 3, 6, 12;
+  reserved "account_catalog_events";
   oneof result {
     ManagedInitialized initialized = 1;
     ProjectOpened project_opened = 2;
@@ -75,7 +76,6 @@ message ManagedResponse {
     GuestMcpBound guest_mcp_bound = 9;
     AccountCatalogPage account_catalog_page = 10;
     AccountCatalogRow account_catalog_row = 11;
-    AccountCatalogEvents account_catalog_events = 12;
     AccountStopReceipts account_stop_receipts = 13;
   }
 }
@@ -137,12 +137,6 @@ message AccountCatalogInspect {
   string session_id = 2;
   string run_id = 3;
 }
-message AccountCatalogWatch {
-  AccountFence fence = 1;
-  AccountCatalogFilter filter = 2;
-  string cursor = 3;
-  uint32 limit = 4;
-}
 // Non-secret metadata only: no argv, environment, paths, screen or attachment tokens.
 message AccountCatalogRow {
   string session_id = 1;
@@ -166,21 +160,6 @@ message AccountCatalogPage {
   uint32 total = 2;
   uint64 revision = 3;
   optional string next = 4;
-}
-enum AccountCatalogChange {
-  ACCOUNT_CATALOG_CHANGE_UNSPECIFIED = 0;
-  ACCOUNT_CATALOG_CHANGE_UPSERTED = 1;
-  ACCOUNT_CATALOG_CHANGE_REMOVED = 2;
-}
-message AccountCatalogEvent {
-  AccountCatalogChange change = 1;
-  AccountCatalogRow row = 2;
-}
-message AccountCatalogEvents {
-  repeated AccountCatalogEvent events = 1;
-  optional string next = 2;
-  // The caller must relist; events below the current revision were not retained.
-  bool gap = 3;
 }
 message AccountStopTarget {
   string session_id = 1;

@@ -30,15 +30,12 @@ pub enum Action {
     SshAgent(String, String),
     SshRefresh(String),
     SshRemoveAll(String),
-    SshGuardian,
     SshGuide,
     Select(String),
     Refresh,
     UninstallAll,
     #[cfg(windows)]
     WslEnable,
-    #[cfg(windows)]
-    WslGuardian,
     #[cfg(windows)]
     WslSelect(Option<crate::agent_communication::wsl_settings::Target>),
     #[cfg(windows)]
@@ -59,14 +56,11 @@ pub struct CommunicationSettingsView {
     ssh_switch: SwitchStateHandle,
     ssh_account: ViewHandle<crate::view_components::Dropdown<Action>>,
     ssh_maintenance: [MouseStateHandle; 3],
-    ssh_guardian: MouseStateHandle,
     refresh: MouseStateHandle,
     uninstall_all: MouseStateHandle,
     checkboxes: RefCell<HashMap<String, MouseStateHandle>>,
     #[cfg(windows)]
     wsl_switch: SwitchStateHandle,
-    #[cfg(windows)]
-    wsl_guardian: MouseStateHandle,
     #[cfg(windows)]
     wsl_distribution: ViewHandle<crate::view_components::Dropdown<Action>>,
     #[cfg(windows)]
@@ -121,14 +115,11 @@ impl CommunicationSettingsView {
             ssh_switch: Default::default(),
             ssh_account,
             ssh_maintenance: Default::default(),
-            ssh_guardian: Default::default(),
             refresh: Default::default(),
             uninstall_all: Default::default(),
             checkboxes: Default::default(),
             #[cfg(windows)]
             wsl_switch: Default::default(),
-            #[cfg(windows)]
-            wsl_guardian: Default::default(),
             #[cfg(windows)]
             wsl_distribution,
             #[cfg(windows)]
@@ -203,7 +194,6 @@ impl TypedActionView for CommunicationSettingsView {
             Action::SshRemoveAll(key) if model.ssh.preferences.selected.as_ref() == Some(key) =>
                 model.configure_ssh(warp_agent_bus::wsl_setup::Action::RemoveAll, ctx),
             Action::SshAgent(..) | Action::SshRefresh(_) | Action::SshRemoveAll(_) => (),
-            Action::SshGuardian => model.toggle_ssh_guardian(ctx),
             Action::SshGuide => ctx.open_url("https://github.com/OthinusG/warpai/blob/main/docs/REMOTE-INSTALLATION.md"),
             Action::Enable => model.configure(Some(!model.preferences.enabled), None, ctx),
             Action::Select(command) => model.configure(None, Some(command.clone()), ctx),
@@ -211,8 +201,6 @@ impl TypedActionView for CommunicationSettingsView {
             Action::UninstallAll => model.uninstall_all(ctx),
             #[cfg(windows)]
             Action::WslEnable => model.configure_wsl(Some(!model.wsl.preferences.enabled), None, ctx),
-            #[cfg(windows)]
-            Action::WslGuardian => model.toggle_wsl_guardian(ctx),
             #[cfg(windows)]
             Action::WslSelect(target) => {
                 if let Some(target) = target { model.configure_wsl(None, Some(target.clone()), ctx); }
@@ -392,16 +380,6 @@ impl View for CommunicationSettingsView {
             if ssh.targets.is_empty() {
                 body.add_child(secondary_text(appearance, warpui::localization::text("No logged-in SSH accounts. Connect in a Warpai terminal first.").into(), None));
             }
-            let selected_guardian = ssh.selected_guardian();
-            let guardian = builder.checkbox(self.ssh_guardian.clone(), None).check(selected_guardian == Some(true));
-            let guardian_enabled = !ssh.busy && selected_guardian.is_some();
-            let guardian = if guardian_enabled { guardian } else { guardian.disabled() };
-            body.add_child(build_toggle_element(
-                render_body_item_label_with_icon::<Action>(warpui::localization::text("Keep remote sessions").into(), warp_core::ui::Icon::History, None, None,
-                    LocalOnlyIconState::Hidden, if guardian_enabled { ToggleState::Enabled } else { ToggleState::Disabled }, appearance),
-                guardian.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::SshGuardian)).finish(),
-                appearance, Some(warpui::localization::text("Retain SSH terminal sessions after the desktop disconnects; requires a Companion build with guardian support.").into()),
-            ));
             if let Some(target) = ssh.selected_target() {
                 let key = target.key.clone();
                 if ssh.account_id.is_some() && ssh.available.is_empty() && !ssh.busy {
@@ -463,16 +441,6 @@ impl View for CommunicationSettingsView {
                             LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
                         checkbox.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslCompanion)).finish(),
                         appearance, Some(warpui::localization::text("Bundled with Windows Warpai. Applies only to the selected WSL account; unchecking removes its installation.").into()),
-                    ));
-                }
-                if let Some(retained) = model.wsl.selected_guardian() {
-                    let toggle = builder.checkbox(self.wsl_guardian.clone(), None).check(retained);
-                    let toggle = if model.wsl.busy { toggle.disabled() } else { toggle };
-                    body.add_child(build_toggle_element(
-                        render_body_item_label_with_icon::<Action>(warpui::localization::text("Keep remote sessions").into(), warp_core::ui::Icon::History, None, None,
-                            LocalOnlyIconState::Hidden, if model.wsl.busy { ToggleState::Disabled } else { ToggleState::Enabled }, appearance),
-                        toggle.build().on_click(|ctx, _, _| ctx.dispatch_typed_action(Action::WslGuardian)).finish(),
-                        appearance, Some(warpui::localization::text("Retain terminal sessions for this WSL account after the desktop disconnects.").into()),
                     ));
                 }
                 for (command, _) in &model.wsl.agents {

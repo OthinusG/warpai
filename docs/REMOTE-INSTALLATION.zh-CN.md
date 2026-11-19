@@ -97,3 +97,13 @@ Warpai for Windows 内置专用的 WSL Companion 载荷。打开 WSL 终端后�
 进入 Linux 项目目录后，文件浏览、编辑、预览、Review 与 Agent 协同均跟随
 已确认的 WSL 项目。发行版、用户及 Windows 本地项目之间保持隔离。
 完整安装、MCP 配置与排错步骤见 [WSL 安装指南](WSL-INSTALLATION.zh-CN.md)。
+
+## 让 SSH 任务在断开后继续运行
+
+在 Warpai 内已集成的 Bash、Zsh 或 PowerShell 中，运行
+`warpai run --name task1 -- 程序 参数` 开启守护任务。按 Ctrl+B 再按 Q 即可分离，
+关闭 Warpai 后任务仍会运行。重新连接后，用 `warpai list` 查看任务，
+用 `warpai resume task1` 接回原进程，或用 `warpai stop task1` 停止它。
+普通命令沿用原有生命周期。远端主机重启会结束任务。
+
+命令随匹配版本的 Companion 提供，仅在当前已集成的 Warpai shell 中注册。

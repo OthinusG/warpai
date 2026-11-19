@@ -34,6 +34,21 @@ pub(crate) struct NativeScreen {
     osc: Option<OscInput>,
 }
 impl NativeScreen {
+    pub(crate) fn cli_view(&self, previous_alternate: bool) -> Vec<u8> {
+        let mut view = Vec::new();
+        if self.alternate_screen() && !previous_alternate {
+            view.extend_from_slice(b"\x1b[?1049h");
+        } else if previous_alternate && !self.alternate_screen() {
+            view.extend_from_slice(b"\x1b[?1049l");
+        }
+        view.extend(self.parser.screen().state_formatted());
+        view
+    }
+
+    pub(crate) fn alternate_screen(&self) -> bool {
+        self.parser.screen().alternate_screen()
+    }
+
     pub(crate) fn new(rows: u16, columns: u16) -> Self {
         Self {
             parser: vt100::Parser::new_with_callbacks(rows, columns, 0, Signals::default()),

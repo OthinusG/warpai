@@ -442,9 +442,6 @@ impl Companion {
             Some(managed_request::Operation::AccountCatalogInspect(request)) => {
                 self.dispatch_catalog_inspect(request)
             }
-            Some(managed_request::Operation::AccountCatalogWatch(request)) => {
-                self.dispatch_catalog_watch(request)
-            }
             Some(managed_request::Operation::AccountStop(request)) => {
                 self.dispatch_account_stop(request_id, request)
             }
@@ -568,66 +565,6 @@ impl Companion {
             &record,
         )))
     }
-
-    fn dispatch_catalog_watch(
-        &mut self,
-        request: AccountCatalogWatch,
-    ) -> Result<managed_response::Result, ManagedErrorCode> {
-        self.check_account_fence(request.fence.as_ref())?;
-        let limit = match request.limit {
-            0 => 16,
-            limit @ 1..=32 => usize::try_from(limit).unwrap_or(16),
-            _ => return Err(ManagedErrorCode::ManagedInvalidInput),
-        };
-        let catalog = self
-            .catalog
-            .as_ref()
-            .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
-            .lock()
-            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        let filter = request.filter.unwrap_or_default();
-        let filter_key = catalog_filter_key(&filter);
-        // An empty cursor establishes the baseline; it never replays history.
-        let after = if request.cursor.is_empty() {
-            catalog.revision()
-        } else {
-            let Some((boot, rest)) = request.cursor.split_once(':') else {
-                return Err(ManagedErrorCode::ManagedConflict);
-            };
-            let Some((revision, cursor_filter)) = rest.split_once(':') else {
-                return Err(ManagedErrorCode::ManagedConflict);
-            };
-            if boot != self.fence.service_boot_id || cursor_filter != filter_key {
-                return Err(ManagedErrorCode::ManagedConflict);
-            }
-            revision
-                .parse::<u64>()
-                .map_err(|_| ManagedErrorCode::ManagedConflict)?
-        };
-        let batch = catalog
-            .watch(after, limit, |row| catalog_filter_matches(&filter, row))
-            .map_err(|_| ManagedErrorCode::ManagedConflict)?;
-        let events = batch
-            .events
-            .into_iter()
-            .map(|(change, row)| AccountCatalogEvent {
-                change: match change {
-                    guardian_catalog::Change::Upserted => AccountCatalogChange::Upserted as i32,
-                    guardian_catalog::Change::Removed => AccountCatalogChange::Removed as i32,
-                },
-                row: Some(catalog_row(&row)),
-            })
-            .collect();
-        Ok(managed_response::Result::AccountCatalogEvents(
-            AccountCatalogEvents {
-                events,
-                next: Some(format!("{}:{}:{}", self.fence.service_boot_id, batch.next, filter_key)),
-                gap: batch.gap,
-            },
-        ))
-    }
-
-    /// Account-owned stop batch; receipts report requests, never task completion.
 
     fn dispatch_account_stop(
         &mut self,
@@ -865,7 +802,7 @@ pub async fn serve_guardian_stdio(route: &str) -> Result<(), &'static str> {
             std::io::ErrorKind::WouldBlock => "guardian connection capacity",
             _ => "guardian startup or IPC",
         })?;
-    service::forward_stdio(stream, Some(scope), Some((guardian, boot)))
+    service::forward_stdio(stream, Some((scope, guardian, boot)))
         .await
         .map_err(|error| match error {
             ProtocolError::Io(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {

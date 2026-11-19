@@ -153,17 +153,6 @@ impl SshProfile {
         })
     }
 
-    /// Opt-in helper bridge: the installed companion joins the account guardian.
-    fn guardian_command(&self, route: &str) -> Result<String, ConnectionError> {
-        if !matches!(route, "ssh" | "wsl") {
-            return Err(ConnectionError::InvalidProfile);
-        }
-        if route == "wsl" && self.remote_shell != RemoteShell::Posix {
-            return Err(ConnectionError::InvalidProfile);
-        }
-        self.companion_command_args(&format!(" --guardian-stdio {route}"))
-    }
-
     fn arguments_command(&self, arguments: &[String]) -> Result<Command, ConnectionError> {
         if arguments.is_empty()
             || arguments.len() > 128
@@ -337,46 +326,7 @@ impl HostClient {
         Ok(client)
     }
 
-    /// Opt-in account guardian inside the selected WSL distribution.
-    #[cfg(windows)]
-    pub async fn connect_wsl_guarded(
-        profile: &SshProfile,
-        distribution: &str,
-        user: &str,
-        route: &str,
-    ) -> Result<Self, ConnectionError> {
-        if route != "wsl" {
-            return Err(ConnectionError::InvalidProfile);
-        }
-        Self::probe_installed(profile, Self::wsl_command(profile, distribution, user)?).await?;
-        let mut command = Self::wsl_guardian_command(profile, distribution, user)?;
-        command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
-        let child = command
-            .spawn()
-            .map_err(|_| ConnectionError::CompanionUnavailable)?;
-        let mut client = Self::open(child, &profile.remote_root).await?;
-        if !client.account_id.starts_with("uid:") {
-            client.disconnect();
-            return Err(ConnectionError::IncompatibleVersion);
-        }
-        client.require_account_guardian()?;
-        Ok(client)
-    }
-
     #[cfg(any(windows, test))]
-    fn wsl_guardian_command(
-        profile: &SshProfile,
-        distribution: &str,
-        user: &str,
-    ) -> Result<Command, ConnectionError> {
-        let mut command = Self::wsl_command(profile, distribution, user)?;
-        command.args(["--guardian-stdio", "wsl"]);
-        Ok(command)
-    }
-
     #[cfg(any(windows, test))]
     pub(crate) fn wsl_command(profile: &SshProfile, distribution: &str, user: &str) -> Result<Command, ConnectionError> {
         profile.validate()?;
@@ -411,25 +361,6 @@ impl HostClient {
         Self::open(child, &profile.remote_root).await
     }
 
-    /// Opt-in account guardian: the installed helper bridges to retained runs.
-    pub async fn connect_guarded(profile: &SshProfile, route: &str) -> Result<Self, ConnectionError> {
-        let mut command = profile.ssh_command()?;
-        command
-            .arg("--")
-            .arg(&profile.target)
-            .arg(profile.guardian_command(route)?)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .kill_on_drop(true);
-        let child = command
-            .spawn()
-            .map_err(|_| ConnectionError::SshUnavailable)?;
-        let mut client = Self::open(child, &profile.remote_root).await?;
-        client.require_account_guardian()?;
-        Ok(client)
-    }
-
     /// Attach to the selected terminal's already authenticated SSH session.
     pub async fn connect_session(
         profile: &SshProfile,
@@ -445,24 +376,6 @@ impl HostClient {
         .await
     }
 
-    /// Opt-in account guardian over the established session.
-    pub async fn connect_session_guarded(
-        profile: &SshProfile,
-        socket: &std::path::Path,
-        wsl: Option<&str>,
-        route: &str,
-    ) -> Result<Self, ConnectionError> {
-        Self::probe_installed(profile, profile.session_command(socket, wsl)?).await?;
-        let mut client = Self::open_command(
-            profile,
-            profile.session_command(socket, wsl)?,
-            profile.guardian_command(route)?,
-        )
-        .await?;
-        client.require_account_guardian()?;
-        Ok(client)
-    }
-
     /// Native Windows uses the user's original system SSH transport arguments.
     pub async fn connect_arguments(
         profile: &SshProfile,
@@ -475,41 +388,6 @@ impl HostClient {
             profile.companion_command()?,
         )
         .await
-    }
-
-    /// Opt-in account guardian through native Windows SSH arguments.
-    pub async fn connect_arguments_guarded(
-        profile: &SshProfile,
-        arguments: &[String],
-        route: &str,
-    ) -> Result<Self, ConnectionError> {
-        Self::probe_installed(profile, profile.arguments_command(arguments)?).await?;
-        let mut client = Self::open_command(
-            profile,
-            profile.arguments_command(arguments)?,
-            profile.guardian_command(route)?,
-        )
-        .await?;
-        client.require_account_guardian()?;
-        Ok(client)
-    }
-
-    /// A guarded connection must be served by the account guardian, never a legacy scope.
-    fn require_account_guardian(&mut self) -> Result<(), ConnectionError> {
-        let valid = self.account_fence.is_some()
-            && self
-                .capabilities
-                .iter()
-                .any(|capability| capability == "guarded_remote_sessions_v1")
-            && self
-                .capabilities
-                .iter()
-                .any(|capability| capability == "account_catalog");
-        if !valid {
-            self.close();
-            return Err(ConnectionError::IncompatibleVersion);
-        }
-        Ok(())
     }
 
     async fn probe_installed(
@@ -1105,33 +983,6 @@ impl HostClient {
         }
     }
 
-    /// Replay is bounded; a `gap` requires a fresh listing before trusting events.
-    pub async fn account_catalog_watch(
-        &mut self,
-        filter: Option<AccountCatalogFilter>,
-        cursor: String,
-        limit: u32,
-    ) -> Result<AccountCatalogEvents, ConnectionError> {
-        let fence = self.account_scope()?;
-        let result = self
-            .request(managed_request::Operation::AccountCatalogWatch(
-                AccountCatalogWatch {
-                    fence: Some(fence),
-                    filter,
-                    cursor,
-                    limit,
-                },
-            ))
-            .await?;
-        match result {
-            managed_response::Result::AccountCatalogEvents(events) => Ok(events),
-            _ => {
-                self.close();
-                Err(ConnectionError::IncompatibleVersion)
-            }
-        }
-    }
-
     /// Receipts report the stop request; task acceptance and review stay separate.
     pub async fn account_stop(
         &mut self,
@@ -1300,10 +1151,6 @@ mod tests {
         let command = HostClient::wsl_command(&profile, "Ubuntu Test", "guest").unwrap();
         let args: Vec<_> = command.as_std().get_args().map(|value| value.to_str().unwrap()).collect();
         assert_eq!(args, ["--distribution", "Ubuntu Test", "--user", "guest", "--exec", &profile.companion_path]);
-        let guarded = HostClient::wsl_guardian_command(&profile, "Ubuntu Test", "guest").unwrap();
-        let guarded_args: Vec<_> = guarded.as_std().get_args().map(|value| value.to_str().unwrap()).collect();
-        assert_eq!(&guarded_args[..args.len()], args);
-        assert_eq!(&guarded_args[args.len()..], ["--guardian-stdio", "wsl"]);
         for (distribution, user) in [("", "guest"), ("--help", "guest"), ("Ubuntu\nother", "guest"), ("Ubuntu", ""), ("Ubuntu", "--root")] {
             assert!(HostClient::wsl_command(&profile, distribution, user).is_err());
         }
@@ -1349,8 +1196,7 @@ mod tests {
         profile.remote_root = "C:\\project with spaces".into();
         profile.companion_path = "C:\\it's $(danger)\\companion.exe".into();
         assert!(profile.validate().is_ok());
-        assert_eq!(profile.guardian_command("wsl"), Err(ConnectionError::InvalidProfile));
-        let command = profile.guardian_command("ssh").unwrap();
+        let command = profile.companion_command().unwrap();
         let encoded = command.split_whitespace().last().unwrap();
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(encoded)
@@ -1361,7 +1207,7 @@ mod tests {
             .collect();
         assert_eq!(
             String::from_utf16(&words).unwrap(),
-            "& 'C:\\it''s $(danger)\\companion.exe' --guardian-stdio ssh"
+            "& 'C:\\it''s $(danger)\\companion.exe'"
         );
     }
 }

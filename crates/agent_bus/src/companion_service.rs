@@ -79,21 +79,14 @@ fn start_service() -> std::io::Result<()> {
 pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
     let directory = data_directory()?;
     let endpoint = endpoint(&directory)?;
-    let (stream, expected_scope) = match connect(&endpoint).await {
-        Ok(stream) => (stream, None),
+    let stream = match connect(&endpoint).await {
+        Ok(stream) => stream,
         Err(_) => {
-            let scope = identity::Identity::open(&directory)?.service_id;
-            if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
-                return forward_stdio(stream, Some(scope), None).await;
-            }
             start_service()?;
             tokio::time::timeout(Duration::from_secs(10), async {
                 loop {
                     if let Ok(stream) = connect(&endpoint).await {
-                        break (stream, None);
-                    }
-                    if let Some(stream) = ordinary_guardian(&scope, guardian::probe_connection_owned).await {
-                        break (stream, Some(scope.clone()));
+                        break stream;
                     }
                     tokio::time::sleep(Duration::from_millis(50)).await;
                 }
@@ -102,42 +95,12 @@ pub(super) async fn proxy_stdio() -> Result<(), ProtocolError> {
             .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))?
         }
     };
-    forward_stdio(stream, expected_scope, None).await
-}
-
-pub(super) async fn ordinary_guardian<F>(
-    scope: &str,
-    probe: impl Fn() -> F,
-) -> Option<Stream>
-where
-    F: std::future::Future<Output = std::io::Result<Option<Stream>>>,
-{
-    let mut candidate = probe().await.ok()??.compat();
-    let request_id = Uuid::new_v4().to_string();
-    let request = ClientMessage {
-        request_id: request_id.clone(),
-        message: Some(client_message::Message::Managed(ManagedRequest {
-            operation: Some(managed_request::Operation::Initialize(ManagedInitialize {
-                protocol_major: PROTOCOL_MAJOR,
-            })),
-        })),
-    };
-    let reply = tokio::time::timeout(Duration::from_secs(2), async {
-        write_message_with_limit(&mut candidate, &request, MAX_MANAGED_MESSAGE_SIZE).await?;
-        read_message_with_limit::<ServerMessage>(&mut candidate, MAX_MANAGED_MESSAGE_SIZE).await
-    }).await.ok()?.ok()?;
-    drop(candidate);
-    if reply.request_id != request_id || !verified_initialize(&reply, scope, None) {
-        // A different logical Store is independent of this legacy launch.
-        return None;
-    }
-    probe().await.ok().flatten()
+    forward_stdio(stream, None).await
 }
 
 pub(super) async fn forward_stdio(
     stream: Stream,
-    mut expected_scope: Option<String>,
-    expected_guardian: Option<(Uuid, Uuid)>,
+    mut expected: Option<(String, Uuid, Uuid)>,
 ) -> Result<(), ProtocolError> {
     let (input, output) = tokio::io::split(stream);
     let mut input = input.compat();
@@ -162,8 +125,8 @@ pub(super) async fn forward_stdio(
         })
         .await
         .map_err(|_| std::io::Error::from(std::io::ErrorKind::TimedOut))??;
-        if let Some(expected) = expected_scope.take() {
-            if !verified_initialize(&reply, &expected, expected_guardian) {
+        if let Some((scope, guardian, boot)) = expected.take() {
+            if !verified_initialize(&reply, &scope, guardian, boot) {
                 return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
             }
         }
@@ -174,7 +137,8 @@ pub(super) async fn forward_stdio(
 fn verified_initialize(
     reply: &ServerMessage,
     service_id: &str,
-    expected_guardian: Option<(Uuid, Uuid)>,
+    guardian: Uuid,
+    boot: Uuid,
 ) -> bool {
     let Some(server_message::Message::Managed(response)) = &reply.message else {
         return false;
@@ -188,16 +152,12 @@ fn verified_initialize(
     if fence.service_id != service_id {
         return false;
     }
-    match (expected_guardian, &initialized.account_fence) {
-        (None, None) => true,
-        (Some((guardian, boot)), Some(account)) => {
-            account.guardian_id == guardian.to_string()
-                && account.boot_id == boot.to_string()
-                && account.boot_id == fence.service_boot_id
-                && account.connection_id == fence.connection_id
-        }
-        _ => false,
-    }
+    initialized.account_fence.as_ref().is_some_and(|account| {
+        account.guardian_id == guardian.to_string()
+            && account.boot_id == boot.to_string()
+            && account.boot_id == fence.service_boot_id
+            && account.connection_id == fence.connection_id
+    })
 }
 
 #[cfg(test)]
@@ -230,10 +190,9 @@ mod tests {
             }))),
             ..Default::default()
         };
-        assert!(verified_initialize(&reply, &scope, Some((guardian, boot))));
-        assert!(!verified_initialize(&reply, &scope, Some((guardian, Uuid::new_v4()))));
-        assert!(!verified_initialize(&reply, &scope, None));
-        assert!(!verified_initialize(&reply, &Uuid::new_v4().to_string(), Some((guardian, boot))));
+        assert!(verified_initialize(&reply, &scope, guardian, boot));
+        assert!(!verified_initialize(&reply, &scope, guardian, Uuid::new_v4()));
+        assert!(!verified_initialize(&reply, &Uuid::new_v4().to_string(), guardian, boot));
     }
 }
 
@@ -247,7 +206,14 @@ pub(super) async fn serve_windows_guardian() -> Result<(), ProtocolError> {
 }
 
 async fn serve_native(#[cfg(windows)] guarded: bool) -> Result<(), ProtocolError> {
+    #[cfg(unix)]
     let directory = data_directory()?;
+    #[cfg(windows)]
+    let directory = if guarded {
+        guardian::scope_directory(Route::Ssh).await?
+    } else {
+        data_directory()?
+    };
     identity::private_directory(&directory)?;
     let lock = identity::private_file(&directory.join("service.lock"))?;
     lock.try_lock().map_err(std::io::Error::other)?;
@@ -402,7 +368,7 @@ async fn serve_native(#[cfg(windows)] guarded: bool) -> Result<(), ProtocolError
                 }
                 let _ = serve_channel(
                     stream, &directory, &boot_id, terminals, tasks, peer_pid, Some(route), Some(catalog),
-                    (admission != Admission::ConnectionOwned).then_some(account),
+                    Some(account),
                     matches!(admission, Admission::Operator | Admission::OperatorSession),
                 ).await;
             });

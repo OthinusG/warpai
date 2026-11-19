@@ -7,35 +7,13 @@ use diesel::{
     sql_types::{BigInt, Integer, Nullable, Text},
     sqlite::SqliteConnection,
 };
-use std::{collections::VecDeque, path::Path};
+use std::path::Path;
 
 pub const APPLICATION_ID: i32 = 0x5747_4341;
 pub const USER_VERSION: i32 = 1;
 const MAX_ROWS: i64 = 64;
-const MAX_EVENTS: usize = 64;
 /// Resolved ended rows are catalog history, never retained work.
 pub const ENDED_TTL_MS: i64 = 24 * 60 * 60 * 1000;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Change {
-    Upserted,
-    Removed,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Event {
-    pub revision: u64,
-    pub row: Record,
-    pub change: Change,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WatchBatch {
-    pub events: Vec<(Change, Record)>,
-    pub next: u64,
-    /// Events below the retained window were lost; the caller must relist.
-    pub gap: bool,
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
@@ -106,8 +84,6 @@ impl Record {
 pub struct Catalog {
     connection: SqliteConnection,
     next_seq: i64,
-    events: VecDeque<Event>,
-    event_floor: u64,
 }
 
 #[derive(QueryableByName)]
@@ -238,8 +214,6 @@ impl Catalog {
         let mut catalog = Self {
             connection,
             next_seq: seeded.max(mru),
-            events: VecDeque::new(),
-            event_floor: seeded.max(mru).max(0) as u64,
         };
         // Existing rows must satisfy the same invariants before any write.
         catalog.list()?;
@@ -258,33 +232,24 @@ impl Catalog {
     }
 
     /// Mutations allocate a revision even when they do not consume a session sequence.
-    fn bump_revision(&mut self) -> u64 {
-        if let Ok(revision) = self.allocate_seq() {
-            return revision;
-        }
-        self.next_seq = i64::MAX;
-        self.revision()
-    }
-
-    fn record_event(&mut self, row: Record, change: Change) {
-        let revision = self.bump_revision();
-        self.events.push_back(Event { revision, row, change });
-        if self.events.len() > MAX_EVENTS {
-            self.event_floor = self.events.pop_front().expect("event ring exceeds its capacity").revision;
+    fn bump_revision(&mut self) {
+        if self.allocate_seq().is_err() {
+            self.next_seq = i64::MAX;
         }
     }
 
-    fn record_upsert(&mut self, session_id: &str) {
-        match self.find_session(session_id) {
-            Ok(Some(row)) => self.record_event(row, Change::Upserted),
-            _ => {
-                self.events.clear();
-                self.event_floor = self.bump_revision();
-            }
-        }
+    #[cfg(test)]
+    pub(super) fn set_query_only(&mut self, readonly: bool) {
+        self.connection
+            .batch_execute(if readonly {
+                "PRAGMA query_only=ON"
+            } else {
+                "PRAGMA query_only=OFF"
+            })
+            .unwrap();
     }
 
-    /// Prior live rows are interruption evidence, never auto-resumed work.
+    /// A new owner cannot prove custody of runs recorded by a previous boot.
     pub fn begin_boot(&mut self, observed_ms: i64) -> Result<usize, diesel::result::Error> {
         sql_query(
             "UPDATE guardian_catalog_sessions SET state='unknown', observed_ms=? \
@@ -332,8 +297,8 @@ impl Catalog {
             if removed == 0 && self.count().map_err(unavailable)? >= MAX_ROWS {
                 return Err("Guardian catalog capacity reached".into());
             }
-            for row in pruned {
-                self.record_event(row, Change::Removed);
+            if !pruned.is_empty() {
+                self.bump_revision();
             }
         }
         sql_query(
@@ -362,7 +327,7 @@ impl Catalog {
         )
         .execute(&mut self.connection)
         .map_err(unavailable)?;
-        self.record_upsert(&record.session_id);
+        self.bump_revision();
         Ok(())
     }
 
@@ -426,7 +391,7 @@ impl Catalog {
             .execute(&mut self.connection)
             .map_err(unavailable)?;
             if updated > 0 {
-                self.record_upsert(&record.session_id);
+                self.bump_revision();
             }
             return Ok(());
         }
@@ -457,7 +422,7 @@ impl Catalog {
         .bind::<Text, _>(service_id)
         .execute(&mut self.connection)?;
         if updated > 0 {
-            self.record_upsert(session_id);
+            self.bump_revision();
         }
         Ok(updated)
     }
@@ -499,7 +464,7 @@ impl Catalog {
         .execute(&mut self.connection)
         .map_err(unavailable)?;
         if updated > 0 {
-            self.record_upsert(session_id);
+            self.bump_revision();
         }
         Ok(updated == 1)
     }
@@ -520,20 +485,17 @@ impl Catalog {
         .execute(&mut self.connection)
         .map_err(unavailable)?;
         if updated > 0 {
-            self.record_upsert(session_id);
+            self.bump_revision();
         }
         Ok(mru as u64)
     }
 
     pub fn remove(&mut self, session_id: &str) -> Result<usize, diesel::result::Error> {
-        let row = self.find_session(session_id).map_err(|error| {
-            diesel::result::Error::DeserializationError(error.into())
-        })?;
         let removed = sql_query("DELETE FROM guardian_catalog_sessions WHERE session_id=?")
             .bind::<Text, _>(session_id)
             .execute(&mut self.connection)?;
-        if let Some(row) = row {
-            self.record_event(row, Change::Removed);
+        if removed != 0 {
+            self.bump_revision();
         }
         Ok(removed)
     }
@@ -553,53 +515,6 @@ impl Catalog {
         Ok(removed)
     }
 
-    /// Cursor-fenced change replay; a lost window demands a fresh listing.
-    pub fn watch(&self, after: u64, limit: usize, matches: impl Fn(&Record) -> bool) -> Result<WatchBatch, String> {
-        let current = self.revision();
-        if after > current {
-            return Err("Guardian catalog cursor ahead".into());
-        }
-        if after == current {
-            return Ok(WatchBatch {
-                events: Vec::new(),
-                next: current,
-                gap: false,
-            });
-        }
-        if after < self.event_floor {
-            return Ok(WatchBatch {
-                events: Vec::new(),
-                next: current,
-                gap: true,
-            });
-        }
-        let mut events = Vec::new();
-        let mut next = current;
-        for event in self.events.iter().filter(|event| event.revision > after) {
-            if matches(&event.row) {
-                events.push((event.change, event.row.clone()));
-                if events.len() == limit {
-                    next = event.revision;
-                    break;
-                }
-            }
-        }
-        Ok(WatchBatch {
-            next,
-            events,
-            gap: false,
-        })
-    }
-
-    #[cfg(test)]
-    pub(super) fn set_query_only(&mut self, readonly: bool) {
-        self.connection.batch_execute(if readonly {
-            "PRAGMA query_only=ON"
-        } else {
-            "PRAGMA query_only=OFF"
-        }).unwrap();
-    }
-
     /// Monotonic account revision; pages bound to it become stale after any mutation.
     pub fn revision(&self) -> u64 {
         self.next_seq.max(0) as u64
@@ -614,13 +529,6 @@ impl Catalog {
             .list()?
             .into_iter()
             .find(|record| record.session_id == session_id && record.run_id == run_id))
-    }
-
-    fn find_session(&mut self, session_id: &str) -> Result<Option<Record>, String> {
-        Ok(self
-            .list()?
-            .into_iter()
-            .find(|record| record.session_id == session_id))
     }
 
     pub fn list(&mut self) -> Result<Vec<Record>, String> {
@@ -801,50 +709,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn watch_replays_bounded_events_and_reports_gaps() {
-        let state = tempfile::tempdir().unwrap();
-        let path = state.path().join("catalog.sqlite3");
-        let mut catalog = Catalog::open(&path).unwrap();
-        let mut first = record("a", State::Live);
-        first.created_seq = 1;
-        first.mru_seq = 1;
-        catalog.insert(&first).unwrap();
-        let baseline = catalog.revision();
-        catalog.allocate_seq().unwrap();
-        assert!(catalog.watch(baseline, 16, |_| true).unwrap().events.is_empty());
-        catalog
-            .update_state("a", "run-a", "boot", "service", State::Ended, 2, Some(0))
-            .unwrap();
-        let batch = catalog.watch(baseline, 16, |_| true).unwrap();
-        assert!(!batch.gap);
-        assert_eq!(batch.events.len(), 1);
-        assert_eq!(batch.events[0].0, Change::Upserted);
-        assert_eq!(
-            batch.events[0].1.state,
-            State::Ended
-        );
-        assert_eq!(batch.next, catalog.revision());
-        assert!(catalog.watch(batch.next, 16, |_| true).unwrap().events.is_empty());
 
-        catalog.remove("a").unwrap();
-        let removal = catalog.watch(batch.next, 16, |_| true).unwrap();
-        assert!(!removal.gap);
-        assert!(catalog.watch(batch.next, 16, |row| row.project_id == "other")
-            .unwrap().events.is_empty());
-        assert_eq!(removal.events.len(), 1);
-        assert_eq!(removal.events[0].0, Change::Removed);
-        assert_eq!(removal.events[0].1.session_id, "a");
-        catalog.insert(&record("c", State::Live)).unwrap();
-        let stale = catalog.revision();
-        for observed in 0..=MAX_EVENTS as i64 {
-            catalog
-                .update_state("c", "run-c", "boot", "service", State::Live, observed, None)
-                .unwrap();
-        }
-        assert!(catalog.watch(stale, 16, |_| true).unwrap().gap);
-        assert!(catalog.watch(catalog.revision() + 1, 16, |_| true).is_err());
-    }
 
     #[test]
     fn expires_only_resolved_ended_rows() {
