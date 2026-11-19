@@ -3,7 +3,7 @@
 One Companion guardian per execution account keeps explicitly launched SSH
 or WSL tasks alive across desktop close. A new terminal starts normally.
 Use `warpai list`, `warpai resume task1` and `warpai stop task1` to manage the
-existing process. Start a guarded task with `warpai run --name task1 -- ...`.
+existing process. Start a guarded task with `warpai run program args --name task1`.
 
 - [Requirements](PRD.md) and [technical design](TECH.md)
 - [CLI contract](CLI.md) and [private API](API.md)

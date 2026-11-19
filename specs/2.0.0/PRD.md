@@ -7,7 +7,7 @@ process and its native process group or Job.
 ## User workflow
 
 1. Open an SSH or WSL terminal in Warpai. Run
-   `warpai run --name task1 -- <program> [args...]` to start a guarded task
+   `warpai run <program> [args...] --name task1` to start a guarded task
    in that terminal's remote working directory. Ordinary commands keep their
    existing behavior.
 2. Close the desktop or disconnect. The guardian keeps the original process

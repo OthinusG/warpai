@@ -588,8 +588,9 @@ pub async fn verify_cli_launch_and_resume(
     }
 
     let label = format!("cli-task-{}", Uuid::new_v4().simple());
-    let mut launch = vec!["run".into(), "--name".into(), label.clone(), "--".into(), executable.into()];
+    let mut launch = vec!["run".into(), executable.into()];
     launch.extend(arguments);
+    launch.extend(["--name".into(), label.clone()]);
     let mut original = command(&launch, true).stdin(Stdio::piped()).stdout(Stdio::piped())
         .kill_on_drop(true).spawn().unwrap();
     let output = wait_for(original.stdout.as_mut().unwrap(), "STARTED").await;

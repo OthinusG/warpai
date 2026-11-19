@@ -202,7 +202,7 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   and runtime dependencies; vendor CLI/auth remain user-owned. Keep on-demand
   startup/60-second idle shutdown.
 - 2.0.0 guardian scope is Companion-owned tasks on SSH and direct WSL. Start a
-  task explicitly with `warpai run --name NAME -- PROGRAM [ARGS...]` in an
+  task explicitly with `warpai run PROGRAM [ARGS...] [--name NAME]` in an
   integrated terminal. Reconnect through `warpai resume` and end the owned
   process tree with `warpai stop`. The desktop opens the ordinary connection.
   Companion uses an independent private state directory, startup lock, native

@@ -139,7 +139,7 @@ for complete installation, MCP configuration and troubleshooting steps.
 ## Keep an SSH task running
 
 In the participating Bash, Zsh or PowerShell shell inside Warpai, start a
-guarded task with `warpai run --name task1 -- program arguments`. Press Ctrl+B
+guarded task with `warpai run program arguments --name task1`. Press Ctrl+B
 then Q to detach. The command continues after Warpai closes. Reconnect normally,
 then use `warpai list`, `warpai resume task1` or `warpai stop task1`. Ordinary
 commands keep their existing lifetime. A host restart ends the native task.

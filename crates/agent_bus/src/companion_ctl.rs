@@ -11,8 +11,10 @@ const EXIT_DOMAIN: i32 = 1;
 const EXIT_SYNTAX: i32 = 2;
 const PAGE_LIMIT: u32 = 32;
 const HELP: &str = "\
-warpai run [--name <name>] -- <program> [args...]
+warpai run <program> [args...] [--name <name>]
     Start a guarded task in this remote directory and attach to it.
+    The name defaults to the executable's filename.
+    Use run -- <program> [args...] to forward every program argument literally.
 
 warpai list [--project <path>] [--id <session>]
     List guardian sessions for this account.
@@ -59,7 +61,7 @@ pub enum Command {
     },
 }
 
-/// Strict parser: no shell evaluation, `--` ends options, duplicates rejected.
+/// Parse a control command without evaluating any shell input.
 pub fn parse(arguments: &[String]) -> Result<Command, String> {
     let Some(command) = arguments.first().map(String::as_str) else {
         return Err("Missing command. Use run, list, resume or stop.".into());
@@ -80,18 +82,24 @@ fn parse_launch(arguments: &[String]) -> Result<Command, String> {
     if matches!(arguments, [flag] if flag == "--help" || flag == "-h") {
         return Ok(Command::Help);
     }
-    let separator = arguments.iter().position(|argument| argument == "--")
-        .ok_or("Usage: warpai run [--name <name>] -- <program> [args...]")?;
-    let name = match &arguments[..separator] {
-        [] => None,
-        [flag, name] if flag == "--name" => {
-            validate_name(name)?;
-            Some(name.clone())
+    let (name, command) = match arguments {
+        [separator, command @ ..] if separator == "--" => (None, command),
+        [flag, name, separator, command @ ..] if flag == "--name" && separator == "--" => {
+            (Some(name), command)
         }
-        _ => return Err("Only --name is accepted before --.".into()),
+        [program, rest @ ..] if !program.starts_with('-') => match rest {
+            [.., flag, name] if flag == "--name" => {
+                (Some(name), &arguments[..arguments.len() - 2])
+            }
+            [.., flag] if flag == "--name" => return Err("Missing value for --name.".into()),
+            _ => (None, arguments),
+        },
+        _ => return Err("Usage: warpai run <program> [args...] [--name <name>]".into()),
     };
-    let (program, arguments) = arguments[separator + 1..].split_first()
-        .ok_or("Missing executable after --.")?;
+    if let Some(name) = name {
+        validate_name(name)?;
+    }
+    let (program, arguments) = command.split_first().ok_or("Missing executable.")?;
     if program.is_empty() || program.len() > 4096 || program.chars().any(char::is_control)
         || arguments.len() > 64
         || arguments.iter().any(|argument| argument.len() > 8192 || argument.contains('\0'))
@@ -99,7 +107,7 @@ fn parse_launch(arguments: &[String]) -> Result<Command, String> {
     {
         return Err("Invalid native command or arguments.".into());
     }
-    Ok(Command::Launch { name, program: program.clone(), arguments: arguments.to_vec() })
+    Ok(Command::Launch { name: name.cloned(), program: program.clone(), arguments: arguments.to_vec() })
 }
 
 struct Flags {
@@ -1247,22 +1255,39 @@ mod tests {
 
     #[test]
     fn guarded_launch_preserves_literal_argv_and_validates_the_name() {
-        let args = ["run", "--name", "任务一", "--", "/opt/my program", "", "$HOME", "--"]
-            .map(str::to_owned);
+        let named = Command::Launch {
+            name: Some("任务一".into()),
+            program: "/opt/my program".into(),
+            arguments: args(&["", "$HOME", "--"]),
+        };
         assert_eq!(
-            parse(&args).unwrap(),
+            parse(&args(&["run", "/opt/my program", "", "$HOME", "--", "--name", "任务一"])).unwrap(),
+            named
+        );
+        assert_eq!(
+            parse(&args(&["run", "--name", "任务一", "--", "/opt/my program", "", "$HOME", "--"])).unwrap(),
+            named
+        );
+        assert_eq!(
+            parse(&args(&["run", "btop"])).unwrap(),
+            Command::Launch { name: None, program: "btop".into(), arguments: vec![] }
+        );
+        assert_eq!(
+            parse(&args(&["run", "--", "python", "3.py", "--name", "child"])).unwrap(),
             Command::Launch {
-                name: Some("任务一".into()),
-                program: "/opt/my program".into(),
-                arguments: ["", "$HOME", "--"].map(str::to_owned).to_vec(),
+                name: None,
+                program: "python".into(),
+                arguments: args(&["3.py", "--name", "child"]),
             }
         );
         for invalid in [
+            vec!["run"],
             vec!["run", "--", ""],
             vec!["run", "--name", "  ", "--", "sh"],
-            vec!["run", "sh"],
+            vec!["run", "sh", "--name", "  "],
+            vec!["run", "sh", "--name"],
         ] {
-            assert!(parse(&invalid.into_iter().map(str::to_owned).collect::<Vec<_>>()).is_err());
+            assert!(parse(&args(&invalid)).is_err());
         }
     }
 

@@ -68,10 +68,10 @@ def main():
             result = run(shell, account, remote, "before=$PATH; SOURCE; [ \"$PATH\" = \"$before\" ] && warpai resume '含 空格' '$(echo ignored)'")
             assert result.returncode == 0, result.stderr
             assert result.stdout.splitlines() == ["<ctl>", "<resume>", "<含 空格>", "<$(echo ignored)>"], result.stdout
-            result = run(shell, account, remote, "SOURCE; warpai run --name '任务一' -- '/tmp/program with spaces' '' '$HOME'")
+            result = run(shell, account, remote, "SOURCE; warpai run '/tmp/program with spaces' '' '$HOME' --name '任务一'")
             assert result.returncode == 0, result.stderr
             assert result.stdout.splitlines() == [
-                "<ctl>", "<run>", "<--name>", "<任务一>", "<-->", "</tmp/program with spaces>", "<>", "<$HOME>",
+                "<ctl>", "<run>", "</tmp/program with spaces>", "<>", "<$HOME>", "<--name>", "<任务一>",
             ], result.stdout
             result = run(shell, account, {}, "SOURCE; ! command -v warpai")
             assert result.returncode == 0, result.stderr
