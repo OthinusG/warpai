@@ -157,6 +157,7 @@ impl Companion {
         // Only the account guardian admits retained runs and the account catalog.
         if self.account_guardian.is_some() {
             capabilities.push("account_catalog".into());
+            capabilities.push("guarded_screen_checkpoint_v1".into());
             if self.account_operator || cfg!(test) {
                 capabilities.push("guarded_remote_sessions_v1".into());
             }
@@ -426,6 +427,13 @@ impl Companion {
                     self.record_catalog_control(action, &state);
                 }
                 Ok(managed_response::Result::TerminalState(state))
+            }
+            Some(managed_request::Operation::TerminalSnapshot(request)) => {
+                if self.account_guardian.is_none() {
+                    return Err(ManagedErrorCode::ManagedFeatureUnavailable);
+                }
+                self.check_project(request.fence.as_ref())?;
+                self.terminals.snapshot(request, &self.fence).map(managed_response::Result::TerminalSnapshot)
             }
             Some(managed_request::Operation::ProjectTasks(request)) => {
                 self.check_project(request.fence.as_ref())?;

@@ -282,6 +282,16 @@ terminal/shell-block state needed by a later Warpai attachment.
 
 ## Snapshot schema and replay
 
+Private `TerminalSnapshot` uses managed request tag 15 and response tag 14.
+Screen schema 1 requires the exact writer fence and accepts an empty snapshot
+ID only for page zero. The server captures a fresh cut on page zero, then
+serves stable 32 KiB pages by explicit index. The header echoes the run,
+attachment, dimensions, resize sequence, cut offset, total length and SHA-256.
+An expired or superseded handle returns `snapshot_expired`. Readers check the
+reported truncation and available offsets before consuming the post-cut tail.
+`guarded_screen_checkpoint_v1` covers the native screen/decoder and history
+projection. The desktop session capability also requires shell-block import.
+
 Snapshot header requires schema/parser revision, snapshot UUID, session/run IDs,
 runtime boot ID, dimensions, terminal revision, byte cut offset, total size,
 content digest and trimming flags. Content must represent active/alternate screen,

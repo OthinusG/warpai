@@ -3,7 +3,8 @@ use std::{path::PathBuf, process::Stdio, time::Duration};
 
 use base64::Engine;
 use remote_protocol::{
-    managed::{valid_account_fence, valid_fence, PROTOCOL_MAJOR},
+    managed::{valid_account_fence, valid_fence, PROTOCOL_MAJOR, TERMINAL_SCREEN_SCHEMA,
+        TERMINAL_SNAPSHOT_MAX_BYTES, TERMINAL_SNAPSHOT_PAGE_BYTES},
     proto::*,
     protocol::{read_message_with_limit, write_message_with_limit, MAX_MANAGED_MESSAGE_SIZE},
 };
@@ -36,6 +37,7 @@ pub enum ConnectionError {
     IncompatibleVersion,
     StaleAttachment,
     DeliveryUnknown,
+    SnapshotExpired,
     CompanionUnavailable,
     FeatureUnavailable,
     InvalidInput,
@@ -43,6 +45,17 @@ pub enum ConnectionError {
     CapacityExceeded,
     PermissionDenied,
     NotFound,
+}
+
+/// A digest-checked screen checkpoint and its attachment-scoped cut.
+pub struct TerminalCheckpoint {
+    pub header: TerminalSnapshotPage,
+    pub data: Vec<u8>,
+}
+
+pub enum TerminalCheckpointTail {
+    Output(TerminalState),
+    Gap { available_start: u64, available_end: u64 },
 }
 
 fn target(value: &str) -> bool {
@@ -1020,6 +1033,97 @@ impl HostClient {
         Err(ConnectionError::StaleAttachment)
     }
 
+    /// Read an immutable screen cut. Page headers and byte counts are checked before assembly.
+    pub async fn terminal_checkpoint(&mut self, state: &TerminalState) -> Result<TerminalCheckpoint, ConnectionError> {
+        if state.guarded != Some(true)
+            || !self.capabilities.iter().any(|capability| capability == "guarded_screen_checkpoint_v1")
+        {
+            return Err(ConnectionError::FeatureUnavailable);
+        }
+        if !self.valid_terminal(state) {
+            return Err(ConnectionError::StaleAttachment);
+        }
+        let mut request = TerminalSnapshotRequest {
+            fence: self.fence.clone(), session_id: state.session_id.clone(), run_id: state.run_id.clone(),
+            attachment_id: state.attachment_id.clone(), attachment_generation: state.attachment_generation,
+            schema: TERMINAL_SCREEN_SCHEMA, snapshot_id: String::new(), page: 0,
+        };
+        let mut header = None;
+        let mut data = Vec::new();
+        loop {
+            let response = self.request(managed_request::Operation::TerminalSnapshot(request.clone())).await?;
+            let managed_response::Result::TerminalSnapshot(mut page) = response else {
+                return Err(ConnectionError::IncompatibleVersion);
+            };
+            let total = page.total_bytes as usize;
+            let start = (request.page as usize)
+                .checked_mul(TERMINAL_SNAPSHOT_PAGE_BYTES)
+                .filter(|offset| *offset < total).ok_or(ConnectionError::IncompatibleVersion)?;
+            if page.fence != request.fence || page.session_id != request.session_id
+                || page.run_id != request.run_id || page.attachment_id != request.attachment_id
+                || page.attachment_generation != request.attachment_generation
+            {
+                return Err(ConnectionError::StaleAttachment);
+            }
+            if page.schema != request.schema || page.page != request.page
+                || !Uuid::parse_str(&page.snapshot_id).is_ok_and(|id| !id.is_nil())
+                || !(1..=TERMINAL_SNAPSHOT_MAX_BYTES).contains(&total)
+                || page.sha256.len() != 32
+                || !(1..=1000).contains(&page.rows) || !(1..=1000).contains(&page.columns)
+                || data.len() != start
+                || page.data.len() != TERMINAL_SNAPSHOT_PAGE_BYTES.min(total - start)
+            {
+                return Err(ConnectionError::IncompatibleVersion);
+            }
+            let body = std::mem::take(&mut page.data);
+            page.page = 0;
+            if let Some(expected) = &header {
+                if expected != &page { return Err(ConnectionError::IncompatibleVersion); }
+            } else {
+                data.reserve_exact(total);
+                request.snapshot_id = page.snapshot_id.clone();
+                header = Some(page);
+            }
+            data.extend(body);
+            if data.len() == total { break; }
+            request.page += 1;
+        }
+        let header = header.ok_or(ConnectionError::IncompatibleVersion)?;
+        use sha2::{Digest, Sha256};
+        if Sha256::digest(&data)[..] != header.sha256 {
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        let screen = crate::screen_detection::native::NativeScreen::from_checkpoint(&data)
+            .ok_or(ConnectionError::IncompatibleVersion)?;
+        if screen.size() != (header.rows as u16, header.columns as u16)
+            || screen.history_truncated() != header.history_truncated
+        {
+            return Err(ConnectionError::IncompatibleVersion);
+        }
+        Ok(TerminalCheckpoint { header, data })
+    }
+
+    /// Read a contiguous post-checkpoint tail or return the actual available range.
+    pub async fn terminal_checkpoint_tail(&mut self, checkpoint: &TerminalCheckpoint, offset: u64) -> Result<TerminalCheckpointTail, ConnectionError> {
+        let header = &checkpoint.header;
+        if offset < header.output_cut || header.fence != self.fence {
+            return Err(ConnectionError::InvalidInput);
+        }
+        let state = self.terminal_control(TerminalControl {
+            fence: header.fence.clone(), session_id: header.session_id.clone(), run_id: header.run_id.clone(),
+            attachment_id: header.attachment_id.clone(), attachment_generation: header.attachment_generation,
+            action: TerminalAction::TerminalRead as i32, output_offset: offset, ..Default::default()
+        }).await?;
+        if state.accepted_resize_sequence != header.resize_sequence {
+            return Err(ConnectionError::SnapshotExpired);
+        }
+        if state.output_truncated {
+            return Ok(TerminalCheckpointTail::Gap { available_start: state.output_offset, available_end: state.output_end });
+        }
+        if state.output_offset != offset { return Err(ConnectionError::InvalidInput); }
+        Ok(TerminalCheckpointTail::Output(state))
+    }
+
     pub(crate) fn current_guarded_session(&self) -> Option<&CurrentGuardedSession> {
         self.current_guarded_session.as_ref()
     }
@@ -1220,6 +1324,7 @@ impl HostClient {
                     Ok(ManagedErrorCode::ManagedDeliveryUnknown) => {
                         ConnectionError::DeliveryUnknown
                     }
+                    Ok(ManagedErrorCode::ManagedSnapshotExpired) => ConnectionError::SnapshotExpired,
                     Ok(ManagedErrorCode::ManagedCapacityExceeded) => {
                         ConnectionError::CapacityExceeded
                     }

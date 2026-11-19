@@ -1427,6 +1427,75 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn native_checkpoint_pages_keep_one_cut_and_report_a_gap_or_resize() {
+        use crate::ssh_remote::{ConnectionError, HostClient, TerminalCheckpointTail};
+        use remote_protocol::managed::TERMINAL_SNAPSHOT_PAGE_BYTES;
+
+        let state = tempfile::tempdir().unwrap();
+        let runtime = state.path().join("run");
+        let root = state.path().join("project");
+        std::fs::create_dir(&root).unwrap();
+        let server = tokio::spawn(serve_at(state.path().join("guardian"), runtime.clone(), scopes(state.path())));
+        let mut client = HostClient::connect_unix(wait_route(&runtime).await.0, root.to_str()).await.unwrap();
+        let launch = client.terminal_launch(TerminalLaunch {
+            fence: client.fence().cloned(), session_id: Uuid::new_v4().to_string(),
+            executable: "/bin/sh".into(), columns: 200, rows: 50, guarded: true,
+            session_kind: Some(TerminalSessionKind::Command as i32),
+            arguments: vec!["-c".into(), "printf 'before-checkpoint\\n'; IFS= read -r trigger; printf 'after-checkpoint\\n'; IFS= read -r trigger; head -c 300000 /dev/zero | tr '\\000' x; printf '\\ncompleted-flood\\n'; IFS= read -r stay".into()],
+            ..Default::default()
+        }).await.unwrap();
+        let command = |action: TerminalAction| TerminalControl {
+            fence: launch.fence.clone(), session_id: launch.session_id.clone(), run_id: launch.run_id.clone(),
+            attachment_id: launch.attachment_id.clone(), attachment_generation: launch.attachment_generation,
+            action: action as i32, ..Default::default()
+        };
+        async fn until(mut probe: impl AsyncFnMut() -> bool) {
+            tokio::time::timeout(Duration::from_secs(10), async {
+                while !probe().await { tokio::time::sleep(Duration::from_millis(10)).await; }
+            }).await.unwrap();
+        }
+        until(async || {
+            let output = client.terminal_control(command(TerminalAction::TerminalRead)).await.unwrap();
+            String::from_utf8_lossy(&output.output).contains("before-checkpoint")
+        }).await;
+        let checkpoint = client.terminal_checkpoint(&launch).await.unwrap();
+        assert!(checkpoint.data.len() > TERMINAL_SNAPSHOT_PAGE_BYTES);
+        assert!(crate::screen_detection::native::NativeScreen::from_checkpoint(&checkpoint.data)
+            .unwrap().test_contents().contains("before-checkpoint"));
+        client.terminal_control(TerminalControl {
+            input: b"advance\r".to_vec(), input_sequence: 1, ..command(TerminalAction::TerminalInput)
+        }).await.unwrap();
+        until(async || {
+            match client.terminal_checkpoint_tail(&checkpoint, checkpoint.header.output_cut).await.unwrap() {
+                TerminalCheckpointTail::Output(page) => String::from_utf8_lossy(&page.output).contains("after-checkpoint"),
+                TerminalCheckpointTail::Gap { .. } => panic!("A short tail must stay contiguous"),
+            }
+        }).await;
+        client.terminal_control(TerminalControl {
+            input: b"flood\r".to_vec(), input_sequence: 2, ..command(TerminalAction::TerminalInput)
+        }).await.unwrap();
+        until(async || {
+            match client.terminal_checkpoint_tail(&checkpoint, checkpoint.header.output_cut).await.unwrap() {
+                TerminalCheckpointTail::Output(_) => false,
+                TerminalCheckpointTail::Gap { available_start, available_end } => {
+                    assert!(available_start > checkpoint.header.output_cut && available_end > available_start);
+                    true
+                }
+            }
+        }).await;
+        let replacement = client.terminal_checkpoint(&launch).await.unwrap();
+        assert_ne!(replacement.header.snapshot_id, checkpoint.header.snapshot_id);
+        assert!(replacement.header.history_truncated);
+        client.terminal_control(TerminalControl {
+            columns: 180, rows: 48, resize_sequence: 1, ..command(TerminalAction::TerminalResize)
+        }).await.unwrap();
+        assert!(matches!(client.terminal_checkpoint_tail(&replacement, replacement.header.output_cut).await,
+            Err(ConnectionError::SnapshotExpired)));
+        client.terminal_control(command(TerminalAction::TerminalStop)).await.unwrap();
+        server.abort();
+    }
+
     async fn inspect_guarded(
         client: &mut ManagedClient,
         fence: &AccountFence,

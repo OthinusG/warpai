@@ -10,5 +10,7 @@ Modifications rename canonical Agent IDs and translate working/blocked to the
 existing Warpai running/waiting manifest states and visible evidence field.
 Warpai preserves its native run, account, task, permission and delivery fences.
 
-The standalone Companion uses vt100 0.16.2 (MIT) for bounded native terminal
-snapshots. See [VT100-LICENSE](VT100-LICENSE). Its parser is separate from the desktop terminal rendering core.
+The standalone Companion uses vt100 0.16.2 and VTE 0.15.0 for bounded native
+terminal checkpoints. The pinned sources and original notices live under
+`vendor/terminal`. See [VT100-LICENSE](VT100-LICENSE) and the [VTE MIT notice](VTE-0.15-LICENSE).
+The desktop terminal continues to use its separate Warp VTE parser.

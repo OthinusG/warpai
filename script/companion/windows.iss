@@ -36,5 +36,6 @@ Source: "../../companion-release/AGENT-OF-EMPIRES-LICENSE"; DestDir: "{app}\comp
 Source: "../../companion-release/HERDR-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/HERDR-NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/VT100-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
+Source: "../../companion-release/VTE-0.15-LICENSE"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/FORK_NOTICE.md"; DestDir: "{app}\companion-notices"; Flags: ignoreversion
 Source: "../../companion-release/{#RuntimeDirectory}\*"; DestDir: "{app}\{#RuntimeDirectory}"; Flags: ignoreversion recursesubdirs createallsubdirs

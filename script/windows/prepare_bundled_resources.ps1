@@ -77,7 +77,8 @@ $AdditionalLicenses = @(
     @{ Name = 'Agent of Empires screen detector'; License = 'MIT'; Path = 'docs\AGENT-OF-EMPIRES-LICENSE' },
     @{ Name = 'Herdr agent status manifests'; License = 'Apache-2.0'; Path = 'docs\HERDR-LICENSE' },
     @{ Name = 'Herdr attribution'; License = 'Apache-2.0'; Path = 'docs\HERDR-NOTICE.md' },
-    @{ Name = 'vt100 terminal parser'; License = 'MIT'; Path = 'docs\VT100-LICENSE' }
+    @{ Name = 'vt100 terminal parser'; License = 'MIT'; Path = 'docs\VT100-LICENSE' },
+    @{ Name = 'VTE 0.15 terminal decoder'; License = 'MIT'; Path = 'docs\VTE-0.15-LICENSE' }
 )
 # Windows-only components:
 $AdditionalLicenses += @(

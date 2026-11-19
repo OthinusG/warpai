@@ -1,6 +1,7 @@
 //! Managed service-owned PTYs; guarded runs survive connection loss, legacy runs do not.
 use super::*;
 use crate::native_pty::{NativePty, Size};
+use remote_protocol::managed::{TERMINAL_SCREEN_SCHEMA, TERMINAL_SNAPSHOT_MAX_BYTES, TERMINAL_SNAPSHOT_PAGE_BYTES};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -20,6 +21,8 @@ const MAX_INPUT_BYTES: usize = 4096;
 const MAX_INPUT_RECEIPTS: usize = 64;
 const MAX_PENDING_INPUT_BYTES: usize = 64 * 1024;
 const GUARDED_BUFFER_BUDGET: usize = 64 * 1024 * 1024;
+const SNAPSHOT_TTL: Duration = Duration::from_secs(30);
+const SNAPSHOT_SERIALIZERS: usize = 2;
 const ENDED_RETENTION: Duration = Duration::from_secs(5 * 60);
 const WAKE_PACING: Duration = Duration::from_millis(300);
 const WAKE_RECONCILE: Duration = Duration::from_secs(5);
@@ -362,6 +365,7 @@ pub(super) struct Terminals {
     owners: Mutex<BTreeMap<String, Owner>>,
     pending_launches: Mutex<BTreeSet<String>>,
     guarded_buffers: Arc<AtomicUsize>,
+    snapshot_serializers: AtomicUsize,
     #[cfg(unix)]
     stop_batches: Mutex<BTreeMap<Uuid, StopBatch>>,
 }
@@ -372,13 +376,39 @@ struct GuardedBuffers {
     screen_extent: Option<Size>,
 }
 
+fn reserve_guarded_bytes(total: &AtomicUsize, bytes: usize) -> Result<(), Error> {
+    total.fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
+        used.checked_add(bytes).filter(|total| *total <= GUARDED_BUFFER_BUDGET)
+    }).map_err(|_| Error::ManagedCapacityExceeded)?;
+    Ok(())
+}
+
+struct SnapshotSerializer<'a>(&'a AtomicUsize);
+
+impl Drop for SnapshotSerializer<'_> {
+    fn drop(&mut self) { self.0.fetch_sub(1, Ordering::AcqRel); }
+}
+
+struct SessionSnapshot {
+    header: TerminalSnapshotPage,
+    data: Vec<u8>,
+    expires: Instant,
+    budget: Arc<AtomicUsize>,
+    charged: usize,
+}
+
+impl Drop for SessionSnapshot {
+    fn drop(&mut self) { self.budget.fetch_sub(self.charged, Ordering::AcqRel); }
+}
+
 impl GuardedBuffers {
     fn charge(screen: Option<Size>) -> usize {
         let screen_bytes = screen.map_or(0, |size| {
             let rows = usize::from(size.rows);
             let columns = usize::from(size.columns);
             // Both grids plus spare vector capacity, row descriptors and bounded OSC state.
-            4 * rows * (columns * std::mem::size_of::<vt100::Cell>() + 32) + 24 * 1024
+            let history = crate::screen_detection::native::GUARDED_SCROLLBACK_ROWS;
+            (4 * rows + 2 * history) * (columns * std::mem::size_of::<vt100::Cell>() + 32) + 24 * 1024
         });
         BUFFER_BYTES + MAX_PENDING_INPUT_BYTES + screen_bytes
     }
@@ -392,10 +422,7 @@ impl GuardedBuffers {
     fn set_extent(&mut self, extent: Option<Size>) -> Result<(), Error> {
         let bytes = Self::charge(extent);
         if bytes > self.bytes {
-            let increase = bytes - self.bytes;
-            self.total.fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
-                used.checked_add(increase).filter(|total| *total <= GUARDED_BUFFER_BUDGET)
-            }).map_err(|_| Error::ManagedCapacityExceeded)?;
+            reserve_guarded_bytes(&self.total, bytes - self.bytes)?;
         } else if bytes < self.bytes {
             self.total.fetch_sub(self.bytes - bytes, Ordering::AcqRel);
         }
@@ -469,6 +496,7 @@ struct Session {
     binding: Option<tasks::RunBinding>,
     pty: NativePty,
     output: Arc<Mutex<Output>>,
+    snapshot: Option<SessionSnapshot>,
     wake_signal: Option<tokio::sync::watch::Sender<()>>,
     input: Option<mpsc::SyncSender<NativeInput>>,
     connection: Option<String>,
@@ -613,12 +641,13 @@ fn attach_decision(
 fn holds_attachment(
     session: &Session,
     fence: &ManagedFence,
-    request: &TerminalControl,
+    attachment: &str,
+    generation: u64,
 ) -> bool {
     session.connection.as_deref() == Some(fence.connection_id.as_str())
-        && !request.attachment_id.is_empty()
-        && request.attachment_id == session.attachment_id
-        && request.attachment_generation == session.writer.attachment.load(Ordering::SeqCst)
+        && !attachment.is_empty()
+        && attachment == session.attachment_id
+        && generation == session.writer.attachment.load(Ordering::SeqCst)
 }
 
 fn may_control(session: &Session, fence: &ManagedFence, request: &TerminalControl) -> bool {
@@ -627,12 +656,15 @@ fn may_control(session: &Session, fence: &ManagedFence, request: &TerminalContro
     }
     match session.policy {
         Policy::ConnectionOwned => true,
-        Policy::Guarded => holds_attachment(session, fence, request),
+        Policy::Guarded => holds_attachment(session, fence, &request.attachment_id, request.attachment_generation),
     }
 }
 
 /// Ended output stays briefly for an exact resume, within the admission ceiling.
 fn retain_session(session: &mut Session, now: Instant) -> bool {
+    if session.snapshot.as_ref().is_some_and(|snapshot| snapshot.expires <= now) {
+        session.snapshot.take();
+    }
     let owned = session.pty.is_active().unwrap_or(true);
     if !owned {
         session.revoked.store(true, Ordering::Release);
@@ -799,7 +831,7 @@ impl Terminals {
                 return Err(Error::ManagedInvalidInput);
             }
         }
-        let screen_extent = request.agent_program.is_some().then_some(size);
+        let screen_extent = request.guarded.then_some(size);
         let requested_bytes = if request.guarded { GuardedBuffers::charge(screen_extent) } else { 0 };
         if requested_bytes > GUARDED_BUFFER_BUDGET {
             return Err(Error::ManagedCapacityExceeded);
@@ -880,9 +912,11 @@ impl Terminals {
         let mut reader = pty.reader.try_clone().map_err(path_error)?;
         let mut writer = pty.writer.try_clone().map_err(path_error)?;
         let output = Arc::new(Mutex::new(Output {
-            screen: binding.as_ref().map(|_| {
-                crate::screen_detection::native::NativeScreen::new(size.rows, size.columns)
-            }),
+            screen: if request.guarded {
+                Some(crate::screen_detection::native::NativeScreen::guarded(size.rows, size.columns))
+            } else {
+                binding.as_ref().map(|_| crate::screen_detection::native::NativeScreen::new(size.rows, size.columns))
+            },
             guarded_buffers,
             ..Default::default()
         }));
@@ -1086,6 +1120,7 @@ impl Terminals {
             binding,
             pty,
             output,
+            snapshot: None,
             wake_signal,
             input: Some(input),
             connection: Some(fence.connection_id.clone()),
@@ -1111,6 +1146,84 @@ impl Terminals {
             Arc::new(Mutex::new(session)),
         );
         Ok(state)
+    }
+
+    pub(super) fn snapshot(&self, request: TerminalSnapshotRequest, fence: &ManagedFence) -> Result<TerminalSnapshotPage, Error> {
+        if request.schema != TERMINAL_SCREEN_SCHEMA {
+            return Err(Error::ManagedIncompatibleVersion);
+        }
+        if request.snapshot_id.is_empty() && request.page != 0
+            || !request.snapshot_id.is_empty() && !valid_id(&request.snapshot_id)
+        {
+            return Err(Error::ManagedInvalidInput);
+        }
+        let owner = lock(&self.owners)?.get(&request.session_id).cloned()
+            .ok_or(Error::ManagedStaleAttachment)?;
+        let mut session = lock(&owner)?;
+        if session.policy != Policy::Guarded
+            || session.service_id != fence.service_id
+            || session.boot_id != fence.service_boot_id
+            || session.project_id != fence.project_id
+            || session.run_id != request.run_id
+            || !holds_attachment(&session, fence, &request.attachment_id, request.attachment_generation)
+        {
+            return Err(Error::ManagedStaleAttachment);
+        }
+        if request.snapshot_id.is_empty() {
+            self.snapshot_serializers.fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < SNAPSHOT_SERIALIZERS).then_some(count + 1)
+            }).map_err(|_| Error::ManagedCapacityExceeded)?;
+            let _serializer = SnapshotSerializer(&self.snapshot_serializers);
+            session.snapshot.take();
+            reserve_guarded_bytes(&self.guarded_buffers, TERMINAL_SNAPSHOT_MAX_BYTES)?;
+            let mut snapshot = SessionSnapshot {
+                header: Default::default(),
+                budget: self.guarded_buffers.clone(),
+                charged: TERMINAL_SNAPSHOT_MAX_BYTES,
+                expires: Instant::now() + SNAPSHOT_TTL,
+                data: Vec::new(),
+            };
+            let (rows, columns, output_cut, history_truncated) = {
+                let output = lock(&session.output)?;
+                let screen = output.screen.as_ref().ok_or(Error::ManagedFeatureUnavailable)?;
+                snapshot.data = screen.checkpoint()
+                    .filter(|data| (1..=TERMINAL_SNAPSHOT_MAX_BYTES).contains(&data.len()))
+                    .ok_or(Error::ManagedCapacityExceeded)?;
+                let (rows, columns) = screen.size();
+                (rows, columns, output.end, screen.history_truncated())
+            };
+            let total = snapshot.data.len();
+            snapshot.budget.fetch_sub(snapshot.charged - total, Ordering::AcqRel);
+            snapshot.charged = total;
+            snapshot.expires = Instant::now() + SNAPSHOT_TTL;
+            snapshot.header = TerminalSnapshotPage {
+                fence: Some(fence.clone()),
+                session_id: request.session_id,
+                run_id: request.run_id,
+                attachment_id: request.attachment_id,
+                attachment_generation: request.attachment_generation,
+                schema: request.schema,
+                snapshot_id: Uuid::new_v4().to_string(),
+                total_bytes: total as u32,
+                sha256: Sha256::digest(&snapshot.data).to_vec(),
+                output_cut,
+                columns: u32::from(columns),
+                rows: u32::from(rows),
+                resize_sequence: session.last_resize.map_or(0, |(sequence, _)| sequence),
+                history_truncated,
+                ..Default::default()
+            };
+            session.snapshot = Some(snapshot);
+        } else if !session.snapshot.as_ref().is_some_and(|snapshot| {
+            snapshot.header.snapshot_id == request.snapshot_id && snapshot.expires > Instant::now()
+        }) {
+            return Err(Error::ManagedSnapshotExpired);
+        }
+        let snapshot = session.snapshot.as_ref().ok_or(Error::ManagedSnapshotExpired)?;
+        let start = (request.page as usize).checked_mul(TERMINAL_SNAPSHOT_PAGE_BYTES)
+            .filter(|offset| *offset < snapshot.data.len()).ok_or(Error::ManagedInvalidInput)?;
+        let end = (start + TERMINAL_SNAPSHOT_PAGE_BYTES).min(snapshot.data.len());
+        Ok(TerminalSnapshotPage { page: request.page, data: snapshot.data[start..end].to_vec(), ..snapshot.header.clone() })
     }
 
     pub(super) fn control(
@@ -1253,6 +1366,7 @@ impl Terminals {
                 }
                 if session.policy == Policy::Guarded {
                     session.last_resize = Some((request.resize_sequence, size));
+                    session.snapshot.take();
                 }
                 if let Some(binding) = &session.binding {
                     binding.broker.output(&binding.terminal);
@@ -1307,6 +1421,7 @@ impl Terminals {
                     // Input sequences and receipts are scoped to one attachment.
                     session.sequence = 0;
                     session.last_resize = None;
+                    session.snapshot.take();
                     session.connection = Some(fence.connection_id.clone());
                 }
             }
@@ -1319,6 +1434,7 @@ impl Terminals {
                 }
                 // The attachment identity survives so the same writer can reattach after a transport loss.
                 session.connection = None;
+                session.snapshot.take();
                 session.writer.cancel_input();
                 if let Ok(mut ledger) = session.ledger.lock() {
                     ledger.cancel_pending();
@@ -1441,6 +1557,7 @@ impl Terminals {
                     continue;
                 }
                 session.connection = None;
+                session.snapshot.take();
                 session.writer.cancel_input();
                 if let Ok(mut ledger) = session.ledger.lock() {
                     ledger.cancel_pending();
@@ -1656,7 +1773,7 @@ mod tests {
         let live = launch("/bin/cat");
         terminals.disconnect(&fence.connection_id);
         let deadline = Instant::now() + Duration::from_secs(3);
-        let charge = GuardedBuffers::charge(None);
+        let charge = GuardedBuffers::charge(Some(Size { columns: 80, rows: 24 }));
         loop {
             let mut owners = terminals.owners.lock().unwrap();
             prune_sessions(&mut owners, Instant::now(), |_| {

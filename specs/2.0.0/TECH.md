@@ -285,6 +285,13 @@ in split UTF-8, CSI and OSC fixtures, then compare both screens and observe that
 the state-only import emits no effects. Add the command/block state and desktop
 static import before exposing the guarded data bridge to desktop writers.
 
+The readiness parser will use source-matched local copies of its pinned VT100
+and VTE dependencies for access to private checkpoint state. Keep their license
+and provenance alongside the source. The desktop's existing Warp VTE fork
+remains independent. Add narrow APIs to capture state and validate it before
+import. A representation derived solely from rendered ANSI cannot recover the
+inactive buffer, saved state or unconsumed bytes at the cut.
+
 Keep output/screens/drafts in memory only. Persist minimal nonsecret catalog IDs,
 policy, target/project references, timestamps and proven lifecycle evidence in
 namespaced tables using existing SQLite facilities. Never store argv/environment,

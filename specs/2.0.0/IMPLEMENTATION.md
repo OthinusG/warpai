@@ -2116,6 +2116,22 @@ exit drops input producers and wake/Agent bindings while retained output stays
 readable. The local regression exercises live and request leases, reclamation,
 new listener identity, and recovery of the exact unacknowledged message.
 
+Record ID / date: S2-h / 2026-11-19
+Scope: portable headless screen and decoder checkpoint, stable pages, and tail gaps.
+
+The locked VT100/VTE sources expose narrow checkpoint capture and validated
+restore with their original notices. Guarded command and Agent PTYs retain both
+screen buffers, up to 128 primary scrollback rows, current/saved cursor and style,
+input modes and split parser state without retaining historical side effects.
+The state round trip compares every byte cut of a mixed UTF-8/ANSI fixture.
+Import calls no performer; a separate test checks clipboard and bell counters
+before import and after live suffix processing. The Unix socket fixture obtains
+a multi-page checkpoint, verifies the exact digest/cut, reads the live tail,
+forces a ring gap and observes the new available range without concatenation.
+Resize invalidates an earlier cut. Active shell-block and desktop state import
+remain separate work. This private screen checkpoint does not enable the
+desktop guarded launch capability.
+
 ## Evidence index
 
 | Receipt | Source | Result | Coverage |
