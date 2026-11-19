@@ -34,6 +34,11 @@ rendering state stay outside the guardian. On an unclean guardian restart any
 previous live record becomes interrupted. Keep bounded ended output and shut
 down the account service after the idle period.
 
+Background launch takes the regular launch path and releases its initial
+attachment before returning. Logs copy the existing ring for an exact run
+without acquiring its writer. The CLI strips control sequences before printing.
+Rename updates the catalog label atomically and never changes the native run.
+
 ## Verification
 
 Run platform-native SSH and WSL tests for explicit launch, bridge loss,

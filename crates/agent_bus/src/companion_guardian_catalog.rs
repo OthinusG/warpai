@@ -371,14 +371,13 @@ impl Catalog {
                 .try_into()
                 .map_err(|_| "Invalid guardian catalog sequence".to_owned())?;
             let updated = sql_query(
-                "UPDATE guardian_catalog_sessions SET label=?, \
+                "UPDATE guardian_catalog_sessions SET \
                  state=CASE WHEN state='ended' THEN state ELSE ? END, observed_ms=?, \
                  mru_seq=MAX(mru_seq, ?), \
                  exit_status=CASE WHEN state='ended' THEN exit_status ELSE ? END, \
                  attachment_generation=? \
                  WHERE session_id=?",
             )
-            .bind::<Nullable<Text>, _>(record.label.as_deref())
             .bind::<Text, _>(record.state.as_str())
             .bind::<BigInt, _>(record.observed_ms)
             .bind::<BigInt, _>(mru)
@@ -396,6 +395,21 @@ impl Catalog {
             return Ok(());
         }
         self.insert(record)
+    }
+
+    pub fn rename(&mut self, session_id: &str, run_id: &str, label: &str) -> Result<usize, diesel::result::Error> {
+        let updated = sql_query(
+            "UPDATE guardian_catalog_sessions SET label=? WHERE session_id=? AND run_id=? AND state IN ('live','ended') AND label IS NOT ?",
+        )
+        .bind::<Text, _>(label)
+        .bind::<Text, _>(session_id)
+        .bind::<Text, _>(run_id)
+        .bind::<Text, _>(label)
+        .execute(&mut self.connection)?;
+        if updated > 0 {
+            self.bump_revision();
+        }
+        Ok(updated)
     }
 
     /// Exact identity prevents a reused session ID or stale run from mutating another run.
@@ -654,6 +668,9 @@ mod tests {
         let mut first = record("a", State::Live);
         first.mru_seq = 5;
         catalog.upsert(&first).unwrap();
+        assert_eq!(catalog.rename("a", "wrong-run", "wrong label").unwrap(), 0);
+        assert_eq!(catalog.rename("a", "run-a", "new label").unwrap(), 1);
+        assert_eq!(catalog.rename("a", "run-a", "new label").unwrap(), 0);
         let mut retry = record("a", State::Ended);
         retry.mru_seq = 2;
         retry.exit_status = Some(0);
@@ -663,6 +680,7 @@ mod tests {
         assert_eq!(rows[0].state, State::Ended);
         assert_eq!(rows[0].mru_seq, 5);
         assert_eq!(rows[0].exit_status, Some(0));
+        assert_eq!(rows[0].label.as_deref(), Some("new label"));
     }
 
     #[test]

@@ -208,6 +208,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Companion uses an independent private state directory, startup lock, native
   PTYs and a bounded catalog. SSH and WSL project storage stays scoped. Follow
   specs/2.0.0/README.md for the active plan and source-bound verification.
+  The CLI supports background launch, short task IDs, read-only retained
+  terminal logs and catalog-only renaming.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
   traversal/aliases; keep atomic save, no-replace rename, bounded staging/deletion
   and stale-save checks. Never repeat uncertain writes.

@@ -13,8 +13,8 @@ const PAGE_LIMIT: u32 = 32;
 /// UTF-8 survives the Windows console and direct Unix PTY paths.
 pub const DETACH_INPUT: &[u8] = "\u{effe}warpai:detach".as_bytes();
 const HELP: &str = "\
-warpai run <program> [args...] [--name <name>]
-    Start a guarded task in this remote directory and attach to it.
+warpai run <program> [args...] [--name <name>] [--background]
+    Start a guarded task. --background returns to the shell with its ID.
     The name defaults to the executable's filename.
     Use run -- <program> [args...] to forward every program argument literally.
 
@@ -27,6 +27,12 @@ warpai resume [<name>] [--id <session>] [--project <path>] [--takeover]
 
 warpai stop [<name>] [--id <session>] [--project <path>]
     Stop every guarded run in this account, or one exact resolved run.
+
+warpai logs <name|--id session>
+    Print the task's retained output as plain text.
+
+warpai rename <name|--id session> <new-name>
+    Change the display name, keeping the original task ID.
 
 Exit codes: 0 success, 1 domain failure or unconfirmed stop, 2 invalid syntax
 or an ambiguous named target. Bare stop covers the account. Use --project to
@@ -47,6 +53,7 @@ pub enum Command {
         name: Option<String>,
         program: String,
         arguments: Vec<String>,
+        background: bool,
     },
     List {
         project: Option<String>,
@@ -61,12 +68,17 @@ pub enum Command {
         project: Option<String>,
         selection: Selection,
     },
+    InspectTask {
+        project: Option<String>,
+        selection: Selection,
+        rename_to: Option<String>,
+    },
 }
 
 /// Parse a control command without evaluating any shell input.
 pub fn parse(arguments: &[String]) -> Result<Command, String> {
     let Some(command) = arguments.first().map(String::as_str) else {
-        return Err("Missing command. Use run, list, resume or stop.".into());
+        return Err("Missing command. Use warpai help.".into());
     };
     let rest = &arguments[1..];
     match command {
@@ -76,6 +88,8 @@ pub fn parse(arguments: &[String]) -> Result<Command, String> {
         "list" => parse_list(rest),
         "resume" => parse_resume(rest),
         "stop" => parse_stop(rest),
+        "logs" => parse_task_management(rest, false),
+        "rename" => parse_task_management(rest, true),
         other => Err(format!("Unknown command: {other}")),
     }
 }
@@ -84,20 +98,31 @@ fn parse_launch(arguments: &[String]) -> Result<Command, String> {
     if matches!(arguments, [flag] if flag == "--help" || flag == "-h") {
         return Ok(Command::Help);
     }
-    let (name, command) = match arguments {
+    let mut background = false;
+    let (mut name, mut command) = match arguments {
         [separator, command @ ..] if separator == "--" => (None, command),
         [flag, name, separator, command @ ..] if flag == "--name" && separator == "--" => {
             (Some(name), command)
         }
-        [program, rest @ ..] if !program.starts_with('-') => match rest {
-            [.., flag, name] if flag == "--name" => {
-                (Some(name), &arguments[..arguments.len() - 2])
-            }
-            [.., flag] if flag == "--name" => return Err("Missing value for --name.".into()),
-            _ => (None, arguments),
-        },
-        _ => return Err("Usage: warpai run <program> [args...] [--name <name>]".into()),
+        [program, ..] if !program.starts_with('-') => (None, arguments),
+        _ => return Err("Usage: warpai run <program> [args...] [--name <name>] [--background]".into()),
     };
+    if command.len() == arguments.len() {
+        while command.len() > 1 {
+            match &command[1..] {
+                [.., flag, value] if flag == "--name" && name.is_none() => {
+                    name = Some(value);
+                    command = &command[..command.len() - 2];
+                }
+                [.., flag] if flag == "--background" && !background => {
+                    background = true;
+                    command = &command[..command.len() - 1];
+                }
+                [.., flag] if flag == "--name" => return Err("Missing value for --name.".into()),
+                _ => break,
+            }
+        }
+    }
     if let Some(name) = name {
         validate_name(name)?;
     }
@@ -109,7 +134,7 @@ fn parse_launch(arguments: &[String]) -> Result<Command, String> {
     {
         return Err("Invalid native command or arguments.".into());
     }
-    Ok(Command::Launch { name: name.cloned(), program: program.clone(), arguments: arguments.to_vec() })
+    Ok(Command::Launch { name: name.cloned(), program: program.clone(), arguments: arguments.to_vec(), background })
 }
 
 struct Flags {
@@ -227,10 +252,20 @@ fn validate_path(value: &str) -> Result<(), String> {
 }
 
 fn validate_session_id(value: &str) -> Result<(), String> {
-    if uuid::Uuid::parse_str(value).is_err() {
-        return Err("Invalid session ID".into());
+    if uuid::Uuid::parse_str(value).is_ok()
+        || ((8..=32).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    {
+        return Ok(());
     }
-    Ok(())
+    Err("Use a full task ID or a prefix of at least eight hexadecimal digits.".into())
+}
+
+fn matches_id(id: &str, selector: &str) -> bool {
+    if let Ok(full) = uuid::Uuid::parse_str(selector) {
+        return uuid::Uuid::parse_str(id).is_ok_and(|id| id == full);
+    }
+    let id = id.bytes().filter(|byte| *byte != b'-');
+    id.take(selector.len()).eq(selector.bytes().map(|byte| byte.to_ascii_lowercase()))
 }
 
 fn validate_name(value: &str) -> Result<(), String> {
@@ -286,6 +321,23 @@ fn parse_stop(arguments: &[String]) -> Result<Command, String> {
     })
 }
 
+fn parse_task_management(arguments: &[String], rename: bool) -> Result<Command, String> {
+    if matches!(arguments, [flag] if flag == "--help" || flag == "-h") {
+        return Ok(Command::Help);
+    }
+    let (arguments, rename_to) = if rename {
+        let (label, arguments) = arguments.split_last().ok_or("Missing new task name.")?;
+        validate_name(label)?;
+        (arguments, Some(label.clone()))
+    } else {
+        (arguments, None)
+    };
+    let flags = parse_flags(arguments, true, false)?;
+    let selection = flags.id.map(Selection::Id).or_else(|| flags.name.map(Selection::Name))
+        .ok_or("Provide a task name or --id.")?;
+    Ok(Command::InspectTask { project: flags.project, selection, rename_to })
+}
+
 fn route() -> Route {
     #[cfg(all(target_os = "linux", feature = "wsl_companion"))]
     {
@@ -319,7 +371,9 @@ pub async fn run(arguments: &[String]) -> i32 {
             );
             EXIT_OK
         }
-        Command::Launch { name, program, arguments } => launch(name, &program, arguments).await,
+        Command::Launch { name, program, arguments, background } => {
+            launch(name, &program, arguments, background).await
+        }
         Command::List { project, id } => list(project, id).await,
         Command::Resume {
             project,
@@ -327,6 +381,9 @@ pub async fn run(arguments: &[String]) -> i32 {
             takeover,
         } => resume(project, selection, takeover).await,
         Command::Stop { project, selection } => stop(project, selection).await,
+        Command::InspectTask { project, selection, rename_to } => {
+            manage_task(project, selection, rename_to).await
+        }
     }
 }
 
@@ -378,7 +435,7 @@ fn resolve_executable(program: &str, root: &Path) -> Option<PathBuf> {
     None
 }
 
-async fn launch(name: Option<String>, program: &str, arguments: Vec<String>) -> i32 {
+async fn launch(name: Option<String>, program: &str, arguments: Vec<String>, background: bool) -> i32 {
     let Ok(root) = std::env::current_dir() else {
         eprintln!("Remote working directory is unavailable.");
         return EXIT_DOMAIN;
@@ -418,6 +475,12 @@ async fn launch(name: Option<String>, program: &str, arguments: Vec<String>) -> 
         session_kind: Some(kind as i32),
         ..Default::default()
     }).await {
+        Ok(state) if background => {
+            detach(&mut client, &state).await;
+            client.disconnect();
+            println!("Started task {}", state.session_id);
+            EXIT_OK
+        }
         Ok(mut state) => attach_loop(&mut client, &mut state, false).await,
         Err(error) => {
             eprintln!("Guarded task could not start ({error}).");
@@ -433,37 +496,27 @@ fn encode_text(value: &str) -> String {
         .collect()
 }
 
-fn row_line(row: &AccountCatalogRow) -> String {
-    let state = if row.state.is_empty() {
-        "unknown"
-    } else {
-        row.state.as_str()
-    };
-    let label = row
-        .label
-        .as_deref()
-        .map(encode_text)
-        .unwrap_or_else(|| "-".into());
-    let exit = row
-        .exit_status
-        .map(|code| format!(" exit={code}"))
-        .unwrap_or_default();
+fn short_id(value: &str) -> &str {
+    value.get(..8).unwrap_or(value)
+}
+
+fn row_line(row: &AccountCatalogRow, id: &str) -> String {
+    let state = if row.state.is_empty() { "unknown" } else { row.state.as_str() };
+    let label = row.label.as_deref().map(encode_text).unwrap_or_else(|| "-".into());
+    let exit = row.exit_status.map(|code| format!(" (exit {code})")).unwrap_or_default();
     let writer = match row.writer_attached {
         Some(true) => "attached",
         Some(false) => "free",
-        None => "unknown",
+        None => "-",
     };
+    let observed = (row.observed_ms > 0).then(|| chrono::DateTime::from_timestamp_millis(row.observed_ms))
+        .flatten().map(|time| time.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_else(|| "-".into());
     format!(
-        "{}  {}  {}  {}  project={}  mru={}  gen={}  writer={}{}",
-        row.session_id,
-        label,
+        "{:<8}  {state:<8}  {writer:<8}  {observed:<19}  {:<8}  {:<7}  {label}{exit}",
+        encode_text(id),
+        encode_text(short_id(&row.project_id)),
         encode_text(&row.kind),
-        state,
-        encode_text(&row.project_id),
-        row.mru_seq,
-        row.attachment_generation,
-        writer,
-        exit
     )
 }
 
@@ -560,73 +613,113 @@ async fn list(project: Option<String>, id: Option<String>) -> i32 {
         Ok(rows) => rows,
         Err(code) => return code,
     };
-    println!("Guardian: ready ({})", route_name(route()));
-    let mut shown = 0;
-    for row in rows
-        .iter()
-        .filter(|row| id.as_ref().is_none_or(|id| &row.session_id == id))
-    {
-        println!("{}", row_line(row));
-        shown += 1;
-    }
-    if shown == 0 {
+    let shown: Vec<_> = rows.iter()
+        .filter(|row| id.as_ref().is_none_or(|id| matches_id(&row.session_id, id)))
+        .collect();
+    if shown.is_empty() {
         println!("No guardian sessions.");
+        return EXIT_OK;
+    }
+    println!("ID        STATE     WRITER    UPDATED (UTC)        PROJECT   TYPE     NAME");
+    for row in shown {
+        let prefix = short_id(&row.session_id);
+        let collides = rows.iter().filter(|candidate| matches_id(&candidate.session_id, prefix)).take(2).count() > 1;
+        let id = if id.is_some() || collides { &row.session_id } else { prefix };
+        println!("{}", row_line(row, id));
     }
     EXIT_OK
 }
 
-/// Unique-name, exact-ID or most-recently-used live selection.
-fn select<'a>(
-    rows: &'a [AccountCatalogRow],
+/// Unique name, full or unique short ID, or most recently used live task.
+fn select<'a>(rows: &'a [AccountCatalogRow], selection: &Selection) -> Result<&'a AccountCatalogRow, i32> {
+    select_task(rows.iter().filter(|row| is_live(row)), selection)
+}
+
+fn select_task<'a>(
+    rows: impl Iterator<Item = &'a AccountCatalogRow>,
     selection: &Selection,
 ) -> Result<&'a AccountCatalogRow, i32> {
-    let live: Vec<&AccountCatalogRow> = rows.iter().filter(|row| is_live(row)).collect();
-    match selection {
-        Selection::Id(id) => live
-            .into_iter()
-            .find(|row| &row.session_id == id)
-            .ok_or_else(|| {
-                eprintln!("No live session matches {id}.");
+    let matching: Vec<_> = match selection {
+        Selection::Id(id) => rows.filter(|row| matches_id(&row.session_id, id)).collect(),
+        Selection::Name(name) => rows.filter(|row| row.label.as_deref() == Some(name.as_str())).collect(),
+        Selection::All => {
+            return rows.max_by(|left, right| {
+                left.mru_seq.cmp(&right.mru_seq)
+                    .then_with(|| left.created_seq.cmp(&right.created_seq))
+                    .then_with(|| right.session_id.cmp(&left.session_id))
+            }).ok_or_else(|| {
+                eprintln!("No live session is resumable.");
                 EXIT_DOMAIN
-            }),
-        Selection::Name(name) => {
-            let named: Vec<&AccountCatalogRow> = live
-                .into_iter()
-                .filter(|row| row.label.as_deref() == Some(name.as_str()))
-                .collect();
-            match named.len() {
-                0 => {
-                    eprintln!("No live session is named {name}.");
-                    Err(EXIT_DOMAIN)
-                }
-                1 => Ok(named[0]),
-                _ => {
-                    eprintln!("Session name is ambiguous; use --id:");
-                    for row in named {
-                        println!("  {}", row.session_id);
-                    }
-                    Err(EXIT_SYNTAX)
-                }
+            });
+        }
+    };
+    match matching.as_slice() {
+        [] => {
+            eprintln!("No task matches this selector.");
+            Err(EXIT_DOMAIN)
+        }
+        [only] => Ok(only),
+        _ => {
+            eprintln!("Task selector is ambiguous; use a longer --id or a full ID:");
+            for row in matching {
+                println!("  {}", row.session_id);
+            }
+            Err(EXIT_SYNTAX)
+        }
+    }
+}
+
+async fn manage_task(project: Option<String>, selection: Selection, rename_to: Option<String>) -> i32 {
+    let (mut client, filter) = match connect(&project, false).await {
+        Ok(value) => value,
+        Err(code) => return code,
+    };
+    let rows = match rows(&mut client, "", &filter).await {
+        Ok(rows) => rows,
+        Err(code) => return code,
+    };
+    let row = match select_task(rows.iter().filter(|row| matches!(row.state.as_str(), "live" | "ended")), &selection) {
+        Ok(row) => row,
+        Err(code) => return code,
+    };
+    if let Some(label) = rename_to {
+        match client.account_task_rename(row, label).await {
+            Ok(row) => {
+                println!("Renamed task {} to {}", row.session_id, encode_text(row.label.as_deref().unwrap_or("-")));
+                EXIT_OK
+            }
+            Err(error) => {
+                eprintln!("Task could not be renamed ({error}).");
+                EXIT_DOMAIN
             }
         }
-        Selection::All => match live.len() {
-            0 => {
-                eprintln!("No live session is resumable.");
-                Err(EXIT_DOMAIN)
+    } else {
+        match client.account_task_output(row).await {
+            Ok(output) => {
+                if output.truncated {
+                    eprintln!("[earlier output is no longer retained]");
+                }
+                print!("{}", plain_log(&output.output));
+                EXIT_OK
             }
-            1 => Ok(live[0]),
-            // Highest daemon record of foreground use; stable ID breaks ties.
-            _ => Ok(live
-                .into_iter()
-                .max_by(|left, right| {
-                    left.mru_seq
-                        .cmp(&right.mru_seq)
-                        .then_with(|| left.created_seq.cmp(&right.created_seq))
-                        .then_with(|| right.session_id.cmp(&left.session_id))
-                })
-                .expect("Live selection is not empty")),
-        },
+            Err(error) => {
+                eprintln!("Task output is no longer available or could not be read ({error}).");
+                EXIT_DOMAIN
+            }
+        }
     }
+}
+
+fn plain_log(output: &[u8]) -> String {
+    static ANSI: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|[\]PX^_][^\x07\x1b]*(?:\x07|\x1b\\|$)|[ -/]*[@-Z\\-_])")
+            .expect("valid terminal escape pattern")
+    });
+    let text = String::from_utf8_lossy(output);
+    let text = ANSI.replace_all(&text, "");
+    text.replace("\r\n", "\n").replace('\r', "\n").chars()
+        .filter(|character| !character.is_control() || matches!(character, '\n' | '\t'))
+        .collect()
 }
 
 async fn resume(project: Option<String>, selection: Selection, takeover: bool) -> i32 {
@@ -1274,6 +1367,7 @@ mod tests {
             name: Some("任务一".into()),
             program: "/opt/my program".into(),
             arguments: args(&["", "$HOME", "--"]),
+            background: false,
         };
         assert_eq!(
             parse(&args(&["run", "/opt/my program", "", "$HOME", "--", "--name", "任务一"])).unwrap(),
@@ -1285,7 +1379,16 @@ mod tests {
         );
         assert_eq!(
             parse(&args(&["run", "btop"])).unwrap(),
-            Command::Launch { name: None, program: "btop".into(), arguments: vec![] }
+            Command::Launch { name: None, program: "btop".into(), arguments: vec![], background: false }
+        );
+        assert_eq!(
+            parse(&args(&["run", "python", "3.py", "--name", "py3", "--background"])).unwrap(),
+            Command::Launch {
+                name: Some("py3".into()),
+                program: "python".into(),
+                arguments: args(&["3.py"]),
+                background: true,
+            }
         );
         assert_eq!(
             parse(&args(&["run", "--", "python", "3.py", "--name", "child"])).unwrap(),
@@ -1293,6 +1396,7 @@ mod tests {
                 name: None,
                 program: "python".into(),
                 arguments: args(&["3.py", "--name", "child"]),
+                background: false,
             }
         );
         for invalid in [
@@ -1475,11 +1579,34 @@ mod tests {
             attachment_generation: 3,
             writer_attached: Some(false),
         };
-        let line = row_line(&row);
+        let line = row_line(&row, &row.session_id);
         assert!(line.contains("bad?label"));
         assert!(!line.chars().any(|c| c.is_control()));
-        assert!(line.contains("gen=3"));
-        assert!(line.contains("writer=free"));
+        assert_eq!(line.split_whitespace().take(3).collect::<Vec<_>>(), ["id", "live", "free"]);
+        assert!(line.ends_with("(exit 0)"));
+    }
+
+    #[test]
+    fn task_management_selects_short_ids_and_removes_terminal_controls_from_logs() {
+        let id = "91827abc-2234-4321-9182-001234567890";
+        assert!(validate_session_id("91827ABC").is_ok());
+        assert!(validate_session_id("91827AB").is_err());
+        assert!(matches_id(id, "91827ABC"));
+        assert!(matches_id(id, "91827abc2234"));
+        assert!(!matches_id(id, "91827ABD"));
+        assert_eq!(
+            parse(&args(&["rename", "--id", "91827abc", "new label"])).unwrap(),
+            Command::InspectTask {
+                project: None,
+                selection: Selection::Id("91827abc".into()),
+                rename_to: Some("new label".into()),
+            }
+        );
+        assert!(parse(&args(&["logs"])).is_err());
+        assert_eq!(
+            plain_log(b"\x1b[31mred\x1b[0m\r\n\x1b]52;c;ignored\x07next\x1bPsecret\x1b\\\tfield\x00"),
+            "red\nnext\tfield"
+        );
     }
 
     #[test]

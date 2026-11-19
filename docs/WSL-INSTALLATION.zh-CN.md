@@ -282,3 +282,6 @@ Warpai 会保留厂商认证信息和其他无关的 MCP Server。复选框配�
 「分离守护任务」。直接关闭 Warpai 后任务也会继续运行。以原发行版和用户重新进入后，
 使用 `warpai list`、`warpai resume task1` 或 `warpai stop task1` 管理原任务。
 关闭 WSL 或终止对应发行版会结束原进程。
+
+启动时可加 `--background`。用 `warpai logs task1` 查看保留的输出，
+或用 `warpai rename task1 task2` 修改名称。

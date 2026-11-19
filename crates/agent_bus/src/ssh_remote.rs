@@ -982,6 +982,32 @@ impl HostClient {
         }
     }
 
+    fn account_task_target(&self, row: &AccountCatalogRow) -> Result<AccountCatalogInspect, ConnectionError> {
+        Ok(AccountCatalogInspect {
+            fence: Some(self.account_scope()?),
+            session_id: row.session_id.clone(),
+            run_id: row.run_id.clone(),
+        })
+    }
+
+    pub(crate) async fn account_task_output(&mut self, row: &AccountCatalogRow) -> Result<AccountTaskOutput, ConnectionError> {
+        let target = self.account_task_target(row)?;
+        match self.request(managed_request::Operation::AccountTaskOutput(target)).await? {
+            managed_response::Result::AccountTaskOutput(output) => Ok(output),
+            _ => Err(ConnectionError::IncompatibleVersion),
+        }
+    }
+
+    pub(crate) async fn account_task_rename(&mut self, row: &AccountCatalogRow, label: String) -> Result<AccountCatalogRow, ConnectionError> {
+        let target = self.account_task_target(row)?;
+        match self.request(managed_request::Operation::AccountTaskRename(AccountTaskRename {
+            target: Some(target), label,
+        })).await? {
+            managed_response::Result::AccountCatalogRow(row) => Ok(row),
+            _ => Err(ConnectionError::IncompatibleVersion),
+        }
+    }
+
     /// Receipts report the stop request; task acceptance and review stay separate.
     pub async fn account_stop(
         &mut self,

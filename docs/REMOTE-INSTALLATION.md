@@ -144,6 +144,9 @@ then lowercase q to detach. Edit **Detach guarded task** in **Settings > Keys**
 to change the shortcut. The command continues after Warpai closes. Reconnect normally,
 then use `warpai list`, `warpai resume task1` or `warpai stop task1`. Ordinary
 commands keep their existing lifetime. A host restart ends the native task.
+Use `--background` at launch to return immediately, `warpai logs task1` to read
+retained output, and `warpai rename task1 task2` to change its label.
+When labels collide, pass the short ID from `warpai list` with `--id`.
 
 The command comes from the matching Companion and is scoped to the current
 Warpai shell. It does not install a global command or modify shell profiles.

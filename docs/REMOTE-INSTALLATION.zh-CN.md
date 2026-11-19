@@ -106,5 +106,7 @@ Warpai for Windows 内置专用的 WSL Companion 载荷。打开 WSL 终端后�
 关闭 Warpai 后任务仍会运行。重新连接后，用 `warpai list` 查看任务，
 用 `warpai resume task1` 接回原进程，或用 `warpai stop task1` 停止它。
 普通命令沿用原有生命周期。远端主机重启会结束任务。
+启动时加 `--background` 可直接返回 shell。用 `warpai logs task1` 查看保留的输出，
+用 `warpai rename task1 task2` 修改名称。遇到重名时，通过 `--id` 使用列表中的短 ID。
 
 命令随匹配版本的 Companion 提供，仅在当前已集成的 Warpai shell 中注册。

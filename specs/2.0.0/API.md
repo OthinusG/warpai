@@ -8,6 +8,9 @@ the established ordinary managed channel compatible with older helpers.
   PTY in an admitted project. The response binds session, run and writer.
 - `AccountCatalogList` and `AccountCatalogInspect` describe bounded known runs
   without acquiring input or restarting work.
+- `AccountTaskRename` changes the label for an exact run in the account catalog.
+  `AccountTaskOutput` reads its bounded native output without granting a writer.
+  Both require local operator admission and the verified account fence.
 - `GuardedProjectOpen` resolves the original project only for an authenticated
   local operator holding the exact run selector.
 - `TerminalControl` handles attach, detach, input, resize, read and terminal

@@ -16,6 +16,10 @@ process and its native process group or Job.
    `warpai resume task1` to find and attach the same live task explicitly.
 4. Use `warpai stop task1` to stop that task's owned process tree. The response
    distinguishes accepted stop from observed exit.
+5. Use `--background` to launch without opening a terminal attachment.
+   Use the short ID from `warpai list` to distinguish tasks with the same name.
+   `warpai logs` reads retained output while a task runs or after it ends.
+   `warpai rename` changes the label while preserving the same run.
 
 The command is a session-scoped function in Warpai's participating Bash, Zsh,
 or Windows PowerShell terminal. Companion contains the actual command

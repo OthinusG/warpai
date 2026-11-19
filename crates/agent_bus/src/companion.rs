@@ -442,6 +442,16 @@ impl Companion {
             Some(managed_request::Operation::AccountCatalogInspect(request)) => {
                 self.dispatch_catalog_inspect(request)
             }
+            Some(managed_request::Operation::AccountTaskRename(request)) => {
+                self.dispatch_task_rename(request)
+            }
+            Some(managed_request::Operation::AccountTaskOutput(request)) => {
+                if !self.account_operator {
+                    return Err(ManagedErrorCode::ManagedPermissionDenied);
+                }
+                let row = self.catalog_record(&request)?;
+                self.terminals.guarded_output(&row).map(managed_response::Result::AccountTaskOutput)
+            }
             Some(managed_request::Operation::AccountStop(request)) => {
                 self.dispatch_account_stop(request_id, request)
             }
@@ -546,6 +556,11 @@ impl Companion {
         &mut self,
         request: AccountCatalogInspect,
     ) -> Result<managed_response::Result, ManagedErrorCode> {
+        let record = self.catalog_record(&request)?;
+        Ok(managed_response::Result::AccountCatalogRow(self.catalog_row_with_writer(&record)))
+    }
+
+    fn catalog_record(&self, request: &AccountCatalogInspect) -> Result<guardian_catalog::Record, ManagedErrorCode> {
         self.check_account_fence(request.fence.as_ref())?;
         if !valid_uuid(&request.session_id) || !valid_uuid(&request.run_id) {
             return Err(ManagedErrorCode::ManagedInvalidInput);
@@ -556,14 +571,33 @@ impl Companion {
             .ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
             .lock()
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
-        let record = catalog
+        catalog
             .find(&request.session_id, &request.run_id)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
+            .ok_or(ManagedErrorCode::ManagedNotFound)
+    }
+
+    fn dispatch_task_rename(&self, request: AccountTaskRename) -> Result<managed_response::Result, ManagedErrorCode> {
+        if !self.account_operator {
+            return Err(ManagedErrorCode::ManagedPermissionDenied);
+        }
+        let target = request.target.ok_or(ManagedErrorCode::ManagedInvalidInput)?;
+        let mut row = self.catalog_record(&target)?;
+        if request.label.trim().is_empty() || request.label.len() > 128
+            || request.label.chars().any(char::is_control)
+            || row.state == guardian_catalog::State::Unknown
+        {
+            return Err(ManagedErrorCode::ManagedInvalidInput);
+        }
+        let mut catalog = self.catalog.as_ref().ok_or(ManagedErrorCode::ManagedFeatureUnavailable)?
+            .lock().map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        catalog.rename(&row.session_id, &row.run_id, &request.label)
+            .map_err(|_| ManagedErrorCode::ManagedUnavailable)?;
+        row = catalog.find(&row.session_id, &row.run_id)
             .map_err(|_| ManagedErrorCode::ManagedUnavailable)?
             .ok_or(ManagedErrorCode::ManagedNotFound)?;
         drop(catalog);
-        Ok(managed_response::Result::AccountCatalogRow(self.catalog_row_with_writer(
-            &record,
-        )))
+        Ok(managed_response::Result::AccountCatalogRow(self.catalog_row_with_writer(&row)))
     }
 
     fn dispatch_account_stop(

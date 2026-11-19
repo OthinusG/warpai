@@ -1491,6 +1491,24 @@ impl Terminals {
             .then_some(session.connection.is_some())
     }
 
+    pub(super) fn guarded_output(&self, row: &guardian_catalog::Record) -> Result<AccountTaskOutput, Error> {
+        let owner = lock(&self.owners)?
+            .get(&row.session_id)
+            .cloned()
+            .ok_or(Error::ManagedNotFound)?;
+        let session = lock(&owner)?;
+        if session.policy != Policy::Guarded || session.run_id != row.run_id
+            || session.boot_id != row.boot_id || session.service_id != row.service_id
+        {
+            return Err(Error::ManagedNotFound);
+        }
+        let output = lock(&session.output)?;
+        Ok(AccountTaskOutput {
+            output: output.bytes.iter().copied().collect(),
+            truncated: output.end > output.bytes.len() as u64,
+        })
+    }
+
     pub(super) fn current_guarded_session(&self, peer_pid: u32) -> Option<remote_protocol::proto::CurrentGuardedSession> {
         #[cfg(unix)]
         let pid = libc::pid_t::try_from(peer_pid).ok().filter(|pid| *pid > 0)?;

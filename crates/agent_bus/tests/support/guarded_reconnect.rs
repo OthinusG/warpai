@@ -609,8 +609,9 @@ pub async fn verify_cli_launch_and_resume(
     let all = timeout(Duration::from_secs(10), command(&["list".into()], false).output())
         .await.unwrap().unwrap();
     assert!(all.status.success());
-    assert!(String::from_utf8_lossy(&all.stdout).lines()
-        .any(|line| line.contains(&label) && line.contains(" live ")));
+    let list = String::from_utf8_lossy(&all.stdout);
+    let id = list.lines().find(|line| line.contains(&label) && line.contains(" live "))
+        .and_then(|line| line.split_whitespace().next()).expect("Short ID for the live CLI task");
 
     let args = ["resume".into(), label.clone()];
     let mut resumed = command(&args, true).stdin(Stdio::piped()).stdout(Stdio::piped())
@@ -620,13 +621,22 @@ pub async fn verify_cli_launch_and_resume(
     let mut input = resumed.stdin.take().unwrap();
     input.write_all(b"after-cli-run\r").await.unwrap();
     wait_for(&mut output, "GUARDIAN_ECHO=after-cli-run").await;
+    let logs = ["logs".into(), "--id".into(), id.into()];
+    let captured = timeout(Duration::from_secs(10), command(&logs, false).output()).await.unwrap().unwrap();
+    assert!(captured.status.success());
+    assert!(String::from_utf8_lossy(&captured.stdout).contains("GUARDIAN_ECHO=after-cli-run"));
+    let renamed = format!("{label}-renamed");
+    let rename = ["rename".into(), "--id".into(), id.into(), renamed.clone()];
+    let result = timeout(Duration::from_secs(10), command(&rename, false).output()).await.unwrap().unwrap();
+    assert!(result.status.success());
+    assert!(String::from_utf8_lossy(&result.stdout).contains(&renamed));
     let signal = warp_agent_bus::companion_ctl::DETACH_INPUT;
     input.write_all(&signal[..3]).await.unwrap();
     sleep(Duration::from_millis(80)).await;
     input.write_all(&signal[3..]).await.unwrap();
     assert!(timeout(Duration::from_secs(10), resumed.wait()).await.unwrap().unwrap().success());
 
-    let args = ["stop".into(), label.clone()];
+    let args = ["stop".into(), renamed.clone()];
     let stopped = timeout(Duration::from_secs(10), command(&args, false).output())
         .await.unwrap().unwrap();
     assert!(String::from_utf8_lossy(&stopped.stdout).contains(" run="));
@@ -635,8 +645,27 @@ pub async fn verify_cli_launch_and_resume(
         let list = command(&["list".into()], false).output().await.unwrap();
         assert!(list.status.success());
         if String::from_utf8_lossy(&list.stdout).lines()
-            .any(|line| line.contains(&label) && line.contains(" ended ")) { break; }
+            .any(|line| line.contains(&renamed) && line.contains(" ended ") && line.starts_with(id)) { break; }
         assert!(Instant::now() < deadline, "Native CLI stop must be observed");
         sleep(Duration::from_millis(50)).await;
     }
+    let captured = timeout(Duration::from_secs(10), command(&logs, false).output()).await.unwrap().unwrap();
+    assert!(captured.status.success());
+    assert!(String::from_utf8_lossy(&captured.stdout).contains("GUARDIAN_ECHO=after-cli-run"));
+
+    launch.push("--background".into());
+    let started = timeout(Duration::from_secs(10), command(&launch, false).output()).await.unwrap().unwrap();
+    assert!(started.status.success());
+    let started = String::from_utf8_lossy(&started.stdout);
+    let background_id = started.trim().strip_prefix("Started task ").expect("Background launch receipt");
+    assert!(Uuid::parse_str(background_id).is_ok());
+    let args = ["list".into(), "--id".into(), background_id.into()];
+    let background = timeout(Duration::from_secs(10), command(&args, false).output()).await.unwrap().unwrap();
+    assert!(background.status.success());
+    assert!(String::from_utf8_lossy(&background.stdout).lines().any(|line| {
+        line.starts_with(background_id) && line.contains(" live ") && line.contains(" free ")
+    }));
+    let args = ["stop".into(), "--id".into(), background_id.into()];
+    let stopped = timeout(Duration::from_secs(10), command(&args, false).output()).await.unwrap().unwrap();
+    assert!(stopped.status.success());
 }

@@ -61,6 +61,8 @@ message ManagedRequest {
     AccountCatalogInspect account_catalog_inspect = 11;
     AccountStop account_stop = 13;
     GuardedProjectOpen guarded_project_open = 14;
+    AccountTaskRename account_task_rename = 15;
+    AccountCatalogInspect account_task_output = 16;
   }
 }
 message ManagedResponse {
@@ -77,6 +79,7 @@ message ManagedResponse {
     AccountCatalogPage account_catalog_page = 10;
     AccountCatalogRow account_catalog_row = 11;
     AccountStopReceipts account_stop_receipts = 13;
+    AccountTaskOutput account_task_output = 16;
   }
 }
 // WSL guest-only admission; peer ancestry is verified by the private Linux service.
@@ -136,6 +139,14 @@ message AccountCatalogInspect {
   AccountFence fence = 1;
   string session_id = 2;
   string run_id = 3;
+}
+message AccountTaskRename {
+  AccountCatalogInspect target = 1;
+  string label = 2;
+}
+message AccountTaskOutput {
+  bytes output = 1;
+  bool truncated = 2;
 }
 // Non-secret metadata only: no argv, environment, paths, screen or attachment tokens.
 message AccountCatalogRow {

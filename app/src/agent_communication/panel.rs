@@ -102,9 +102,9 @@ fn heading(appearance: &Appearance, text: impl Into<Cow<'static, str>>) -> Box<d
     } else { label }
 }
 
-fn section(appearance: &Appearance, content: Box<dyn Element>) -> Box<dyn Element> {
+fn section(appearance: &Appearance, content: Box<dyn Element>, padding: Padding) -> Box<dyn Element> {
     Container::new(content)
-        .with_padding(Padding::uniform(GAP_SECTION))
+        .with_padding(padding)
         .with_border(Border::bottom(1.).with_border_fill(appearance.theme().outline()))
         .finish()
 }
@@ -2115,24 +2115,33 @@ impl View for CollaborationPanel {
         }
         let mut body = Flex::column().with_spacing(GAP_SECTION);
         let render_section = |section: &Section| {
+            let is_agents = section.title == "Agents";
             let mut column = Flex::column().with_spacing(GAP_TIGHT);
             column.add_child(heading(appearance, warpui::localization::text(&section.title).to_owned()));
             for (index, row) in section.rows.iter().enumerate() {
                 let record = detail(appearance, if self.preview { warpui::localization::text(row).to_owned() } else { row.clone() });
                 column.add_child(if section.title == "History" {
-                    self::section(appearance, record)
-                } else if section.title == "Agents" {
+                    self::section(appearance, record, Padding::uniform(GAP_SECTION))
+                } else if is_agents {
                     let agent = self.snapshot.as_ref().and_then(|s| s.agents.iter().filter(|a| a.online).nth(index));
                     let icon = agent
                         .map(|a| crate::agent_usage::agent_icon(&a.agent.program))
                         .unwrap_or(crate::ui_components::icons::Icon::Terminal);
                     let record = agent.map(|agent| self.copyable_agent_name(&agent.agent, row.clone(), app))
                         .unwrap_or(record);
-                    Flex::row().with_spacing(GAP_ROW).with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(theme.foreground()).finish()).with_width(16.).with_height(16.).finish())
-                        .with_child(Shrinkable::new(1., record).finish()).finish()
+                    let row = Flex::row().with_spacing(GAP_ROW).with_child(warpui::elements::ConstrainedBox::new(icon.to_warpui_icon(theme.foreground()).finish()).with_width(16.).with_height(16.).finish())
+                        .with_child(Shrinkable::new(1., record).finish()).finish();
+                    Container::new(row)
+                        .with_padding(Padding::default().with_left(GAP_SECTION).with_right(GAP_SECTION))
+                        .finish()
                 } else { record });
             }
-            self::section(appearance, column.finish())
+            let padding = if is_agents {
+                Padding::default().with_top(GAP_SECTION).with_bottom(GAP_SECTION)
+            } else {
+                Padding::uniform(GAP_SECTION)
+            };
+            self::section(appearance, column.finish(), padding)
         };
         if self.worktree_mode && !self.preview
             && self.form.as_ref().is_none_or(|form| form.kind == controls::Kind::SelectCoordinator)

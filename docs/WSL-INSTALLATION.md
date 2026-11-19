@@ -282,3 +282,6 @@ or edit **Detach guarded task** in **Settings > Keys**. You can also close the
 desktop. Reopen the same distribution and user to use `warpai list`,
 `warpai resume task1` and `warpai stop task1`. WSL shutdown or distribution
 termination ends the original process.
+
+Use `--background` at launch, `warpai logs task1` to inspect retained output,
+or `warpai rename task1 task2` to change its label.
