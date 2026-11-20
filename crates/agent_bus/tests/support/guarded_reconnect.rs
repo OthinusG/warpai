@@ -625,6 +625,10 @@ pub async fn verify_cli_launch_and_resume(
         .kill_on_drop(true).spawn().unwrap();
     let mut output = resumed.stdout.take().unwrap();
     wait_for(&mut output, &format!("GUARDIAN_PID={pid}")).await;
+    let duplicate = timeout(Duration::from_secs(10), command(&args, false).output())
+        .await.unwrap().unwrap();
+    assert_eq!(duplicate.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&duplicate.stderr).contains("owned by another writer"));
     let mut input = resumed.stdin.take().unwrap();
     input.write_all(b"after-cli-run\r").await.unwrap();
     wait_for(&mut output, "GUARDIAN_ECHO=after-cli-run").await;
@@ -642,6 +646,17 @@ pub async fn verify_cli_launch_and_resume(
     sleep(Duration::from_millis(80)).await;
     input.write_all(&signal[3..]).await.unwrap();
     assert!(timeout(Duration::from_secs(10), resumed.wait()).await.unwrap().unwrap().success());
+
+    let args = ["resume".into(), renamed.clone()];
+    let mut resumed_again = command(&args, true).stdin(Stdio::piped()).stdout(Stdio::piped())
+        .kill_on_drop(true).spawn().unwrap();
+    let output = resumed_again.stdout.as_mut().unwrap();
+    wait_for(output, &format!("GUARDIAN_PID={pid}")).await;
+    let input = resumed_again.stdin.as_mut().unwrap();
+    input.write_all(b"after-cli-detach\r").await.unwrap();
+    wait_for(output, "GUARDIAN_ECHO=after-cli-detach").await;
+    input.write_all(signal).await.unwrap();
+    assert!(timeout(Duration::from_secs(10), resumed_again.wait()).await.unwrap().unwrap().success());
 
     let args = ["stop".into(), renamed.clone()];
     let stopped = timeout(Duration::from_secs(10), command(&args, false).output())
