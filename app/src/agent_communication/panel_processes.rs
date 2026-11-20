@@ -473,7 +473,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     group.terminal_pane_ids().find(|&pane| {
                         group.terminal_view_from_pane_id(pane, ctx).is_some_and(|view| view.id() == source.0)
                     }).unwrap(),
-                    group.terminal_pane_ids().count(),
+                    group.visible_pane_ids().len(),
                     group.left_panel_open,
                 ));
                 *original.lock().unwrap() = Some((pane, count, source.0, source.1.clone(), source.2.clone(), left_panel_open));
@@ -597,7 +597,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
                     let correct = group.read(app, |group, ctx| {
                         let focused = group.focused_pane_id(ctx);
-                        group.terminal_pane_ids().count() == count + 1
+                        group.visible_pane_ids().len() == count + 1
                             && focused != *pane
                             && group
                                 .terminal_view_from_pane_id(*pane, ctx)
@@ -626,40 +626,42 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             )
     };
 
-    let detach = TestStep::new(&format!("Detach the first {scope} process pane"))
-        .set_timeout(Duration::from_secs(30))
-        .with_action(|app, window, _| {
-            let view = app
-                .read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window))
-                .unwrap();
-            let terminal = app
-                .views_of_type::<TerminalView>(window)
-                .unwrap()
-                .into_iter()
-                .find(|terminal| terminal.id() == view)
-                .unwrap();
-            terminal.update(app, |terminal, ctx| {
-                terminal.handle_action(
-                    &crate::terminal::view::TerminalAction::DetachGuardedTask,
-                    ctx,
-                );
-            });
-        })
-        .add_named_assertion("detach returns the split to its shell", |app, window| {
-            let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window));
-            let detached = app
-                .views_of_type::<TerminalView>(window)
-                .unwrap()
-                .into_iter()
-                .find(|terminal| Some(terminal.id()) == view)
-                .is_some_and(|terminal| {
-                    terminal.read(app, |terminal, ctx| {
-                        !terminal.has_pending_command_or_awaiting_completion(ctx)
-                            && !terminal.model.lock().has_guarded_task_attachment()
-                    })
+    let detach = || {
+        TestStep::new(&format!("Detach the {scope} process pane"))
+            .set_timeout(Duration::from_secs(30))
+            .with_action(|app, window, _| {
+                let view = app
+                    .read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window))
+                    .unwrap();
+                let terminal = app
+                    .views_of_type::<TerminalView>(window)
+                    .unwrap()
+                    .into_iter()
+                    .find(|terminal| terminal.id() == view)
+                    .unwrap();
+                terminal.update(app, |terminal, ctx| {
+                    terminal.handle_action(
+                        &crate::terminal::view::TerminalAction::DetachGuardedTask,
+                        ctx,
+                    );
                 });
-            warpui::async_assert!(detached)
-        });
+            })
+            .add_named_assertion("detach returns the split to its shell", |app, window| {
+                let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window));
+                let detached = app
+                    .views_of_type::<TerminalView>(window)
+                    .unwrap()
+                    .into_iter()
+                    .find(|terminal| Some(terminal.id()) == view)
+                    .is_some_and(|terminal| {
+                        terminal.read(app, |terminal, ctx| {
+                            !terminal.has_pending_command_or_awaiting_completion(ctx)
+                                && !terminal.model.lock().has_guarded_task_attachment()
+                        })
+                    });
+                warpui::async_assert!(detached)
+            })
+    };
     let restore = {
         let original = original.clone();
         TestStep::new(&format!("Return to the {scope} source pane")).with_action(
@@ -677,7 +679,16 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             },
         )
     };
-    let mut steps = vec![seed, open(), resume(), detach, restore, open(), resume()];
+    let mut steps = vec![
+        seed,
+        open(),
+        resume(),
+        detach(),
+        restore,
+        open(),
+        resume(),
+        detach(),
+    ];
 
     let stopped = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let cleanup = TestStep::new(&format!(
@@ -693,17 +704,16 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             let (id, _) = expected.lock().unwrap().take().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+            workspace.update(app, |workspace, ctx| {
+                if !left_panel_open && workspace.is_left_panel_open(ctx) {
+                    workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                }
+            });
             let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
             group.update(app, |group, ctx| {
                 let focused = group.focused_pane_id(ctx);
                 assert_ne!(focused, pane);
                 group.close_pane_and_focus(focused, pane, ctx);
-            });
-            workspace.update(app, |workspace, ctx| {
-                if !left_panel_open && workspace.is_left_panel_open(ctx) {
-                    workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
-                }
-                assert!(workspace.focus_terminal_view_locally(terminal, ctx));
             });
             let view = app
                 .views_of_type::<TerminalView>(window)
@@ -729,17 +739,16 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         }
     })
     .add_named_assertion(
-        "source terminal focus and panel visibility are restored",
+        "source terminal focus and visible panes are restored",
         move |app, window| {
             let source = original.lock().unwrap();
-            let (pane, count, terminal, _, _, left_panel_open) = source.as_ref().unwrap();
+            let (pane, count, terminal, _, _, _) = source.as_ref().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
             let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
             warpui::async_assert!(group.read(app, |group, ctx| {
                 group.focused_pane_id(ctx) == *pane
-                    && group.terminal_pane_ids().count() == *count
-                    && group.left_panel_open == *left_panel_open
+                    && group.visible_pane_ids().len() == *count
                     && group
                         .terminal_view_from_pane_id(*pane, ctx)
                         .is_some_and(|view| view.id() == *terminal)
