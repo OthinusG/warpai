@@ -2363,6 +2363,7 @@ impl BlockListElement {
         bounds: RectF,
         warp_theme: &WarpTheme,
         block_borders_enabled: bool,
+        history_corners: CornerRadius,
         snackbar_header: &Option<SnackbarHeader>,
         ai_render_context: &BlocklistAIRenderContext,
         agent_view_state: &AgentViewState,
@@ -2378,6 +2379,7 @@ impl BlockListElement {
                     grid_origin,
                     Vector2F::new(bounds.width(), block_height),
                 ))
+                .with_corner_radius(history_corners)
                 .with_background(warp_theme.restored_blocks_overlay());
         }
 
@@ -2388,6 +2390,7 @@ impl BlockListElement {
                     grid_origin,
                     Vector2F::new(bounds.width(), block_height),
                 ))
+                .with_corner_radius(history_corners)
                 .with_background(agent_view_bg_fill(app));
         }
 
@@ -2407,6 +2410,7 @@ impl BlockListElement {
                     grid_origin,
                     Vector2F::new(bounds.width(), block_height),
                 ))
+                .with_corner_radius(history_corners)
                 .with_background(warp_theme.failed_block_color().with_opacity(10));
 
             if !is_selected_by_anyone && !did_render_ai_stripe {
@@ -2474,6 +2478,7 @@ impl BlockListElement {
         footer_element: Option<&mut Box<dyn Element>>,
         block_index: BlockIndex,
         block_borders_enabled: bool,
+        history_corners: CornerRadius,
         is_current_block_selected_by_anyone: bool,
         block_grid_params: &BlockGridParams,
         snackbar_header: &Option<SnackbarHeader>,
@@ -2494,6 +2499,7 @@ impl BlockListElement {
             block_grid_params.bounds,
             &block_grid_params.grid_render_params.warp_theme,
             block_borders_enabled,
+            history_corners,
             snackbar_header,
             ai_render_context,
             agent_view_state,
@@ -3785,11 +3791,14 @@ impl Element for BlockListElement {
         let mut cli_subagent_views_to_paint = vec![];
         let agent_view_state = model.block_list().agent_view_state();
         let round_history = crate::tab::uses_vertical_tabs(app);
-        let mut history_edges = (None, None);
         let (first_history, last_history) = if round_history {
             let first = block_list.first_non_hidden_block_by_index();
             let last = block_list.last_non_hidden_block_by_index();
-            if self.input_mode.is_inverted_blocklist() { (last, first) } else { (first, last) }
+            if self.input_mode.is_inverted_blocklist() {
+                (last, first)
+            } else {
+                (first, last)
+            }
         } else {
             (None, None)
         };
@@ -3849,8 +3858,19 @@ impl Element for BlockListElement {
                         block.height(agent_view_state).as_f64() as f32 * cell_size.y();
 
                     let block_bottom_y = grid_origin.y() + block_pixel_height;
-                    if Some(*block_index) == first_history { history_edges.0 = Some(grid_origin.y()); }
-                    if Some(*block_index) == last_history { history_edges.1 = Some(block_bottom_y); }
+                    let outer_top = Some(*block_index) == first_history;
+                    let outer_bottom = Some(*block_index) == last_history;
+                    let history_corners = if outer_top || outer_bottom {
+                        history_block_corners(
+                            element_bounds,
+                            grid_origin.y(),
+                            block_bottom_y,
+                            outer_top,
+                            outer_bottom,
+                        )
+                    } else {
+                        CornerRadius::default()
+                    };
                     let selection_bottom_y = snackbar_header
                         .and_then(|header| header.header_rect())
                         .map_or(block_bottom_y, |r| r.max_y().max(block_bottom_y));
@@ -3883,6 +3903,7 @@ impl Element for BlockListElement {
                                     selection_height,
                                 ),
                             ))
+                            .with_corner_radius(history_corners)
                             .with_background(if can_be_ai_context {
                                 self.warp_theme
                                     .block_selection_as_context_background_color()
@@ -3949,6 +3970,7 @@ impl Element for BlockListElement {
                                         selection_height,
                                     ),
                                 ))
+                                .with_corner_radius(history_corners)
                                 .with_background(color.with_opacity(10))
                                 .with_border(
                                     Border::new(SHARED_SESSION_PARTICIPANT_SELECTION_BORDER_WIDTH)
@@ -4058,6 +4080,7 @@ impl Element for BlockListElement {
                         self.block_footer_elements.get_mut(block_index),
                         *block_index,
                         self.block_borders_enabled,
+                        history_corners,
                         is_current_block_selected_by_anyone,
                         &block_grid_params,
                         &snackbar_header,
@@ -4426,9 +4449,6 @@ impl Element for BlockListElement {
             }
         }
 
-        if round_history {
-            paint_history_corners(element_bounds, history_edges, self.warp_theme.background(), ctx);
-        }
         ctx.scene.stop_layer();
         self.child_max_z_index = Some(ctx.scene.max_active_z_index());
     }
@@ -4865,55 +4885,25 @@ where
 }
 
 
-// Mask only the true history boundary; viewport clipping must never create a new corner.
-fn paint_history_corners(
+fn history_block_corners(
     bounds: RectF,
-    edges: (Option<f32>, Option<f32>),
-    background: Fill,
-    ctx: &mut PaintContext,
-) {
-    let group_height = edges.0.zip(edges.1).map_or(bounds.height(), |(top, bottom)| bottom - top);
-    let radius = warp_core::ui::corner_radii::SURFACE.min(bounds.width() / 2.).min(group_height / 2.);
-    #[cfg(debug_assertions)]
-    if std::env::var_os("WARP_COLLABORATION_PREVIEW").is_some() {
-        if let (Some(top), Some(bottom)) = edges {
-            eprintln!("Native history corners: top={top:.5}, bottom={bottom:.5}, min={:.5}, max={:.5}, radius={radius:.5}, top_visible={}, bottom_visible={}",
-                bounds.min_y(), bounds.max_y(), history_edge_is_visible(bounds, top, false, radius), history_edge_is_visible(bounds, bottom, true, radius));
-        }
+    top: f32,
+    bottom: f32,
+    outer_top: bool,
+    outer_bottom: bool,
+) -> CornerRadius {
+    let radius = warp_core::ui::corner_radii::SURFACE
+        .min(bounds.width() / 2.)
+        .min((bottom - top) / 2.);
+    let mut corners = CornerRadius::default();
+    // Rounded fills leave the workspace backdrop visible at the outer edges.
+    if outer_top && history_edge_is_visible(bounds, top, false, radius) {
+        corners.merge(CornerRadius::with_top(Radius::Pixels(radius)));
     }
-    for (edge, bottom) in [(edges.0, false), (edges.1, true)] {
-        let Some(y) = edge.filter(|y| history_edge_is_visible(bounds, *y, bottom, radius)) else {
-            continue;
-        };
-        let y = y.clamp(bounds.min_y(), bounds.max_y());
-        for right in [false, true] {
-            let x = if right {
-                bounds.max_x() - radius
-            } else {
-                bounds.min_x()
-            };
-            let top = if bottom { y - radius } else { y };
-            let center = vec2f(
-                if right { x } else { x + radius },
-                if bottom { top } else { top + radius },
-            );
-            ctx.scene
-                .start_layer(ClipBounds::BoundedByActiveLayerAnd(RectF::new(
-                    vec2f(x, top),
-                    vec2f(radius, radius),
-                )));
-            ctx.scene.set_active_layer_click_through();
-            // A circular border paints the exterior of the inner quarter circle, preserving all block fills.
-            ctx.scene
-                .draw_rect_without_hit_recording(RectF::new(
-                    center - vec2f(2. * radius, 2. * radius),
-                    vec2f(4. * radius, 4. * radius),
-                ))
-                .with_corner_radius(CornerRadius::with_all(Radius::Pixels(2. * radius)))
-                .with_border(Border::all(radius).with_border_fill(background));
-            ctx.scene.stop_layer();
-        }
+    if outer_bottom && history_edge_is_visible(bounds, bottom, true, radius) {
+        corners.merge(CornerRadius::with_bottom(Radius::Pixels(radius)));
     }
+    corners
 }
 
 fn history_edge_is_visible(bounds: RectF, y: f32, bottom: bool, radius: f32) -> bool {
@@ -4938,4 +4928,13 @@ fn collaboration_history_corners_require_actual_visible_boundaries() {
     assert!(!history_edge_is_visible(bounds, 19., false, 12.));
     assert!(!history_edge_is_visible(bounds, 221., true, 12.));
     assert!(!history_edge_is_visible(bounds, 21., true, 12.));
+
+    let corners = history_block_corners(bounds, 20., 44., true, true);
+    assert_eq!(corners, CornerRadius::with_all(Radius::Pixels(12.)));
+    let corners = history_block_corners(bounds, 0., 220., true, true);
+    assert_eq!(corners, CornerRadius::with_bottom(Radius::Pixels(20.)));
+    let corners = history_block_corners(bounds, 20., 240., true, true);
+    assert_eq!(corners, CornerRadius::with_top(Radius::Pixels(20.)));
+    let corners = history_block_corners(bounds, 20., 220., false, false);
+    assert_eq!(corners, CornerRadius::default());
 }
