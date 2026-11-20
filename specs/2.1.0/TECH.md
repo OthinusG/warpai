@@ -22,5 +22,7 @@ split attaches to that PID even when Resume is requested twice. The fixture
 detaches from the split, returns focus to the source pane and repeats Resume
 against the same PID. It then sends input through the resumed split to finish
 the owned task and checks that the split returns to its shell.
+The Windows capture starts its WSL fixture in a fresh native terminal after
+the SSH checkpoints finish.
 The native CLI fixture also checks that a second writer is refused and a
 subsequent resume after detach accepts input in the same process.

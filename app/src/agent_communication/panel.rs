@@ -6783,8 +6783,41 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
     }));
     #[cfg(windows)]
     if std::env::var_os("WARP_TEST_WSL_ROOT").is_some() {
+        fn wsl_capture_phase(phase: &str) {
+            if let Some(directory) = std::env::var_os(warpui::integration::ARTIFACTS_DIR_ENV_VAR) {
+                let _ = std::fs::write(
+                    std::path::PathBuf::from(directory).join("checkpoint-wsl-phase.txt"),
+                    format!("Native WSL capture phase: {phase}"),
+                );
+            }
+        }
         filenames.extend(["live-wsl-file-explorer.png", "live-wsl-code-editor.png", "live-wsl-collaboration.png", "live-wsl-markdown-preview.png", "live-wsl-file-review.png", "live-wsl-native-pane-switch.png", "settings-wsl-communication.png", "fixture-wsl-installation-running.png", "fixture-wsl-installation-failed.png"].map(str::to_owned));
-        driver = driver.with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, _| {
+        let guest_source_directory = worktree_fixture.clone();
+        driver = driver.with_step(TestStep::new("start an isolated Windows terminal for WSL")
+            .set_timeout(std::time::Duration::from_secs(30))
+            .with_action(move |app, window, data| {
+                wsl_capture_phase("start-terminal");
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
+                workspace.update(app, |workspace, ctx| workspace.add_tab_with_pane_layout(
+                    crate::pane_group::PanesLayout::SingleTerminal(Box::new(crate::pane_group::NewTerminalOptions {
+                        initial_directory: Some(guest_source_directory.clone()),
+                        hide_homepage: true,
+                        ..Default::default()
+                    })),
+                    std::sync::Arc::new(std::collections::HashMap::new()), None, ctx,
+                ));
+                let group = workspace.read(app, |workspace, _| workspace.active_tab_pane_group().clone());
+                let terminal = group.read(app, |group, ctx| group.active_session_view(ctx).unwrap());
+                data.insert("owned-wsl-source-terminal", terminal.id());
+            })
+            .add_named_assertion_with_data_from_prior_step("isolated Windows terminal is ready", |app, window, data| {
+                let id = *data.get::<_, warpui::EntityId>("owned-wsl-source-terminal").unwrap();
+                warpui::async_assert!(app.read(|ctx| ctx.view_with_id::<crate::terminal::TerminalView>(window, id)
+                    .is_some_and(|terminal| terminal.as_ref(ctx).is_login_shell_bootstrapped())))
+            }))
+        .with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, data| {
+            wsl_capture_phase("configure-guest");
             std::env::set_var("WARP_TEST_REMOTE_ROOT", std::env::var("WARP_TEST_WSL_ROOT").unwrap());
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.wsl.preferences.enabled = true;
@@ -6793,7 +6826,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 model.wsl.preferences.user = Some(std::env::var("WARP_TEST_WSL_USER").unwrap());
                 ctx.notify();
             }));
-            let terminal = app.views_of_type::<crate::terminal::TerminalView>(window).unwrap()[0].clone();
+            let id = *data.get::<_, warpui::EntityId>("owned-wsl-source-terminal").unwrap();
+            let terminal = app.read(|ctx| ctx.view_with_id::<crate::terminal::TerminalView>(window, id)).unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |root, _| root.workspace_view().unwrap().clone());
             workspace.update(app, |workspace, ctx| {
@@ -6803,6 +6837,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     terminal.update(app, |terminal, _| {
                         use crate::terminal::model::ansi::{Handler, InitShellValue, BootstrappedValue, PreexecValue, PrecmdValue};
                         let command = format!("wsl --distribution {}", std::env::var("WARP_TEST_WSL_DISTRIBUTION").unwrap());
+                        wsl_capture_phase("seed-guest-session");
                         let mut model = terminal.model.lock();
                         model.block_list_mut().active_block_mut().start();
                         // A fresh Windows prompt expects its shell's Reset Grid OSC before input.
@@ -6849,6 +6884,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                             ..Default::default()
                         });
                     });
+            wsl_capture_phase("wait-for-guest-selection");
         }).add_named_assertion("confirmed WSL selection carries guest user", |app, window| {
             warpui::async_assert!(app.update(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window)
                 .is_some_and(|(profile, connection)| profile.remote_root == std::env::var("WARP_TEST_WSL_ROOT").unwrap()
@@ -6856,6 +6892,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
         }))
         // Guest probe and subsequent RPCs can exceed the default 10-second UI step budget.
         .with_step(TestStep::new("open existing Explorer on WSL").set_post_step_pause(std::time::Duration::from_secs(5)).set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
+            wsl_capture_phase("open-guest-explorer");
             let panel = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
             panel.update(app, |panel, ctx| panel.handle_action_with_force_open(&LeftPanelAction::ProjectExplorer, false, ctx));
             let tree = panel.read(app, |panel, ctx| panel.active_file_tree_view(ctx)).unwrap();
@@ -7106,6 +7143,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     "the same PID is attached only in a new split",
                     "guarded process view returns to its shell",
                     "source terminal focus and visible panes are restored",
+                    "isolated Windows terminal is ready",
                 ] {
                     if assertion == name {
                         let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), name);

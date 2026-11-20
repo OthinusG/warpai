@@ -37,7 +37,7 @@ def main() -> None:
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
     panic_records = "\n".join(checkpoint.read_text(errors="replace") for checkpoint in args.output.parent.rglob("checkpoint-panic.txt"))
-    for name in ["checkpoint-panic.txt", "checkpoint-singleton.txt", "checkpoint-agent-projection.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-creation.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt"]:
+    for name in ["checkpoint-panic.txt", "checkpoint-singleton.txt", "checkpoint-agent-projection.txt", "checkpoint-deadline.txt", "checkpoint-tree.txt", "checkpoint-worktree.txt", "checkpoint-worktree-creation.txt", "checkpoint-worktree-error.txt", "checkpoint-private-git.txt", "checkpoint-private-git-runner.txt", "checkpoint-wsl-phase.txt"]:
         for checkpoint in args.output.parent.rglob(name):
             log += "\n" + checkpoint.read_text(errors="replace")
     locations = sorted({location for location in re.findall(r"((?:app|crates)/[A-Za-z0-9_./-]+\.rs:\d+:\d+)", panic_records.replace("\\", "/")) if (source.parents[3] / location.rsplit(":", 2)[0]).is_file()})
@@ -64,6 +64,7 @@ def main() -> None:
         "singleton_references": [dict(model=model, present=present == "true", matching=matching == "true") for model, present, matching in re.findall(r"^Native unavailable singleton: ([A-Za-z_][A-Za-z0-9_]*::[A-Za-z0-9_:<>, &\[\]();]{1,1000}) present=(true|false) matching=(true|false)$", log, re.MULTILINE)],
         "agent_projection": [dict(zip(["connected", "remote", "project_uuid", "fixture", "online", "renamed", "run_uuid"], [value == "true" for value in values])) for values in re.findall(r"Native Agent projection: connected=(true|false), remote=(true|false), project_uuid=(true|false), fixture=(true|false), online=(true|false), renamed=(true|false), run_uuid=(true|false)\b", log)],
         "deadline_exceeded": bool(re.search(r"Native collaboration capture exceeded its \d+-second deadline", log)),
+        "wsl_phases": sorted(set(re.findall(r"^Native WSL capture phase: (start-terminal|configure-guest|seed-guest-session|wait-for-guest-selection|open-guest-explorer)$", log, re.MULTILINE))),
         "remote_editors": [dict(zip(["source", "cache", "loaded"], [value == "true" for value in values])) for values in re.findall(r"Remote editor diagnostic: source=(true|false), cache=(true|false), loaded=(true|false)", log)],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
