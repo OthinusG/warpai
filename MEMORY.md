@@ -213,7 +213,9 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
 - 2.1.0 projects the guardian's route-scoped CLI list in Agent Communication.
   The confirmed terminal transport owns availability and action selection.
   Resume queues the CLI PTY command in a new local split, leaving the
-  original pane alone. Catalog v2 keeps the executable basename and
+  original pane alone. The panel tracks its queued/live resume pane across
+  focus changes to suppress duplicate splits; Companion grants only one writer.
+  Catalog v2 keeps the executable basename and
   preserves v1 tasks without guessing unavailable names.
 - Fence SFTP/control by confirmed host/account/root/session/generation. Reject
   traversal/aliases; keep atomic save, no-replace rename, bounded staging/deletion

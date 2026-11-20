@@ -14424,7 +14424,8 @@ impl TerminalView {
         self.is_login_shell_bootstrapped
     }
     pub fn has_pending_command_or_awaiting_completion(&self, ctx: &AppContext) -> bool {
-        self.awaiting_pending_command_completion
+        self.pending_guardian_resume.is_some()
+            || self.awaiting_pending_command_completion
             || !self.pending_command_queue.is_empty()
             || self.input.as_ref(ctx).has_pending_command()
     }

@@ -1,7 +1,9 @@
 use super::*;
 use crate::editor::EditorView;
+use crate::terminal::TerminalView;
 use warp_agent_bus::companion_ctl::GuardedProcess;
 use warpui::elements::ChildView;
+use warpui::WeakViewHandle;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ProcessAction {
@@ -15,11 +17,16 @@ pub(crate) enum ProcessAction {
     Logs(String),
 }
 
+fn process_can_resume(row: &GuardedProcess) -> bool {
+    row.state == "live" && row.attached != Some(true)
+}
+
 #[derive(Default)]
 pub(super) struct Processes {
     target: Option<(SshProfile, SshConnection)>,
     generation: u64,
     rows: Option<Vec<GuardedProcess>>,
+    resuming: HashMap<String, WeakViewHandle<TerminalView>>,
     open: bool,
     pending: bool,
     last_poll: Option<Instant>,
@@ -35,6 +42,7 @@ impl Processes {
     pub(super) fn reset(&mut self) {
         *self = Self {
             generation: self.generation.wrapping_add(1),
+            resuming: std::mem::take(&mut self.resuming),
             ..Self::default()
         };
     }
@@ -116,7 +124,7 @@ impl Processes {
                     (
                         "Resume",
                         ProcessAction::Resume(row.id.clone()),
-                        live && row.attached != Some(true),
+                        process_can_resume(row) && !self.resuming.contains_key(&row.id),
                     ),
                     ("Rename", ProcessAction::Rename(row.id.clone()), available),
                     ("Logs", ProcessAction::Logs(row.id.clone()), available),
@@ -181,6 +189,9 @@ impl Processes {
 
 impl CollaborationPanel {
     pub(super) fn refresh_processes(&mut self, ctx: &mut ViewContext<Self>) {
+        if self.prune_resuming_processes(ctx) {
+            ctx.notify();
+        }
         let target = self.selected_ssh(ctx);
         if self.processes.target != target {
             self.processes.reset();
@@ -248,6 +259,18 @@ impl CollaborationPanel {
             && self.processes.target == self.selected_ssh(ctx)
     }
 
+    fn prune_resuming_processes(&mut self, app: &AppContext) -> bool {
+        let count = self.processes.resuming.len();
+        self.processes.resuming.retain(|_, terminal| {
+            terminal.upgrade(app).is_some_and(|terminal| {
+                let view = terminal.as_ref(app);
+                view.has_pending_command_or_awaiting_completion(app)
+                    || view.model.lock().has_guarded_task_attachment()
+            })
+        });
+        self.processes.resuming.len() != count
+    }
+
     pub(super) fn process_action(&mut self, action: &ProcessAction, ctx: &mut ViewContext<Self>) {
         let generation = self.processes.generation;
         if !self.process_target_current(generation, ctx) {
@@ -276,14 +299,21 @@ impl CollaborationPanel {
         }
         let (operation, id, name) = match action {
             ProcessAction::Resume(id) => {
-                if let Ok(id) = uuid::Uuid::parse_str(id) {
-                    if let Ok(arguments) = connection.guardian_resume_argv(&profile, id) {
-                        if self.resume_in_new_pane(arguments, ctx) {
-                            return;
-                        }
-                    }
+                self.prune_resuming_processes(ctx);
+                let can_resume = self.processes.rows.as_ref().is_some_and(|rows| {
+                    rows.iter().any(|row| row.id == *id && process_can_resume(row))
+                });
+                if !can_resume || self.processes.resuming.contains_key(id) {
+                    return;
                 }
-                self.processes.message = Some("Could not open guarded process");
+                let terminal = uuid::Uuid::parse_str(id).ok()
+                    .and_then(|task| connection.guardian_resume_argv(&profile, task).ok())
+                    .and_then(|arguments| self.resume_in_new_pane(arguments, ctx));
+                if let Some(terminal) = terminal {
+                    self.processes.resuming.insert(id.clone(), terminal);
+                } else {
+                    self.processes.message = Some("Could not open guarded process");
+                }
                 ctx.notify();
                 return;
             }
@@ -381,16 +411,16 @@ impl CollaborationPanel {
         ctx.notify();
     }
 
-    fn resume_in_new_pane(&self, arguments: Vec<String>, ctx: &mut ViewContext<Self>) -> bool {
+    fn resume_in_new_pane(
+        &self,
+        arguments: Vec<String>,
+        ctx: &mut ViewContext<Self>,
+    ) -> Option<WeakViewHandle<TerminalView>> {
         use crate::{
             pane_group::Direction, root_view::RootView, terminal::available_shells::AvailableShell,
         };
-        let Some(root) = ctx.root_view::<RootView>(self.window) else {
-            return false;
-        };
-        let Some(workspace) = root.as_ref(ctx).workspace_view().cloned() else {
-            return false;
-        };
+        let root = ctx.root_view::<RootView>(self.window)?;
+        let workspace = root.as_ref(ctx).workspace_view().cloned()?;
         let group = workspace.as_ref(ctx).active_tab_pane_group().clone();
         group.update(ctx, |group, ctx| {
             let pane = group.add_terminal_pane_ignoring_default_session_mode(
@@ -398,11 +428,9 @@ impl CollaborationPanel {
                 Some(AvailableShell::default()),
                 ctx,
             );
-            let Some(terminal) = group.terminal_view_from_pane_id(pane, ctx) else {
-                return false;
-            };
+            let terminal = group.terminal_view_from_pane_id(pane, ctx)?;
             terminal.update(ctx, |view, ctx| view.queue_guardian_resume(arguments, ctx));
-            true
+            Some(terminal.downgrade())
         })
     }
 }
@@ -411,7 +439,6 @@ impl CollaborationPanel {
 pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestStep> {
     use crate::{
         root_view::RootView,
-        terminal::TerminalView,
         workspace::{
             view::left_panel::{LeftPanelAction, LeftPanelView},
             ActiveSession,
@@ -492,7 +519,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             })
     };
 
-    let open = {
+    let open = || {
         let expected = expected.clone();
         let label = label.clone();
         TestStep::new(&format!("Open Warpai Processes for {scope}"))
@@ -523,7 +550,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             )
     };
 
-    let resume = {
+    let resume = || {
         let expected = expected.clone();
         let original = original.clone();
         TestStep::new(&format!("Resume the {scope} task from the process panel"))
@@ -542,8 +569,10 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                             "Back must return to collaboration"
                         );
                         panel.handle_action(&Action::GuardedProcess(ProcessAction::Open), ctx);
-                        panel
-                            .handle_action(&Action::GuardedProcess(ProcessAction::Resume(id)), ctx);
+                        let action = Action::GuardedProcess(ProcessAction::Resume(id.clone()));
+                        panel.handle_action(&action, ctx);
+                        assert!(panel.processes.resuming.contains_key(&id));
+                        panel.handle_action(&action, ctx);
                     });
                 }
             })
@@ -589,6 +618,45 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             )
     };
 
+    let detach = TestStep::new(&format!("Detach the first {scope} process pane"))
+        .set_timeout(Duration::from_secs(30))
+        .with_action(|app, window, _| {
+            let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window)).unwrap();
+            let terminal = app.views_of_type::<TerminalView>(window).unwrap()
+                .into_iter().find(|terminal| terminal.id() == view).unwrap();
+            terminal.update(app, |terminal, ctx| {
+                terminal.handle_action(&crate::terminal::view::TerminalAction::DetachGuardedTask, ctx);
+            });
+        })
+        .add_named_assertion("detach returns the split to its shell", |app, window| {
+            let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window));
+            let detached = app.views_of_type::<TerminalView>(window).unwrap()
+                .into_iter()
+                .find(|terminal| Some(terminal.id()) == view)
+                .is_some_and(|terminal| terminal.read(app, |terminal, ctx| {
+                    !terminal.has_pending_command_or_awaiting_completion(ctx)
+                        && !terminal.model.lock().has_guarded_task_attachment()
+                }));
+            warpui::async_assert!(detached)
+        });
+    let restore = {
+        let original = original.clone();
+        TestStep::new(&format!("Return to the {scope} source pane"))
+            .with_action(move |app, window, _| {
+                let original = original.lock().unwrap();
+                let (pane, _, _, _, _) = original.as_ref().unwrap();
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+                let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+                group.update(app, |group, ctx| {
+                    let detached = group.focused_pane_id(ctx);
+                    assert_ne!(detached, *pane);
+                    group.close_pane_and_focus(detached, *pane, ctx);
+                });
+            })
+    };
+    let mut steps = vec![seed, open(), resume(), detach, restore, open(), resume()];
+
     let cleanup = TestStep::new(&format!(
         "Close the {scope} split and restore the source pane"
     ))
@@ -624,5 +692,6 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         });
     });
 
-    vec![seed, open, resume, cleanup]
+    steps.push(cleanup);
+    steps
 }
