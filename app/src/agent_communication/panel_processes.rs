@@ -406,3 +406,223 @@ impl CollaborationPanel {
         })
     }
 }
+
+#[cfg(debug_assertions)]
+pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestStep> {
+    use crate::{
+        root_view::RootView,
+        terminal::TerminalView,
+        workspace::{
+            view::left_panel::{LeftPanelAction, LeftPanelView},
+            ActiveSession,
+        },
+    };
+    use warpui::integration::TestStep;
+
+    let scope = if wsl { "WSL" } else { "SSH" };
+    let label = format!("ui-guardian-{}", uuid::Uuid::new_v4().simple());
+    let original = Arc::new(std::sync::Mutex::new(None));
+    let expected = Arc::new(std::sync::Mutex::new(None::<(String, String)>));
+
+    let seed = {
+        let label = label.clone();
+        let original = original.clone();
+        let expected = expected.clone();
+        TestStep::new(&format!("Start a real guarded {scope} process"))
+            .set_timeout(Duration::from_secs(75))
+            .with_action(move |app, window, _| {
+                let source = app.read(|ctx| {
+                    let terminal = ActiveSession::as_ref(ctx).terminal_view_id(window).unwrap();
+                    let (profile, connection) = crate::remote_server::selected_session::selected_ssh(ctx, window).unwrap();
+                    assert_eq!(connection.is_wsl(), wsl);
+                    (terminal, profile, connection)
+                });
+                let root = app.root_view::<RootView>(window).unwrap();
+                let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+                let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+                let (pane, count) = group.read(app, |group, ctx| (
+                    group.terminal_pane_ids().find(|&pane| {
+                        group.terminal_view_from_pane_id(pane, ctx).is_some_and(|view| view.id() == source.0)
+                    }).unwrap(),
+                    group.terminal_pane_ids().count(),
+                ));
+                *original.lock().unwrap() = Some((pane, count, source.0, source.1.clone(), source.2.clone()));
+
+                let left = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
+                left.update(app, |left, ctx| left.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
+                let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                let (profile, connection) = (source.1, source.2);
+                let label = label.clone();
+                let expected = expected.clone();
+                panel.update(app, |panel, ctx| {
+                    panel.remote = None;
+                    panel.refresh_processes(ctx);
+                    ctx.spawn(async move {
+                        let powershell;
+                        let mut command = if profile.remote_shell == warp_agent_bus::ssh_remote::RemoteShell::PowerShell {
+                            powershell = format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe",
+                                std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into()));
+                            vec!["run", &powershell, "-NoProfile", "-Command",
+                                r#"Write-Output "WARPAI_GUI_PID=$PID"; while ($true) { Start-Sleep -Seconds 2 }"#]
+                        } else {
+                            vec!["run", "/bin/sh", "-c", "printf 'WARPAI_GUI_PID=%s\n' \"$$\"; while IFS= read -r line; do :; done"]
+                        };
+                        command.extend(["--name", &label, "--background"]);
+                        let (code, reply) = connection.guardian_cli(&profile, &command).await.unwrap();
+                        assert_eq!(code, 0, "Owned guardian launch failed");
+                        let reply = String::from_utf8(reply).unwrap();
+                        let id = reply.trim().strip_prefix("Started task ").unwrap().to_owned();
+                        let deadline = Instant::now() + Duration::from_secs(15);
+                        loop {
+                            let (code, output) = connection.guardian_cli(&profile, &["logs", "--id", &id]).await.unwrap();
+                            assert_eq!(code, 0);
+                            if let Some(marker) = String::from_utf8_lossy(&output).lines()
+                                .find(|line| line.starts_with("WARPAI_GUI_PID="))
+                            {
+                                break (id, marker.to_owned());
+                            }
+                            assert!(Instant::now() < deadline, "No PID from the original task");
+                            Timer::after(Duration::from_millis(100)).await;
+                        }
+                    }, move |panel, launched, ctx| {
+                        *expected.lock().unwrap() = Some(launched);
+                        panel.refresh_processes(ctx);
+                    });
+                });
+            })
+    };
+
+    let open = {
+        let expected = expected.clone();
+        let label = label.clone();
+        TestStep::new(&format!("Open Warpai Processes for {scope}"))
+            .set_timeout(Duration::from_secs(75))
+            .add_named_assertion(
+                "confirmed guardian exposes the named process",
+                move |app, window| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    let expected = expected.lock().unwrap();
+                    warpui::async_assert!(expected.as_ref().is_some_and(|(id, _)| panel.read(
+                        app,
+                        |panel, ctx| {
+                        panel.visible
+                            && !panel.processes.pending
+                                && panel.processes.entry(Appearance::as_ref(ctx)).is_some()
+                                && panel.processes.rows.as_ref().is_some_and(|rows| {
+                                    rows.iter().any(|row| {
+                                        row.id == *id
+                                            && row.name.as_deref() == Some(label.as_str())
+                                            && row.program.is_some()
+                                            && row.state == "live"
+                                            && row.attached == Some(false)
+                                    })
+                                })
+                        }
+                    )))
+                },
+            )
+    };
+
+    let resume = {
+        let expected = expected.clone();
+        let original = original.clone();
+        TestStep::new(&format!("Resume the {scope} task from the process panel"))
+            .set_timeout(Duration::from_secs(75))
+            .with_action({
+                let expected = expected.clone();
+                move |app, window, _| {
+                    let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
+                    let id = expected.lock().unwrap().as_ref().unwrap().0.clone();
+                    panel.update(app, |panel, ctx| {
+                        panel.handle_action(&Action::GuardedProcess(ProcessAction::Open), ctx);
+                        assert!(panel.processes.is_open(), "Process panel must open");
+                        panel.handle_action(&Action::GuardedProcess(ProcessAction::Back), ctx);
+                        assert!(
+                            !panel.processes.is_open(),
+                            "Back must return to collaboration"
+                        );
+                        panel.handle_action(&Action::GuardedProcess(ProcessAction::Open), ctx);
+                        panel
+                            .handle_action(&Action::GuardedProcess(ProcessAction::Resume(id)), ctx);
+                    });
+                }
+            })
+            .add_named_assertion(
+                "the same PID is attached only in a new split",
+                move |app, window| {
+                    let original = original.lock().unwrap();
+                    let (pane, count, terminal, _, _) = original.as_ref().unwrap();
+                    let expected = expected.lock().unwrap();
+                    let marker = &expected.as_ref().unwrap().1;
+                    let root = app.root_view::<RootView>(window).unwrap();
+                    let workspace =
+                        root.read(app, |view, _| view.workspace_view().unwrap().clone());
+                    let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+                    let correct = group.read(app, |group, ctx| {
+                        let focused = group.focused_pane_id(ctx);
+                        group.terminal_pane_ids().count() == count + 1
+                            && focused != *pane
+                            && group
+                                .terminal_view_from_pane_id(*pane, ctx)
+                                .is_some_and(|view| {
+                                    view.id() == *terminal
+                                        && !view
+                                            .as_ref(ctx)
+                                            .model
+                                            .lock()
+                                            .has_guarded_task_attachment()
+                                })
+                            && group
+                                .terminal_view_from_pane_id(focused, ctx)
+                                .is_some_and(|view| {
+                                    let model = view.as_ref(ctx).model.lock();
+                                    model.has_guarded_task_attachment()
+                                        && model
+                                            .block_list()
+                                            .active_block()
+                                            .output_to_string()
+                                            .contains(marker)
+                                })
+                    });
+                    warpui::async_assert!(correct)
+                },
+            )
+    };
+
+    let cleanup = TestStep::new(&format!(
+        "Close the {scope} split and restore the source pane"
+    ))
+    .with_action(move |app, window, _| {
+        let (pane, _, terminal, profile, connection) = original.lock().unwrap().take().unwrap();
+        let (id, _) = expected.lock().unwrap().take().unwrap();
+        let root = app.root_view::<RootView>(window).unwrap();
+        let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+        let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+        group.update(app, |group, ctx| {
+            let focused = group.focused_pane_id(ctx);
+            assert_ne!(focused, pane);
+            group.close_pane_and_focus(focused, pane, ctx);
+        });
+        workspace.update(app, |workspace, ctx| {
+            assert!(workspace.focus_terminal_view_locally(terminal, ctx))
+        });
+        let view = app
+            .views_of_type::<TerminalView>(window)
+            .unwrap()
+            .into_iter()
+            .find(|view| view.id() == terminal)
+            .unwrap();
+        view.update(app, |_, ctx| {
+            ctx.spawn(
+                async move {
+                    let _ = connection
+                        .guardian_cli(&profile, &["stop", "--id", &id])
+                        .await;
+                },
+                |_, _, _| {},
+            );
+        });
+    });
+
+    vec![seed, open, resume, cleanup]
+}

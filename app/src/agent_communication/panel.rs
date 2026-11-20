@@ -5963,6 +5963,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && !super::AgentCommunication::as_ref(ctx).preferences.enabled))
             }),
         )
+        .with_steps(processes::guarded_resume_steps(false))
         .with_step(
             TestStep::new("open Explorer after confirmed SSH cd").with_action(|app, window, _| {
                     app.update(|ctx| {
@@ -6894,6 +6895,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, _| panel.visible && panel.connected
                 && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. }))))
         }).with_take_screenshot("live-wsl-collaboration.png"))
+        .with_steps(processes::guarded_resume_steps(true))
         .with_step(TestStep::new("WSL disable cannot be bypassed by local communication").with_action(|app, _, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.preferences.enabled = true;

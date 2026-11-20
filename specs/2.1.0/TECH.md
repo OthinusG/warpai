@@ -10,3 +10,9 @@ Store only the executable basename with new task records. Migrate existing
 catalogs in place and display unavailable metadata for older tasks. Verify
 CLI serialization, shell argument boundaries, migration, focus fencing,
 panel rendering, and new-pane resume on SSH and WSL.
+
+The native desktop capture workflow launches an owned background task through
+the confirmed SSH or WSL transport and records its PID. It exercises the
+process entry, Back and Resume from the panel and checks that only a new
+split attaches to that PID. The fixture closes the split, returns focus to
+the source pane and stops the owned task.
