@@ -443,7 +443,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         root_view::RootView,
         workspace::{
             view::left_panel::{LeftPanelAction, LeftPanelView},
-            ActiveSession,
+            ActiveSession, WorkspaceAction,
         },
     };
     use warpui::integration::TestStep;
@@ -469,16 +469,22 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
                 let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
-                let (pane, count) = group.read(app, |group, ctx| (
+                let (pane, count, left_panel_open) = group.read(app, |group, ctx| (
                     group.terminal_pane_ids().find(|&pane| {
                         group.terminal_view_from_pane_id(pane, ctx).is_some_and(|view| view.id() == source.0)
                     }).unwrap(),
                     group.terminal_pane_ids().count(),
+                    group.left_panel_open,
                 ));
-                *original.lock().unwrap() = Some((pane, count, source.0, source.1.clone(), source.2.clone()));
+                *original.lock().unwrap() = Some((pane, count, source.0, source.1.clone(), source.2.clone(), left_panel_open));
 
                 let left = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                 left.update(app, |left, ctx| left.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
+                if !left_panel_open {
+                    workspace.update(app, |workspace, ctx| {
+                        workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                    });
+                }
                 let panel = app.views_of_type::<CollaborationPanel>(window).unwrap()[0].clone();
                 let (profile, connection) = (source.1, source.2);
                 let label = label.clone();
@@ -582,7 +588,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 "the same PID is attached only in a new split",
                 move |app, window| {
                     let original = original.lock().unwrap();
-                    let (pane, count, terminal, _, _) = original.as_ref().unwrap();
+                    let (pane, count, terminal, _, _, _) = original.as_ref().unwrap();
                     let expected = expected.lock().unwrap();
                     let marker = &expected.as_ref().unwrap().1;
                     let root = app.root_view::<RootView>(window).unwrap();
@@ -659,7 +665,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         TestStep::new(&format!("Return to the {scope} source pane")).with_action(
             move |app, window, _| {
                 let original = original.lock().unwrap();
-                let (pane, _, _, _, _) = original.as_ref().unwrap();
+                let (pane, _, _, _, _, _) = original.as_ref().unwrap();
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
                 let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
@@ -682,7 +688,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         let original = original.clone();
         let stopped = stopped.clone();
         move |app, window, _| {
-            let (pane, _, terminal, profile, connection) =
+            let (pane, _, terminal, profile, connection, left_panel_open) =
                 original.lock().unwrap().as_ref().unwrap().clone();
             let (id, _) = expected.lock().unwrap().take().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
@@ -694,7 +700,10 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 group.close_pane_and_focus(focused, pane, ctx);
             });
             workspace.update(app, |workspace, ctx| {
-                assert!(workspace.focus_terminal_view_locally(terminal, ctx))
+                if !left_panel_open && workspace.is_left_panel_open(ctx) {
+                    workspace.handle_action(&WorkspaceAction::ToggleLeftPanel, ctx);
+                }
+                assert!(workspace.focus_terminal_view_locally(terminal, ctx));
             });
             let view = app
                 .views_of_type::<TerminalView>(window)
@@ -723,7 +732,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         "source terminal and guarded task cleanup are confirmed",
         move |app, window| {
             let source = original.lock().unwrap();
-            let (_, _, terminal, profile, connection) = source.as_ref().unwrap();
+            let (_, _, terminal, profile, connection, _) = source.as_ref().unwrap();
             warpui::async_assert!(
                 stopped.load(std::sync::atomic::Ordering::Acquire)
                     && app.read(|ctx| {
