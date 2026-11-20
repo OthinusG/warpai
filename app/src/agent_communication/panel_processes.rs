@@ -301,12 +301,14 @@ impl CollaborationPanel {
             ProcessAction::Resume(id) => {
                 self.prune_resuming_processes(ctx);
                 let can_resume = self.processes.rows.as_ref().is_some_and(|rows| {
-                    rows.iter().any(|row| row.id == *id && process_can_resume(row))
+                    rows.iter()
+                        .any(|row| row.id == *id && process_can_resume(row))
                 });
                 if !can_resume || self.processes.resuming.contains_key(id) {
                     return;
                 }
-                let terminal = uuid::Uuid::parse_str(id).ok()
+                let terminal = uuid::Uuid::parse_str(id)
+                    .ok()
                     .and_then(|task| connection.guardian_resume_argv(&profile, task).ok())
                     .and_then(|arguments| self.resume_in_new_pane(arguments, ctx));
                 if let Some(terminal) = terminal {
@@ -532,8 +534,8 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     warpui::async_assert!(expected.as_ref().is_some_and(|(id, _)| panel.read(
                         app,
                         |panel, ctx| {
-                        panel.visible
-                            && !panel.processes.pending
+                            panel.visible
+                                && !panel.processes.pending
                                 && panel.processes.entry(Appearance::as_ref(ctx)).is_some()
                                 && panel.processes.rows.as_ref().is_some_and(|rows| {
                                     rows.iter().any(|row| {
@@ -621,28 +623,41 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
     let detach = TestStep::new(&format!("Detach the first {scope} process pane"))
         .set_timeout(Duration::from_secs(30))
         .with_action(|app, window, _| {
-            let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window)).unwrap();
-            let terminal = app.views_of_type::<TerminalView>(window).unwrap()
-                .into_iter().find(|terminal| terminal.id() == view).unwrap();
+            let view = app
+                .read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window))
+                .unwrap();
+            let terminal = app
+                .views_of_type::<TerminalView>(window)
+                .unwrap()
+                .into_iter()
+                .find(|terminal| terminal.id() == view)
+                .unwrap();
             terminal.update(app, |terminal, ctx| {
-                terminal.handle_action(&crate::terminal::view::TerminalAction::DetachGuardedTask, ctx);
+                terminal.handle_action(
+                    &crate::terminal::view::TerminalAction::DetachGuardedTask,
+                    ctx,
+                );
             });
         })
         .add_named_assertion("detach returns the split to its shell", |app, window| {
             let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window));
-            let detached = app.views_of_type::<TerminalView>(window).unwrap()
+            let detached = app
+                .views_of_type::<TerminalView>(window)
+                .unwrap()
                 .into_iter()
                 .find(|terminal| Some(terminal.id()) == view)
-                .is_some_and(|terminal| terminal.read(app, |terminal, ctx| {
-                    !terminal.has_pending_command_or_awaiting_completion(ctx)
-                        && !terminal.model.lock().has_guarded_task_attachment()
-                }));
+                .is_some_and(|terminal| {
+                    terminal.read(app, |terminal, ctx| {
+                        !terminal.has_pending_command_or_awaiting_completion(ctx)
+                            && !terminal.model.lock().has_guarded_task_attachment()
+                    })
+                });
             warpui::async_assert!(detached)
         });
     let restore = {
         let original = original.clone();
-        TestStep::new(&format!("Return to the {scope} source pane"))
-            .with_action(move |app, window, _| {
+        TestStep::new(&format!("Return to the {scope} source pane")).with_action(
+            move |app, window, _| {
                 let original = original.lock().unwrap();
                 let (pane, _, _, _, _) = original.as_ref().unwrap();
                 let root = app.root_view::<RootView>(window).unwrap();
@@ -653,44 +668,74 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     assert_ne!(detached, *pane);
                     group.close_pane_and_focus(detached, *pane, ctx);
                 });
-            })
+            },
+        )
     };
     let mut steps = vec![seed, open(), resume(), detach, restore, open(), resume()];
 
+    let stopped = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let cleanup = TestStep::new(&format!(
         "Close the {scope} split and restore the source pane"
     ))
-    .with_action(move |app, window, _| {
-        let (pane, _, terminal, profile, connection) = original.lock().unwrap().take().unwrap();
-        let (id, _) = expected.lock().unwrap().take().unwrap();
-        let root = app.root_view::<RootView>(window).unwrap();
-        let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
-        let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
-        group.update(app, |group, ctx| {
-            let focused = group.focused_pane_id(ctx);
-            assert_ne!(focused, pane);
-            group.close_pane_and_focus(focused, pane, ctx);
-        });
-        workspace.update(app, |workspace, ctx| {
-            assert!(workspace.focus_terminal_view_locally(terminal, ctx))
-        });
-        let view = app
-            .views_of_type::<TerminalView>(window)
-            .unwrap()
-            .into_iter()
-            .find(|view| view.id() == terminal)
-            .unwrap();
-        view.update(app, |_, ctx| {
-            ctx.spawn(
-                async move {
-                    let _ = connection
-                        .guardian_cli(&profile, &["stop", "--id", &id])
-                        .await;
-                },
-                |_, _, _| {},
-            );
-        });
-    });
+    .set_timeout(Duration::from_secs(30))
+    .with_action({
+        let original = original.clone();
+        let stopped = stopped.clone();
+        move |app, window, _| {
+            let (pane, _, terminal, profile, connection) =
+                original.lock().unwrap().as_ref().unwrap().clone();
+            let (id, _) = expected.lock().unwrap().take().unwrap();
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+            let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+            group.update(app, |group, ctx| {
+                let focused = group.focused_pane_id(ctx);
+                assert_ne!(focused, pane);
+                group.close_pane_and_focus(focused, pane, ctx);
+            });
+            workspace.update(app, |workspace, ctx| {
+                assert!(workspace.focus_terminal_view_locally(terminal, ctx))
+            });
+            let view = app
+                .views_of_type::<TerminalView>(window)
+                .unwrap()
+                .into_iter()
+                .find(|view| view.id() == terminal)
+                .unwrap();
+            view.update(app, |_, ctx| {
+                ctx.spawn(
+                    async move {
+                        let (code, _) = connection
+                            .guardian_cli(&profile, &["stop", "--id", &id])
+                            .await
+                            .unwrap();
+                        assert_eq!(code, 0, "Owned guardian stop failed");
+                    },
+                    {
+                        let stopped = stopped.clone();
+                        move |_, _, _| stopped.store(true, std::sync::atomic::Ordering::Release)
+                    },
+                );
+            });
+        }
+    })
+    .add_named_assertion(
+        "source terminal and guarded task cleanup are confirmed",
+        move |app, window| {
+            let source = original.lock().unwrap();
+            let (_, _, terminal, profile, connection) = source.as_ref().unwrap();
+            warpui::async_assert!(
+                stopped.load(std::sync::atomic::Ordering::Acquire)
+                    && app.read(|ctx| {
+                        ActiveSession::as_ref(ctx).terminal_view_id(window) == Some(*terminal)
+                            && crate::remote_server::selected_session::selected_ssh(ctx, window)
+                                .is_some_and(|(current_profile, current_connection)| {
+                                    &current_profile == profile && &current_connection == connection
+                                })
+                    })
+            )
+        },
+    );
 
     steps.push(cleanup);
     steps

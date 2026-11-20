@@ -5963,7 +5963,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                     && !super::AgentCommunication::as_ref(ctx).preferences.enabled))
             }),
         )
-        .with_steps(processes::guarded_resume_steps(false))
         .with_step(
             TestStep::new("open Explorer after confirmed SSH cd").with_action(|app, window, _| {
                     app.update(|ctx| {
@@ -6270,6 +6269,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             .add_named_assertion("SSH tools recover without reconnecting the terminal", |app, window| {
                 warpui::async_assert!(app.read(|ctx| crate::remote_server::selected_session::selected_ssh(ctx, window).is_some()))
             }))
+        .with_steps(processes::guarded_resume_steps(false))
         .with_step(
             TestStep::new("exit owned SSH restores terminal-driven local cwd")
                 .with_action(|app, window, data| {
@@ -6895,7 +6895,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             warpui::async_assert!(panel.read(app, |panel, _| panel.visible && panel.connected
                 && matches!(panel.remote_connection, Some(SshConnection::Wsl { .. }))))
         }).with_take_screenshot("live-wsl-collaboration.png"))
-        .with_steps(processes::guarded_resume_steps(true))
         .with_step(TestStep::new("WSL disable cannot be bypassed by local communication").with_action(|app, _, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.preferences.enabled = true;
@@ -7030,6 +7029,7 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 .is_some_and(|views| views.iter().any(|view| view.read(app, |view, ctx| view.wsl_checkpoint_ready(ctx))));
             warpui::async_assert!(guest && preview)
         }))
+        .with_steps(processes::guarded_resume_steps(true))
         .with_step(TestStep::new("show current-account WSL MCP settings").set_timeout(std::time::Duration::from_secs(60)).with_action(|app, window, _| {
             app.update(|ctx| super::AgentCommunication::handle(ctx).update(ctx, |model, ctx| {
                 model.refresh_wsl_targets(ctx);
@@ -7101,6 +7101,16 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 });
             }
             if let Some(assertion) = data.get("failed_assertion_name") {
+                for name in [
+                    "confirmed guardian exposes the named process",
+                    "the same PID is attached only in a new split",
+                    "detach returns the split to its shell",
+                    "source terminal and guarded task cleanup are confirmed",
+                ] {
+                    if assertion == name {
+                        let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), name);
+                    }
+                }
                 if assertion == "native run and isolated scope" {
                     eprintln!("Native checkpoint failed: native run and isolated scope");
                     let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), assertion);

@@ -32,6 +32,7 @@ def main() -> None:
     parser.add_argument("--exit-code", type=int, required=True)
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1] / "app/src/agent_communication/panel.rs"
+    panel_source = source.read_text(encoding="utf-8") + source.with_name("panel_processes.rs").read_text(encoding="utf-8")
     log = "\n".join(log.read_text(errors="replace") for log in args.log)
     for checkpoint in args.output.parent.rglob("checkpoint-assertion.txt"):
         log += "\nNative checkpoint failed: " + checkpoint.read_text(errors="replace")
@@ -49,8 +50,8 @@ def main() -> None:
         "fixture_trace_lines": [int(line) for line in re.findall(r'File "[^"\n]*[\\/]verify-ssh-file-tools\.py", line (\d{1,4}),', log)],
         "fixture_test_failures": failed_fixture_tests((source.parents[3] / "crates/agent_bus/tests/ssh_companion.rs").read_text(encoding="utf-8"), log),
         "fixture_panic_locations": sorted(set(re.findall(r"(crates/agent_bus/tests/ssh_companion\.rs:\d{1,5}:\d{1,4})", log.replace("\\", "/")))),
-        "failed_steps": failed_steps(source.read_text(encoding="utf-8"), log),
-        "failed_assertions": failed_assertions(source.read_text(encoding="utf-8"), log),
+        "failed_steps": failed_steps(panel_source, log),
+        "failed_assertions": failed_assertions(panel_source, log),
         "connection_errors": sorted(set(re.findall(r"Native SSH file failure: (InvalidProfile|SshUnavailable|SshAuthenticationUnavailable|ConnectionLost|IncompatibleVersion|StaleAttachment|CompanionUnavailable|FeatureUnavailable|InvalidInput|Conflict|CapacityExceeded|PermissionDenied|NotFound)\b", log))),
         "remote_trees": [dict(zip(["active", "current", "selected", "attached", "error", "roots", "entries"], [value == "true" for value in values[:5]] + [int(value) for value in values[5:]])) for values in re.findall(r"Native SSH tree: active=(true|false), current=(true|false), selected=(true|false), attached=(true|false), error=(true|false), roots=(\d{1,6}), entries=(\d{1,6})\b", log)],
         "worktree_states": [dict(zip(["connected", "form", "joined", "team", "main", "submitting", "query_error", "git_rev_parse", "git_registry"], [value == "true" for value in values[:6]] + [int(value) for value in values[6:]])) for values in re.findall(r"Native Worktree: connected=(true|false), form=(true|false), joined=(true|false), team=(true|false), main=(true|false), submitting=(true|false), query_error=(\d{1,2}), git_rev_parse=(-?\d{1,3}), git_registry=(-?\d{1,3})\b", log)],
