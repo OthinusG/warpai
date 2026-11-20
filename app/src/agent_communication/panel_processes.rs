@@ -729,22 +729,26 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         }
     })
     .add_named_assertion(
-        "source terminal and guarded task cleanup are confirmed",
+        "source terminal focus and panel visibility are restored",
         move |app, window| {
             let source = original.lock().unwrap();
-            let (_, _, terminal, profile, connection, _) = source.as_ref().unwrap();
-            warpui::async_assert!(
-                stopped.load(std::sync::atomic::Ordering::Acquire)
-                    && app.read(|ctx| {
-                        ActiveSession::as_ref(ctx).terminal_view_id(window) == Some(*terminal)
-                            && crate::remote_server::selected_session::selected_ssh(ctx, window)
-                                .is_some_and(|(current_profile, current_connection)| {
-                                    &current_profile == profile && &current_connection == connection
-                                })
-                    })
-            )
+            let (pane, count, terminal, _, _, left_panel_open) = source.as_ref().unwrap();
+            let root = app.root_view::<RootView>(window).unwrap();
+            let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
+            let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
+            warpui::async_assert!(group.read(app, |group, ctx| {
+                group.focused_pane_id(ctx) == *pane
+                    && group.terminal_pane_ids().count() == *count
+                    && group.left_panel_open == *left_panel_open
+                    && group
+                        .terminal_view_from_pane_id(*pane, ctx)
+                        .is_some_and(|view| view.id() == *terminal)
+            }))
         },
-    );
+    )
+    .add_named_assertion("Companion accepted guarded task cleanup", move |_, _| {
+        warpui::async_assert!(stopped.load(std::sync::atomic::Ordering::Acquire))
+    });
 
     steps.push(cleanup);
     steps
