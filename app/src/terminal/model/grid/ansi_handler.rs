@@ -1712,6 +1712,16 @@ impl GridHandler {
         self.ansi_handler_state.reset_grid_checks = ResetGridChecks::Disabled;
     }
 
+    #[cfg(all(windows, debug_assertions))]
+    pub(crate) fn reset_grid_ready(&self) -> bool {
+        !matches!(
+            self.ansi_handler_state.reset_grid_checks,
+            ResetGridChecks::Enabled {
+                received_osc: false
+            }
+        )
+    }
+
     /// Marks the grid as having NOT received the Reset Grid OSC.
     /// This is useful for grids that expect to receive multiple OSCs.
     pub(in crate::terminal::model) fn reset_received_osc(&mut self) {

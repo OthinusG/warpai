@@ -6814,7 +6814,14 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
             .add_named_assertion_with_data_from_prior_step("isolated Windows terminal is ready", |app, window, data| {
                 let id = *data.get::<_, warpui::EntityId>("owned-wsl-source-terminal").unwrap();
                 warpui::async_assert!(app.read(|ctx| ctx.view_with_id::<crate::terminal::TerminalView>(window, id)
-                    .is_some_and(|terminal| terminal.as_ref(ctx).is_login_shell_bootstrapped())))
+                    .is_some_and(|terminal| {
+                        let terminal = terminal.as_ref(ctx);
+                        let model = terminal.model.lock();
+                        let blocks = model.block_list();
+                        terminal.is_login_shell_bootstrapped()
+                            && blocks.is_bootstrapping_precmd_done()
+                            && blocks.active_block().prompt_and_command_grid().grid_handler().reset_grid_ready()
+                    })))
             }))
         .with_step(TestStep::new("select confirmed owned WSL environment").with_action(|app, window, data| {
             wsl_capture_phase("configure-guest");
@@ -6840,8 +6847,6 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                         wsl_capture_phase("seed-guest-session");
                         let mut model = terminal.model.lock();
                         model.block_list_mut().active_block_mut().start();
-                        // A fresh Windows prompt expects its shell's Reset Grid OSC before input.
-                        model.on_reset_grid();
                         for character in command.chars() {
                             model.block_list_mut().input(character);
                         }
