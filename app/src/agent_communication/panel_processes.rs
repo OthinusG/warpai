@@ -476,7 +476,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     group.visible_pane_ids().len(),
                     group.left_panel_open,
                 ));
-                *original.lock().unwrap() = Some((pane, count, source.0, source.1.clone(), source.2.clone(), left_panel_open));
+                *original.lock().unwrap() = Some((pane, count, source.0, left_panel_open));
 
                 let left = app.views_of_type::<LeftPanelView>(window).unwrap()[0].clone();
                 left.update(app, |left, ctx| left.handle_action_with_force_open(&LeftPanelAction::Collaboration, false, ctx));
@@ -498,9 +498,9 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                             powershell = format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe",
                                 std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into()));
                             vec!["run", &powershell, "-NoProfile", "-Command",
-                                r#"Write-Output "WARPAI_GUI_PID=$PID"; while ($true) { Start-Sleep -Seconds 2 }"#]
+                                r#"Write-Output "WARPAI_GUI_PID=$PID"; while (($line = [Console]::ReadLine()) -ne $null) { if ($line -ceq 'warpai-fixture-finish') { Write-Output 'WARPAI_GUI_FINISHED'; break } }"#]
                         } else {
-                            vec!["run", "/bin/sh", "-c", "printf 'WARPAI_GUI_PID=%s\n' \"$$\"; while IFS= read -r line; do :; done"]
+                            vec!["run", "/bin/sh", "-c", "printf 'WARPAI_GUI_PID=%s\n' \"$$\"; while IFS= read -r line; do if [ \"$line\" = warpai-fixture-finish ]; then printf '%s\n' WARPAI_GUI_FINISHED; break; fi; done"]
                         };
                         command.extend(["--name", &label, "--background"]);
                         let (code, reply) = connection.guardian_cli(&profile, &command).await.unwrap();
@@ -588,7 +588,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 "the same PID is attached only in a new split",
                 move |app, window| {
                     let original = original.lock().unwrap();
-                    let (pane, count, terminal, _, _, _) = original.as_ref().unwrap();
+                    let (pane, count, terminal, _) = original.as_ref().unwrap();
                     let expected = expected.lock().unwrap();
                     let marker = &expected.as_ref().unwrap().1;
                     let root = app.root_view::<RootView>(window).unwrap();
@@ -626,27 +626,37 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
             )
     };
 
-    let detach = || {
-        TestStep::new(&format!("Detach the {scope} process pane"))
-            .set_timeout(Duration::from_secs(30))
-            .with_action(|app, window, _| {
-                let view = app
-                    .read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window))
-                    .unwrap();
-                let terminal = app
-                    .views_of_type::<TerminalView>(window)
-                    .unwrap()
-                    .into_iter()
-                    .find(|terminal| terminal.id() == view)
-                    .unwrap();
-                terminal.update(app, |terminal, ctx| {
+    let release = |finish| {
+        TestStep::new(if finish {
+            "Finish the owned task through the resumed pane"
+        } else {
+            "Detach the guarded process pane"
+        })
+        .set_timeout(Duration::from_secs(30))
+        .with_action(move |app, window, _| {
+            let view = app
+                .read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window))
+                .unwrap();
+            let terminal = app
+                .views_of_type::<TerminalView>(window)
+                .unwrap()
+                .into_iter()
+                .find(|terminal| terminal.id() == view)
+                .unwrap();
+            terminal.update(app, |terminal, ctx| {
+                if finish {
+                    terminal.write_to_pty(&b"warpai-fixture-finish\r"[..], ctx);
+                } else {
                     terminal.handle_action(
                         &crate::terminal::view::TerminalAction::DetachGuardedTask,
                         ctx,
                     );
-                });
-            })
-            .add_named_assertion("detach returns the split to its shell", |app, window| {
+                }
+            });
+        })
+        .add_named_assertion(
+            "guarded process view returns to its shell",
+            move |app, window| {
                 let view = app.read(|ctx| ActiveSession::as_ref(ctx).terminal_view_id(window));
                 let detached = app
                     .views_of_type::<TerminalView>(window)
@@ -655,19 +665,29 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                     .find(|terminal| Some(terminal.id()) == view)
                     .is_some_and(|terminal| {
                         terminal.read(app, |terminal, ctx| {
+                            let model = terminal.model.lock();
                             !terminal.has_pending_command_or_awaiting_completion(ctx)
-                                && !terminal.model.lock().has_guarded_task_attachment()
+                                && !model.has_guarded_task_attachment()
+                                && (!finish
+                                    || model.block_list().blocks().iter().any(|block| {
+                                        block.is_done()
+                                            && block.exit_code().value() == 0
+                                            && block
+                                                .output_to_string()
+                                                .contains("WARPAI_GUI_FINISHED")
+                                    }))
                         })
                     });
                 warpui::async_assert!(detached)
-            })
+            },
+        )
     };
     let restore = {
         let original = original.clone();
         TestStep::new(&format!("Return to the {scope} source pane")).with_action(
             move |app, window, _| {
                 let original = original.lock().unwrap();
-                let (pane, _, _, _, _, _) = original.as_ref().unwrap();
+                let (pane, _, _, _) = original.as_ref().unwrap();
                 let root = app.root_view::<RootView>(window).unwrap();
                 let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
                 let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
@@ -683,25 +703,21 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         seed,
         open(),
         resume(),
-        detach(),
+        release(false),
         restore,
         open(),
         resume(),
-        detach(),
+        release(true),
     ];
 
-    let stop_result = Arc::new(std::sync::Mutex::new(None));
     let cleanup = TestStep::new(&format!(
         "Close the {scope} split and restore the source pane"
     ))
     .set_timeout(Duration::from_secs(30))
     .with_action({
         let original = original.clone();
-        let stop_result = stop_result.clone();
         move |app, window, _| {
-            let (pane, _, _, profile, connection, left_panel_open) =
-                original.lock().unwrap().as_ref().unwrap().clone();
-            let (id, _) = expected.lock().unwrap().take().unwrap();
+            let (pane, _, _, left_panel_open) = *original.lock().unwrap().as_ref().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
             workspace.update(app, |workspace, ctx| {
@@ -715,22 +731,13 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 assert_ne!(focused, pane);
                 group.close_pane_and_focus(focused, pane, ctx);
             });
-            let stop_result = stop_result.clone();
-            app.background_executor()
-                .spawn(async move {
-                    let result = connection
-                        .guardian_cli(&profile, &["stop", "--id", &id])
-                        .await;
-                    *stop_result.lock().unwrap() = Some(result.map(|(code, _)| code));
-                })
-                .detach();
         }
     })
     .add_named_assertion(
         "source terminal focus and visible panes are restored",
         move |app, window| {
             let source = original.lock().unwrap();
-            let (pane, count, terminal, _, _, _) = source.as_ref().unwrap();
+            let (pane, count, terminal, _) = source.as_ref().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
             let workspace = root.read(app, |view, _| view.workspace_view().unwrap().clone());
             let group = workspace.read(app, |view, _| view.active_tab_pane_group().clone());
@@ -742,14 +749,7 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                         .is_some_and(|view| view.id() == *terminal)
             }))
         },
-    )
-    .add_named_assertion("Companion accepted guarded task cleanup", move |_, _| {
-        let result = stop_result.lock().unwrap();
-        if let Some(result) = result.as_ref() {
-            assert_eq!(*result, Ok(0), "Owned guardian stop failed");
-        }
-        warpui::async_assert!(result.is_some())
-    });
+    );
 
     steps.push(cleanup);
     steps

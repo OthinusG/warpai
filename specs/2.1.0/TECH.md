@@ -20,6 +20,7 @@ the confirmed SSH or WSL transport and records its PID. It exercises the
 process entry, Back and Resume from the panel and checks that only a new
 split attaches to that PID even when Resume is requested twice. The fixture
 detaches from the split, returns focus to the source pane and repeats Resume
-against the same PID before stopping the owned task.
+against the same PID. It then sends input through the resumed split to finish
+the owned task and checks that the split returns to its shell.
 The native CLI fixture also checks that a second writer is refused and a
 subsequent resume after detach accepts input in the same process.

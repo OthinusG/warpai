@@ -7104,9 +7104,8 @@ pub(crate) fn capture_checkpoint(directory: std::path::PathBuf) -> anyhow::Resul
                 for name in [
                     "confirmed guardian exposes the named process",
                     "the same PID is attached only in a new split",
-                    "detach returns the split to its shell",
+                    "guarded process view returns to its shell",
                     "source terminal focus and visible panes are restored",
-                    "Companion accepted guarded task cleanup",
                 ] {
                     if assertion == name {
                         let _ = std::fs::write(directory.join("checkpoint-assertion.txt"), name);
