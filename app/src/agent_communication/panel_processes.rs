@@ -690,16 +690,16 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         detach(),
     ];
 
-    let stopped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_result = Arc::new(std::sync::Mutex::new(None));
     let cleanup = TestStep::new(&format!(
         "Close the {scope} split and restore the source pane"
     ))
     .set_timeout(Duration::from_secs(30))
     .with_action({
         let original = original.clone();
-        let stopped = stopped.clone();
+        let stop_result = stop_result.clone();
         move |app, window, _| {
-            let (pane, _, terminal, profile, connection, left_panel_open) =
+            let (pane, _, _, profile, connection, left_panel_open) =
                 original.lock().unwrap().as_ref().unwrap().clone();
             let (id, _) = expected.lock().unwrap().take().unwrap();
             let root = app.root_view::<RootView>(window).unwrap();
@@ -715,27 +715,15 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
                 assert_ne!(focused, pane);
                 group.close_pane_and_focus(focused, pane, ctx);
             });
-            let view = app
-                .views_of_type::<TerminalView>(window)
-                .unwrap()
-                .into_iter()
-                .find(|view| view.id() == terminal)
-                .unwrap();
-            view.update(app, |_, ctx| {
-                ctx.spawn(
-                    async move {
-                        let (code, _) = connection
-                            .guardian_cli(&profile, &["stop", "--id", &id])
-                            .await
-                            .unwrap();
-                        assert_eq!(code, 0, "Owned guardian stop failed");
-                    },
-                    {
-                        let stopped = stopped.clone();
-                        move |_, _, _| stopped.store(true, std::sync::atomic::Ordering::Release)
-                    },
-                );
-            });
+            let stop_result = stop_result.clone();
+            app.background_executor()
+                .spawn(async move {
+                    let result = connection
+                        .guardian_cli(&profile, &["stop", "--id", &id])
+                        .await;
+                    *stop_result.lock().unwrap() = Some(result.map(|(code, _)| code));
+                })
+                .detach();
         }
     })
     .add_named_assertion(
@@ -756,7 +744,11 @@ pub(super) fn guarded_resume_steps(wsl: bool) -> Vec<warpui::integration::TestSt
         },
     )
     .add_named_assertion("Companion accepted guarded task cleanup", move |_, _| {
-        warpui::async_assert!(stopped.load(std::sync::atomic::Ordering::Acquire))
+        let result = stop_result.lock().unwrap();
+        if let Some(result) = result.as_ref() {
+            assert_eq!(*result, Ok(0), "Owned guardian stop failed");
+        }
+        warpui::async_assert!(result.is_some())
     });
 
     steps.push(cleanup);
