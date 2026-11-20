@@ -291,3 +291,12 @@ for both sides, giving a symmetric soft halo without theme/side-specific styling
 Retain blur 12px, drawable spread 36px, left inset 6px, right inset 12px and all
 geometry. Verify both columns together in source-matched native captures before
 resuming release. Do not modify shared controls, Container clipping or renderers.
+
+## Terminal history corner compositing
+
+Paint rounded backgrounds directly on visible outer history blocks in the
+vertical layout. The workspace backdrop and column shadows must show through
+unpainted corners in light, dark, and image-backed themes. Preserve physical
+edge detection with input above or below history. Scrolling must not round a
+clipped boundary, and horizontal tabs must retain their existing geometry.
+Verify the boundary cases and inspect native vertical-layout captures.

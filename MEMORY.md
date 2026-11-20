@@ -294,6 +294,8 @@ Updated 2026-11-19. Archives: docs/history/MEMORY-2026-10-{13,19-SSH-MCP,30}.md.
   Agent executable detection ignores ASCII case; argv stays verbatim. Shell override lookup
   follows shell semantics: PowerShell ignores ASCII case; POSIX shells retain it.
   Warpui shadow spread is drawable blur padding; zero clips the outer shadow.
+  Round visible history block fills directly. Opaque corner masks overwrite the
+  workspace backdrop and leave visible patches over column shadows and images.
 - Explicit delegated tasks use warp_task_assign; warp_agent_send, including
   expects_result, creates messages only. Both persist in History; do not infer
   task authority from prose. Contract: specs/agent-communication-v2/API.md.
